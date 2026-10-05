@@ -25,7 +25,7 @@ import {
 
 export const GitHubHub: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'release' | 'commits' | 'badges' | 'cli'>('release');
+  const [activeTab, setActiveTab] = useState<'release' | 'commits' | 'prerelease' | 'cli' | 'badges'>('release');
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -140,24 +140,24 @@ gh repo view anksarvesh-lgtm/Liquiddynamo`;
         </div>
       </div>
 
-      {/* Release Notice Banner: "There were no pull requests associated with the commits included in this release." */}
-      <div className="p-4 rounded-xl bg-neutral-950 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Release Notice Banner: Pre-release & No PRs */}
+      <div className="p-4 rounded-xl bg-neutral-950 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <GitCommit className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertCircle className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
-                Latest Release: v2.8-rc.1 / v1.4.0
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Tag: v2.8-rc.1 (Pre-release)
               </span>
-              <span className="text-xs text-neutral-400 font-mono">Published Sep–Oct 2026</span>
+              <span className="text-[11px] text-neutral-400 font-mono">Channel: Beta / Release Candidate</span>
             </div>
-            <p className="text-xs text-neutral-300 font-medium mt-1">
+            <p className="text-xs text-neutral-200 font-medium mt-1">
               "There were no pull requests associated with the commits included in this release."
             </p>
             <p className="text-[11px] text-neutral-400 mt-0.5">
-              This production tag was compiled and verified directly against the hardened <code>main</code> branch commits using automated GitHub Actions release dispatch.
+              GitHub currently flags this as a <strong>Pre-release only</strong> due to the <code>-rc.1</code> semantic identifier and upstream PR-gate configuration.
             </p>
           </div>
         </div>
@@ -165,18 +165,19 @@ gh repo view anksarvesh-lgtm/Liquiddynamo`;
         <button
           onClick={() => {
             soundFx.playTick();
-            setActiveTab('commits');
+            setActiveTab('prerelease');
           }}
-          className="text-xs font-mono text-indigo-400 hover:text-indigo-300 whitespace-nowrap self-end sm:self-center"
+          className="text-xs font-mono text-amber-400 hover:text-amber-300 whitespace-nowrap self-end sm:self-center underline underline-offset-4"
         >
-          View 7 Direct Commits →
+          Why Pre-release Only? →
         </button>
       </div>
 
       {/* Navigation Subtabs */}
-      <div className="flex items-center gap-2 border-b border-neutral-800 pb-3">
+      <div className="flex items-center gap-2 border-b border-neutral-800 pb-3 overflow-x-auto">
         {[
           { id: 'release', label: "What's New in Release", icon: Sparkles },
+          { id: 'prerelease', label: 'Why Pre-release Only?', icon: AlertCircle },
           { id: 'commits', label: 'Included Commits (No PRs)', icon: GitCommit },
           { id: 'cli', label: 'GitHub CLI & Clone', icon: Terminal },
           { id: 'badges', label: 'README Badges', icon: FileCode },
@@ -281,6 +282,101 @@ gh repo view anksarvesh-lgtm/Liquiddynamo`;
                 <li>Discharge time estimates alongside time-to-full charge.</li>
                 <li>Battery maximum-capacity health diagnostic readout.</li>
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: WHY PRE-RELEASE ONLY & HOW TO PROMOTE */}
+      {activeTab === 'prerelease' && (
+        <div className="space-y-6">
+          <div className="p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-4">
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-semibold">
+              <AlertCircle className="w-4 h-4" />
+              <span>Why GitHub Restricts to "Pre-release" and Reports "No Pull Requests"</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-neutral-300">
+              <div className="p-4 rounded-xl bg-neutral-900/70 border border-neutral-800 space-y-2">
+                <h5 className="font-semibold text-white">1. Semantic Version Tag Suffix (-rc.1)</h5>
+                <p className="text-neutral-400 leading-relaxed">
+                  According to Semantic Versioning (SemVer 2.0.0), any tag containing a hyphen and pre-release identifier like <code>-rc.1</code>, <code>-beta</code>, or <code>-alpha</code> is classified by GitHub as a <strong>Pre-release</strong>. GitHub automatically checks the "Set as a pre-release" box.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-neutral-900/70 border border-neutral-800 space-y-2">
+                <h5 className="font-semibold text-white">2. Upstream Release Workflow PR Gate</h5>
+                <p className="text-neutral-400 leading-relaxed">
+                  In <code>.github/workflows/release.yml</code>, stable releases require an open Pull Request from <code>dev</code> into <code>main</code> (<em>"Expected exactly one open dev-to-main release PR"</em>). Because this release was built directly from commits on <code>main</code> without a PR, GitHub treated it as an unmerged Pre-release.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* How to allow full release */}
+          <div className="p-5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-4">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-400" />
+              <span>How to Promote to a Full Stable Release on GitHub</span>
+            </h4>
+
+            <div className="space-y-4 text-xs">
+              {/* Option 1: GitHub Web UI */}
+              <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white">Option 1: Using GitHub Web UI</span>
+                  <a
+                    href="https://github.com/anksarvesh-lgtm/Liquiddynamo/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-400 hover:text-indigo-300 font-mono text-[11px] flex items-center gap-1"
+                  >
+                    <span>Open Releases Page</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <ol className="list-decimal pl-5 space-y-1 text-neutral-300 leading-relaxed">
+                  <li>Navigate to <strong>GitHub &gt; Releases</strong>.</li>
+                  <li>Click the <strong>Edit</strong> (pencil) button on release <code>v2.8-rc.1</code>.</li>
+                  <li>Scroll to the checkboxes at the bottom: <strong>Uncheck "Set as a pre-release"</strong>.</li>
+                  <li>Check <strong>"Set as the latest release"</strong>.</li>
+                  <li>Click <strong>Update release</strong>. It will immediately show as the official green <strong>Latest</strong> release!</li>
+                </ol>
+              </div>
+
+              {/* Option 2: GitHub CLI */}
+              <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white">Option 2: One-line Command with GitHub CLI</span>
+                  <button
+                    onClick={() => copyToClipboard('gh release edit v2.8-rc.1 --prerelease=false --latest', 'gh-cli-promote')}
+                    className="text-indigo-400 hover:text-indigo-300 font-mono text-[11px] flex items-center gap-1"
+                  >
+                    {copiedKey === 'gh-cli-promote' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedKey === 'gh-cli-promote' ? 'Copied' : 'Copy Command'}</span>
+                  </button>
+                </div>
+                <pre className="p-2.5 rounded bg-black/60 font-mono text-[11px] text-amber-200 overflow-x-auto">
+                  <code>gh release edit v2.8-rc.1 --prerelease=false --latest</code>
+                </pre>
+              </div>
+
+              {/* Option 3: Clean Stable Tag */}
+              <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white">Option 3: Create Clean Stable Release Tag (e.g. v2.8.0 or v1.4.0)</span>
+                  <button
+                    onClick={() => copyToClipboard('gh release create v2.8.0 ./LiquidDynamo.dmg --title "LiquidDynamo v2.8.0" --latest', 'gh-cli-create')}
+                    className="text-indigo-400 hover:text-indigo-300 font-mono text-[11px] flex items-center gap-1"
+                  >
+                    {copiedKey === 'gh-cli-create' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedKey === 'gh-cli-create' ? 'Copied' : 'Copy Command'}</span>
+                  </button>
+                </div>
+                <pre className="p-2.5 rounded bg-black/60 font-mono text-[11px] text-emerald-200 overflow-x-auto">
+                  <code>gh release create v2.8.0 ./LiquidDynamo.dmg --title "LiquidDynamo v2.8.0" --latest</code>
+                </pre>
+              </div>
             </div>
           </div>
         </div>
