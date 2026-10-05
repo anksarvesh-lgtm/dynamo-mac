@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export const DocsPortal: React.FC = () => {
-  const [selectedDocId, setSelectedDocId] = useState<string>('island-motion');
+  const [selectedDocId, setSelectedDocId] = useState<string>('readme');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedDoc, setCopiedDoc] = useState<boolean>(false);
 

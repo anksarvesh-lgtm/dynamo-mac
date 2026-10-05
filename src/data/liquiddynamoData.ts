@@ -2,6 +2,52 @@ import { CodeModuleInfo, SpecDoc } from '../types/liquiddynamo';
 
 export const SPEC_DOCS: SpecDoc[] = [
   {
+    id: 'readme',
+    title: 'LiquidDynamo Official README',
+    subtitle: 'App Overview, Features, Gatekeeper & Quickstart',
+    date: 'October 2026',
+    tags: ['Overview', 'Quickstart', 'Installation', 'README'],
+    filePath: 'README.md',
+    summary: 'The comprehensive product overview, feature list, system requirements, macOS Gatekeeper bypass instructions, and build steps.',
+    content: `# LiquidDynamo — Dynamic Notch Enhancement for macOS
+
+Developed by **Agrigence** | Open-source under **GPL-3.0**
+
+### Overview
+LiquidDynamo transforms your MacBook’s physical camera notch into an interactive, dynamic command center. Designed with fluid animations and precision engineering, it seamlessly expands into a feature-rich hub for media playback, 3D device interaction, calendar schedules, system controls, and file management—or floats as an elegant dynamic island on non-notched displays.
+
+### ✨ Features
+- 🎵 **Interactive Media Hub**: Live Now Playing controls with integrated artwork and dynamic visualizer waveforms.
+- 🎧 **AirPods 3D Space Experience**: Zero-gravity 3D rendered AirPods models set against an interactive cosmic starfield with AAP orbit battery arcs.
+- 🖥️ **System HUD Replacements**: Seamless notch-integrated overlays for Volume, Display Brightness, and Keyboard Backlight.
+- 📂 **Liquid Shelf & AirDrop**: Quick-drop staging shelf right at the top of your display for dragging files, text, and images with 1-click AirDrop.
+- 📅 **Calendar & Schedule**: Hover or click to preview upcoming appointments with 1-click meeting join (Google Meet, Zoom, Teams).
+- 🔋 **Intelligent Power Monitoring**: Real-time battery status, charging wattage (67W/96W/140W), and low-battery alerts at 15% and 5%.
+- 🎛️ **Adaptive Display Mode**: Automatically matches the physical geometry of notched MacBook displays or floats as a pill on external monitors.
+- ⚡ **Ultra-Efficient Architecture**: Built with native SwiftUI, AppKit, Metal, and SceneKit with 0.0% idle CPU overhead.
+
+### 💻 System Requirements
+- **Operating System**: macOS 14.0 (Sonoma) or macOS 15.0+ (Sequoia)
+- **Architecture**: Apple Silicon (M1/M2/M3/M4) and Intel-based Macs
+- **Hardware**: Compatible with all Mac displays (notched MacBooks, external monitors, iMac, Mac mini, Mac Studio, Mac Pro)
+
+### 🚀 Installation & Gatekeeper Bypass
+1. Download the latest \`LiquidDynamo.dmg\` from GitHub Releases.
+2. Drag \`LiquidDynamo.app\` to \`/Applications\`.
+3. Bypass macOS Gatekeeper in Terminal:
+\`\`\`bash
+xattr -dr com.apple.quarantine "/Applications/LiquidDynamo.app"
+\`\`\`
+
+### 🛠️ Building from Source
+\`\`\`bash
+git clone https://github.com/anksarvesh-lgtm/Liquiddynamo.git
+cd Liquiddynamo
+open LiquidDynamo.xcodeproj
+bash build_dmg.sh
+\`\`\``
+  },
+  {
     id: 'island-motion',
     title: 'Dynamic Island Motion Specification',
     subtitle: 'Apple Dynamic Island Physics & 5-State Machine',
