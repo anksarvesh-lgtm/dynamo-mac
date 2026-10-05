@@ -1,0 +1,4 @@
+files:
+  - source: /LiquidDynamo/Localizable.xcstrings
+    translation: /LiquidDynamo/Localizable.xcstrings
+    multilingual: 1

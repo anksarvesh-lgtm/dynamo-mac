@@ -1,0 +1,6 @@
+{
+  "name": "Stratos Studio",
+  "description": "An all-in-one visual workspace for flow diagramming, sprint planning, engineering docs, metric tracking, and deep focus.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
