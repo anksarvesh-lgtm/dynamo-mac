@@ -53,3 +53,7 @@ build/
 *.xcarchive
 *.dSYM
 
+
+# Agent Guard
+.agent/
+

@@ -106,9 +106,11 @@ LiquidDynamo strictly adheres to modern native macOS development guidelines:
 
 ### Download Pre-Built DMG
 
-1. Download the latest `LiquidDynamo.dmg` from [GitHub Releases](https://github.com/anksarvesh-lgtm/dynamo-mac/releases).
-2. Open the disk image and drag **LiquidDynamo** to your `/Applications` folder.
-3. Launch the app from Applications or Spotlight.
+- **Direct Download**: [**Download Latest LiquidDynamo.dmg**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg) *(Always points to the newest release)*
+- **All Releases**: [GitHub Releases](https://github.com/anksarvesh-lgtm/dynamo-mac/releases)
+
+1. Open `LiquidDynamo.dmg` and drag **LiquidDynamo** to your `/Applications` folder.
+2. Launch the app from Applications or Spotlight.
 
 > [!TIP]
 > If macOS Gatekeeper displays a security prompt on first launch for unnotarized builds, run:

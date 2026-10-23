@@ -4,6 +4,14 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ---
 
+## [1.9.7] — 2026-10-23
+
+### In-Place Auto-Update & Permanent Release Distribution
+- **In-Place Application Replacement**: `GitHubUpdateChecker` now supports fully automated download of `LiquidDynamo.dmg`, background DMG mounting, application extraction, and detached in-place replacement of the application bundle with automatic relaunch.
+- **Guaranteed Permanent Release Link**: All updates and releases are permanently published and downloaded from `https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg`.
+- **Enhanced Software Updates UI**: `SoftwareUpdater` includes live download progress indicators, byte transfer meters, extraction state, and one-click `Auto-Update App` action.
+- **Packaging Control**: `build_dmg.sh` supports `INSTALL_APP=false` to package and save DMGs to Desktop without disturbing the active running application.
+
 ## [1.9.6] — 2026-10-23
 
 ### FileDroid & OpenMTP Android Storage Bridge (Option B)

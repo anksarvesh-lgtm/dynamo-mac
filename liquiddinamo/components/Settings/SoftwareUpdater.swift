@@ -1,8 +1,8 @@
 //
 //  SoftwareUpdater.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 09/08/2024.
+//  Automatic update view and settings with in-place application replacement.
 //
 
 import SwiftUI
@@ -28,7 +28,7 @@ struct CheckForUpdatesView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 Button {
                     gitHubChecker.checkForUpdates()
@@ -49,11 +49,22 @@ struct CheckForUpdatesView: View {
                 .disabled(gitHubChecker.status == .checking)
 
                 Button {
+                    gitHubChecker.downloadAndInstallUpdate()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle.fill")
+                        Text("Auto-Update App")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Button {
                     gitHubChecker.downloadLatestDMG()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.circle")
-                        Text("Get Latest DMG")
+                        Text("Get DMG File")
                     }
                 }
                 .buttonStyle(.plain)
@@ -64,10 +75,12 @@ struct CheckForUpdatesView: View {
             switch gitHubChecker.status {
             case .idle:
                 EmptyView()
+
             case .checking:
-                Text("Checking https://github.com/anksarvesh-lgtm/dynamo-mac/releases...")
+                Text("Checking GitHub Releases (app tag)…")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
             case .upToDate(let version):
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
@@ -76,6 +89,7 @@ struct CheckForUpdatesView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
             case .updateAvailable(let newVersion, let downloadURL, _):
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
@@ -84,16 +98,61 @@ struct CheckForUpdatesView: View {
                         .font(.caption.bold())
                         .foregroundStyle(.primary)
 
-                    Button("Download Update") {
-                        gitHubChecker.downloadLatestDMG(url: downloadURL)
+                    Button("Update & Restart") {
+                        gitHubChecker.downloadAndInstallUpdate(from: downloadURL)
                     }
                     .controlSize(.small)
                     .buttonStyle(.borderedProminent)
                 }
+
+            case .downloading(let progress, let downloaded, let total):
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        ProgressView(value: progress)
+                            .progressViewStyle(.linear)
+                            .frame(width: 180)
+                        Text("\(Int(progress * 100))%")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Button("Cancel") {
+                            gitHubChecker.cancelDownload()
+                        }
+                        .controlSize(.mini)
+                        .buttonStyle(.bordered)
+                    }
+                    Text("Downloading LiquidDynamo.dmg (\(downloaded) of \(total))…")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+            case .extracting:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Extracting LiquidDynamo.app from DMG…")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                }
+
+            case .replacingAndRelaunching:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Replacing application file and restarting…")
+                        .font(.caption.bold())
+                        .foregroundStyle(.green)
+                }
+
             case .error(let msg):
-                Text(msg)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Retry") {
+                        gitHubChecker.downloadAndInstallUpdate()
+                    }
+                    .controlSize(.small)
+                }
             }
         }
     }
@@ -118,7 +177,7 @@ struct UpdaterSettingsView: View {
                     updater.automaticallyChecksForUpdates = newValue
                 }
             
-            Toggle("Automatically download updates", isOn: $automaticallyDownloadsUpdates)
+            Toggle("Automatically download and replace app", isOn: $automaticallyDownloadsUpdates)
                 .disabled(!automaticallyChecksForUpdates)
                 .onChange(of: automaticallyDownloadsUpdates) { _, newValue in
                     updater.automaticallyDownloadsUpdates = newValue

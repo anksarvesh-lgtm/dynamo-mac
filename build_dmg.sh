@@ -10,9 +10,10 @@
 set -euo pipefail
 
 APP_NAME="LiquidDynamo"
-VERSION="1.9.6"
+VERSION="1.9.7"
 CONFIG="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$HOME/Desktop}"
+INSTALL_APP="${INSTALL_APP:-false}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 BUILD_DIR="$(pwd)/build"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
@@ -101,13 +102,17 @@ codesign --force --entitlements "liquiddinamo/LiquidDynamo.entitlements" --optio
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 codesign -dvv "$APP_PATH" 2>&1 | grep -E "Identifier|Authority|TeamIdentifier|Signature" || true
 
-# ---- Install fresh build to /Applications ----
-say "Installing fresh build to /Applications/$APP_NAME.app"
-pkill -9 -f "/Applications/$APP_NAME.app" 2>/dev/null || true
-sleep 1
-rm -rf "/Applications/$APP_NAME.app"
-cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
-xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
+# ---- Install fresh build to /Applications (optional) ----
+if [ "${INSTALL_APP:-false}" = "true" ]; then
+  say "Installing fresh build to /Applications/$APP_NAME.app"
+  pkill -9 -f "/Applications/$APP_NAME.app" 2>/dev/null || true
+  sleep 1
+  rm -rf "/Applications/$APP_NAME.app"
+  cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
+  xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
+else
+  say "Skipping /Applications install as requested (INSTALL_APP=false). App bundle saved in $BUILD_DIR and packaged into $DMG_PATH."
+fi
 
 # ---- package DMG with App Icon and Professional Layout ----
 say "Creating Professional DMG: $DMG_PATH"
@@ -194,16 +199,20 @@ fi
 say "Writing Release Notes and Build Report"
 
 cat <<'EOF' > "$OUTPUT_DIR/ReleaseNotes.txt"
-LiquidDynamo 1.9.6 — Production Release
+LiquidDynamo 1.9.7 — Production Release
 ========================================
 Release Date: October 2026
-Version: 1.9.6 (Build 16)
+Version: 1.9.7 (Build 17)
 Build Type: Production Release
 
 LiquidDynamo transforms the MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-Core Highlights in Version 1.9.6:
-1. FileDroid & OpenMTP — Android Storage Bridge (Option B)
+Core Highlights in Version 1.9.7:
+1. In-Place Auto-Update & Permanent Release Link
+   - Auto-downloads LiquidDynamo.dmg and seamlessly replaces the application file in-place and restarts.
+   - Guaranteed permanent download link: https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg
+   - Live download progress indicator, extraction status, and one-click 'Auto-Update App' in Settings.
+2. FileDroid & OpenMTP — Android Storage Bridge
    - Dual backend architecture (ADB and native MTP protocols) without requiring third-party drivers.
    - Finder External SSD Emulation: Android devices mount automatically in macOS Finder with storage folder hierarchy.
    - Live Device Specs & Telemetry: Model name, Android OS version, battery percentage, battery temperature, and storage metrics.
@@ -275,9 +284,11 @@ dmg_path = os.path.expanduser('$OUTPUT_DIR/LiquidDynamo.dmg')
 if not os.path.exists(dmg_path):
     sys.exit(0)
 
-# 1. Update tag 'app' locally and on remote
+# 1. Update tag 'app' and version tag locally and on remote
 subprocess.run(['git', 'tag', '-f', '-a', 'app', '-m', 'LiquidDynamo Latest Release'], check=False)
+subprocess.run(['git', 'tag', '-f', '-a', 'v$VERSION', '-m', 'LiquidDynamo v$VERSION Release'], check=False)
 subprocess.run(['git', 'push', 'origin', 'app', '--force'], check=False)
+subprocess.run(['git', 'push', 'origin', 'v$VERSION', '--force'], check=False)
 
 # 2. Get or create release for tag 'app'
 headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'User-Agent': 'LiquidDynamo-Release-Agent'}
