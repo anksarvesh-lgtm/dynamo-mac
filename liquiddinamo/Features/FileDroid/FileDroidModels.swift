@@ -330,3 +330,12 @@ public enum FileDroidFormatting {
         return String(format: "%.1f MB/s", bytesPerSec / (1024.0 * 1024.0))
     }
 }
+
+public enum FileConflictResolution: String, CaseIterable, Identifiable {
+    case replace = "Replace"
+    case keepBoth = "Keep Both"
+    case skip = "Skip"
+    
+    public var id: String { rawValue }
+}
+

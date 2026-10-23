@@ -64,8 +64,7 @@ struct SettingsView: View {
                     case "FileDroid":
                         SettingsFileDroidView()
                     case "Plexo":
-                        PlexoView()
-                            .padding(20)
+                        SettingsPlexoView()
                     case "Devices":
                         SettingsDevicesView()
                     case "Clipboard":

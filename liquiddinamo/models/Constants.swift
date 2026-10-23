@@ -382,6 +382,27 @@ extension Defaults.Keys {
     // MARK: Storage Cleaner
     static let enableStorageCleanerModule = Key<Bool>("enableStorageCleanerModule", default: true)
     static let storageCleanerStartupScan = Key<Bool>("storageCleanerStartupScan", default: true)
+
+    // MARK: FileDroid & OpenMTP
+    static let filedroidAdbPath = Key<String>("filedroidAdbPath", default: "")
+    static let filedroidAutoDetectAdb = Key<Bool>("filedroidAutoDetectAdb", default: true)
+    static let filedroidAutoMountOnConnect = Key<Bool>("filedroidAutoMountOnConnect", default: true)
+    static let filedroidAutoRevealInFinder = Key<Bool>("filedroidAutoRevealInFinder", default: false)
+    static let filedroidDefaultMacFolder = Key<String>("filedroidDefaultMacFolder", default: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads"))
+    static let filedroidTransferConcurrency = Key<Int>("filedroidTransferConcurrency", default: 2)
+    static let filedroidShowHiddenFiles = Key<Bool>("filedroidShowHiddenFiles", default: false)
+    static let filedroidNotifications = Key<Bool>("filedroidNotifications", default: true)
+    static let filedroidBackendType = Key<String>("filedroidBackendType", default: "adb")
+
+    // MARK: Plexo Turbo Downloader
+    static let plexoDefaultFolder = Key<String>("plexoDefaultFolder", default: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads"))
+    static let plexoChunkSizeMB = Key<Int>("plexoChunkSizeMB", default: 8)
+    static let plexoMaxConnectionsPerFile = Key<Int>("plexoMaxConnectionsPerFile", default: 8)
+    static let plexoMaxParallelDownloads = Key<Int>("plexoMaxParallelDownloads", default: 3)
+    static let plexoBandwidthLimitMbps = Key<Double>("plexoBandwidthLimitMbps", default: 0.0)
+    static let plexoClipboardAutoDetect = Key<Bool>("plexoClipboardAutoDetect", default: true)
+    static let plexoCompletionAlert = Key<Bool>("plexoCompletionAlert", default: true)
+    static let plexoTorrentAutoStart = Key<Bool>("plexoTorrentAutoStart", default: true)
 }
 
 public enum LiquidTheme: String, CaseIterable, Defaults.Serializable {

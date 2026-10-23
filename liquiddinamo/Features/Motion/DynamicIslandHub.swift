@@ -642,4 +642,26 @@ public final class DynamicIslandHub: ObservableObject {
         )
         IslandController.shared.showAlert(payload: payload)
     }
+
+    public func triggerCustomAlert(
+        title: String,
+        subtitle: String,
+        iconName: String = "info.circle.fill",
+        tint: Color = .accentColor,
+        duration: Double = 3.5,
+        action: (() -> Void)? = nil
+    ) {
+        let payload = AlertPayload(
+            id: UUID().uuidString,
+            kind: .systemNotification(appName: title, sender: title, message: subtitle),
+            title: title,
+            subtitle: subtitle,
+            iconName: iconName,
+            iconColor: tint,
+            dwellDuration: duration,
+            action: action
+        )
+        IslandController.shared.showAlert(payload: payload)
+    }
 }
+

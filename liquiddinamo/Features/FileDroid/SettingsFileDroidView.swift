@@ -7,10 +7,21 @@
 //
 
 import AppKit
+import Defaults
 import SwiftUI
 
 public struct SettingsFileDroidView: View {
     @ObservedObject private var engine = FileDroidEngine.shared
+    @Default(.filedroidAdbPath) var adbPathSetting
+    @Default(.filedroidAutoDetectAdb) var autoDetectAdb
+    @Default(.filedroidAutoMountOnConnect) var autoMountOnConnect
+    @Default(.filedroidAutoRevealInFinder) var autoRevealInFinder
+    @Default(.filedroidDefaultMacFolder) var defaultMacFolder
+    @Default(.filedroidTransferConcurrency) var transferConcurrency
+    @Default(.filedroidShowHiddenFiles) var showHiddenFiles
+    @Default(.filedroidNotifications) var filedroidNotifications
+    @Default(.filedroidBackendType) var backendType
+
     @State private var customAdbInput: String = ""
     @State private var adbStatusMessage: String? = nil
 
@@ -18,79 +29,145 @@ public struct SettingsFileDroidView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 // Header
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
                             .fill(LinearGradient(colors: [Color.green, Color.teal], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 38, height: 38)
+                            .frame(width: 36, height: 36)
                         Image(systemName: "phone.fill")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(.white)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("FileDroid & OpenMTP Settings")
+                        Text("FileDroid & OpenMTP")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("Configure Android USB storage mounting in macOS Finder, ADB paths, and transfer parameters")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                        Text("Android file management, Finder external SSD emulation, and ADB/MTP protocols")
+                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(.bottom, 6)
+                .padding(.bottom, 4)
 
-                // 1. Finder Storage Mount Options
-                GroupBox(label: Label("Finder External SSD Emulation", systemImage: "externaldrive.fill")) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Automatically mount connected Android devices in Finder", isOn: $engine.autoMountInFinder)
-                            .tint(.accentColor)
-
-                        Toggle("Automatically open / reveal mounted volume in Finder upon connection", isOn: $engine.autoRevealInFinder)
-                            .tint(.accentColor)
-
-                        Text("When enabled, connecting any Android phone via USB creates an external SSD volume on your Desktop and in Finder with custom drive icons, storage stats, and real-time drag-and-drop syncing.")
-                            .font(.system(size: 11, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        if let dev = engine.selectedDevice, dev.status == .connected {
-                            HStack {
-                                Text("Active Volume: \(dev.mountPath ?? "Not mounted")")
-                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Button("Reveal in Finder") {
-                                    engine.openMountInFinder()
+                // 1. Live Status Card
+                GroupBox(label: Label("Live Device Status", systemImage: "bolt.fill")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let dev = engine.selectedDevice {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(dev.displayName)
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    Text("\(dev.manufacturer) • \(dev.androidVersion) • \(dev.connectionType.rawValue)")
+                                        .font(.system(size: 11, design: .rounded))
+                                        .foregroundStyle(.secondary)
                                 }
-                                .buttonStyle(.borderedProminent)
+
+                                Spacer()
+
+                                if let batt = dev.batteryLevel {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: dev.isCharging ? "bolt.fill" : "battery.75")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(batt <= 20 ? Color.red : Color.green)
+                                        Text("\(batt)%")
+                                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.06))
+                                    .clipShape(Capsule())
+                                }
+
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(dev.status.statusColor)
+                                        .frame(width: 6, height: 6)
+                                    Text(dev.status.rawValue)
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.06))
+                                .clipShape(Capsule())
+                            }
+
+                            if dev.status == .connected {
+                                HStack(spacing: 16) {
+                                    Text("Free Storage: \(FileDroidFormatting.formatBytes(dev.internalStorageFree)) of \(FileDroidFormatting.formatBytes(dev.internalStorageTotal))")
+                                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+
+                                    Spacer()
+
+                                    Button("Reveal in Finder") {
+                                        engine.openMountInFinder()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                }
+                            }
+                        } else {
+                            HStack {
+                                Image(systemName: "cable.connector.slash")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                                Text("No Android device connected. Plug in a phone via USB.")
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Scan USB") {
+                                    engine.scanDevices()
+                                }
+                                .buttonStyle(.bordered)
                                 .controlSize(.small)
                             }
-                            .padding(8)
-                            .background(Color.white.opacity(0.04))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                     }
                     .padding(8)
                 }
 
-                // 2. Android Debug Bridge (ADB) Configuration
+                // 2. Transfer Backend Selection (Option B)
+                GroupBox(label: Label("Transfer Backend", systemImage: "gearshape.2.fill")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Picker("Active Protocol:", selection: $backendType) {
+                            Text("ADB High-Speed (Recommended)").tag("adb")
+                            Text("OpenMTP (libmtp)").tag("mtp")
+                        }
+                        .pickerStyle(.segmented)
+
+                        if backendType == "adb" {
+                            Text("ADB uses Android Debug Bridge for up to 45 MB/s transfer speeds. Requires USB Debugging enabled on your phone.")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(engine.mtpBackend.isAvailable ? "Native libmtp detected and ready for standard MTP file transfers without USB debugging." : "libmtp tools are optional for MTP mode. If not installed, enable USB Debugging on your phone or run 'brew install libmtp'.")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(8)
+                }
+
+                // 3. ADB Platform Tools Configuration
                 GroupBox(label: Label("ADB Platform Tools", systemImage: "terminal.fill")) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Circle()
                                 .fill(engine.isAdbAvailable ? Color.green : Color.orange)
                                 .frame(width: 8, height: 8)
-                            Text(engine.isAdbAvailable ? "ADB Detected & Active" : "ADB Not Found")
+                            Text(engine.isAdbAvailable ? "ADB Detected" : "ADB Not Found")
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                             Spacer()
-                            Text(engine.adbPath ?? "No path configured")
+                            Text(engine.adbPath ?? "None")
                                 .font(.system(size: 10.5, weight: .medium, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
 
                         HStack(spacing: 8) {
-                            TextField("Custom ADB Path (e.g. /opt/homebrew/bin/adb)", text: $customAdbInput)
+                            TextField("Custom ADB Path", text: $customAdbInput)
                                 .textFieldStyle(.roundedBorder)
 
                             Button("Browse…") {
@@ -101,21 +178,18 @@ public struct SettingsFileDroidView: View {
                                 if panel.runModal() == .OK, let path = panel.url?.path {
                                     customAdbInput = path
                                     if engine.setCustomAdbPath(path) {
-                                        adbStatusMessage = "ADB path verified successfully!"
+                                        adbStatusMessage = "ADB verified!"
                                     } else {
-                                        adbStatusMessage = "File exists but is not a valid adb executable."
+                                        adbStatusMessage = "Invalid executable."
                                     }
                                 }
                             }
 
-                            Button("Apply") {
-                                if engine.setCustomAdbPath(customAdbInput) {
-                                    adbStatusMessage = "ADB path saved!"
-                                } else {
-                                    adbStatusMessage = "Invalid executable path."
-                                }
+                            Button("Auto-Detect") {
+                                engine.resolveAdbPath()
+                                customAdbInput = engine.adbPath ?? ""
+                                adbStatusMessage = engine.isAdbAvailable ? "ADB found!" : "ADB not found."
                             }
-                            .disabled(customAdbInput.isEmpty)
                         }
 
                         if let msg = adbStatusMessage {
@@ -127,32 +201,69 @@ public struct SettingsFileDroidView: View {
                     .padding(8)
                 }
 
-                // 3. Connection Guidance
-                GroupBox(label: Label("How to Connect Your Phone", systemImage: "info.circle")) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("1.")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("Connect your Android phone to this Mac using a USB-C or USB-A data cable.")
-                                .font(.system(size: 11))
-                        }
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("2.")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("On your phone, pull down the notification shade and select 'File Transfer / Android Auto' (MTP mode).")
-                                .font(.system(size: 11))
-                        }
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("3.")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("For maximum speed, enable Developer Options > USB Debugging. When prompted on your phone, tap 'Always allow from this computer'.")
-                                .font(.system(size: 11))
+                // 4. Finder SSD Emulation & Folders
+                GroupBox(label: Label("Finder Mount & Folders", systemImage: "externaldrive.fill")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Automatically mount connected Android devices in Finder", isOn: $autoMountOnConnect)
+                            .tint(.accentColor)
+                            .onChange(of: autoMountOnConnect) { engine.autoMountInFinder = $0 }
+
+                        Toggle("Automatically open / reveal mounted volume in Finder upon connection", isOn: $autoRevealInFinder)
+                            .tint(.accentColor)
+                            .onChange(of: autoRevealInFinder) { engine.autoRevealInFinder = $0 }
+
+                        Divider().padding(.vertical, 2)
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Default Mac Download Destination:")
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                Text(defaultMacFolder)
+                                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            Button("Choose Folder…") {
+                                let panel = NSOpenPanel()
+                                panel.canChooseFiles = false
+                                panel.canChooseDirectories = true
+                                panel.canCreateDirectories = true
+                                panel.title = "Select Mac Download Destination"
+                                if panel.runModal() == .OK, let url = panel.url {
+                                    defaultMacFolder = url.path
+                                }
+                            }
+                            .controlSize(.small)
                         }
                     }
                     .padding(8)
                 }
+
+                // 5. Transfer Options & Viewing
+                GroupBox(label: Label("Transfers & Viewing", systemImage: "slider.horizontal.3")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Stepper("Concurrent Transfers: \(transferConcurrency)", value: $transferConcurrency, in: 1...5)
+                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
+
+                        Toggle("Show hidden files and folders (.dotfiles)", isOn: $showHiddenFiles)
+                            .tint(.accentColor)
+                            .onChange(of: showHiddenFiles) { _ in
+                                engine.fetchDirectoryContents(path: engine.currentRemotePath)
+                            }
+
+                        Toggle("Show notifications on transfer complete", isOn: $filedroidNotifications)
+                            .tint(.accentColor)
+                    }
+                    .padding(8)
+                }
             }
-            .padding(20)
+            .padding(16)
+        }
+        .onAppear {
+            customAdbInput = engine.adbPath ?? ""
         }
     }
 }

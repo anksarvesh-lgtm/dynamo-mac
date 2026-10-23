@@ -9,18 +9,20 @@
 //  - Balances chunks dynamically (work stealing: faster adapters pull more chunks)
 //  - Races lagging chunks on idle connections to eliminate slow finish
 //  - Sparse file writing with resumable metadata state across restarts
+//  - Single stream fallback for non-range servers with "Booster not possible" note
 //  - Real-time per-adapter speed tracking and rate limiting
 //
 
 import AppKit
 import Combine
+import Defaults
 import Foundation
 import Network
 
 public actor PlexoDownloadWorkerPool {
     private var pendingChunkIndices: [Int] = []
     private var completedChunkIndices: Set<Int> = []
-    private var inFlightChunkIndices: [Int: String] = [:] // chunkIndex -> interfaceId
+    private var inFlightChunkIndices: [Int: String] = [:]
 
     public init(chunks: [PlexoChunk]) {
         self.pendingChunkIndices = chunks.filter { !$0.isCompleted }.map { $0.id }
@@ -86,7 +88,7 @@ public final class PlexoDownloadEngine: ObservableObject {
 
     @discardableResult
     public func addDownload(urlString: String, destinationDirectory: String? = nil, autoStart: Bool = true) -> UUID {
-        let dest = destinationDirectory ?? Self.defaultDownloadDirectory
+        let dest = destinationDirectory ?? Defaults[.plexoDefaultFolder]
         let rawFileName = Self.extractFileName(from: urlString)
         let isTorrent = urlString.hasPrefix("magnet:") || urlString.hasSuffix(".torrent")
 
@@ -105,7 +107,7 @@ public final class PlexoDownloadEngine: ObservableObject {
         savePersistedTasks()
 
         if autoStart {
-            startDownload(id: task.id)
+            checkAndStartNextQueued()
         }
         return task.id
     }
@@ -134,6 +136,8 @@ public final class PlexoDownloadEngine: ObservableObject {
             saveMetadata(for: activeTasks[idx])
             savePersistedTasks()
         }
+        updateLiveActivity()
+        checkAndStartNextQueued()
     }
 
     public func resumeDownload(id: UUID) {
@@ -154,11 +158,40 @@ public final class PlexoDownloadEngine: ObservableObject {
             }
             savePersistedTasks()
         }
+        updateLiveActivity()
+        checkAndStartNextQueued()
     }
 
     public func removeCompleted(id: UUID) {
         completedTasks.removeAll { $0.id == id }
         savePersistedTasks()
+    }
+
+    public func clearCompletedTasks() {
+        completedTasks.removeAll()
+        savePersistedTasks()
+    }
+
+    public func openFile(taskID: UUID) {
+        guard let task = completedTasks.first(where: { $0.id == taskID }) ?? activeTasks.first(where: { $0.id == taskID }) else { return }
+        let url = URL(fileURLWithPath: task.destinationFilePath)
+        NSWorkspace.shared.open(url)
+    }
+
+    public func revealInFinder(taskID: UUID) {
+        guard let task = completedTasks.first(where: { $0.id == taskID }) ?? activeTasks.first(where: { $0.id == taskID }) else { return }
+        let url = URL(fileURLWithPath: task.destinationFilePath)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    private func checkAndStartNextQueued() {
+        let maxConcurrent = Defaults[.plexoMaxParallelDownloads]
+        let currentRunning = activeTasks.filter { $0.state == .downloading || $0.state == .probing }.count
+        guard currentRunning < maxConcurrent else { return }
+
+        if let next = activeTasks.first(where: { $0.state == .queued }) {
+            startDownload(id: next.id)
+        }
     }
 
     // MARK: - Core Multi-Network Pipeline
@@ -178,6 +211,9 @@ public final class PlexoDownloadEngine: ObservableObject {
         task.totalBytes = probeResult.contentLength ?? task.totalBytes
         task.supportsRange = probeResult.supportsRange
 
+        let chunkSizeMB = max(2, Defaults[.plexoChunkSizeMB])
+        let chunkSizeBytes = Int64(chunkSizeMB) * 1024 * 1024
+
         // Try restoring existing chunks from metadata file
         let metaPath = task.destinationFilePath + metaExtension
         if let existing = loadMetadata(path: metaPath) {
@@ -185,11 +221,13 @@ public final class PlexoDownloadEngine: ObservableObject {
             task.downloadedBytes = task.chunks.reduce(0) { $0 + $1.downloadedBytes }
             task.perInterfaceBytes = existing.perInterfaceBytes
         } else if task.supportsRange && task.totalBytes > 0 {
-            // Plan new chunks (8MB default chunk size)
-            task.chunks = Self.planChunks(totalBytes: task.totalBytes, chunkSize: 8 * 1024 * 1024)
+            task.chunks = Self.planChunks(totalBytes: task.totalBytes, chunkSize: chunkSizeBytes)
+        } else if !task.supportsRange {
+            // Non-range fallback: single chunk or direct stream
+            task.chunks = [PlexoChunk(id: 0, rangeStart: 0, rangeEnd: max(0, task.totalBytes - 1))]
         }
 
-        // Pre-allocate sparse file if needed
+        // Pre-allocate destination file
         ensureDestinationFile(path: task.destinationFilePath, totalBytes: task.totalBytes)
         saveMetadata(for: task)
 
@@ -202,27 +240,34 @@ public final class PlexoDownloadEngine: ObservableObject {
             $0.state = .downloading
         }
 
-        // 2. Multi-Interface Worker Execution
-        let interfaces = PlexoNetworkManager.shared.enabledInterfaces
-        let activeAdapters = interfaces.isEmpty ? [PlexoInterface(id: "default", bsdName: "default", displayName: "Default Network", kind: .other)] : interfaces
-
-        let workerPool = PlexoDownloadWorkerPool(chunks: task.chunks)
         let filePath = task.destinationFilePath
 
-        await withTaskGroup(of: Void.self) { group in
-            for adapter in activeAdapters {
-                group.addTask { [weak self, workerPool] in
-                    guard let self = self else { return }
-                    await self.workerLoop(
-                        taskID: taskID,
-                        url: url,
-                        filePath: filePath,
-                        adapter: adapter,
-                        pool: workerPool
-                    )
+        if !task.supportsRange {
+            // STEP 3: Fallback single stream when server has no range support
+            await runSingleStreamDownload(taskID: taskID, url: url, filePath: filePath)
+        } else {
+            // Multi-Interface Parallel Chunk Execution
+            let interfaces = PlexoNetworkManager.shared.enabledInterfaces
+            let maxConns = Defaults[.plexoMaxConnectionsPerFile]
+            let activeAdapters = interfaces.isEmpty ? [PlexoInterface(id: "default", bsdName: "default", displayName: "Default Network", kind: .other)] : Array(interfaces.prefix(maxConns))
+
+            let workerPool = PlexoDownloadWorkerPool(chunks: task.chunks)
+
+            await withTaskGroup(of: Void.self) { group in
+                for adapter in activeAdapters {
+                    group.addTask { [weak self, workerPool] in
+                        guard let self = self else { return }
+                        await self.workerLoop(
+                            taskID: taskID,
+                            url: url,
+                            filePath: filePath,
+                            adapter: adapter,
+                            pool: workerPool
+                        )
+                    }
                 }
+                await group.waitForAll()
             }
-            await group.waitForAll()
         }
 
         guard !Task.isCancelled else { return }
@@ -237,23 +282,72 @@ public final class PlexoDownloadEngine: ObservableObject {
                 $0.perInterfaceSpeeds = [:]
             }
 
-            // Remove meta file
             try? FileManager.default.removeItem(atPath: metaPath)
 
-            // Move to completed
             if let idx = activeTasks.firstIndex(where: { $0.id == taskID }) {
                 let finished = activeTasks.remove(at: idx)
                 completedTasks.insert(finished, at: 0)
                 savePersistedTasks()
 
-                // Announce completion via DynamicIslandHub
-                DynamicIslandHub.shared.triggerCustomAlert(
-                    title: "Download Finished",
-                    subtitle: "\(finished.fileName) (\(PlexoFormatting.formatBytes(finished.totalBytes)))",
-                    iconName: "arrow.down.circle.fill",
-                    tint: Color.green
-                )
+                if Defaults[.plexoCompletionAlert] {
+                    DynamicIslandHub.shared.triggerCustomAlert(
+                        title: "Download Finished",
+                        subtitle: "\(finished.fileName) (\(PlexoFormatting.formatBytes(finished.totalBytes)))",
+                        iconName: "arrow.down.circle.fill",
+                        tint: Color.green,
+                        duration: 5.0,
+                        action: {
+                            let fURL = URL(fileURLWithPath: finished.destinationFilePath)
+                            NSWorkspace.shared.open(fURL)
+                        }
+                    )
+                }
             }
+            updateLiveActivity()
+            checkAndStartNextQueued()
+        }
+    }
+
+    private func runSingleStreamDownload(taskID: UUID, url: URL, filePath: String) async {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        let session = URLSession(configuration: .default)
+        defer { session.finishTasksAndInvalidate() }
+
+        do {
+            let (asyncBytes, response) = try await session.bytes(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 || httpResponse.statusCode == 206 else {
+                updateTask(id: taskID) { $0.state = .failed("Server returned status \( (response as? HTTPURLResponse)?.statusCode ?? 0)") }
+                return
+            }
+
+            let fileHandle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filePath))
+            defer { try? fileHandle?.close() }
+
+            var buffer = Data()
+            buffer.reserveCapacity(64 * 1024)
+
+            for try await byte in asyncBytes {
+                guard !Task.isCancelled else { return }
+                buffer.append(byte)
+
+                if buffer.count >= 64 * 1024 {
+                    try fileHandle?.write(contentsOf: buffer)
+                    let count = Int64(buffer.count)
+                    buffer.removeAll(keepingCapacity: true)
+                    await updateProgress(taskID: taskID, chunkIndex: 0, addedBytes: count, interfaceId: "single_stream")
+                }
+            }
+
+            if !buffer.isEmpty {
+                try fileHandle?.write(contentsOf: buffer)
+                let count = Int64(buffer.count)
+                buffer.removeAll(keepingCapacity: false)
+                await updateProgress(taskID: taskID, chunkIndex: 0, addedBytes: count, interfaceId: "single_stream")
+            }
+        } catch {
+            updateTask(id: taskID) { $0.state = .failed(error.localizedDescription) }
         }
     }
 
@@ -298,7 +392,6 @@ public final class PlexoDownloadEngine: ObservableObject {
                 await pool.markCompleted(chunkIndex: chunkIndex)
             } else {
                 await pool.returnChunk(chunkIndex: chunkIndex)
-                // Back off briefly on error
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
@@ -323,7 +416,6 @@ public final class PlexoDownloadEngine: ObservableObject {
         config.allowsExpensiveNetworkAccess = true
         config.allowsConstrainedNetworkAccess = true
 
-        // Bind request to adapter's interface on macOS if possible
         if adapter.bsdName != "default" {
             config.setValue(adapter.bsdName, forKey: "interfaceBinding")
         }
@@ -421,7 +513,7 @@ public final class PlexoDownloadEngine: ObservableObject {
         let session = URLSession(configuration: .ephemeral)
         defer { session.finishTasksAndInvalidate() }
 
-        if let (data, response) = try? await session.data(for: headReq),
+        if let (_, response) = try? await session.data(for: headReq),
            let http = response as? HTTPURLResponse {
             let len = http.expectedContentLength > 0 ? http.expectedContentLength : nil
             let ranges = http.value(forHTTPHeaderField: "Accept-Ranges")?.lowercased().contains("bytes") ?? false
@@ -430,7 +522,6 @@ public final class PlexoDownloadEngine: ObservableObject {
             return ProbeResult(contentLength: len, supportsRange: ranges || len != nil, fileName: name)
         }
 
-        // Fallback probe with GET range 0-1
         var rangeReq = URLRequest(url: url)
         rangeReq.setValue("bytes=0-1", forHTTPHeaderField: "Range")
         rangeReq.timeoutInterval = 10
@@ -498,7 +589,7 @@ public final class PlexoDownloadEngine: ObservableObject {
         }
     }
 
-    // MARK: - Throughput Sampling
+    // MARK: - Throughput Sampling & Collapsed Live Activity
 
     private func startSpeedSamplingTimer() {
         speedSamplingTimer?.invalidate()
@@ -511,11 +602,18 @@ public final class PlexoDownloadEngine: ObservableObject {
 
     private func sampleDownloadSpeeds() {
         let now = Date()
+        var aggregateDownloadingSpeed: Double = 0
+        var firstActiveName: String? = nil
+
         for i in 0..<activeTasks.count {
             guard activeTasks[i].state == .downloading else {
                 activeTasks[i].speed = 0
                 activeTasks[i].perInterfaceSpeeds = [:]
                 continue
+            }
+
+            if firstActiveName == nil {
+                firstActiveName = activeTasks[i].fileName
             }
 
             let id = activeTasks[i].id
@@ -526,7 +624,9 @@ public final class PlexoDownloadEngine: ObservableObject {
                 let dt = now.timeIntervalSince(prev.time)
                 if dt > 0.1 {
                     let deltaBytes = max(0, currentTotal - prev.total)
-                    activeTasks[i].speed = Double(deltaBytes) / dt
+                    let currentSpeed = Double(deltaBytes) / dt
+                    activeTasks[i].speed = currentSpeed
+                    aggregateDownloadingSpeed += currentSpeed
 
                     var ifaceSpeeds: [String: Double] = [:]
                     for (iface, bytes) in currentPerIface {
@@ -538,6 +638,28 @@ public final class PlexoDownloadEngine: ObservableObject {
                 }
             }
             lastSampledBytes[id] = (total: currentTotal, perIface: currentPerIface, time: now)
+        }
+
+        // Update collapsed notch live activity
+        if let taskName = firstActiveName, aggregateDownloadingSpeed > 0 {
+            IslandController.shared.registerActivity(IslandActivity(
+                id: "plexo_download",
+                kind: .networkSpeed,
+                priority: 80,
+                leadingIcon: "bolt.horizontal.fill",
+                title: taskName,
+                tintColor: Color.cyan,
+                trailingText: PlexoFormatting.formatSpeed(aggregateDownloadingSpeed)
+            ))
+        } else {
+            IslandController.shared.removeActivity(id: "plexo_download")
+        }
+    }
+
+    private func updateLiveActivity() {
+        let isDownloading = activeTasks.contains { $0.state == .downloading }
+        if !isDownloading {
+            IslandController.shared.removeActivity(id: "plexo_download")
         }
     }
 
