@@ -164,9 +164,9 @@ public struct AndroidFileItem: Identifiable, Equatable, Hashable {
         name: String,
         remotePath: String,
         sizeBytes: UInt64,
-        modificationDate: Date,
+        modificationDate: Date = Date(),
         isDirectory: Bool,
-        isHidden: Bool
+        isHidden: Bool = false
     ) {
         self.name = name
         self.remotePath = remotePath

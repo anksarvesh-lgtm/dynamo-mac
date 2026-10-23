@@ -374,6 +374,9 @@ public final class AppPermissionManager: ObservableObject {
                     self?.refreshAll(targetKind: .music)
                 }
             }
+
+        case .fullDiskAccess:
+            openSettings(for: .fullDiskAccess)
         }
 
         // Immediately refresh state and start the 500ms polling session for 10 seconds

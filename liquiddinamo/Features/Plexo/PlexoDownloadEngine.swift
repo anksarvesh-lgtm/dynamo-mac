@@ -18,6 +18,7 @@ import Combine
 import Defaults
 import Foundation
 import Network
+import SwiftUI
 
 public actor PlexoDownloadWorkerPool {
     private var pendingChunkIndices: [Int] = []
@@ -120,7 +121,9 @@ public final class PlexoDownloadEngine: ObservableObject {
         let taskCopy = activeTasks[idx]
 
         let job = Task { [weak self] in
-            await self?.runDownloadJob(for: taskCopy)
+            if let self {
+                await self.runDownloadJob(for: taskCopy)
+            }
         }
         activeDownloadJobs[id] = job
     }

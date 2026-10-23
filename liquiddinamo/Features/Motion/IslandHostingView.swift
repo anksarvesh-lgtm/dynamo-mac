@@ -8,6 +8,7 @@
 
 import AppKit
 import SwiftUI
+import Defaults
 
 /// Custom NSHostingView that dynamically restricts mouse hit-testing strictly to the visible
 /// Dynamic Island shape and satellite bubbles. Transparent window areas return `nil`, allowing

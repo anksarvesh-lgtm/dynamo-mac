@@ -653,7 +653,7 @@ public final class DynamicIslandHub: ObservableObject {
     ) {
         let payload = AlertPayload(
             id: UUID().uuidString,
-            kind: .systemNotification(appName: title, sender: title, message: subtitle),
+            kind: .notification(appName: title, sender: title, message: subtitle),
             title: title,
             subtitle: subtitle,
             iconName: iconName,

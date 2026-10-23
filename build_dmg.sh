@@ -61,12 +61,22 @@ if [ "$HAS_XCODE" = true ]; then
   APP_PATH="$(find "$BUILD_DIR/derived/Build/Products/$CONFIG" -maxdepth 1 -name '*.app' | head -n1)"
   [ -d "$APP_PATH" ] || die "Built .app not found under $BUILD_DIR/derived/Build/Products/$CONFIG"
 else
-  say "Active developer directory is CommandLineTools; staging from existing /Applications/$APP_NAME.app..."
+  say "Active developer directory is CommandLineTools; compiling fresh binary with swiftc..."
+  bash "$(pwd)/scripts/compile_dynamo.sh"
   APP_PATH="$BUILD_DIR/$APP_NAME.app"
   rm -rf "$APP_PATH"
   cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
   plutil -replace CFBundleVersion -string "16" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  # Install fresh compiled binary
+  cp /tmp/spm_deps/LiquidDynamo_test "$APP_PATH/Contents/MacOS/$APP_NAME"
+  chmod +x "$APP_PATH/Contents/MacOS/$APP_NAME"
+  # Install dependency dylibs and frameworks
+  mkdir -p "$APP_PATH/Contents/Frameworks"
+  cp -f /tmp/spm_deps/bundle_frameworks/* "$APP_PATH/Contents/Frameworks/"
+  rm -rf "$APP_PATH/Contents/Frameworks/Sparkle.framework" "$APP_PATH/Contents/Frameworks/Lottie.framework"
+  cp -R /tmp/spm_deps/frameworks_flat/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
+  cp -R /tmp/spm_deps/frameworks_flat/Lottie.framework "$APP_PATH/Contents/Frameworks/"
 fi
 
 say "Staged Application: $APP_PATH"
@@ -75,6 +85,9 @@ say "Staged Application: $APP_PATH"
 say "Signing"
 
 if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+  for dylib in "$APP_PATH/Contents/Frameworks"/*.dylib; do
+    [ -f "$dylib" ] && codesign --force --sign "$SIGN_IDENTITY" "$dylib"
+  done
   for fw in "$APP_PATH/Contents/Frameworks"/*.framework; do
     [ -d "$fw" ] && codesign --force --sign "$SIGN_IDENTITY" "$fw"
   done

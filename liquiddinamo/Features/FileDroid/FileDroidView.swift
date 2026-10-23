@@ -604,7 +604,7 @@ public struct FileDroidView: View {
 
             Text(file.name)
                 .font(.system(size: 11, weight: file.isDirectory ? .semibold : .regular, design: .rounded))
-                .foregroundStyle(file.isDirectory ? .primary : .primary.opacity(0.9))
+                .foregroundStyle(file.isDirectory ? Color.primary : Color.primary.opacity(0.9))
                 .lineLimit(1)
 
             Spacer()

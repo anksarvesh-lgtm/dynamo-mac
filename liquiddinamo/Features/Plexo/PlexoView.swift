@@ -15,6 +15,7 @@
 import AppKit
 import Defaults
 import SwiftUI
+import UniformTypeIdentifiers
 
 public struct PlexoView: View {
     @ObservedObject private var netManager = PlexoNetworkManager.shared

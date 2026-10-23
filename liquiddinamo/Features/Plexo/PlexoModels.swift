@@ -223,6 +223,10 @@ public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
         return min(1.0, max(0.0, Double(downloadedBytes) / Double(totalBytes)))
     }
 
+    public var progressFraction: Double {
+        progress
+    }
+
     public var formattedSpeed: String {
         PlexoFormatting.formatSpeed(speed)
     }

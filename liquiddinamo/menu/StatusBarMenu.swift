@@ -1,13 +1,14 @@
 import Cocoa
 import SwiftUI
 
+@MainActor
 class LiquidStatusMenu: NSMenu, NSMenuDelegate {
     
     var statusItem: NSStatusItem!
     private var storageItem: NSMenuItem?
     
-    override init() {
-        super.init(title: "LiquidDynamo")
+    override init(title: String = "LiquidDynamo") {
+        super.init(title: title)
         
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -38,7 +39,7 @@ class LiquidStatusMenu: NSMenu, NSMenuDelegate {
         menu.removeAllItems()
         
         // Header
-        let titleItem = NSMenuItem(title: "LiquidDynamo 1.9.2", action: nil, keyEquivalent: "")
+        let titleItem = NSMenuItem(title: "LiquidDynamo 1.9.6", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
         menu.addItem(NSMenuItem.separator())
