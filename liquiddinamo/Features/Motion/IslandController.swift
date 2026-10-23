@@ -614,6 +614,8 @@ public final class IslandController: ObservableObject {
                 return CGSize(width: 480, height: min(geom.notchHeight + 220, screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .plexo {
                 return CGSize(width: 560, height: min(max(480, geom.notchHeight + 450), screenMaxH))
+            } else if LiquidViewCoordinator.shared.currentView == .filedroid {
+                return CGSize(width: 580, height: min(max(480, geom.notchHeight + 450), screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .home {
                 let homeWidth = max(openNotchSize.width, 740)
                 switch activeOrganicItem {
