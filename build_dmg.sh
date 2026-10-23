@@ -10,7 +10,7 @@
 set -euo pipefail
 
 APP_NAME="LiquidDynamo"
-VERSION="1.9.5"
+VERSION="1.9.6"
 CONFIG="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$HOME/Desktop}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
@@ -66,7 +66,7 @@ else
   rm -rf "$APP_PATH"
   cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
-  plutil -replace CFBundleVersion -string "15" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  plutil -replace CFBundleVersion -string "16" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 fi
 
 say "Staged Application: $APP_PATH"
@@ -181,35 +181,33 @@ fi
 say "Writing Release Notes and Build Report"
 
 cat <<'EOF' > "$OUTPUT_DIR/ReleaseNotes.txt"
-LiquidDynamo 1.9.5 — Production Release
+LiquidDynamo 1.9.6 — Production Release
 ========================================
 Release Date: October 2026
-Version: 1.9.5 (Build 15)
+Version: 1.9.6 (Build 16)
 Build Type: Production Release
 
 LiquidDynamo transforms the MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-Core Highlights in Version 1.9.5:
-1. Hover-to-Click Detail Card Pinning & Island Stability
-   - Instant Pinned State Promotion: Clicking any status icon (Connected Device, Clipboard, Dropper, Clean, Color, Plexo, FileDroid) while in hover preview immediately locks the island open (`isPinnedOpen = true`) and cancels the hover-retraction timer.
-   - Elimination of Tracking-Area Rebuild Collapses: Guarded `onHoverExited()` to protect against AppKit boundary resets during window dimension expansion.
-   - Hierarchical Click-Outside Dismissal: Clicking outside while a detail view is open dismisses only the active card back to the island home rather than collapsing the entire window.
-   - Unified Card Geometry: Standardized expanded card width to max(openNotchSize.width, 740) across all 7 views for smooth, jump-free animations.
-2. FileDroid & OpenMTP Android Storage Bridge
-   - Finder External SSD Emulation: Android devices mount automatically in macOS Finder with custom `.VolumeIcon.icns`.
-   - Live Device Specs & Telemetry: Automatic generation of `Device Info & Storage Specs.txt` with live battery %, temperature, and storage metrics.
-   - Bidirectional File Streaming: Drag and drop into Finder folders pushes files directly to Android via ADB.
-   - Liquid Island Browser: Dedicated notch button with quick access folders (Camera, Downloads, Pictures, etc.).
-3. Plexo Multi-Network Download Accelerator
-   - Multi-Interface Discovery: Simultaneous Wi-Fi, Ethernet, and iPhone USB hotspot routing.
-   - Dynamic Chunk Acceleration: Parallel chunk streaming with work-stealing and slow-chunk racing.
-   - Resumable Downloads: Chunk map persistence in `.plexo-meta.json`.
-   - BitTorrent & Magnet Link Engine: Native Bencode parser and magnet URI decoder.
-4. Intelligent Storage Cleaner & Purge Engine
-   - Zero-network privacy-first scanning with exact path component allowlists.
-   - Safe trash-only deletion via FileManager.default.trashItem.
-5. 3D Liquid Capsule Alert & HUD Unification
-   - Sits flush under hardware cutout or floats as an elegant pill on external displays.
+Core Highlights in Version 1.9.6:
+1. FileDroid & OpenMTP — Android Storage Bridge (Option B)
+   - Dual backend architecture (ADB and native MTP protocols) without requiring third-party drivers.
+   - Finder External SSD Emulation: Android devices mount automatically in macOS Finder with storage folder hierarchy.
+   - Live Device Specs & Telemetry: Model name, Android OS version, battery percentage, battery temperature, and storage metrics.
+   - Interactive Island browser, batch file upload/download, rename/delete, and transfer progress drawer with retry.
+   - Dedicated SettingsFileDroidView with ADB path picker, auto-mount toggles, and concurrency controls.
+2. Plexo — Turbo Downloader & Multi-Network Booster
+   - Parallel Chunk Acceleration: Splits large files into byte-range segments handled by an asynchronous worker pool.
+   - Multi-Network Interface Bonding: Simultaneous download streaming across Wi-Fi, Ethernet, and USB-C cellular hotspots.
+   - Single-Stream Fallback: Gracefully streams downloads to disk when servers do not support byte ranges.
+   - BitTorrent & Magnet Link Engine: Built-in BEP 0003 Bencode decoder and magnet link parser.
+   - Bandwidth Limiter & Slow Mode: Global speed throttling and clipboard URL auto-detection banner.
+   - Dedicated SettingsPlexoView pane with network interface toggles and chunk size configuration.
+3. Interactive Collapsed Notch Wings & Live Readout Expansion
+   - Click or hover wing icons in the collapsed notch state to reveal detailed measurements (e.g. 45%, ↓14.2M ↑2.1M).
+   - 3-second auto-collapse timer and outside click dismissal.
+   - Shared hit rects in NotchSafeAreaEngine with +8pt hit padding.
+   - Native event pass-through ensuring zero click theft from menu bar items or active windows.
 EOF
 
 cat <<EOF > "$OUTPUT_DIR/BuildReport.txt"

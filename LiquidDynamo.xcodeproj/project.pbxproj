@@ -1733,7 +1733,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = LiquidDynamoXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.9.5;
+				MARKETING_VERSION = 1.9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.agrigence.liquiddynamo.LiquidDynamoXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1751,14 +1751,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LiquidDynamoXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiquidDynamoXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.9.5;
+				MARKETING_VERSION = 1.9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.agrigence.liquiddynamo.LiquidDynamoXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1934,7 +1934,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.9.5;
+				MARKETING_VERSION = 1.9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.agrigence.liquiddynamo;
 				PRODUCT_NAME = LiquidDynamo;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1961,7 +1961,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"liquiddinamo/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1989,7 +1989,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.9.5;
+				MARKETING_VERSION = 1.9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.agrigence.liquiddynamo;
 				PRODUCT_NAME = LiquidDynamo;
 				PROVISIONING_PROFILE_SPECIFIER = "";

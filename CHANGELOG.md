@@ -4,6 +4,31 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ---
 
+## [1.9.6] — 2026-10-23
+
+### FileDroid & OpenMTP Android Storage Bridge (Option B)
+- **Protocol Abstraction (`AndroidTransferBackend`)**: Introduced clean backend protocol decoupling with `AdbBackend` and `MtpBackend` implementations, enabling high-performance ADB file operations alongside native MTP fallback without proprietary drivers.
+- **Finder External SSD Volume Emulation**: Connected Android devices mount automatically into macOS Finder as virtual external drives with standard storage folder hierarchies (`DCIM`, `Download`, `Documents`, `Music`, `Movies`).
+- **Real-Time Device Telemetry**: Live readout of device manufacturer, market name, Android OS version, battery percentage, charging state, battery temperature, and internal/SD storage capacity meters.
+- **Robust Transfer Engine**: Process-based streaming transfers with single-quote shell escaping for spaces and non-ASCII paths, transfer progress drawer, retry on disconnect, and customizable file conflict resolution (`Replace`, `Keep Both`, `Skip`).
+- **Dedicated Settings Pane**: Added `SettingsFileDroidView` in Settings with ADB auto-detect, custom path browse, Finder auto-mount toggles, and concurrency limit steppers.
+
+### Plexo Turbo Downloader & Multi-Network Booster
+- **Parallel Chunk Acceleration**: Multi-threaded byte-range downloader partitioning large files into chunks handled by an asynchronous worker pool.
+- **Multi-Network Interface Bonding**: Concurrent multi-interface streaming combining Wi-Fi, Gigabit Ethernet, and USB-C cellular hotspots.
+- **Single-Stream Resilient Fallback**: Automatic detection of servers lacking byte-range support (`supportsRange == false`) with streaming direct-to-disk downloads.
+- **BitTorrent & Magnet Link Engine**: Built-in BEP 0003 Bencode decoder and magnet URI parser.
+- **Bandwidth Throttling & Slow Mode**: Global speed limiter and one-click "Slow Mode" toggle.
+- **Dedicated Settings Pane**: Added `SettingsPlexoView` featuring interface toggles, chunk size picker, parallel connection steppers, and clipboard auto-detect toggle.
+
+### Interactive Collapsed Notch Wings & Live Readout Expansion
+- **Collapsed Detail Expansion**: Clicking or hovering wing icons in the collapsed notch state reveals detailed telemetry readouts (e.g. `45%`, `52°C`, `↓14.2M ↑2.1M`).
+- **Intelligent Auto-Collapse Timer**: Automatically collapses revealed details after 3 seconds, or immediately upon outside click or island expansion.
+- **Consolidated Hit-Testing Geometry**: Single-source `NotchSafeAreaEngine.shared.collapsedWingHitRects(for:)` with +8pt padding matching drawn layout.
+- **Native Event Passthrough**: Window hit testing strictly returns true inside the notch and wing capsules, passing all other events through to underlying apps and macOS menu bar.
+
+---
+
 ## [1.9.5] — 2026-10-23
 
 ### Hover-to-Click Detail Card Pinning & Window Stability
