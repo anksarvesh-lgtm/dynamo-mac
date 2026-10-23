@@ -215,7 +215,7 @@ LiquidDynamo Production Build Report
 =====================================
 Application Name: $APP_NAME
 Marketing Version: $VERSION
-Current Project Version: 15
+Current Project Version: 16
 Build Configuration: $CONFIG
 Build Type: Production Release
 Deployment Target: macOS 14.0+
@@ -237,3 +237,84 @@ say "Done: $DMG_PATH"
 say "Convenience: $OUTPUT_DIR/LiquidDynamo.dmg"
 say "Release Notes: $OUTPUT_DIR/ReleaseNotes.txt"
 say "Build Report: $OUTPUT_DIR/BuildReport.txt"
+
+# ---- optional upload to GitHub tag [app] ----
+if [ "${UPLOAD_APP_RELEASE:-true}" = "true" ]; then
+  say "Syncing tag 'app' and uploading LiquidDynamo.dmg to GitHub Release..."
+  python3 -c "
+import subprocess, json, urllib.request, os, sys
+
+def get_token():
+    proc = subprocess.Popen(['git', 'credential', 'fill'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    out, _ = proc.communicate(input='protocol=https\nhost=github.com\n\n')
+    for line in out.splitlines():
+        if line.startswith('password='):
+            return line.split('=', 1)[1]
+    return None
+
+token = get_token()
+if not token:
+    print('==> Skipping remote release upload: no GitHub credentials in git.')
+    sys.exit(0)
+
+repo = 'anksarvesh-lgtm/dynamo-mac'
+dmg_path = os.path.expanduser('$OUTPUT_DIR/LiquidDynamo.dmg')
+if not os.path.exists(dmg_path):
+    sys.exit(0)
+
+# 1. Update tag 'app' locally and on remote
+subprocess.run(['git', 'tag', '-f', '-a', 'app', '-m', 'LiquidDynamo Latest Release'], check=False)
+subprocess.run(['git', 'push', 'origin', 'app', '--force'], check=False)
+
+# 2. Get or create release for tag 'app'
+headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'User-Agent': 'LiquidDynamo-Release-Agent'}
+rel_url = f'https://api.github.com/repos/{repo}/releases/tags/app'
+req = urllib.request.Request(rel_url, headers=headers)
+release_id = None
+upload_url = None
+try:
+    with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read().decode())
+        release_id = data['id']
+        upload_url = data['upload_url'].split('{')[0]
+except Exception:
+    pass
+
+if not release_id:
+    create_payload = json.dumps({'tag_name': 'app', 'name': 'LiquidDynamo (Latest)', 'draft': False, 'prerelease': False}).encode()
+    creq = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases', data=create_payload, headers={**headers, 'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(creq) as resp:
+            data = json.loads(resp.read().decode())
+            release_id = data['id']
+            upload_url = data['upload_url'].split('{')[0]
+    except Exception as e:
+        print(f'==> Warning: Could not create release for tag app: {e}')
+        sys.exit(0)
+
+# Delete existing LiquidDynamo.dmg on tag app if present
+try:
+    areq = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases/{release_id}/assets', headers=headers)
+    with urllib.request.urlopen(areq) as resp:
+        assets = json.loads(resp.read().decode())
+        for a in assets:
+            if a['name'] == 'LiquidDynamo.dmg':
+                dreq = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases/assets/{a[\"id\"]}', headers=headers, method='DELETE')
+                with urllib.request.urlopen(dreq):
+                    pass
+except Exception:
+    pass
+
+# Upload new LiquidDynamo.dmg
+with open(dmg_path, 'rb') as f:
+    dmg_bytes = f.read()
+
+ureq = urllib.request.Request(f'{upload_url}?name=LiquidDynamo.dmg', data=dmg_bytes, headers={**headers, 'Content-Type': 'application/octet-stream'}, method='POST')
+try:
+    with urllib.request.urlopen(ureq) as resp:
+        ainfo = json.loads(resp.read().decode())
+        print(f'==> Uploaded LiquidDynamo.dmg to tag [app]: {ainfo.get(\"browser_download_url\")}')
+except Exception as e:
+    print(f'==> Asset upload notice: {e}')
+" || true
+fi
