@@ -5,15 +5,16 @@
 </h1>
 
 <p align="center">
-  <b>A sleek, fluid, and dynamic notch enhancement experience for macOS</b><br>
+  <b>A sleek, fluid, and dynamic notch enhancement experience & Android/Transfer power tool for macOS</b><br>
   Developed by <b>Agrigence</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/anksarvesh-lgtm/Liquiddynamo/releases"><img src="https://img.shields.io/github/v/release/anksarvesh-lgtm/Liquiddynamo?style=flat-square&color=blue" alt="Latest Release" /></a>
+  <a href="https://github.com/anksarvesh-lgtm/dynamo-mac/releases"><img src="https://img.shields.io/github/v/release/anksarvesh-lgtm/dynamo-mac?style=flat-square&color=blue" alt="Latest Release" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey?style=flat-square" alt="Platform macOS 14+" />
   <img src="https://img.shields.io/badge/arch-Apple%20Silicon%20%7C%20Intel-informational?style=flat-square" alt="Architecture" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green?style=flat-square" alt="License GPL-3.0" /></a>
+  <img src="https://img.shields.io/badge/swift-6.4-orange?style=flat-square" alt="Swift 6.4" />
 </p>
 
 <p align="center">
@@ -22,157 +23,158 @@
 
 ---
 
-**LiquidDynamo** transforms your MacBook’s hardware notch into an interactive, dynamic command center. Designed with fluid animations and precision engineering, it seamlessly expands into a feature-rich hub for media playback, 3D device interaction, calendar schedules, system controls, and file management—or floats as an elegant dynamic island on non-notched displays.
+**LiquidDynamo** transforms your MacBook’s hardware notch into an interactive, dynamic command center. Engineered with fluid spring physics, liquid glass shaders, and precision geometry, it seamlessly expands into a powerhouse for media playback, 3D device interaction, Android device bridging, accelerated parallel downloading, system telemetry, and staging file shelves—or floats as an elegant dynamic island on external monitors and non-notched Macs.
 
 ---
 
 ## ✨ Features
 
-- 🎵 **Interactive Media Hub**
-  - Live Now Playing controls with integrated artwork and dynamic visualizer waveforms.
-  - Quick transport controls (play, pause, skip, scrub) with responsive hover springs.
+### 📱 FileDroid & OpenMTP — Android Storage Bridge
+- **Dual Backend Architecture (`AndroidTransferBackend`)**: High-performance ADB engine and native MTP fallback to communicate seamlessly with any Android device without proprietary drivers.
+- **Finder External SSD Volume Emulation**: Mounts connected Android phones directly into macOS Finder as virtual external drives with standard storage folder hierarchies (`DCIM`, `Download`, `Documents`, `Music`, `Movies`).
+- **Real-Time Device Telemetry**: Live readout of device manufacturer, market name, Android OS version, battery percentage, charging state, battery temperature, and internal/SD storage capacity meters.
+- **Robust Transfer Engine**: Safe process-based file streaming, path escaping for Unicode and spaced paths, transfer progress drawer, retry on disconnect, and customizable file conflict resolution (`Replace`, `Keep Both`, `Skip`).
+- **Island & Settings Dual Control**: Browse files, manage transfers, and eject storage directly from the expanded notch dropdown or the comprehensive dedicated Settings pane.
 
-- 🎧 **AirPods 3D Space Experience**
-  - Zero-gravity 3D rendered AirPods models set against an interactive cosmic starfield.
-  - Orbit battery arcs displaying exact charge levels with dynamic color alerts.
-  - Noise control switching (Noise Cancellation, Transparency, Adaptive, and Off).
-  - Head-tracking mirror mode utilizing `CMHeadphoneMotionManager`.
+### ⚡ Plexo — Turbo Downloader & Multi-Network Booster
+- **Parallel Chunk Acceleration (`PlexoDownloadEngine`)**: Automatically partitions large files into concurrent byte-range chunks handled by an asynchronous worker pool, maximizing link throughput.
+- **Multi-Network Interface Bonding**: Distributes download chunks simultaneously across active network interfaces (Wi-Fi, Gigabit Ethernet, USB-C Cellular Hotspot) for combined speeds.
+- **Single-Stream Resilience**: Automatically senses servers lacking byte-range support (`Accept-Ranges`) and seamlessly falls back to streaming disk writes with zero stalled downloads.
+- **Torrent & Magnet Link Engine (`PlexoTorrentEngine`)**: Built-in BEP 0003 Bencode decoder and magnet link parser for quick inspection of info-hashes, display names, and announce trackers.
+- **Bandwidth Control & Slow Mode**: Set global download rate limits or toggle "Slow Mode" with a single click when prioritizing video calls or gaming traffic.
+- **Clipboard Intelligence**: Automatically detects downloadable URLs in your clipboard with a one-tap "Start Turbo Download" banner.
 
-- 🖥️ **System HUD Replacements**
-  - Seamless notch-integrated overlays for Volume, Display Brightness, and Keyboard Backlight.
-  - Eliminates clunky default macOS HUD squares with smooth, stutter-free animations.
+### 🪽 Interactive Notch Wings & Collapsed Live Readouts
+- **Flanking Telemetry Slots**: Modular wing slots flanking the hardware notch cutout (`WingMetric`).
+- **10 Configurable Metrics**: CPU Usage, CPU Temperature, RAM Usage, Network Download, Network Upload, Combined Network (↓/↑), Battery Level, Bluetooth Battery, System Volume, and Screen Brightness.
+- **Interactive Collapsed Expansion**: Click or hover wing icons directly in the collapsed notch state to reveal detailed measurements (e.g., `45%`, `52°C`, `↓14.2M ↑2.1M`) with smooth auto-collapse timers and outside click reset.
+- **Zero Click Interference**: Custom event monitor geometry passes clicks to the macOS menu bar and active apps when clicking outside the wing capsules.
 
-- 📂 **Liquid Shelf & AirDrop**
-  - Quick-drop staging shelf right at the top of your display for dragging files, text, and images.
-  - Integrated one-click AirDrop sharing to send files instantly to nearby devices.
+### 🎵 Interactive Media Hub
+- **Universal Player Controls**: Integrated support for Apple Music, Spotify, and YouTube Music with responsive hover springs.
+- **Metal Waveform Visualizer**: Live audio visualizer shaders reacting to system playback.
+- **Scrubbing & Transport**: Drag to scrub playback position, adjust volume, or switch tracks without leaving your workflow.
 
-- 📅 **Calendar & Schedule at a Glance**
-  - Hover or click to preview upcoming appointments, meetings, and system Reminders.
+### 🎧 AirPods 3D Space Experience
+- **Zero-Gravity 3D Rendering**: Interactive SceneKit 3D rendered AirPods models set against an ambient cosmic starfield.
+- **Orbit Battery Arcs**: Visual charge rings for left, right, and case batteries with dynamic color warning states.
+- **Listening Mode Switching**: One-tap toggling between Active Noise Cancellation, Transparency, Adaptive Audio, and Off.
+- **Head-Tracking Mirroring**: Spatial head tracking visualization powered by CoreMotion (`CMHeadphoneMotionManager`).
 
-- 🔋 **Intelligent Power Monitoring**
-  - Real-time battery status and charging indicators for your Mac and connected Bluetooth accessories.
-  - Low-battery warning triggers at 15% and 5% thresholds.
+### 🖥️ Native System HUD Replacements
+- **Unified Liquid Capsules**: Replaces Apple's standard square HUDs for Volume, Brightness, and Keyboard Backlight with sleek top-edge liquid animations.
+- **Trackpad Gestures**:
+  - Two-finger vertical drag on the notch to step volume.
+  - Two-finger horizontal drag on the notch to step display brightness.
 
-- 🎛️ **Adaptive Display Mode**
-  - Automatically matches the physical geometry of notched MacBook displays with pitch-black OLED blending.
-  - Effortlessly transforms into a floating pill island on external monitors and non-notched Macs.
+### 📂 Liquid Shelf & AirDrop Staging
+- **Instant Drop Staging Area**: Drag files, text selections, links, or images to the notch to hold them temporarily in an easy-access shelf.
+- **One-Click AirDrop**: Send items staged on the shelf to nearby Apple devices instantly.
 
-- 👆 **Two-Finger Trackpad Gestures**
-  - **Slide Up / Down**: Smoothly step system Volume up or down with live notch HUD feedback.
-  - **Slide Left / Right**: Instantly adjust Display Brightness.
-  - **Notch Click**: Expands and pins the dynamic island open with zero bouncing.
-  - **Click Outside / Escape**: Dismisses the expanded dashboard cleanly.
+### 🧹 Intelligent Storage Cleaner & Purge
+- **Zero-Network Cleaner Engine**: Ported from [Purge](https://github.com/jithin-sabu/purge-app) with multi-tiered safety allowlists.
+- **Developer & Cache Purging**: Safely cleans Xcode DerivedData, Swift Package Manager caches, Gradle caches, user logs, and application leftovers into Trash with confirmation.
 
-- 🧹 **Intelligent Storage Cleaner & Purge**
-  - Integrated zero-network storage cleaner based on [Purge](https://github.com/jithin-sabu/purge-app) with multi-tiered safety allowlists.
-  - Safely reclaims gigabytes across caches, logs, developer artifacts (Xcode DerivedData, Gradle, SPM), and application uninstall leftovers.
-  - Multi-segment storage visualization bar and trash-only safety guarantees.
-
-- 🪽 **Configurable Notch Wings & Telemetry Slots**
-  - Modular slot system flanking the hardware notch cutout (`WingMetric`).
-  - Choose live metrics for each wing: CPU usage, CPU temperature, RAM usage, network speed (up/down/combined via `getifaddrs`), battery, volume, brightness, or clock.
-  - Setting a slot to "None" collapses that wing cleanly without awkward gaps.
-  - Includes a live Mock Notch Preview in Settings.
-
-- 🎨 **Color Dropper & Clipboard Intelligence**
-  - Built-in screen color sampler powered by AppKit's `NSColorSampler` with loupe magnifier.
-  - Interactive color swatch card with instant copy for HEX, RGB, and HSL formats.
-  - Privacy-first clipboard history with automatic screening of password managers and concealed/transient types.
-  - Transient 3D liquid capsule alerts for copied items and system events.
-
-- ⚡ **Ultra-Efficient Architecture**
-  - Built with native SwiftUI, AppKit, Metal, and SceneKit.
-  - Near-zero CPU utilization during idle states with full support for macOS Reduce Motion and Low Power Mode.
+### 🎨 Color Dropper & Privacy Clipboard
+- **Loupe Color Sampler**: Screen color picker with pixel loupe magnifier powered by `NSColorSampler`.
+- **Swatch Card**: Copy picked colors instantly in HEX, RGB, or HSL format.
+- **Privacy-First Clipboard**: Clipboard history with automatic screening of password managers and transient password items.
 
 ---
 
-> [!NOTE]
-> For architecture conventions, coding standards, and contribution rules, please refer to [RULES.md](RULES.md).
+## 📐 Architecture & Principles
+
+LiquidDynamo strictly adheres to modern native macOS development guidelines:
+
+- **100% Native Swift & SwiftUI**: Engineered in Swift 6.4 with AppKit, Metal, and SceneKit. Zero Electron, zero bloated web wrappers.
+- **Geometry Isolation (`NotchSafeAreaEngine`)**: Calculates exact physical notch bounds, auxiliary menu bar areas, and multi-display geometries across notched MacBooks, external monitors, and non-notched devices.
+- **Fluid Spring Physics (`IslandMotion`)**: Custom organic spring curves that morph the island seamlessly between minimal, compact, and expanded states.
+- **MainActor UI Safety**: Strict `@MainActor` isolation on all UI state and view coordinator models.
+- **Zero Telemetry / 100% Offline**: No network telemetry, no tracking, no third-party analytics. All operations stay strictly local to your Mac.
 
 ---
 
 ## 💻 System Requirements
 
-- **Operating System**: macOS 14.0 (Sonoma) or later
-- **Architecture**: Apple Silicon (M1/M2/M3/M4) and Intel-based Macs
-- **Hardware**: Compatible with all Mac displays (notched MacBooks, external monitors, iMac, Mac mini, Mac Studio, and Mac Pro)
+- **Operating System**: macOS 14.0 (Sonoma), macOS 15.0 (Sequoia), or later
+- **Architecture**: Apple Silicon (M1/M2/M3/M4) & Intel Macs
+- **Hardware**: Compatible with all Mac displays (notched MacBooks, external monitors, iMac, Mac mini, Mac Studio, Mac Pro)
 
 ---
 
 ## 🚀 Installation
 
-### Download from GitHub Releases
+### Download Pre-Built DMG
 
-1. Download the latest `LiquidDynamo.dmg` from [GitHub Releases](https://github.com/anksarvesh-lgtm/Liquiddynamo/releases).
-2. Open the downloaded `.dmg` and drag **LiquidDynamo** to your `/Applications` folder.
+1. Download the latest `LiquidDynamo.dmg` from [GitHub Releases](https://github.com/anksarvesh-lgtm/dynamo-mac/releases).
+2. Open the disk image and drag **LiquidDynamo** to your `/Applications` folder.
+3. Launch the app from Applications or Spotlight.
 
-> [!IMPORTANT]
-> Because LiquidDynamo is an independent open-source release, macOS Gatekeeper may display a prompt on first launch.
-> You can bypass this in seconds using Terminal:
->
+> [!TIP]
+> If macOS Gatekeeper displays a security prompt on first launch for unnotarized builds, run:
 > ```bash
 > xattr -dr com.apple.quarantine "/Applications/LiquidDynamo.app"
 > ```
->
-> Alternatively, open **System Settings** > **Privacy & Security**, scroll down to the security section, and click **Open Anyway**.
+> Or navigate to **System Settings** > **Privacy & Security** and click **Open Anyway**.
 
 ---
 
 ## 🛠️ Building from Source
 
 ### Prerequisites
+- macOS 14.0+
+- Xcode 15+ or Command Line Tools with Swift 6+
 
-- macOS 14.0 or later
-- Xcode 15 or later with Command Line Tools installed
+### Build & Run
+```bash
+# 1. Clone the repository
+git clone https://github.com/anksarvesh-lgtm/dynamo-mac.git
+cd dynamo-mac
 
-### Steps
+# 2. Open in Xcode
+open LiquidDynamo.xcodeproj
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/anksarvesh-lgtm/Liquiddynamo.git
-   cd Liquiddynamo
-   ```
+# 3. Build & Run
+# Select the 'LiquidDynamo' scheme and press Cmd + R
+```
 
-2. **Open in Xcode**:
-   ```bash
-   open LiquidDynamo.xcodeproj
-   ```
+### Command-Line Packaging
+```bash
+# Compile standalone release binary
+bash scripts/compile_release.sh
 
-3. **Build & Run**:
-   - Select the `LiquidDynamo` scheme.
-   - Press `Cmd + R` to build and launch the application.
-
-4. **Command-Line Build & Packaging**:
-   - You can compile the release binary or package a distributable `.app` / `.dmg` via the included scripts:
-   ```bash
-   # Compile standalone release binary
-   bash scripts/compile_release.sh
-
-   # Package application bundle and verify entitlements
-   bash scripts/deploy_and_package.sh
-
-   # Build distributable macOS disk image (.dmg)
-   bash build_dmg.sh
-   ```
+# Build distributable macOS disk image (.dmg)
+bash build_dmg.sh
+```
 
 ---
 
-## 🔒 Privacy & Security
+## ⌨️ Gestures & Controls
 
-LiquidDynamo is designed from the ground up with a strict privacy-first architecture:
+| Action | Gesture / Shortcut | Result |
+| :--- | :--- | :--- |
+| **Expand Island** | Click on hardware notch / floating pill | Expands into full dashboard |
+| **Inspect Metric** | Click / hover wing icon in collapsed state | Reveals detailed readout with auto-collapse |
+| **Dismiss Island** | Click outside or press `Escape` | Smoothly collapses back to idle notch |
+| **Adjust Volume** | Two-finger vertical drag across notch | Increases / decreases volume with notch HUD |
+| **Adjust Brightness** | Two-finger horizontal drag across notch | Increases / decreases brightness with notch HUD |
+| **Quick Settings** | Click gear icon in expanded dashboard | Opens dedicated LiquidDynamo Settings window |
 
-- **100% Local Execution**: All computations, media tracking, and device management occur entirely on your local machine.
-- **Zero Telemetry**: No analytics, telemetry trackers, or external network requests.
-- **Isolated Scanning**: Bluetooth scanning only interacts with your own connected devices and never captures, stores, or logs third-party hardware nearby.
-- **Vulnerability Reporting**: If you discover any security concerns, please refer to our [Security Policy](SECURITY.md).
+---
+
+## 🔒 Privacy Guarantee
+
+- **Zero Data Collection**: LiquidDynamo never transmits data over the internet.
+- **No Analytics / Telemetry**: No tracking SDKs, crash reporters, or usage analytics are embedded.
+- **Local Access Only**: FileDroid and Plexo operations only communicate with your local USB devices and the direct network URLs you specify.
 
 ---
 
 ## 📜 License & Acknowledgments
 
-LiquidDynamo is open-source software licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the [LICENSE](LICENSE) file for complete details.
+LiquidDynamo is open-source software licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for details.
 
 ### Upstream Attribution
-LiquidDynamo is based on the open-source project [Boring Notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam. Modifications, enhancements, and custom integrations are Copyright © 2026 Agrigence. Storage cleaning and safety architecture is ported from [Purge](https://github.com/jithin-sabu/purge-app) by Jithin Sabu (MIT License).
-
-For full licensing notices and third-party dependency disclosures, please see [NOTICE.md](NOTICE.md) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+- Base notch foundation inspired by [Boring Notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam.
+- Storage cleaner engine and safety allowlist principles ported from [Purge](https://github.com/jithin-sabu/purge-app) by Jithin Sabu (MIT License).
+- All custom architectures, FileDroid & OpenMTP engine, Plexo turbo downloader, interactive collapsed wing readouts, and liquid motion systems are Copyright © 2026 Agrigence.
