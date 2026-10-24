@@ -102,23 +102,30 @@ public struct VolumeLiveActivityView: View {
     // MARK: - 2. Blooming Droplet Presentation (Below Notch)
 
     private var bloomingDropletLayout: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             // Volume Speaker Icon / Mute Button
             Button(action: {
                 volumeManager.toggleMuteAction()
                 triggerHapticTick()
             }) {
                 Image(systemName: speakerIconName)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(volumeManager.isMuted ? Color.red : Color.white)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 22, height: 22)
                     .background(
                         Circle().fill(tintColor.opacity(0.20))
                     )
             }
             .buttonStyle(.plain)
 
-            // Interactive Organic Fluid Slider
+            // Percentage readout
+            Text(volumeManager.isMuted ? "0%" : "\(Int(round(currentLevel * 100)))%")
+                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
+                .monospacedDigit()
+                .frame(minWidth: 32, alignment: .center)
+
+            // Interactive Organic Fluid Slider (Miniature level indicator)
             OrganicFluidLevelView(
                 value: Binding(
                     get: { CGFloat(currentLevel) },
@@ -133,18 +140,11 @@ public struct VolumeLiveActivityView: View {
                     }
                 ),
                 tintColor: tintColor,
-                height: 8.0
+                height: 7.0
             )
-            .frame(height: 20)
-
-            // Percentage readout
-            Text(volumeManager.isMuted ? "0%" : "\(Int(round(currentLevel * 100)))%")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .shadow(color: .black.opacity(0.8), radius: 2, y: 1)
-                .frame(width: 38, alignment: .trailing)
+            .frame(width: 76, height: 18)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 10)
         .frame(height: 38)
         .avoidsNotch(id: "VolumeBloomingDroplet")
     }

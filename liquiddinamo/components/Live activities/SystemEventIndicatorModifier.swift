@@ -60,6 +60,7 @@ struct SystemEventIndicatorModifier: View {
             }
             if (eventType != .mic) {
                 DraggableProgressBar(value: $value)
+                    .frame(width: 80)
                 if Defaults[.showClosedNotchHUDPercentage] {
                     Text("\(Int(value * 100))%")
                         .font(.system(size: 12, weight: .medium))
@@ -74,7 +75,7 @@ struct SystemEventIndicatorModifier: View {
                     .allowsTightening(true)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: 220, alignment: .center)
         .symbolVariant(.fill)
         .imageScale(.large)
     }

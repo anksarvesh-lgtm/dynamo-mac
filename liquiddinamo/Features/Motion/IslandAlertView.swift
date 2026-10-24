@@ -199,124 +199,123 @@ public struct IslandAlertView: View {
     }
 
     private func deviceDisconnectedView(name: String, icon: String) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(name: icon, size: 22, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(name: icon, size: 20, interactive: false)
             VStack(alignment: .leading, spacing: 1) {
                 Text(name)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 130, alignment: .leading)
                 HStack(spacing: 4) {
-                    Circle().fill(Color.orange).frame(width: 6, height: 6)
+                    Circle().fill(Color.orange).frame(width: 5, height: 5)
                     Text("Disconnected")
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
             }
-            Spacer()
         }
     }
 
     private func clipboardCopiedView(snippet: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: "doc.on.clipboard.fill")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(Color.cyan)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Copied to Clipboard")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(snippet)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .frame(maxWidth: 130, alignment: .leading)
             }
-            Spacer()
         }
     }
 
     private func dropperItemAddedView(count: Int) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: "tray.and.arrow.down.fill")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(Color.indigo)
             VStack(alignment: .leading, spacing: 1) {
                 Text(count > 1 ? "\(count) Items Staged" : "Item Staged in Dropper")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 Text("Ready to drag or transfer")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
-            Spacer()
         }
     }
 
     // MARK: - 1. Music Track Change Announcement
 
     private func musicTrackView(title: String, artist: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             // Album Art Thumbnail with Glass Refraction Border
             Image(nsImage: MusicManager.shared.albumArt)
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
-                .frame(width: 38, height: 38)
-                .clipShape(Circle())
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
-                    Circle()
+                    RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
                 )
-                .shadow(color: Color.black.opacity(0.3), radius: 4, y: 2)
+                .shadow(color: Color.black.opacity(0.3), radius: 3, y: 1.5)
 
             // Title & Artist
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 130, alignment: .leading)
 
-                Text(artist)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(alert.iconColor.opacity(0.9))
-                    .lineLimit(1)
+                if !artist.isEmpty {
+                    Text(artist)
+                        .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(alert.iconColor.opacity(0.9))
+                        .lineLimit(1)
+                        .frame(maxWidth: 130, alignment: .leading)
+                }
             }
-
-            Spacer(minLength: 4)
 
             // Dynamic Audio Equalizer Bars
             LiquidGlassEqualizerView(isPlaying: true, tint: alert.iconColor)
-                .padding(.trailing, 4)
         }
     }
 
     // MARK: - 2. AirPods Connected Announcement
 
     private func airPodsConnectedView(name: String, left: Int?, right: Int?, caseLevel: Int?) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(.airPods, size: 24, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(.airPods, size: 20, interactive: false)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(name)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 110, alignment: .leading)
 
                 HStack(spacing: 4) {
                     Circle()
                         .fill(Color.green)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 5, height: 5)
                     Text("Connected")
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Spacer(minLength: 4)
-
             // Battery Badges (L / R / Case)
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 if let left = left {
                     batteryPill(label: "L", value: left)
                 }
@@ -366,149 +365,129 @@ public struct IslandAlertView: View {
     }
 
     private func peripheralInteractiveConnectedView(device: DeviceIdentity, fallbackName: String, icon: String) -> some View {
-        HStack(spacing: 12) {
-            DeviceInteractive3DView(device: device, size: 36)
+        HStack(spacing: 8) {
+            DeviceInteractive3DView(device: device, size: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(device.displayName.isEmpty ? fallbackName : device.displayName)
-                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 120, alignment: .leading)
 
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Circle()
                         .fill(device.kind == .androidPhone ? Color.green : (device.kind == .phone ? Color.blue : Color.cyan))
-                        .frame(width: 6, height: 6)
-                    Text(device.kind == .androidPhone ? "Android Device Connected" : (device.kind == .phone ? "iPhone Connected" : "Connected"))
-                        .font(.system(size: 9.5, weight: .medium))
+                        .frame(width: 5, height: 5)
+                    Text(device.kind == .androidPhone ? "Android Connected" : (device.kind == .phone ? "iPhone Connected" : "Connected"))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                     if let bat = device.batteryPercentage {
                         Text("• \(bat)%")
-                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color.green)
                     }
                 }
             }
 
-            Spacer()
-
             if device.kind == .androidPhone {
-                Premium3DIconView(.androidPhone, size: 18, interactive: false)
+                Premium3DIconView(.androidPhone, size: 16, interactive: false)
             } else if device.kind == .phone {
-                Premium3DIconView(.phone, size: 18, interactive: false)
+                Premium3DIconView(.phone, size: 16, interactive: false)
             } else {
-                Premium3DIconView(name: icon, size: 18, interactive: false)
+                Premium3DIconView(name: icon, size: 16, interactive: false)
             }
         }
     }
 
     private func storageConnectedView(device: DeviceIdentity, fallbackName: String, icon: String) -> some View {
-        HStack(spacing: 12) {
-            DeviceInteractive3DView(device: device, size: 36)
+        HStack(spacing: 8) {
+            DeviceInteractive3DView(device: device, size: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(device.displayName.isEmpty ? fallbackName : device.displayName)
-                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 120, alignment: .leading)
 
-                HStack(spacing: 6) {
-                    if let total = device.formattedCapacity, let free = device.formattedFreeSpace {
-                        Text("\(total) Total • \(free) Available")
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color.cyan.opacity(0.95))
-                    } else if let total = device.formattedCapacity {
-                        Text("Capacity: \(total)")
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                HStack(spacing: 4) {
+                    if let total = device.formattedCapacity {
+                        Text(total)
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
                             .foregroundStyle(Color.cyan.opacity(0.95))
                     } else {
                         Text(alert.subtitle ?? "")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
 
                     if let fs = device.filesystem {
                         Text("(\(fs))")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 8.5, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.5))
                     }
                 }
             }
 
-            Spacer(minLength: 8)
-
             if let usedBytes = device.usedSpaceBytes, let totalBytes = device.capacityBytes, totalBytes > 0 {
                 let ratio = min(1.0, max(0.0, Double(usedBytes) / Double(totalBytes)))
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("\(Int(ratio * 100))% used")
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    Capsule()
-                        .fill(Color.white.opacity(0.15))
-                        .frame(width: 44, height: 4)
-                        .overlay(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.cyan)
-                                .frame(width: max(4, 44 * CGFloat(ratio)), height: 4)
-                        }
-                }
-            } else if let total = device.formattedCapacity {
-                Text(total)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.cyan)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.cyan.opacity(0.15)))
+                Capsule()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 36, height: 4)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.cyan)
+                            .frame(width: max(4, 36 * CGFloat(ratio)), height: 4)
+                    }
             }
         }
     }
 
     private func standardDeviceConnectedView(name: String, icon: String) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(name: icon, size: 22, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(name: icon, size: 20, interactive: false)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(name)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 120, alignment: .leading)
 
                 HStack(spacing: 4) {
                     Circle()
                         .fill(Color.blue)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 5, height: 5)
                     Text("Connected")
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Spacer()
-
-            Premium3DIconView(.bluetooth, size: 16, interactive: false)
+            Premium3DIconView(.bluetooth, size: 14, interactive: false)
         }
     }
 
     // MARK: - 4. Battery Low Alert
 
     private func batteryLowView(percentage: Int, isCritical: Bool) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(.battery, size: 22, customTint: isCritical ? .red : .orange, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(.battery, size: 20, customTint: isCritical ? .red : .orange, interactive: false)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(isCritical ? "Critical Battery Alert" : "Low Battery Warning")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                Text(isCritical ? "Critical Battery" : "Low Battery")
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(isCritical ? .red : .orange)
 
-                Text("\(percentage)% Remaining • Connect power source")
-                    .font(.system(size: 10, weight: .medium))
+                Text("\(percentage)% • Connect power")
+                    .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
-            Spacer()
-
             Text("\(percentage)%")
-                .font(.system(size: 14, weight: .black, design: .rounded))
+                .font(.system(size: 12, weight: .black, design: .rounded))
                 .foregroundStyle(isCritical ? .red : .orange)
         }
     }
@@ -516,85 +495,78 @@ public struct IslandAlertView: View {
     // MARK: - 5. Charging Connected
 
     private func chargingConnectedView(level: Double) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(.charging, size: 22, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(.charging, size: 20, interactive: false)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Charging Started")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                Text("Charging")
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.green)
 
                 Text("\(Int(level * 100))% Available")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
 
-            Spacer()
-
-            // Mini battery level meter
-            OrganicFluidLevelView(value: CGFloat(level), tintColor: .green, height: 8)
-                .frame(width: 50)
+            OrganicFluidLevelView(value: CGFloat(level), tintColor: .green, height: 6)
+                .frame(width: 44, height: 16)
         }
     }
 
     // MARK: - 6. Download Progress
 
     private func downloadProgressView(fileName: String, progress: Double, speed: String) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(.downloads, size: 22, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(.downloads, size: 20, interactive: false)
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
                     Text(fileName)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(1)
-                    Spacer()
+                        .frame(maxWidth: 80, alignment: .leading)
                     Text(speed)
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.system(size: 8.5, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
 
-                // Liquid Progress Bar
-                OrganicFluidLevelView(value: CGFloat(progress), tintColor: .cyan, height: 6)
+                OrganicFluidLevelView(value: CGFloat(progress), tintColor: .cyan, height: 5)
+                    .frame(width: 60, height: 10)
             }
 
             Text("\(Int(progress * 100))%")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                 .foregroundStyle(.cyan)
-                .frame(width: 34, alignment: .trailing)
         }
     }
 
     // MARK: - 7. Notification Card
 
     private func notificationCardView(appName: String, sender: String, message: String) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(.notifications, size: 22, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(.notifications, size: 20, interactive: false)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
                     Text(sender)
-                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(1)
+                        .frame(maxWidth: 80, alignment: .leading)
 
                     Text("• \(appName)")
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-
-                    Spacer()
-
-                    Text("now")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: 60, alignment: .leading)
                 }
 
                 Text(message)
-                    .font(.system(size: 10.5, weight: .regular))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
+                    .frame(maxWidth: 130, alignment: .leading)
             }
         }
     }
@@ -603,44 +575,40 @@ public struct IslandAlertView: View {
 
     private func systemHUDView(title: String, icon: String, value: Double) -> some View {
         HStack(spacing: 10) {
-            Premium3DIconView(name: icon, size: 20, interactive: false)
+            Premium3DIconView(name: icon, size: 18, interactive: false)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title.uppercased())
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.secondary)
+            Text("\(Int(round(value * 100)))%")
+                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
+                .monospacedDigit()
+                .frame(minWidth: 32, alignment: .center)
 
-                OrganicFluidLevelView(value: CGFloat(value), tintColor: alert.iconColor, height: 6)
-            }
-
-            Text("\(Int(value * 100))%")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
-                .frame(width: 32, alignment: .trailing)
+            OrganicFluidLevelView(value: CGFloat(value), tintColor: alert.iconColor, height: 7)
+                .frame(width: 76, height: 18)
         }
     }
 
     // MARK: - 9. Privacy Indicator View
 
     private func privacyIndicatorView(type: String, appName: String) -> some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(name: alert.iconName ?? "mic.fill", size: 20, customTint: alert.iconColor, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(name: alert.iconName ?? "mic.fill", size: 18, customTint: alert.iconColor, interactive: false)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("\(type) Active")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(alert.iconColor)
 
-                Text("Being used by \(appName)")
-                    .font(.system(size: 10, weight: .medium))
+                Text(appName)
+                    .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: 110, alignment: .leading)
             }
-
-            Spacer()
 
             Circle()
                 .fill(alert.iconColor)
-                .frame(width: 8, height: 8)
+                .frame(width: 7, height: 7)
                 .shadow(color: alert.iconColor.opacity(0.8), radius: 3)
         }
     }
@@ -648,24 +616,24 @@ public struct IslandAlertView: View {
     // MARK: - 10. Generic Alert View
 
     private var genericAlertView: some View {
-        HStack(spacing: 10) {
-            Premium3DIconView(name: alert.iconName ?? "bell.fill", size: 20, interactive: false)
+        HStack(spacing: 8) {
+            Premium3DIconView(name: alert.iconName ?? "bell.fill", size: 18, interactive: false)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(alert.title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .frame(maxWidth: 130, alignment: .leading)
 
                 if let subtitle = alert.subtitle {
                     Text(subtitle)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .frame(maxWidth: 130, alignment: .leading)
                 }
             }
-
-            Spacer()
         }
     }
 }

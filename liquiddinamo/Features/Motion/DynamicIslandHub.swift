@@ -88,7 +88,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "music.note",
             iconColor: Defaults[.playerColorTinting] ? Color(nsColor: MusicManager.shared.avgColor) : .green,
             dwellDuration: 3.5,
-            customSize: CGSize(width: 440, height: 64),
             action: {
                 IslandController.shared.setExpanded(view: .home)
             }
@@ -146,7 +145,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: icon,
             iconColor: isMuted ? .red : .accentColor,
             dwellDuration: 2.0,
-            customSize: CGSize(width: 390, height: 50),
             progress: level,
             action: {
                 IslandController.shared.setExpanded(view: .displaySound)
@@ -191,7 +189,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "sun.max.fill",
             iconColor: .orange,
             dwellDuration: 2.0,
-            customSize: CGSize(width: 390, height: 50),
             progress: brightness,
             action: {
                 IslandController.shared.setExpanded(view: .displaySound)
@@ -244,8 +241,7 @@ public final class DynamicIslandHub: ObservableObject {
             subtitle: "Running on Battery",
             iconName: "powerplug",
             iconColor: .orange,
-            dwellDuration: 3.0,
-            customSize: CGSize(width: 380, height: 52)
+            dwellDuration: 3.0
         )
         IslandController.shared.showAlert(payload: payload)
     }
@@ -281,7 +277,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "bolt.fill",
             iconColor: .green,
             dwellDuration: 3.8,
-            customSize: CGSize(width: 390, height: 54),
             progress: level
         )
         IslandController.shared.showAlert(payload: payload)
@@ -295,8 +290,7 @@ public final class DynamicIslandHub: ObservableObject {
             subtitle: "\(percentage)% remaining. Connect power soon.",
             iconName: "battery.25",
             iconColor: isCritical ? .red : .orange,
-            dwellDuration: 4.5,
-            customSize: CGSize(width: 400, height: 54)
+            dwellDuration: 4.5
         )
         IslandController.shared.showAlert(payload: payload)
     }
@@ -396,7 +390,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: icon,
             iconColor: color,
             dwellDuration: 4.5,
-            customSize: CGSize(width: 440, height: 60),
             deviceIdentity: device,
             action: {
                 if isDisplay {
@@ -419,7 +412,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "eject.fill",
             iconColor: .orange,
             dwellDuration: 3.0,
-            customSize: CGSize(width: 390, height: 50),
             deviceIdentity: device
         )
         IslandController.shared.showAlert(payload: payload)
@@ -438,8 +430,7 @@ public final class DynamicIslandHub: ObservableObject {
             subtitle: preview.isEmpty ? "Content copied" : String(preview),
             iconName: "doc.on.clipboard.fill",
             iconColor: .cyan,
-            dwellDuration: 3.2,
-            customSize: CGSize(width: 390, height: 52)
+            dwellDuration: 3.2
         )
         IslandController.shared.showAlert(payload: payload)
     }
@@ -453,7 +444,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "tray.and.arrow.down.fill",
             iconColor: .cyan,
             dwellDuration: 3.5,
-            customSize: CGSize(width: 390, height: 52),
             action: {
                 IslandController.shared.setExpanded(view: .shelf)
             }
@@ -498,7 +488,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "airpodspro",
             iconColor: .white,
             dwellDuration: 4.0,
-            customSize: CGSize(width: 410, height: 54),
             action: {
                 IslandController.shared.setExpanded(view: .bluetooth)
             }
@@ -515,7 +504,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: icon,
             iconColor: .blue,
             dwellDuration: 3.5,
-            customSize: CGSize(width: 380, height: 52),
             action: {
                 IslandController.shared.setExpanded(view: .bluetooth)
             }
@@ -543,7 +531,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "arrow.down.circle.fill",
             iconColor: .cyan,
             dwellDuration: 4.0,
-            customSize: CGSize(width: 420, height: 56),
             progress: progress,
             action: {
                 IslandController.shared.setExpanded(view: .shelf)
@@ -561,7 +548,6 @@ public final class DynamicIslandHub: ObservableObject {
             iconName: "checkmark.circle.fill",
             iconColor: .green,
             dwellDuration: 3.0,
-            customSize: CGSize(width: 380, height: 50),
             action: {
                 IslandController.shared.setExpanded(view: .shelf)
             }
@@ -587,8 +573,7 @@ public final class DynamicIslandHub: ObservableObject {
             subtitle: message,
             iconName: "bell.fill",
             iconColor: .orange,
-            dwellDuration: 4.0,
-            customSize: CGSize(width: 420, height: 60)
+            dwellDuration: 4.0
         )
         IslandController.shared.showAlert(payload: payload)
     }
@@ -603,8 +588,7 @@ public final class DynamicIslandHub: ObservableObject {
             subtitle: "by \(appName)",
             iconName: type.lowercased().contains("screen") ? "record.circle" : (type.lowercased().contains("mic") ? "mic.fill" : "camera.fill"),
             iconColor: type.lowercased().contains("mic") ? .orange : (type.lowercased().contains("screen") ? .red : .green),
-            dwellDuration: 3.5,
-            customSize: CGSize(width: 360, height: 48)
+            dwellDuration: 3.5
         )
         IslandController.shared.showAlert(payload: payload)
     }

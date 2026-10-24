@@ -103,15 +103,22 @@ public struct BrightnessLiveActivityView: View {
     // MARK: - 2. Blooming Droplet Presentation (Below Notch)
 
     private var bloomingDropletLayout: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             // Sun or Backlight Icon
             Image(systemName: iconName)
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(tintColor)
-                .frame(width: 24, height: 24)
+                .frame(width: 22, height: 22)
                 .background(
                     Circle().fill(tintColor.opacity(0.20))
                 )
+
+            // Percentage readout
+            Text("\(Int(round(currentLevel * 100)))%")
+                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
+                .monospacedDigit()
+                .frame(minWidth: 32, alignment: .center)
 
             // Interactive Fluid Slider
             GeometryReader { geo in
@@ -119,7 +126,7 @@ public struct BrightnessLiveActivityView: View {
                     OrganicFluidLevelView(
                         value: CGFloat(min(max(currentLevel, 0.0), 1.0)),
                         tintColor: tintColor,
-                        height: 10
+                        height: 7
                     )
                 }
                 .frame(maxHeight: .infinity, alignment: .center)
@@ -151,16 +158,9 @@ public struct BrightnessLiveActivityView: View {
                         }
                 )
             }
-            .frame(height: 20)
-
-            // Percentage readout
-            Text("\(Int(round(currentLevel * 100)))%")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .shadow(color: .black.opacity(0.8), radius: 2, y: 1)
-                .frame(width: 38, alignment: .trailing)
+            .frame(width: 76, height: 18)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 10)
         .frame(height: 38)
         .avoidsNotch(id: "BrightnessBloomingDroplet")
     }
