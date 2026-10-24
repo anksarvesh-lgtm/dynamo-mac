@@ -58,6 +58,8 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
     public var kind: PlexoInterfaceKind
     public var ipAddress: String?
     public var ipv6Address: String?
+    public var macAddress: String?
+    public var netmask: String?
     public var isEnabled: Bool
     public var colorHex: String
     public var downloadSpeed: Double // bytes/sec
@@ -74,6 +76,8 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
         kind: PlexoInterfaceKind,
         ipAddress: String? = nil,
         ipv6Address: String? = nil,
+        macAddress: String? = nil,
+        netmask: String? = nil,
         isEnabled: Bool = true,
         colorHex: String? = nil,
         downloadSpeed: Double = 0,
@@ -89,6 +93,8 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
         self.kind = kind
         self.ipAddress = ipAddress
         self.ipv6Address = ipv6Address
+        self.macAddress = macAddress
+        self.netmask = netmask
         self.isEnabled = isEnabled
         self.colorHex = colorHex ?? kind.defaultColorHex
         self.downloadSpeed = downloadSpeed
@@ -96,6 +102,20 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
         self.totalBytesDownloaded = totalBytesDownloaded
         self.speedLimitBytesPerSec = speedLimitBytesPerSec
         self.dataAllowanceBytes = dataAllowanceBytes
+    }
+
+    public var isOnline: Bool {
+        ipAddress != nil && !ipAddress!.isEmpty
+    }
+
+    public var statusDescription: String {
+        if let ip = ipAddress, !ip.isEmpty {
+            return ip
+        } else if isEnabled {
+            return "Not Connected"
+        } else {
+            return "Disabled"
+        }
     }
 
     public var effectiveName: String {
