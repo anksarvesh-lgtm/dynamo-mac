@@ -350,6 +350,9 @@ struct CenteredFlowLayout: Layout {
     private func deviceIconButton(device: DeviceIdentity) -> some View {
         let isSelected = activeExpandedItem == .device(device.stableKey)
         Button {
+            if device.kind == .androidPhone {
+                FileDroidWindowController.shared.showWindow()
+            }
             toggleExpandedItem(.device(device.stableKey))
         } label: {
             HStack(spacing: 8) {
@@ -701,7 +704,7 @@ struct CenteredFlowLayout: Layout {
         let hasDevice = (connectedDev?.status == .connected)
 
         Button {
-            toggleExpandedItem(.filedroid)
+            FileDroidWindowController.shared.showWindow()
         } label: {
             HStack(spacing: 6) {
                 ZStack {
@@ -1016,18 +1019,19 @@ struct CenteredFlowLayout: Layout {
                 Spacer()
 
                 Button {
-                    filedroidEngine.openMountInFinder()
+                    FileDroidWindowController.shared.showWindow()
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "externaldrive.fill")
+                        Image(systemName: "folder.fill")
                             .font(.system(size: 9, weight: .bold))
-                        Text("Open in Finder")
+                        Text("Open Device Folders")
                             .font(.system(size: 9.5, weight: .bold, design: .rounded))
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Color.accentColor.opacity(0.3))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3.5)
+                    .background(Color.green.opacity(0.35))
                     .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.green.opacity(0.6), lineWidth: 0.75))
                 }
                 .buttonStyle(.plain)
             }
