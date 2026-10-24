@@ -437,6 +437,11 @@ extension Defaults.Keys {
     static let plexoClipboardAutoDetect = Key<Bool>("plexoClipboardAutoDetect", default: true)
     static let plexoCompletionAlert = Key<Bool>("plexoCompletionAlert", default: true)
     static let plexoTorrentAutoStart = Key<Bool>("plexoTorrentAutoStart", default: true)
+
+    // MARK: Watcher AI Agent Monitor
+    static let enableWatcherIntegration = Key<Bool>("enableWatcherIntegration", default: true)
+    static let watcherAutoApproveReads = Key<Bool>("watcherAutoApproveReads", default: false)
+    static let watcherNotificationOnFinished = Key<Bool>("watcherNotificationOnFinished", default: true)
 }
 
 public enum LiquidTheme: String, CaseIterable, Defaults.Serializable {
