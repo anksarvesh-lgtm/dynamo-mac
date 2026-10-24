@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/2d5f69c1-6e7b-4bc2-a6f1-bb9e27cf88a8" alt="LiquidDynamo Demo" />
+  <img src="docs/assets/preview_island_expanded.png" alt="LiquidDynamo Dynamic Island Expanded Dashboard" width="850" />
 </p>
 
 ---
@@ -45,6 +45,10 @@
 - **Clipboard Intelligence**: Automatically detects downloadable URLs in your clipboard with a one-tap "Start Turbo Download" banner.
 
 ### 🪽 Interactive Notch Wings & Collapsed Live Readouts
+<p align="center">
+  <img src="docs/assets/preview_notch_wings.png" alt="Interactive Hardware Notch with Live Telemetry Wings" width="850" />
+</p>
+
 - **Flanking Telemetry Slots**: Modular wing slots flanking the hardware notch cutout (`WingMetric`).
 - **10 Configurable Metrics**: CPU Usage, CPU Temperature, RAM Usage, Network Download, Network Upload, Combined Network (↓/↑), Battery Level, Bluetooth Battery, System Volume, and Screen Brightness.
 - **Interactive Collapsed Expansion**: Click or hover wing icons directly in the collapsed notch state to reveal detailed measurements (e.g., `45%`, `52°C`, `↓14.2M ↑2.1M`) with smooth auto-collapse timers and outside click reset.
@@ -62,6 +66,10 @@
 - **Head-Tracking Mirroring**: Spatial head tracking visualization powered by CoreMotion (`CMHeadphoneMotionManager`).
 
 ### 🖥️ Native System HUD Replacements
+<p align="center">
+  <img src="docs/assets/preview_capsule_hud.png" alt="Unified Liquid Capsule HUD" width="600" />
+</p>
+
 - **Unified Liquid Capsules**: Replaces Apple's standard square HUDs for Volume, Brightness, and Keyboard Backlight with sleek top-edge liquid animations.
 - **Trackpad Gestures**:
   - Two-finger vertical drag on the notch to step volume.
@@ -87,6 +95,15 @@
 - **One-Click Notch Permissions**: Authorize tool executions directly from the notch with **Allow**, **Deny**, or **Always Allow** buttons without switching windows or interrupting your CLI flow.
 - **Zero-Idle-CPU Socket Server**: Event-driven Unix domain socket server (`~/Library/Application Support/LiquidDynamo/watcher.sock` with symlink `/tmp/liquid_watcher.sock`) powered by native GCD `DispatchSourceRead`—0% idle CPU and fail-open non-blocking execution.
 - **Granular Approvals**: Configurable auto-approval for read-only inspection tools while safeguarding destructive bash commands and file writes behind notch approval popups.
+
+### 🎛️ Native Settings Window Redesign
+<p align="center">
+  <img src="docs/assets/preview_settings_redesign.png" alt="LiquidDynamo Native Frosted-Glass Settings Window" width="850" />
+</p>
+
+- **Frosted-Glass Visual Overhaul**: Built strictly to macOS native aesthetic standards with 3D liquid droplet branding, solid blue navigation pill, and compact card layouts.
+- **Interactive Notch & Wing Customizer**: Real-time photorealistic preview with independent Left & Right Wing Content selectors and a 4x3 Available Wing Items interactive grid.
+- **Unified Permission & Troubleshooting Center**: Live status badges, one-click grant buttons, and integrated 1-Click Stale TCC Repair for macOS accessibility permissions.
 
 ---
 
