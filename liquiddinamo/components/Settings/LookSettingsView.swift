@@ -2,8 +2,10 @@
 //  LookSettingsView.swift
 //  LiquidDynamo
 //
-//  Look Section: transparency, liquid intensity, collapse style,
-//  accent colour, and wing width with live preview in the notch.
+//  Notch & Wings settings view redesigned to match the reference UI:
+//  Dark translucent frosted-glass surfaces, photorealistic notch previews,
+//  independent Left & Right Wing Content cards, Layout & Behavior controls,
+//  and 4x3 Available Wing Items grid.
 //
 
 import AppKit
@@ -26,235 +28,242 @@ public struct LookSettingsView: View {
     @Default(.enableWindowTransparency) private var enableWindowTransparency
     @Default(.enableShadow) private var enableShadow
 
-    @State private var customColor: Color = .accentColor
-    @State private var selectedPresetColor: PresetColor? = nil
-    @State private var showMoreOptions: Bool = false
+    // Reference wing detail toggles
+    @Default(.leftWingShowLabel) private var leftWingShowLabel
+    @Default(.leftWingShowPercentage) private var leftWingShowPercentage
+    @Default(.leftWingShowMiniGraph) private var leftWingShowMiniGraph
+    @Default(.rightWingShowIcon) private var rightWingShowIcon
+    @Default(.rightWingShowTemperature) private var rightWingShowTemperature
+    @Default(.rightWingShowCondition) private var rightWingShowCondition
+    @Default(.showWingSeparators) private var showWingSeparators
+
+    @State private var showAdvancedOptions: Bool = false
 
     public init() {}
 
-    public enum PresetColor: String, CaseIterable, Identifiable {
-        case blue = "Blue"
-        case purple = "Purple"
-        case pink = "Pink"
-        case red = "Red"
-        case orange = "Orange"
-        case yellow = "Yellow"
-        case green = "Green"
-        case graphite = "Graphite"
-
-        public var id: String { rawValue }
-
-        public var color: Color {
-            switch self {
-            case .blue: return Color(red: 0.0, green: 0.478, blue: 1.0)
-            case .purple: return Color(red: 0.686, green: 0.322, blue: 0.871)
-            case .pink: return Color(red: 1.0, green: 0.176, blue: 0.333)
-            case .red: return Color(red: 1.0, green: 0.271, blue: 0.227)
-            case .orange: return Color(red: 1.0, green: 0.584, blue: 0.0)
-            case .yellow: return Color(red: 1.0, green: 0.8, blue: 0.0)
-            case .green: return Color(red: 0.4, green: 0.824, blue: 0.176)
-            case .graphite: return Color(red: 0.557, green: 0.557, blue: 0.576)
-            }
-        }
+    private struct WingItemChip: Identifiable {
+        let id: String
+        let title: String
+        let icon: String
+        let iconColor: Color
+        let metric: WingMetric
     }
 
-    @Environment(\.colorScheme) private var colorScheme
+    private let availableChips: [WingItemChip] = [
+        WingItemChip(id: "cpuUsage", title: "CPU Usage", icon: "waveform.path.ecg", iconColor: .cyan, metric: .cpuUsage),
+        WingItemChip(id: "cpuTemp", title: "CPU Temperature", icon: "thermometer.medium", iconColor: Color(red: 1.0, green: 0.38, blue: 0.38), metric: .cpuTemp),
+        WingItemChip(id: "ramUsage", title: "RAM Usage", icon: "memorychip", iconColor: Color(red: 0.72, green: 0.45, blue: 1.0), metric: .ramUsage),
+        WingItemChip(id: "netDownUp", title: "Network Speed", icon: "arrow.up.arrow.down", iconColor: Color(red: 0.35, green: 0.88, blue: 0.55), metric: .netDownUp),
+
+        WingItemChip(id: "weather", title: "Weather Temperature", icon: "cloud.sun.fill", iconColor: Color(red: 1.0, green: 0.85, blue: 0.2), metric: .weather),
+        WingItemChip(id: "battery", title: "Battery Status", icon: "battery.100", iconColor: Color(red: 0.35, green: 0.88, blue: 0.55), metric: .battery),
+        WingItemChip(id: "bluetoothBattery", title: "Bluetooth Devices", icon: "antenna.radiowaves.left.and.right", iconColor: Color(red: 0.3, green: 0.65, blue: 1.0), metric: .bluetoothBattery),
+        WingItemChip(id: "volume", title: "Volume", icon: "speaker.wave.2.fill", iconColor: .cyan, metric: .volume),
+
+        WingItemChip(id: "mediaPlayback", title: "Media Controls", icon: "playpause.fill", iconColor: Color(red: 1.0, green: 0.42, blue: 0.38), metric: .mediaPlayback),
+        WingItemChip(id: "brightness", title: "Brightness", icon: "sun.max.fill", iconColor: Color(red: 0.35, green: 0.75, blue: 1.0), metric: .brightness),
+        WingItemChip(id: "clock", title: "Clock", icon: "clock.fill", iconColor: Color(red: 0.25, green: 0.85, blue: 0.75), metric: .clock),
+        WingItemChip(id: "focusMode", title: "Focus Mode", icon: "moon.fill", iconColor: Color(red: 0.75, green: 0.45, blue: 0.95), metric: .clock)
+    ]
 
     public var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Notch & Wings")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 18) {
+                // Top Header: Page Title + Top-Right Photorealistic Notch Preview Capsule
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Notch & Wings")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white)
 
-                    Text("Configure live telemetry streams flanking the physical notch with independent left/right selection and content-aware sizing")
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(.secondary)
-                }
+                        Text("Customize what shows around your notch.")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.68))
+                    }
 
-                // 1. Live Notch Preview Card
-                NativeSettingsCard(
-                    title: "Live Notch Preview",
-                    subtitle: "Real-time preview of the left and right informational streams",
-                    icon: "sparkles.rectangle.stack.fill",
-                    iconColor: .blue
-                ) {
-                    MockNotchWingsPreview(
+                    Spacer(minLength: 12)
+
+                    // Top-Right Header Notch Preview Capsule
+                    ReferenceNotchCapsule(
                         leftMetric: leftWingMetric,
                         rightMetric: rightWingMetric,
                         wingWidth: wingWidth,
                         autoFit: autoFitWings
                     )
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+                    .frame(width: 320)
                 }
+                .padding(.bottom, 2)
 
-                // 2. Independent Left & Right Wing Content Card
-                NativeSettingsCard(
-                    title: "Wing Content Selection",
-                    subtitle: "Assign telemetry indicators independently to each side of the notch",
-                    icon: "arrow.left.and.right.square.fill",
-                    iconColor: .indigo
-                ) {
-                    VStack(spacing: 14) {
-                        // Left Wing Selector
-                        HStack(alignment: .center, spacing: 12) {
-                            Label("Left Wing", systemImage: "arrow.left.circle.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 100, alignment: .leading)
+                // Row 1: Left Wing Content & Right Wing Content Cards
+                HStack(alignment: .top, spacing: 16) {
+                    // Left Wing Content Card
+                    ReferenceSettingsCard(
+                        title: "Left Wing Content",
+                        subtitle: "Choose what to show on the left side."
+                    ) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            // Dropdown Pill Selector
+                            ReferencePillPicker(
+                                selection: $leftWingMetric,
+                                items: WingMetric.selectableCases,
+                                titleFor: { $0.displayName },
+                                iconFor: { $0 == .cpuUsage ? "waveform.path.ecg" : $0.iconName },
+                                iconColorFor: { _ in .cyan },
+                                onSelect: { triggerLivePreview() }
+                            )
 
-                            Spacer()
+                            VStack(spacing: 11) {
+                                ReferenceToggleRow(
+                                    symbol: "Aa",
+                                    isTextSymbol: true,
+                                    symbolColor: .white.opacity(0.7),
+                                    title: "Show label",
+                                    isOn: $leftWingShowLabel
+                                )
 
-                            Picker("Left Wing Content", selection: $leftWingMetric) {
-                                ForEach(WingMetric.selectableCases) { metric in
-                                    Label(metric.displayName, systemImage: metric.iconName)
-                                        .tag(metric)
-                                }
-                            }
-                            .labelsHidden()
-                            .frame(maxWidth: 240)
-                            .onChange(of: leftWingMetric) {
-                                triggerLivePreview()
+                                ReferenceToggleRow(
+                                    symbol: "%",
+                                    isTextSymbol: true,
+                                    symbolColor: .white.opacity(0.7),
+                                    title: "Show percentage",
+                                    isOn: $leftWingShowPercentage
+                                )
+
+                                ReferenceToggleRow(
+                                    symbol: "chart.bar.fill",
+                                    isTextSymbol: false,
+                                    symbolColor: .white.opacity(0.7),
+                                    title: "Show mini graph",
+                                    isOn: $leftWingShowMiniGraph
+                                )
                             }
                         }
+                    }
 
-                        Divider().opacity(colorScheme == .dark ? 0.2 : 0.1)
+                    // Right Wing Content Card
+                    ReferenceSettingsCard(
+                        title: "Right Wing Content",
+                        subtitle: "Choose what to show on the right side."
+                    ) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            // Dropdown Pill Selector
+                            ReferencePillPicker(
+                                selection: $rightWingMetric,
+                                items: WingMetric.selectableCases,
+                                titleFor: { $0.displayName },
+                                iconFor: { $0 == .weather ? "cloud.sun.fill" : $0.iconName },
+                                iconColorFor: { $0 == .weather ? .yellow : NativeSettingsTheme.accentBlue },
+                                onSelect: { triggerLivePreview() }
+                            )
 
-                        // Right Wing Selector
-                        HStack(alignment: .center, spacing: 12) {
-                            Label("Right Wing", systemImage: "arrow.right.circle.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .frame(width: 100, alignment: .leading)
+                            VStack(spacing: 11) {
+                                ReferenceToggleRow(
+                                    symbol: "photo",
+                                    isTextSymbol: false,
+                                    symbolColor: .white.opacity(0.7),
+                                    title: "Show icon",
+                                    isOn: $rightWingShowIcon
+                                )
 
-                            Spacer()
+                                ReferenceToggleRow(
+                                    symbol: "thermometer.medium",
+                                    isTextSymbol: false,
+                                    symbolColor: Color(red: 1.0, green: 0.38, blue: 0.38),
+                                    title: "Show temperature",
+                                    isOn: $rightWingShowTemperature
+                                )
 
-                            Picker("Right Wing Content", selection: $rightWingMetric) {
-                                ForEach(WingMetric.selectableCases) { metric in
-                                    Label(metric.displayName, systemImage: metric.iconName)
-                                        .tag(metric)
-                                }
-                            }
-                            .labelsHidden()
-                            .frame(maxWidth: 240)
-                            .onChange(of: rightWingMetric) {
-                                triggerLivePreview()
+                                ReferenceToggleRow(
+                                    symbol: "cloud.fill",
+                                    isTextSymbol: false,
+                                    symbolColor: Color(red: 0.45, green: 0.75, blue: 1.0),
+                                    title: "Show condition",
+                                    isOn: $rightWingShowCondition
+                                )
                             }
                         }
                     }
                 }
 
-                // 3. Layout & Behaviour Settings Card
-                NativeSettingsCard(
-                    title: "Layout & Behavior",
-                    subtitle: "Content-aware width expansion and display visibility",
-                    icon: "slider.horizontal.2.square.on.square",
-                    iconColor: .cyan
-                ) {
-                    VStack(spacing: 12) {
-                        NativeSettingsRow(
-                            "Auto-Fit Wings",
-                            description: "Dynamically expand each wing to fit its rendered metric without clipping",
-                            icon: "arrow.left.and.right"
-                        ) {
-                            Defaults.Toggle("", key: .autoFitWings)
-                                .labelsHidden()
-                                .onChange(of: autoFitWings) {
-                                    NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
-                                    triggerLivePreview()
-                                }
-                        }
-
-                        NativeSettingsRow(
-                            autoFitWings ? "Minimum Wing Width" : "Wing Width",
-                            description: autoFitWings ? "Base floor width for each stream" : "Fixed width flanking the notch",
-                            icon: "ruler"
-                        ) {
-                            HStack(spacing: 6) {
-                                Slider(value: $wingWidth, in: 50...160, step: 2)
-                                    .frame(width: 90)
-                                    .onChange(of: wingWidth) {
-                                        NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
-                                        triggerLivePreview()
-                                    }
-
-                                Text("\(Int(wingWidth)) pt")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 44, alignment: .trailing)
+                // Row 2: Layout & Behavior & Preview Cards
+                HStack(alignment: .top, spacing: 16) {
+                    // Layout & Behavior Card
+                    ReferenceSettingsCard(
+                        title: "Layout & Behavior",
+                        subtitle: "Control how wings expand and look."
+                    ) {
+                        VStack(spacing: 12) {
+                            ReferenceToggleRow(
+                                symbol: nil,
+                                title: "Automatically expand to fit content",
+                                isOn: $autoFitWings
+                            )
+                            .onChange(of: autoFitWings) { _, _ in
+                                triggerLivePreview()
                             }
-                        }
 
-                        NativeSettingsRow(
-                            "Hide in Full Screen",
-                            description: "Automatically collapse wings when another application is full screen",
-                            icon: "arrow.up.left.and.arrow.down.right"
-                        ) {
-                            Defaults.Toggle("", key: .hideWingsInFullScreen)
-                                .labelsHidden()
-                        }
-
-                        NativeSettingsRow(
-                            "Built-in Display Only",
-                            description: "Show wings exclusively around the physical MacBook notch",
-                            icon: "laptopcomputer"
-                        ) {
-                            Defaults.Toggle("", key: .wingsBuiltInDisplayOnly)
-                                .labelsHidden()
-                        }
-                    }
-                }
-
-                // 4. Available Wing Items Showcase
-                NativeSettingsCard(
-                    title: "Available Wing Metrics",
-                    subtitle: "Telemetry and controls supported by the Dynamic Island engine",
-                    icon: "chart.bar.xaxis",
-                    iconColor: .purple
-                ) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
-                        ForEach(WingMetric.selectableCases) { metric in
-                            HStack(spacing: 6) {
-                                Image(systemName: metric.iconName)
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle((leftWingMetric == metric || rightWingMetric == metric) ? Color.effectiveAccent : .secondary)
-
-                                Text(metric.displayName)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle((leftWingMetric == metric || rightWingMetric == metric) ? .primary : .secondary)
-                                    .lineLimit(1)
+                            ReferenceSliderRow(
+                                label: autoFitWings ? "Minimum wing width" : "Wing width",
+                                value: $wingWidth,
+                                in: 50...160,
+                                step: 2,
+                                unit: "px"
+                            ) {
+                                triggerLivePreview()
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill((leftWingMetric == metric || rightWingMetric == metric) ? Color.effectiveAccent.opacity(0.12) : Color.primary.opacity(0.04))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                            .strokeBorder((leftWingMetric == metric || rightWingMetric == metric) ? Color.effectiveAccent.opacity(0.3) : Color.clear, lineWidth: 0.8)
-                                    )
+
+                            ReferenceToggleRow(
+                                symbol: nil,
+                                title: "Show separators between items",
+                                isOn: $showWingSeparators
                             )
                         }
                     }
+
+                    // Preview Card
+                    ReferenceSettingsCard(
+                        title: "Preview",
+                        subtitle: "Live preview of your notch and wings."
+                    ) {
+                        VStack(alignment: .center, spacing: 8) {
+                            ReferenceNotchCapsule(
+                                leftMetric: leftWingMetric,
+                                rightMetric: rightWingMetric,
+                                wingWidth: wingWidth,
+                                autoFit: autoFitWings
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                        }
+                    }
                 }
 
-                // 5. Liquid Appearance & Accent Card
-                NativeSettingsCard(
-                    title: "Liquid Appearance",
-                    subtitle: "Surface opacity, collapse modes, and accent styling",
-                    icon: "drop.fill",
-                    iconColor: .blue
+                // Row 3: Available Wing Items Grid (4 columns x 3 rows)
+                ReferenceSettingsCard(
+                    title: "Available Wing Items",
+                    subtitle: "You can choose different items for left and right wings."
                 ) {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4),
+                        spacing: 10
+                    ) {
+                        ForEach(availableChips) { chip in
+                            wingChipButton(for: chip)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+
+                // Collapsible Advanced Settings (Preserves all existing preference controls)
+                DisclosureGroup(isExpanded: $showAdvancedOptions) {
                     VStack(spacing: 12) {
+                        Divider().opacity(0.12).padding(.vertical, 4)
+
                         NativeSettingsRow("Liquid Transparency", description: "Glass body translucency and optical blur", icon: "circle.lefthalf.filled") {
                             HStack(spacing: 6) {
                                 Slider(value: $islandTransparency, in: 0.0...1.0)
                                     .frame(width: 90)
-                                    .onChange(of: islandTransparency) {
+                                    .onChange(of: islandTransparency) { _, _ in
                                         triggerLivePreview()
                                     }
 
@@ -272,40 +281,111 @@ public struct LookSettingsView: View {
                             }
                             .pickerStyle(.segmented)
                             .frame(width: 140)
-                            .onChange(of: compactMode) {
+                            .onChange(of: compactMode) { _, _ in
                                 triggerLivePreview()
                             }
+                        }
+
+                        NativeSettingsRow("Hide in Full Screen", description: "Automatically collapse wings when another application is full screen", icon: "arrow.up.left.and.arrow.down.right") {
+                            Defaults.Toggle("", key: .hideWingsInFullScreen)
+                                .labelsHidden()
+                        }
+
+                        NativeSettingsRow("Built-in Display Only", description: "Show wings exclusively around the physical MacBook notch", icon: "laptopcomputer") {
+                            Defaults.Toggle("", key: .wingsBuiltInDisplayOnly)
+                                .labelsHidden()
                         }
 
                         NativeSettingsRow("Window Transparency", description: "Enable translucent frosted-glass materials", icon: "macwindow") {
                             Defaults.Toggle("", key: .enableWindowTransparency)
                                 .labelsHidden()
-                                .onChange(of: enableWindowTransparency) {
+                                .onChange(of: enableWindowTransparency) { _, _ in
                                     SettingsWindowController.shared.updateWindowTransparency()
                                 }
                         }
-                    }
-                }
 
-                // Reset Button
-                HStack {
-                    Spacer()
-                    Button("Reset Section to Defaults", role: .destructive) {
-                        resetSection()
+                        HStack {
+                            Spacer()
+                            Button("Reset Section to Defaults", role: .destructive) {
+                                resetSection()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(.red.opacity(0.85))
+                            .padding(.vertical, 4)
+                            Spacer()
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(.red.opacity(0.85))
-                    .padding(.vertical, 8)
-                    Spacer()
+                    .padding(.top, 6)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 11))
+                        Text("Display Visibility & Transparency Options")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.68))
                 }
+                .padding(.horizontal, 4)
             }
             .padding(.horizontal, NativeSettingsTheme.pagePadding)
             .padding(.vertical, 20)
         }
-        .onAppear {
-            loadCustomColor()
+    }
+
+    @ViewBuilder
+    private func wingChipButton(for chip: WingItemChip) -> some View {
+        let isLeft = leftWingMetric == chip.metric
+        let isRight = rightWingMetric == chip.metric
+        let isSelected = isLeft || isRight
+
+        Menu {
+            Button("Assign to Left Wing") {
+                leftWingMetric = chip.metric
+                triggerLivePreview()
+            }
+            Button("Assign to Right Wing") {
+                rightWingMetric = chip.metric
+                triggerLivePreview()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                // Distinctive colored glyph
+                Image(systemName: chip.icon)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(chip.iconColor)
+                    .frame(width: 18, alignment: .center)
+
+                Text(chip.title)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                Spacer(minLength: 2)
+
+                if isLeft || isRight {
+                    Circle()
+                        .fill(NativeSettingsTheme.accentBlue)
+                        .frame(width: 5, height: 5)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 38)
+            .background(
+                RoundedRectangle(cornerRadius: NativeSettingsTheme.pillCornerRadius, style: .continuous)
+                    .fill(Color(red: 0.08, green: 0.09, blue: 0.12).opacity(0.85))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: NativeSettingsTheme.pillCornerRadius, style: .continuous)
+                            .strokeBorder(
+                                isSelected
+                                    ? NativeSettingsTheme.accentBlue.opacity(0.65)
+                                    : Color.white.opacity(0.08),
+                                lineWidth: isSelected ? 1.2 : 0.8
+                            )
+                    )
+            )
         }
+        .buttonStyle(.plain)
     }
 
     public func resetSection() {
@@ -313,55 +393,22 @@ public struct LookSettingsView: View {
         Defaults[.waterIntensity] = 0.5
         Defaults[.leftWingMetric] = .cpuUsage
         Defaults[.rightWingMetric] = .netDownUp
-        Defaults[.wingWidth] = 68.0
+        Defaults[.wingWidth] = 80.0
         Defaults[.hideWingsInFullScreen] = true
         Defaults[.wingsBuiltInDisplayOnly] = true
         Defaults[.compactMode] = false
         Defaults[.useCustomAccentColor] = false
         Defaults[.waterSagAmount] = 12.0
         Defaults[.enableShadow] = true
-        broadcastAccentColorChange()
         triggerLivePreview()
     }
 
     private func triggerLivePreview() {
         NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
     }
-
-    private func broadcastAccentColorChange() {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: Notification.Name("AccentColorChanged"), object: nil)
-        }
-    }
-
-    private func saveCustomColor(_ color: Color) {
-        let nsColor = NSColor(color)
-        if let data = try? NSKeyedArchiver.archivedData(withRootObject: nsColor, requiringSecureCoding: false) {
-            Defaults[.customAccentColorData] = data
-        }
-    }
-
-    private func loadCustomColor() {
-        if let data = Defaults[.customAccentColorData],
-           let nsColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data) {
-            customColor = Color(nsColor: nsColor)
-            for preset in PresetColor.allCases {
-                if isCloseTo(customColor, preset.color) {
-                    selectedPresetColor = preset
-                    break
-                }
-            }
-        }
-    }
-
-    private func isCloseTo(_ c1: Color, _ c2: Color) -> Bool {
-        let n1 = NSColor(c1).usingColorSpace(.sRGB) ?? NSColor(c1)
-        let n2 = NSColor(c2).usingColorSpace(.sRGB) ?? NSColor(c2)
-        return abs(n1.redComponent - n2.redComponent) < 0.02 &&
-               abs(n1.greenComponent - n2.greenComponent) < 0.02 &&
-               abs(n1.blueComponent - n2.blueComponent) < 0.02
-    }
 }
+
+// MARK: - Legacy MockNotchWingsPreview Compatibility
 
 public struct MockNotchWingsPreview: View {
     let leftMetric: WingMetric
@@ -377,189 +424,11 @@ public struct MockNotchWingsPreview: View {
     }
 
     public var body: some View {
-        VStack(spacing: 8) {
-            ZStack(alignment: .top) {
-                // Background simulated screen bar
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.12, green: 0.14, blue: 0.20),
-                                Color(red: 0.08, green: 0.09, blue: 0.14)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                    .frame(height: 64)
-
-                // Mock display bezel line with camera & notch
-                HStack(alignment: .top, spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    // Left wing pill (if active)
-                    if leftMetric != .none {
-                        mockWingContent(for: leftMetric)
-                            .padding(.horizontal, 6)
-                            .frame(width: mockWidth(for: leftMetric), height: 24)
-                            .background(
-                                UnevenRoundedRectangle(
-                                    topLeadingRadius: 0,
-                                    bottomLeadingRadius: 10,
-                                    bottomTrailingRadius: 6,
-                                    topTrailingRadius: 0
-                                )
-                                .fill(Color.black.opacity(0.85))
-                                .overlay(
-                                    UnevenRoundedRectangle(
-                                        topLeadingRadius: 0,
-                                        bottomLeadingRadius: 10,
-                                        bottomTrailingRadius: 6,
-                                        topTrailingRadius: 0
-                                    )
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                                )
-                            )
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
-                    }
-
-                    // Hardware Notch Cutout
-                    ZStack {
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0,
-                            bottomLeadingRadius: 8,
-                            bottomTrailingRadius: 8,
-                            topTrailingRadius: 0
-                        )
-                        .fill(Color.black)
-                        .frame(width: 110, height: 24)
-
-                        // Camera lens + mic hole
-                        HStack(spacing: 5) {
-                            Circle()
-                                .fill(Color(red: 0.05, green: 0.15, blue: 0.25))
-                                .frame(width: 5, height: 5)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
-                                )
-                            Circle()
-                                .fill(Color.black)
-                                .frame(width: 2, height: 2)
-                        }
-                    }
-
-                    // Right wing pill (if active)
-                    if rightMetric != .none {
-                        mockWingContent(for: rightMetric)
-                            .padding(.horizontal, 6)
-                            .frame(width: mockWidth(for: rightMetric), height: 24)
-                            .background(
-                                UnevenRoundedRectangle(
-                                    topLeadingRadius: 0,
-                                    bottomLeadingRadius: 6,
-                                    bottomTrailingRadius: 10,
-                                    topTrailingRadius: 0
-                                )
-                                .fill(Color.black.opacity(0.85))
-                                .overlay(
-                                    UnevenRoundedRectangle(
-                                        topLeadingRadius: 0,
-                                        bottomLeadingRadius: 6,
-                                        bottomTrailingRadius: 10,
-                                        topTrailingRadius: 0
-                                    )
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                                )
-                            )
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
-                    }
-
-                    Spacer(minLength: 0)
-                }
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: leftMetric)
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: rightMetric)
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: wingWidth)
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: autoFit)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            Text("Live Preview")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
-    }
-
-    @ViewBuilder
-    private func mockWingContent(for metric: WingMetric) -> some View {
-        switch metric {
-        case .mediaPlayback:
-            HStack(spacing: 5) {
-                Image(systemName: "backward.fill")
-                    .font(.system(size: 7, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
-                Image(systemName: "play.fill")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Color.accentColor)
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 7, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-        default:
-            HStack(spacing: 4) {
-                Image(systemName: metric.iconName)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text(mockText(for: metric))
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-            }
-        }
-    }
-
-    private func mockWidth(for metric: WingMetric) -> CGFloat {
-        let base = max(46, min(wingWidth * 0.75, 140))
-        guard autoFit else { return base }
-        switch metric {
-        case .mediaPlayback:
-            return max(base, 64)
-        case .mediaTitle:
-            return max(base, 118)
-        case .ramDetails:
-            return max(base, 108)
-        case .netDown, .netUp:
-            return max(base, 80)
-        case .cpuTemp:
-            return max(base, 58)
-        default:
-            return base
-        }
-    }
-
-    private func mockText(for metric: WingMetric) -> String {
-        switch metric {
-        case .none: return ""
-        case .cpuUsage: return "18%"
-        case .cpuTemp: return "44°C"
-        case .ramUsage: return "11.2G"
-        case .ramDetails: return "11.2 / 16 GB"
-        case .netDown: return "↓ 12.4M"
-        case .netUp: return "↑ 3.2M"
-        case .netDownUp: return "13.4M"
-        case .battery: return "94%"
-        case .bluetoothBattery: return "88%"
-        case .volume: return "75%"
-        case .brightness: return "80%"
-        case .clock: return "09:41"
-        case .weather: return "21°C"
-        case .mediaPlayback: return ""
-        case .mediaTitle: return "Starboy - Weeknd"
-        }
+        ReferenceNotchCapsule(
+            leftMetric: leftMetric,
+            rightMetric: rightMetric,
+            wingWidth: wingWidth,
+            autoFit: autoFit
+        )
     }
 }
-
