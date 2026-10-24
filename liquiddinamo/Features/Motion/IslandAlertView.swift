@@ -8,9 +8,20 @@
 import SwiftUI
 import Defaults
 
+/// Preference key to capture intrinsic width of event content
+public struct EventCapsuleIntrinsicWidthPreferenceKey: PreferenceKey {
+    public static var defaultValue: CGFloat = 0
+    public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 {
+            value = max(value, next)
+        }
+    }
+}
+
 /// Shared 3D liquid capsule container for all transient events and HUDs.
 /// Adheres strictly to NotchSafeAreaEngine geometry, with Apple Liquid Glass specular sheen,
-/// hairline rim reflections, and smooth spring physics.
+/// hairline rim reflections, content-aware proportional sizing, and smooth spring physics.
 public struct LiquidAlertCapsuleContainer<Content: View>: View {
     public var tintColor: Color?
     public var dwellDuration: TimeInterval
@@ -23,6 +34,7 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isHovered: Bool = false
+    @State private var measuredWidth: CGFloat = 0
 
     public init(
         tintColor: Color? = nil,
@@ -40,19 +52,53 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
 
     public var body: some View {
         let geom = safeArea.currentGeometry
-        let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+        let minW: CGFloat = geom.hasPhysicalNotch ? max(180.0, geom.rawNotchWidth) : 180.0
+        let maxW: CGFloat = min(380.0, max(280.0, geom.screenFrame.width * 0.45))
+        let effectiveMeasuredW = measuredWidth > 0 ? (measuredWidth + 28.0) : IslandController.alertCapsuleDefaultWidth
+        let finalWidth = min(maxW, max(minW, effectiveMeasuredW))
+        let finalHeight = max(36.0, min(48.0, max(geom.notchHeight, 38.0)))
 
         content()
+            .fixedSize(horizontal: true, vertical: false)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(key: EventCapsuleIntrinsicWidthPreferenceKey.self, value: geo.size.width)
+                }
+            )
+            .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
+                if newWidth > 0 && abs(newWidth - measuredWidth) > 1.0 {
+                    measuredWidth = newWidth
+                    let calculated = min(maxW, max(minW, newWidth + 28.0))
+                    IslandController.shared.reportAlertCapsuleWidth(calculated)
+                }
+            }
             .padding(.horizontal, 14)
             .padding(.vertical, 4)
-            .frame(width: capsuleSize.width, height: capsuleSize.height)
+            .frame(width: finalWidth, height: finalHeight)
             .background(
-                LiquidGlassSurface(
-                    shape: Capsule(),
-                    isNotchAnchored: false,
-                    ambientColor: tintColor,
-                    scrimFloor: 0.35
-                )
+                ZStack {
+                    LiquidGlassSurface(
+                        shape: Capsule(),
+                        isNotchAnchored: false,
+                        ambientColor: tintColor,
+                        scrimFloor: 0.35
+                    )
+                    // 3D Glass Specular Sheen Highlight
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.35),
+                                    Color.white.opacity(0.12),
+                                    Color.white.opacity(0.02)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.8
+                        )
+                }
             )
             .clipShape(Capsule())
             .shadow(color: Color.black.opacity(0.40), radius: 8, y: 3)

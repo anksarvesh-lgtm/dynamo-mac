@@ -60,6 +60,22 @@ public final class IslandController: ObservableObject {
     @Published public private(set) var activeAlert: AlertPayload? = nil
     private var pendingAlerts: [AlertPayload] = []
 
+    /// Dynamically reported intrinsic capsule width from content-measuring alert container
+    @Published public private(set) var dynamicAlertCapsuleWidth: CGFloat? = nil
+
+    /// Updates dynamic alert capsule width and resizes overlay window accordingly
+    public func reportAlertCapsuleWidth(_ width: CGFloat) {
+        guard dynamicAlertCapsuleWidth != width else { return }
+        self.dynamicAlertCapsuleWidth = width
+        if state == .alertPop {
+            let newSize = calculateDimensions(for: .alertPop)
+            withAnimation(IslandMotion.shared.expandSpring) {
+                self.targetSize = newSize
+            }
+            AppDelegate.shared?.updateWindowFrame(for: .alertPop, explicitSize: newSize, animated: true)
+        }
+    }
+
     /// Active alert banner displayed inside dashboard when user is hovering or notch is expanded
     @Published public private(set) var activeExpandedAlert: AlertPayload? = nil
     private var pendingExpandedAlerts: [AlertPayload] = []
@@ -318,8 +334,10 @@ public final class IslandController: ObservableObject {
 
         if isAlert {
             self.activeAlert = alertPayload
+            self.dynamicAlertCapsuleWidth = alertPayload?.customSize?.width
         } else if oldState == .alertPop {
             self.activeAlert = nil
+            self.dynamicAlertCapsuleWidth = nil
         }
 
         let newSize = calculateDimensions(for: newState, alertPayload: alertPayload)
@@ -599,7 +617,8 @@ public final class IslandController: ObservableObject {
                 || LiveActivityCenter.shared.activeNotification != nil
             // Transient alerts only resize the container if no item is selected
             if hasAlert && activeOrganicItem == .none {
-                let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+                let contentW = dynamicAlertCapsuleWidth ?? activeExpandedAlert?.customSize?.width ?? alertPayload?.customSize?.width
+                let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
                 let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
                 return CGSize(width: capsuleSize.width, height: targetH)
             }
@@ -643,19 +662,23 @@ public final class IslandController: ObservableObject {
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
 
         case .alertPop:
-            let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+            let contentW = dynamicAlertCapsuleWidth ?? alertPayload?.customSize?.width ?? activeAlert?.customSize?.width
+            let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
             let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
             return CGSize(width: capsuleSize.width, height: targetH)
         }
     }
 
     /// Named constant base width for transient alert and HUD 3D liquid capsules
-    public static let alertCapsuleDefaultWidth: CGFloat = 280.0
+    public static let alertCapsuleDefaultWidth: CGFloat = 220.0
 
-    /// Derives the exact 3D liquid capsule size from NotchSafeAreaEngine geometry
-    public static func alertCapsuleSize(for geom: NotchGeometry) -> CGSize {
-        let width = max(geom.compactPillWidth, alertCapsuleDefaultWidth)
-        let height = max(geom.notchHeight, 36.0)
+    /// Derives the exact 3D liquid capsule size from NotchSafeAreaEngine geometry and content measurements
+    public static func alertCapsuleSize(for geom: NotchGeometry, contentWidth: CGFloat? = nil) -> CGSize {
+        let minW: CGFloat = geom.hasPhysicalNotch ? max(180.0, geom.rawNotchWidth) : 180.0
+        let maxW: CGFloat = min(380.0, max(280.0, geom.screenFrame.width * 0.45))
+        let requestedW = contentWidth ?? alertCapsuleDefaultWidth
+        let width = min(maxW, max(minW, requestedW))
+        let height = max(36.0, min(48.0, max(geom.notchHeight, 38.0)))
         return CGSize(width: width, height: height)
     }
 
