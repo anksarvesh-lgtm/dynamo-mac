@@ -158,12 +158,44 @@ public final class AppPermissionManager: ObservableObject {
 
     // MARK: - Core Permission Evaluation
 
+    /// Comprehensive multi-layer check for accessibility permission.
+    /// Combines AXIsProcessTrusted, AXIsProcessTrustedWithOptions, and an active
+    /// listen-only CGEvent tap probe to prevent false negatives.
+    public static func isAccessibilityActuallyGranted() -> Bool {
+        // 1. Direct AX process trust check
+        if AXIsProcessTrusted() {
+            return true
+        }
+
+        // 2. Options dictionary check (without prompting)
+        let checkOptions = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
+        if AXIsProcessTrustedWithOptions(checkOptions) {
+            return true
+        }
+
+        // 3. Ground-truth runtime probe: Attempt a passive listen-only CGEvent tap.
+        // If macOS has granted accessibility to this process, tapCreate succeeds. If not, it returns nil.
+        let probeTap = CGEvent.tapCreate(
+            tap: .cghidEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: 0,
+            callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
+            userInfo: nil
+        )
+        if let tap = probeTap {
+            CFMachPortInvalidate(tap)
+            return true
+        }
+
+        return false
+    }
+
     private func evaluateAllPermissions() -> [AppPermissionKind: AppPermissionStatus] {
         var evaluated: [AppPermissionKind: AppPermissionStatus] = [:]
 
-        // 1. Accessibility: Check both AXIsProcessTrusted and with options dictionary
-        let checkOptions = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
-        let axTrusted = AXIsProcessTrusted() || AXIsProcessTrustedWithOptions(checkOptions)
+        // 1. Accessibility: Multi-layer verification (AX + tapCreate ground-truth)
+        let axTrusted = Self.isAccessibilityActuallyGranted()
         evaluated[.accessibility] = axTrusted ? .allowed : .needsPermission
 
         // 2. Calendar: Fresh EventKit evaluation
@@ -337,7 +369,7 @@ public final class AppPermissionManager: ObservableObject {
             _ = AXIsProcessTrustedWithOptions(options)
             await XPCHelperClient.shared.ensureAccessibilityAuthorization(promptIfNeeded: true)
             // If still not trusted after prompt, guide user to System Settings
-            if !AXIsProcessTrusted() {
+            if !Self.isAccessibilityActuallyGranted() {
                 openSettings(for: .accessibility)
             }
 
@@ -382,6 +414,25 @@ public final class AppPermissionManager: ObservableObject {
         // Immediately refresh state and start the 500ms polling session for 10 seconds
         refreshAll(targetKind: kind)
         startPolling(for: kind)
+    }
+
+    /// Performs one-click repair of stale macOS TCC accessibility cache.
+    /// Purges stale TCC entries for com.agrigence.liquiddynamo, prompts native dialog,
+    /// opens System Settings, and begins active 500ms polling.
+    public func repairAccessibilityPermission() {
+        log("Repairing Accessibility Permission: purging stale TCC cache...")
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        proc.arguments = ["reset", "Accessibility", "com.agrigence.liquiddynamo"]
+        try? proc.run()
+        proc.waitUntilExit()
+
+        let promptOptions = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(promptOptions)
+
+        openSettings(for: .accessibility)
+        refreshAll(targetKind: .accessibility)
+        startPolling(for: .accessibility)
     }
 
     public func openSettings(for kind: AppPermissionKind) {

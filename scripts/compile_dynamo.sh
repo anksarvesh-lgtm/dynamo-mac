@@ -80,4 +80,9 @@ for lib in AsyncXPCConnection Defaults KeyboardShortcuts LaunchAtLogin MacroVisi
     install_name_tool -change "$MODULES_DIR/lib${lib}.dylib" "@rpath/lib${lib}.dylib" "$OUTPUT_BIN"
 done
 
+if [ -d "$DIR/build/LiquidDynamo.app/Contents/MacOS" ]; then
+    echo "==> Updating $DIR/build/LiquidDynamo.app/Contents/MacOS/LiquidDynamo..."
+    cp "$OUTPUT_BIN" "$DIR/build/LiquidDynamo.app/Contents/MacOS/LiquidDynamo"
+fi
+
 echo "==> Compilation complete! Output: $OUTPUT_BIN"

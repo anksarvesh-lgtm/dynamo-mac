@@ -109,6 +109,17 @@ final class XPCHelperClient: NSObject {
     }
     
     nonisolated func isAccessibilityAuthorized() async -> Bool {
+        // If main application process is already authorized, avoid false negatives from isolated XPC helper
+        let mainAuthorized = await MainActor.run {
+            AppPermissionManager.isAccessibilityActuallyGranted()
+        }
+        if mainAuthorized {
+            await MainActor.run {
+                notifyAuthorizationChange(true)
+            }
+            return true
+        }
+
         do {
             let service = await MainActor.run {
                 ensureRemoteService()
@@ -128,6 +139,16 @@ final class XPCHelperClient: NSObject {
     }
     
     nonisolated func ensureAccessibilityAuthorization(promptIfNeeded: Bool) async -> Bool {
+        let mainAuthorized = await MainActor.run {
+            AppPermissionManager.isAccessibilityActuallyGranted()
+        }
+        if mainAuthorized {
+            await MainActor.run {
+                notifyAuthorizationChange(true)
+            }
+            return true
+        }
+
         do {
             let service = await MainActor.run {
                 ensureRemoteService()

@@ -9,7 +9,7 @@ OUTPUT_DIR="$HOME/Desktop"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
 
 echo "==> 1. Codesigning $APP_PATH..."
-codesign --force --deep --sign - --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$APP_PATH"
+codesign --force --deep --sign - --identifier "com.agrigence.liquiddynamo" -r='designated => identifier "com.agrigence.liquiddynamo"' --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$APP_PATH"
 
 echo "==> 2. Terminating old LiquidDynamo instances..."
 killall LiquidDynamo 2>/dev/null || true
@@ -20,7 +20,7 @@ ZIP_STAGE="/tmp/liquiddynamo_zip_stage"
 rm -rf "$ZIP_STAGE"
 mkdir -p "$ZIP_STAGE"
 cp -R "$APP_PATH" "$ZIP_STAGE/liquiddynamo.app"
-codesign --force --deep --sign - --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$ZIP_STAGE/liquiddynamo.app"
+codesign --force --deep --sign - --identifier "com.agrigence.liquiddynamo" -r='designated => identifier "com.agrigence.liquiddynamo"' --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$ZIP_STAGE/liquiddynamo.app"
 
 rm -f "$OUTPUT_DIR/liquiddynamo.zip" "$DIR/build/liquiddynamo.zip"
 (cd "$ZIP_STAGE" && ditto -c -k --keepParent "liquiddynamo.app" "$OUTPUT_DIR/liquiddynamo.zip")

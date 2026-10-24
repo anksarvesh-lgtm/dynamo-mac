@@ -70,13 +70,20 @@ public struct PermissionsSettingsView: View {
                     }
                     .padding(.vertical, 4)
 
-                    Button("Open Accessibility Settings") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                            NSWorkspace.shared.open(url)
-                            permManager.startPolling(for: .accessibility)
+                    HStack(spacing: 12) {
+                        Button {
+                            permManager.repairAccessibilityPermission()
+                        } label: {
+                            Label("1-Click Repair & Reset TCC", systemImage: "wrench.and.screwdriver.fill")
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+
+                        Button("Open Accessibility Settings") {
+                            permManager.openSettings(for: .accessibility)
+                        }
+                        .controlSize(.regular)
                     }
-                    .controlSize(.regular)
                 }
                 .padding(.vertical, 4)
             } header: {
@@ -155,6 +162,15 @@ public struct PermissionsSettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+
+                    if kind == .accessibility {
+                        Button("Repair") {
+                            permManager.repairAccessibilityPermission()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Purges stale macOS TCC permission cache and re-prompts")
+                    }
                 }
                 .transition(.opacity)
             } else {
