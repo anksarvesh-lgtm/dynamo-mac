@@ -15,6 +15,7 @@ public struct AboutSettingsView: View {
 
     @State private var copiedDiagnostics: Bool = false
     @State private var showLicenseSheet: Bool = false
+    @State private var showChangelogSheet: Bool = false
 
     public init(updaterController: SPUStandardUpdaterController? = nil) {
         self.updaterController = updaterController
@@ -34,7 +35,7 @@ public struct AboutSettingsView: View {
                             Text("LiquidDynamo")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                            Text("v\(Bundle.main.releaseVersionNumber ?? "1.9.2")")
+                            Text("v\(Bundle.main.releaseVersionNumber ?? "1.9.9")")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 6)
@@ -42,7 +43,7 @@ public struct AboutSettingsView: View {
                                 .background(Color.secondary.opacity(0.15))
                                 .clipShape(Capsule())
                         }
-                        Text("Version \(Bundle.main.releaseVersionNumber ?? "1.9.2") (Build \(Bundle.main.buildVersionNumber ?? "12"))")
+                        Text("Version \(Bundle.main.releaseVersionNumber ?? "1.9.9") (Build \(Bundle.main.buildVersionNumber ?? "12"))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Text("Fluid Liquid Notch Experience for macOS")
@@ -76,21 +77,21 @@ public struct AboutSettingsView: View {
                 HStack {
                     Text("Version")
                     Spacer()
-                    Text(Bundle.main.releaseVersionNumber ?? "1.7.0")
+                    Text(Bundle.main.releaseVersionNumber ?? "1.9.9")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
                 HStack {
                     Text("Build Number")
                     Spacer()
-                    Text(Bundle.main.buildVersionNumber ?? "8")
+                    Text(Bundle.main.buildVersionNumber ?? "12")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
                 HStack {
                     Text("Release")
                     Spacer()
-                    Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "1.7.0")")
+                    Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "1.9.9")")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
@@ -103,6 +104,19 @@ public struct AboutSettingsView: View {
             }
 
             Section {
+                Button {
+                    showChangelogSheet = true
+                } label: {
+                    HStack {
+                        Label("Release Changelog (GitHub)", systemImage: "sparkles.rectangle.stack")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
                 Link(destination: URL(string: "https://github.com/anksarvesh-lgtm/dynamo-mac")!) {
                     HStack {
                         Label("GitHub Repository", systemImage: "link")
@@ -162,6 +176,9 @@ public struct AboutSettingsView: View {
         }
         .formStyle(.grouped)
         .accentColor(.effectiveAccent)
+        .sheet(isPresented: $showChangelogSheet) {
+            GitHubChangelogView()
+        }
         .sheet(isPresented: $showLicenseSheet) {
             VStack(spacing: 0) {
                 HStack {
