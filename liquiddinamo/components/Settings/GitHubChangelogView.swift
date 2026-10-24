@@ -59,7 +59,7 @@ public final class GitHubChangelogViewModel: ObservableObject {
             guard let url = URL(string: endpoint) else { continue }
             var request = URLRequest(url: url)
             request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-            request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "1.9.9")", forHTTPHeaderField: "User-Agent")
+            request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "2.0.0")", forHTTPHeaderField: "User-Agent")
             request.timeoutInterval = 10
 
             do {

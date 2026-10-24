@@ -71,7 +71,7 @@ public final class GitHubUpdateChecker: ObservableObject {
                 let releaseInfo = try await fetchLatestRelease()
                 self.lastCheckedDate = Date()
 
-                let currentVersion = Bundle.main.releaseVersionNumber ?? "1.9.9"
+                let currentVersion = Bundle.main.releaseVersionNumber ?? "2.0.0"
                 let latestVersion = releaseInfo.version
 
                 if Self.isVersion(latestVersion, greaterThan: currentVersion) {
@@ -94,7 +94,7 @@ public final class GitHubUpdateChecker: ObservableObject {
                 }
             } catch {
                 self.lastCheckedDate = Date()
-                let currentVersion = Bundle.main.releaseVersionNumber ?? "1.9.9"
+                let currentVersion = Bundle.main.releaseVersionNumber ?? "2.0.0"
                 if silent {
                     self.status = .upToDate(currentVersion: currentVersion)
                 } else {
@@ -119,7 +119,7 @@ public final class GitHubUpdateChecker: ObservableObject {
             do {
                 var request = URLRequest(url: url)
                 request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-                request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "1.9.9")", forHTTPHeaderField: "User-Agent")
+                request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "2.0.0")", forHTTPHeaderField: "User-Agent")
                 request.timeoutInterval = 12
 
                 let (data, response) = try await URLSession.shared.data(for: request)

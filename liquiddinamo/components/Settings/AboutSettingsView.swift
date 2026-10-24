@@ -35,7 +35,7 @@ public struct AboutSettingsView: View {
                             Text("LiquidDynamo")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                            Text("v\(Bundle.main.releaseVersionNumber ?? "1.9.9")")
+                            Text("v\(Bundle.main.releaseVersionNumber ?? "2.0.0")")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 6)
@@ -43,7 +43,7 @@ public struct AboutSettingsView: View {
                                 .background(Color.secondary.opacity(0.15))
                                 .clipShape(Capsule())
                         }
-                        Text("Version \(Bundle.main.releaseVersionNumber ?? "1.9.9") (Build \(Bundle.main.buildVersionNumber ?? "12"))")
+                        Text("Version \(Bundle.main.releaseVersionNumber ?? "2.0.0") (Build \(Bundle.main.buildVersionNumber ?? "13"))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Text("Fluid Liquid Notch Experience for macOS")
@@ -77,21 +77,21 @@ public struct AboutSettingsView: View {
                 HStack {
                     Text("Version")
                     Spacer()
-                    Text(Bundle.main.releaseVersionNumber ?? "1.9.9")
+                    Text(Bundle.main.releaseVersionNumber ?? "2.0.0")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
                 HStack {
                     Text("Build Number")
                     Spacer()
-                    Text(Bundle.main.buildVersionNumber ?? "12")
+                    Text(Bundle.main.buildVersionNumber ?? "13")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
                 HStack {
                     Text("Release")
                     Spacer()
-                    Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "1.9.9")")
+                    Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "2.0.0")")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }

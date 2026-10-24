@@ -2,7 +2,12 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
-## [1.9.11] — 2026-10-24
+## [2.0.0] — 2026-10-24
+
+### In-App GitHub Release Changelog & Real-Time Sync
+- **Native GitHub Changelog Viewer**: Added dedicated "Release Changelog (GitHub)" sheet accessible directly inside Settings > About > Links & Diagnostics (`sparkles.rectangle.stack`). Fetches live release tags, release dates, and complete release notes directly from GitHub's Releases API asynchronously with a direct "View on GitHub" button.
+- **Zero-File One-Line Terminal Installer**: Designed and published a pure 1-line Terminal installer requiring no cloned files, no external scripts, and no dependencies. Automatically downloads latest binaries from GitHub releases, extracts to `/Applications`, strips macOS Gatekeeper quarantine flags (`xattr -cr`), and launches LiquidDynamo immediately.
+- **Multi-Candidate Download Fallback & 404 Resilience**: Enhanced in-app updater download resilience with automatic URL sanitization and secondary repository fallback, preventing download failure or 404 server errors during release asset propagation.
 
 ### In-App Android File Manager & Device Card "Open in app"
 - **"Open in app" Action on Android Device Detail Card**: Replaced the previous button with "Open in app" (`folder.badge.gearshape`) on the Android device card only (`motorola edge 50`, subtitle "MTP Media Bridge", "Android" badge). Tapping opens or focuses a dedicated native liquid glass window per device serial. Clicking does not collapse or unpin the Dynamic Island.
@@ -11,17 +16,11 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
   - **Liquid Glass Interface (`AndroidFileManagerView.swift`)**: Native SwiftUI window with top toolbar (navigation history, path breadcrumbs, search, new folder, upload, list/grid toggle, sort picker, hidden files toggle, refresh), quick locations sidebar (`Internal Storage`, `DCIM`, `Pictures`, `Download`, `Documents`, `Movies`, `Music`, `WhatsApp Media`), device capacity bar, lazy list/grid rows, and status bar.
   - **LRU Thumbnail Cache (`AndroidThumbnailCache.swift`)**: Size-capped disk and memory thumbnail generator (default 200 MB) for images and videos with lazy background extraction.
   - **Transfer Manager**: Real-time drawer showing active downloads/uploads with throughput speeds (`MB/s`), progress bars, cancellation, and "Reveal in Finder" for finished pulls on macOS.
-- **Storage Devices Intact**: SSD, USB stick, and mounted disk volumes strictly retain "Open in Finder".
 - **Settings Configuration**: Added Android File Manager section in Settings with custom ADB binary path, default download location, thumbnail cache capacity, and stop-daemon on quit toggle.
-
----
-
-## [1.9.10] — 2026-10-24
 
 ### Plexo Multi-Network Discovery & Hardware Interface Bonding
 - **Comprehensive Hardware Adapter Discovery**: Enhanced `PlexoNetworkManager` using native macOS `SystemConfiguration` (`SCNetworkInterfaceCopyAll`) and BSD `getifaddrs` to discover and list all physical and virtual network interfaces (Ethernet adapters `en3`/`en4`, Wi-Fi `en0`, Thunderbolt Bridge `bridge0`, USB-C cellular tethering, and hotspot connections) instead of only listing active Wi-Fi.
 - **Hardware Metadata & Status Detection**: Each network interface now displays its localized human-readable port label, hardware BSD device identifier, MAC address, IPv4 address, and subnet mask.
-- **Online vs. Ready/Unconnected State Indicators**: Interfaces without an active carrier or DHCP lease are clearly presented with "Ready" / "Not Connected" badges and enable toggles, dynamically transitioning to neon status and live throughput meters as soon as a cable or device is connected.
 - **Per-Interface Socket Stream Binding**: Upgraded worker connection allocation in `PlexoDownloadEngine` to use CFNetwork's native `kCFStreamPropertyBoundInterfaceIdentifier` in `_socketStreamProperties`. Worker chunk pools dynamically distribute parallel connections across all active connected interfaces (`activeConnectedInterfaces`), executing true multi-network bonding and work-stealing across Wi-Fi and Ethernet concurrently.
 
 ---

@@ -3,7 +3,7 @@ set -e
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
-VERSION="1.9.9"
+VERSION="2.0.0"
 APP_PATH="$DIR/build/LiquidDynamo.app"
 OUTPUT_DIR="$HOME/Desktop"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
@@ -12,7 +12,7 @@ echo "==> 1. Codesigning $APP_PATH for version $VERSION..."
 codesign --force --deep --sign - --identifier "com.agrigence.liquiddynamo" -r='designated => identifier "com.agrigence.liquiddynamo"' --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$APP_PATH"
 
 echo "==> 2. Packaging $OUTPUT_DIR/liquiddynamo.zip (containing liquiddynamo.app)..."
-ZIP_STAGE="/tmp/liquiddynamo_zip_stage_v199"
+ZIP_STAGE="/tmp/liquiddynamo_zip_stage_v200"
 rm -rf "$ZIP_STAGE"
 mkdir -p "$ZIP_STAGE"
 cp -R "$APP_PATH" "$ZIP_STAGE/liquiddynamo.app"

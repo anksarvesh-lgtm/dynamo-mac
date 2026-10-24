@@ -19,27 +19,29 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "1.9.9"
+version = "2.0.0"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Production Release"
-release_body = """## LiquidDynamo 1.9.9 — Production Release
+release_title = f"LiquidDynamo {version} — Major Production Release"
+release_body = """## LiquidDynamo 2.0.0 — Major Production Release
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 1.9.9:
-1. **Multi-Layer Accessibility Verification**:
-   - Advanced composite ground-truth check combining AXIsProcessTrusted, AXIsProcessTrustedWithOptions, and passive CGEvent tap probing to eliminate false negatives.
-2. **1-Click Stale TCC Repair**:
-   - Added instant one-click TCC reset & re-authorization tool in Settings > Permissions to effortlessly fix stale macOS permission grants.
-3. **Codesign Designated Requirement Persistence**:
-   - Explicit identifier-based designated requirements (`identifier "com.agrigence.liquiddynamo"`) ensure system permissions persist across all future app updates and rebuilds.
-4. **Enhanced Auto-Update & Dynamic Island Delivery**:
-   - Full GitHub Releases synchronization with in-island update banners and one-click in-place background replacement.
+### Core Highlights in Version 2.0.0:
+1. **In-App GitHub Release Changelog**:
+   - Added native live changelog viewer directly in Settings > About > Links & Diagnostics (`sparkles.rectangle.stack`) querying GitHub Releases API with markdown formatting and direct links.
+2. **Zero-File One-Line Terminal Installer**:
+   - Single terminal command downloads, installs to `/Applications`, strips macOS Gatekeeper quarantine flags (`xattr -cr`), and launches LiquidDynamo immediately without external scripts.
+3. **Dedicated In-App Android File Manager**:
+   - Native AppKit window (`Features/AndroidFiles/`) with asynchronous ADB client, MTP bridge support, directory navigation, thumbnails, and progress-tracked transfers.
+4. **Plexo Multi-Network Interface Bonding**:
+   - Real-time BSD interface discovery and parallel socket bonding across Wi-Fi, Ethernet, and Thunderbolt simultaneously.
+5. **Multi-Candidate Download Fallback & 404 Resilience**:
+   - Built-in URL sanitization and multi-repository fallback in GitHub update downloader to eliminate 404 errors during asset propagation.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.9/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.0/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-1.9.9.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.9/LiquidDynamo-1.9.9.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.0.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.0/LiquidDynamo-2.0.0.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 
