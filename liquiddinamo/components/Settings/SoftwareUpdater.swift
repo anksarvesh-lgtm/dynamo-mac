@@ -120,7 +120,7 @@ struct CheckForUpdatesView: View {
                         .controlSize(.mini)
                         .buttonStyle(.bordered)
                     }
-                    Text("Downloading LiquidDynamo.dmg (\(downloaded) of \(total))…")
+                    Text("Downloading update (\(downloaded) of \(total))…")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -128,7 +128,7 @@ struct CheckForUpdatesView: View {
             case .extracting:
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Extracting LiquidDynamo.app from DMG…")
+                    Text("Extracting liquiddynamo.app…")
                         .font(.caption)
                         .foregroundStyle(.primary)
                 }
