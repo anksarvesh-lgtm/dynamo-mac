@@ -39,7 +39,7 @@ public struct SettingsWatcherView: View {
                 // Section 1: Overview & Server Status
                 NativeSettingsCard(title: "Watcher AI Session Monitor", icon: "sparkles") {
                     VStack(alignment: .leading, spacing: 10) {
-                        ToggleRow(
+                        WatcherToggleRow(
                             title: "Enable Watcher IPC Listener",
                             subtitle: "Listens for AI coding sessions (Claude Code, Antigravity, Cursor, Codex, Gemini CLI) via local Unix socket",
                             isOn: $enableWatcherIntegration
@@ -102,7 +102,7 @@ public struct SettingsWatcherView: View {
                 // Section 2: Automation & Approvals
                 NativeSettingsCard(title: "Permissions & Notifications", icon: "shield.checkered") {
                     VStack(spacing: 10) {
-                        ToggleRow(
+                        WatcherToggleRow(
                             title: "Notch Authorization Popups",
                             subtitle: "Display Allow/Deny controls directly in the notch when an agent requests tool authorization",
                             isOn: $watcherNotificationOnFinished
@@ -110,7 +110,7 @@ public struct SettingsWatcherView: View {
 
                         Divider().opacity(0.15)
 
-                        ToggleRow(
+                        WatcherToggleRow(
                             title: "Auto-Approve Read Operations",
                             subtitle: "Automatically grant permissions for read-only tools while prompting for file writes and shell commands",
                             isOn: $watcherAutoApproveReads
@@ -152,6 +152,29 @@ public struct SettingsWatcherView: View {
                 }
             }
             .padding(16)
+        }
+    }
+}
+
+private struct WatcherToggleRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 11.5, weight: .semibold))
+                Text(subtitle)
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Toggle("", isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
         }
     }
 }

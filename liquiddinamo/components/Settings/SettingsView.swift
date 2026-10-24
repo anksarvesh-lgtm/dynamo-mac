@@ -69,6 +69,8 @@ struct SettingsView: View {
                         SettingsFileDroidView()
                     case "Plexo":
                         SettingsPlexoView()
+                    case "Watcher":
+                        SettingsWatcherView()
                     case "Devices":
                         SettingsDevicesView()
                     case "Clipboard":

@@ -657,6 +657,8 @@ public final class IslandController: ObservableObject {
                     return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
                 case .filedroid:
                     return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
+                case .watcher:
+                    return CGSize(width: homeWidth, height: min(max(440, geom.notchHeight + 410), screenMaxH))
                 }
             }
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
@@ -702,6 +704,8 @@ public final class IslandController: ObservableObject {
             return max(480, geom.notchHeight + 450)
         case .filedroid:
             return max(480, geom.notchHeight + 450)
+        case .watcher:
+            return max(440, geom.notchHeight + 410)
         }
     }
 

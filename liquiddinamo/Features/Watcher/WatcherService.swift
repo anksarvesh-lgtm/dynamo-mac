@@ -41,7 +41,7 @@ public final class WatcherService: ObservableObject {
     }
 
     deinit {
-        stopServer()
+        // Shared singleton exists for process duration
     }
 
     // MARK: - Server Lifecycle
@@ -95,15 +95,14 @@ public final class WatcherService: ObservableObject {
             return
         }
 
-        // Create dispatch source for zero-idle CPU socket polling
-        let source = DispatchSource.makeReadSource(fileDescriptor: serverFD, queue: DispatchQueue.global(qos: .userInitiated))
+        // Create dispatch source on main queue for zero-idle CPU socket polling
+        let currentFD = serverFD
+        let source = DispatchSource.makeReadSource(fileDescriptor: serverFD, queue: DispatchQueue.main)
         source.setEventHandler { [weak self] in
             self?.handleIncomingConnection()
         }
-        source.setCancelHandler { [weak self] in
-            if let fd = self?.serverFD, fd >= 0 {
-                close(fd)
-            }
+        source.setCancelHandler {
+            close(currentFD)
         }
         source.resume()
         self.serverSource = source
@@ -129,7 +128,7 @@ public final class WatcherService: ObservableObject {
 
     // MARK: - Connection & IPC Handling
 
-    nonisolated private func handleIncomingConnection() {
+    private func handleIncomingConnection() {
         var clientAddr = sockaddr_un()
         var addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
 
@@ -148,9 +147,7 @@ public final class WatcherService: ObservableObject {
             let flags = fcntl(clientFD, F_GETFL, 0)
             _ = fcntl(clientFD, F_SETFL, flags | O_NONBLOCK)
 
-            Task { @MainActor [weak self] in
-                self?.setupClientSource(fd: clientFD)
-            }
+            setupClientSource(fd: clientFD)
         }
     }
 

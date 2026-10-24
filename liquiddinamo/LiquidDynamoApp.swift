@@ -869,6 +869,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppDelegate.shared = self
         migrateWingMetricsIfNeeded()
         startClosedEventMonitors()
+        if Defaults[.enableWatcherIntegration] {
+            _ = WatcherService.shared
+        }
         #if DEBUG
         if CommandLine.arguments.contains("--run-notch-safety-tests") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

@@ -24,6 +24,7 @@ public enum OrganicNotchExpandedItem: Equatable {
     case colorDropper
     case plexo
     case filedroid
+    case watcher
 }
 
 public struct LiquidOrganicNotchView: View {
@@ -41,6 +42,7 @@ public struct LiquidOrganicNotchView: View {
     @ObservedObject var cleaner = StorageCleanupManager.shared
     @ObservedObject var colorDropper = ColorDropperTool.shared
     @ObservedObject var filedroidEngine = FileDroidEngine.shared
+    @ObservedObject var watcherService = WatcherService.shared
 
     private var activeExpandedItem: OrganicNotchExpandedItem {
         get { island.activeOrganicItem }
@@ -332,13 +334,16 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         }
     }
 
-    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Storage Purge)
+    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Storage Purge, Watcher)
     @ViewBuilder
     private var quickToolsRow: some View {
         CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
             clipboardStatusButton
             dropperStatusButton
             storageCleanStatusButton
+            if Defaults[.enableWatcherIntegration] {
+                watcherStatusButton
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Quick tools")
@@ -717,6 +722,47 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         .help("Color Dropper & Screen Eyedropper")
     }
 
+    // MARK: - Watcher AI Agent Session Monitor Status Button
+    @ViewBuilder
+    private var watcherStatusButton: some View {
+        let isSelected = activeExpandedItem == .watcher
+        let hasActiveSession = watcherService.primarySession != nil
+        let session = watcherService.primarySession
+
+        Button {
+            toggleExpandedItem(.watcher)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: session?.agentKind.iconName ?? "sparkles")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(hasActiveSession ? (session?.agentKind.themeColor ?? Color.accentColor) : Color.accentColor)
+
+                Text(hasActiveSession ? (session?.displayName ?? "Watcher") : "Watcher")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                if let diff = session?.diffSummary {
+                    Text(diff.formattedSummary)
+                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(diff.additions > 0 ? Color.green : Color.red)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(isSelected ? Color.accentColor.opacity(0.35) : (hasActiveSession ? Color.orange.opacity(0.20) : Color.black.opacity(0.50)))
+                    .overlay(
+                        Capsule()
+                            .stroke(isSelected ? Color.accentColor : (hasActiveSession ? Color.orange.opacity(0.40) : Color.white.opacity(0.18)), lineWidth: 0.75)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Watcher AI agent monitor")
+        .help("Watcher AI Agent Monitor")
+    }
+
     // MARK: - Plexo Multi-Network Downloader Status Button
     @ViewBuilder
     private var plexoStatusButton: some View {
@@ -842,6 +888,9 @@ typealias WrappingFlowLayout = CenteredFlowLayout
 
         case .filedroid:
             FileDroidView()
+
+        case .watcher:
+            WatcherDetailCard()
         }
     }
 
