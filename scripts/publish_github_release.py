@@ -19,31 +19,28 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.1"
+version = "2.0.2"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Powerload Multi-Network Turbo & Glowing Under-Notch Release"
-release_body = """## LiquidDynamo 2.0.1 — Powerload Multi-Network Turbo & Glowing Under-Notch Release
+release_title = f"LiquidDynamo {version} — Dynamic Island Streamlining & Clean Status Architecture"
+release_body = """## LiquidDynamo 2.0.2 — Dynamic Island Streamlining & Clean Status Architecture
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.1:
-1. **Powerload Turbo Multi-Network Acceleration**:
-   - Rebranded and natively ported multi-network bonding engine across Wi-Fi, Gigabit Ethernet, iPhone USB tethering, Android USB hotspots (RNDIS), and Thunderbolt bridges.
-   - Low-latency `SCDynamicStore` carrier link inspection (`Active == 1`) and hardware port parser for instant plug-and-play adapter discovery.
-2. **Glowing Under-Notch Download Progress Bar**:
-   - Real-time animated glowing beam rendered directly beneath the hardware notch with continuous 1% Red to 100% Green dynamic hue shift.
-   - Atmospheric neon bloom, specular shimmer highlight sweep, leading droplet orb, and hover telemetry badge.
-3. **Dedicated Non-Wi-Fi Telemetry Cards**:
-   - `NetworkTabView` now displays full live telemetry cards for every active Ethernet, USB, and Thunderbolt connection.
-4. **App UI Coming Soon Indicators**:
-   - Water and Break Reminder items seamlessly integrated into the Dynamic Island and Settings with signature droplet icons.
-5. **Strict Single-Digit Semantic Versioning**:
-   - 100% compliant single-digit version scheme across all components.
+### Core Highlights in Version 2.0.2:
+1. **Streamlined Dynamic Island Notch View**:
+   - Removed placeholder "Coming Soon" Water and Break Reminder cards and buttons from the Dynamic Island notch interface.
+   - 100% of visible Island tools are active, responsive, and production-ready (Clipboard History, Dropper Shelf, Storage Cleaner, Watcher, Device Showcase, and Powerload Engine).
+2. **Dedicated App Settings Preview for Upcoming Features**:
+   - Coming Soon health & focus reminders (Water Reminder & Ergonomic Break Coach) are safely hosted inside App Settings UI (`SettingsModulesView` & `SettingsHydrationView`) without cluttering notch dropdown interactions.
+3. **Powerload Multi-Network Turbo & Glowing Under-Notch Engine**:
+   - Full support for multi-interface bonding, instant plug-and-play network detection, and glowing neon under-notch download progress bar with 1% Red to 100% Green dynamic hue shift.
+4. **Optimized Height Stabilization**:
+   - Refined dynamic height calculation logic in `IslandController` for ultra-smooth fluid spring transitions.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.1/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.2/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.1.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.1/LiquidDynamo-2.0.1.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.2.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.2/LiquidDynamo-2.0.2.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 

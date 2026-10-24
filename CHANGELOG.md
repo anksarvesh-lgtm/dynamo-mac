@@ -2,6 +2,24 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.2] — 2026-10-24
+
+### Dynamic Island Streamlining & UI Separation
+- **Clean Hardware Notch Interface**: Removed placeholder "Coming Soon" Water and Break Reminder cards and status buttons from `LiquidOrganicNotchView.swift` and `IslandController.swift`. The Dynamic Island now strictly contains 100% active, interactive, production tools (Clipboard History, Dropper Shelf, Storage Cleaner, Watcher, Device Showcase, and Powerload Turbo Engine).
+- **Dedicated App Settings Preview for Upcoming Modules**: Preserved and organized upcoming health & focus features (Smart Hydration & Ergonomic Break Coach) inside App Settings (`SettingsModulesView` & `SettingsHydrationView`) so users can preview and configure preferences without notch clutter.
+- **Dynamic Dropdown Height Stability**: Streamlined `IslandController.minimumHeight` and intrinsic target size calculations, ensuring buttery-smooth organic liquid springs without jitter.
+
+---
+
+## [2.0.1] — 2026-10-24
+
+### Powerload Multi-Network Turbo & Glowing Under-Notch Download Engine
+- **Powerload Rebranding & Architecture**: Rebranded and natively ported multi-network bonding engine across Wi-Fi, Gigabit Ethernet, iPhone USB tethering, Android USB hotspots (RNDIS), and Thunderbolt bridges.
+- **Glowing Under-Notch Download Progress Bar**: Real-time animated glowing beam rendered directly beneath the MacBook hardware notch with continuous 1% Red to 100% Green dynamic hue transition, specular shimmer highlight sweep, and neon atmospheric bloom.
+- **Dedicated Non-Wi-Fi Telemetry Cards**: Complete live status cards for active Ethernet, USB, and Thunderbolt adapters in `NetworkTabView`.
+
+---
+
 ## [2.0.0] — 2026-10-24
 
 ### In-App GitHub Release Changelog & Real-Time Sync
