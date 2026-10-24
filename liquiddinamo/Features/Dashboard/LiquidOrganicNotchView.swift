@@ -26,8 +26,6 @@ public enum OrganicNotchExpandedItem: Equatable {
     case powerload
     case filedroid
     case watcher
-    case waterReminder
-    case breakReminder
 }
 
 public struct LiquidOrganicNotchView: View {
@@ -383,7 +381,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         }
     }
 
-    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Storage Purge, Watcher, Water, Break)
+    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Storage Purge, Watcher)
     @ViewBuilder
     private var quickToolsRow: some View {
         CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
@@ -393,8 +391,6 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             if Defaults[.enableWatcherIntegration] {
                 watcherStatusButton
             }
-            waterReminderStatusButton
-            breakReminderStatusButton
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Quick tools")
@@ -912,78 +908,6 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         .help(hasDevice ? "FileDroid — \(connectedDev?.displayName ?? "") mounted in Finder" : "FileDroid & OpenMTP Android Storage Bridge")
     }
 
-    // MARK: - Water Reminder Status Button
-    @ViewBuilder
-    private var waterReminderStatusButton: some View {
-        let isSelected = activeExpandedItem == .waterReminder
-        Button {
-            toggleExpandedItem(.waterReminder)
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "drop.fill")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.cyan)
-
-                Text("Water")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Text("SOON")
-                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1.5)
-                    .background(Color.cyan.opacity(0.25))
-                    .foregroundStyle(Color.cyan)
-                    .clipShape(Capsule())
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.cyan.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.cyan : Color.cyan.opacity(0.35), lineWidth: isSelected ? 1.5 : 0.75))
-            )
-        }
-        .buttonStyle(.plain)
-        .help("Water Reminder (Coming Soon)")
-    }
-
-    // MARK: - Break Reminder Status Button
-    @ViewBuilder
-    private var breakReminderStatusButton: some View {
-        let isSelected = activeExpandedItem == .breakReminder
-        Button {
-            toggleExpandedItem(.breakReminder)
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "figure.walk")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.orange)
-
-                Text("Break")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Text("SOON")
-                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1.5)
-                    .background(Color.orange.opacity(0.25))
-                    .foregroundStyle(Color.orange)
-                    .clipShape(Capsule())
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.orange.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.orange : Color.orange.opacity(0.35), lineWidth: isSelected ? 1.5 : 0.75))
-            )
-        }
-        .buttonStyle(.plain)
-        .help("Break Reminder (Coming Soon)")
-    }
-
     // MARK: - Expanded Detail View
     @ViewBuilder
     private var expandedDetailView: some View {
@@ -1020,12 +944,6 @@ typealias WrappingFlowLayout = CenteredFlowLayout
 
         case .watcher:
             WatcherDetailCard()
-
-        case .waterReminder:
-            waterReminderDetailCard
-
-        case .breakReminder:
-            breakReminderDetailCard
         }
     }
 
@@ -2215,162 +2133,6 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             )
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Water Reminder Detail Card (Coming Soon)
-    @ViewBuilder
-    private var waterReminderDetailCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                HStack(spacing: 7) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color.cyan)
-                    Text("Water Reminder")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                }
-
-                Spacer()
-
-                Text("COMING SOON")
-                    .font(.system(size: 8.5, weight: .heavy, design: .rounded))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2.5)
-                    .background(Color.cyan.opacity(0.20))
-                    .foregroundStyle(Color.cyan)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.cyan.opacity(0.45), lineWidth: 0.8))
-            }
-
-            Text("Stay hydrated throughout your workday with smart fluid intervals, daily intake goals, and gentle droplet chimes directly in your Dynamic Island.")
-                .font(.system(size: 11, design: .rounded))
-                .foregroundStyle(.white.opacity(0.85))
-                .lineLimit(3)
-
-            HStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("30/45/60m Cadence")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(Color.cyan.opacity(0.9))
-
-                Circle().fill(Color.white.opacity(0.25)).frame(width: 3, height: 3)
-
-                HStack(spacing: 4) {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Droplet Chime")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(Color.cyan.opacity(0.9))
-
-                Spacer()
-
-                Button {
-                    SettingsWindowController.shared.showWindow(tab: "Hydration")
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("Settings")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .bold))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.cyan.opacity(0.18))
-                    .foregroundStyle(Color.cyan)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.65))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.cyan.opacity(0.3), lineWidth: 0.8))
-        )
-    }
-
-    // MARK: - Break Reminder Detail Card (Coming Soon)
-    @ViewBuilder
-    private var breakReminderDetailCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                HStack(spacing: 7) {
-                    Image(systemName: "figure.walk")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color.orange)
-                    Text("Break Reminder")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                }
-
-                Spacer()
-
-                Text("COMING SOON")
-                    .font(.system(size: 8.5, weight: .heavy, design: .rounded))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2.5)
-                    .background(Color.orange.opacity(0.20))
-                    .foregroundStyle(Color.orange)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.orange.opacity(0.45), lineWidth: 0.8))
-            }
-
-            Text("Protect your eyesight and posture with science-backed 20-20-20 screen pauses, desk stretch reminders, and mindful micro-breaks in the notch.")
-                .font(.system(size: 11, design: .rounded))
-                .foregroundStyle(.white.opacity(0.85))
-                .lineLimit(3)
-
-            HStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    Image(systemName: "eye.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("20-20-20 Rule")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(Color.orange.opacity(0.9))
-
-                Circle().fill(Color.white.opacity(0.25)).frame(width: 3, height: 3)
-
-                HStack(spacing: 4) {
-                    Image(systemName: "figure.cooldown")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Posture Stretch")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(Color.orange.opacity(0.9))
-
-                Spacer()
-
-                Button {
-                    SettingsWindowController.shared.showWindow(tab: "Hydration")
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("Settings")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .bold))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.orange.opacity(0.18))
-                    .foregroundStyle(Color.orange)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.65))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.3), lineWidth: 0.8))
-        )
     }
 
     private func formatBytes(_ bytes: UInt64) -> String {
