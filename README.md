@@ -20,7 +20,7 @@
 <p align="center">
   <img src="docs/assets/preview_island_expanded.png" alt="LiquidDynamo Dynamic Island Expanded Dashboard" width="850" />
   <br>
-  <em>LiquidDynamo Expanded Island Dashboard with live MagSafe telemetry, dual Bluetooth battery meters, and quick-access utility shelves</em>
+  <em>LiquidDynamo Expanded Island Dashboard with live MagSafe 3 power adapter telemetry, real-time CPU/RAM diagnostics, and quick-launch utility drawers</em>
 </p>
 
 ---
@@ -50,7 +50,7 @@
 <p align="center">
   <img src="docs/assets/preview_notch_wings.png" alt="Interactive Hardware Notch with Live Telemetry Wings" width="850" />
   <br>
-  <em>Hardware Notch flanked by interactive real-time telemetry wings (CPU, RAM, network, battery, temperature)</em>
+  <em>Hardware Notch flanked by interactive real-time telemetry wings (Left: 56°C Temperature, Right: 1K Network Speed)</em>
 </p>
 
 - **Flanking Telemetry Slots**: Modular wing slots flanking the hardware notch cutout (`WingMetric`).
@@ -69,11 +69,11 @@
 - **Listening Mode Switching**: One-tap toggling between Active Noise Cancellation, Transparency, Adaptive Audio, and Off.
 - **Head-Tracking Mirroring**: Spatial head tracking visualization powered by CoreMotion (`CMHeadphoneMotionManager`).
 
-### 🖥️ Native System HUD Replacements
+### 🖥️ Native System HUD Replacements & Status Capsules
 <p align="center">
-  <img src="docs/assets/preview_capsule_hud.png" alt="Unified Liquid Capsule HUD" width="600" />
+  <img src="docs/assets/preview_island_charging.png" alt="Dynamic Island Fast MagSafe Charging and System Status Indicators" width="850" />
   <br>
-  <em>Minimalist top-edge liquid capsule HUD replacing default macOS volume & brightness overlays</em>
+  <em>Live hardware charging telemetry (68W MagSafe), screen recording status capsule, and system telemetry monitors</em>
 </p>
 
 - **Unified Liquid Capsules**: Replaces Apple's standard square HUDs for Volume, Brightness, and Keyboard Backlight with sleek top-edge liquid animations.
@@ -90,6 +90,12 @@
 - **Developer & Cache Purging**: Safely cleans Xcode DerivedData, Swift Package Manager caches, Gradle caches, user logs, and application leftovers into Trash with confirmation.
 
 ### 🎨 Color Dropper & Privacy Clipboard
+<p align="center">
+  <img src="docs/assets/preview_clipboard_history.png" alt="Interactive Privacy Clipboard History Shelf" width="850" />
+  <br>
+  <em>Persistent clipboard history drawer with item pinning, quick file reveal, and dynamic top charging alert</em>
+</p>
+
 - **Loupe Color Sampler**: Screen color picker with pixel loupe magnifier powered by `NSColorSampler`.
 - **Swatch Card**: Copy picked colors instantly in HEX, RGB, or HSL format.
 - **Privacy-First Clipboard**: Clipboard history with automatic screening of password managers and transient password items.
