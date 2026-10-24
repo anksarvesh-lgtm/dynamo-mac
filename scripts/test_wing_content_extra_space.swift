@@ -9,20 +9,20 @@ let iconTextSpacing: CGFloat = 4.0
 let textWidthCPU: CGFloat = 28.0 // "12%"
 let textWidthNet: CGFloat = 72.0 // "↓12.4M ↑3.2M"
 
-let leadingPad: CGFloat = 12.0
-let trailingPadWithExtraSpace: CGFloat = 14.0 // 14pt extra breathing room requested by user
+let leadingPad: CGFloat = 8.0
+let trailingPadWithMinorSpace: CGFloat = 10.0 // Subtle minor space after content
 
-let intrinsicLeftCPU = iconWidth + iconTextSpacing + textWidthCPU + leadingPad + trailingPadWithExtraSpace
-let intrinsicRightNet = iconWidth + iconTextSpacing + textWidthNet + leadingPad + trailingPadWithExtraSpace
+let intrinsicLeftCPU = iconWidth + iconTextSpacing + textWidthCPU + leadingPad + trailingPadWithMinorSpace
+let intrinsicRightNet = iconWidth + iconTextSpacing + textWidthNet + leadingPad + trailingPadWithMinorSpace
 
 print("[TEST 1] Content-Aware Intrinsic Width:")
-print("  Left CPU Wing (with extra space): \(intrinsicLeftCPU) pt")
-print("  Right Net Wing (with extra space): \(intrinsicRightNet) pt")
+print("  Left CPU Wing (with subtle space): \(intrinsicLeftCPU) pt")
+print("  Right Net Wing (with subtle space): \(intrinsicRightNet) pt")
 
-assert(trailingPadWithExtraSpace == 14.0, "Must have 14pt extra trailing breathing room")
+assert(trailingPadWithMinorSpace == 10.0, "Must have 10pt subtle minor trailing breathing room")
 assert(intrinsicLeftCPU < intrinsicRightNet, "CPU wing must be smaller than verbose network wing")
-assert(intrinsicLeftCPU >= 38.0, "Must be above minimum aesthetic floor (38pt)")
-print("  -> PASS: Extra breathing space cleanly allocated.")
+assert(intrinsicLeftCPU >= 36.0, "Must be above minimum aesthetic floor (36pt)")
+print("  -> PASS: Subtle minor breathing space cleanly allocated.")
 
 // 2. Test Independent Asymmetric Window Geometry
 let rawNotchW: CGFloat = 210.0
