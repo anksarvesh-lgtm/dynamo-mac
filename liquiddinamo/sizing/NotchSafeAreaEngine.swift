@@ -415,7 +415,7 @@ public final class NotchSafeAreaEngine: ObservableObject {
             notchRect = CGRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         }
 
-        let wingW = max(50.0, currentGeometry.wingWidth)
+        let wingW = max(50.0, currentGeometry.wingWidth, IslandController.shared.activeWingWidth)
         let notchH = notchRect.height
 
         let leftWingRect: CGRect

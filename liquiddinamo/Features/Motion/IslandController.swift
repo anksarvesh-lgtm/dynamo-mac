@@ -30,6 +30,7 @@ public final class IslandController: ObservableObject {
     @Published public private(set) var topCornerRadius: CGFloat = 6.0
     @Published public private(set) var bottomCornerRadius: CGFloat = 14.0
     @Published public private(set) var hasShadow: Bool = false
+    @Published public private(set) var activeWingWidth: CGFloat = 68.0
 
     // MARK: - Staged Content Reveal Pipeline
 
@@ -583,7 +584,9 @@ public final class IslandController: ObservableObject {
         case .idle, .compact:
             let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
             let showWings = hasWings || !registeredActivities.isEmpty
-            let w = showWings ? geom.compactPillWidth : restingWidth
+            let wingW = max(geom.wingWidth, activeWingWidth)
+            let baseW = geom.isNotched ? (geom.rawNotchWidth + 14.0 + (2.0 * wingW)) : max(geom.compactPillWidth, (2.0 * wingW) + 40.0)
+            let w = showWings ? max(geom.compactPillWidth, baseW) : restingWidth
             return CGSize(width: w, height: restingHeight)
 
         case .minimal:
@@ -708,6 +711,31 @@ public final class IslandController: ObservableObject {
                     }
                     AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: CGSize(width: self.targetSize.width, height: finalH), animated: false)
                 }
+            }
+        }
+    }
+
+    /// Dynamically expands the target width of the island when wings contain expanded details (e.g. CPU %, Network Speed, Hover/Tapped details).
+    public func adjustTargetWidthForWingsIfNeeded(_ measuredWidth: CGFloat, wingWidth: CGFloat) {
+        guard state == .idle || state == .compact else { return }
+        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let minW = geom.compactPillWidth
+        let neededW = max(minW, measuredWidth)
+
+        if abs(activeWingWidth - wingWidth) >= 1.0 {
+            activeWingWidth = wingWidth
+        }
+
+        guard abs(targetSize.width - neededW) >= 3.0 else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, self.state == .idle || self.state == .compact else { return }
+            let finalW = max(minW, neededW)
+            if abs(self.targetSize.width - finalW) >= 3.0 {
+                withAnimation(IslandMotion.shared.expandSpring) {
+                    self.targetSize.width = finalW
+                }
+                AppDelegate.shared?.updateWindowFrame(for: self.state, explicitSize: CGSize(width: finalW, height: self.targetSize.height), animated: false)
             }
         }
     }

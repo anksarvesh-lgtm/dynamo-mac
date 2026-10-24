@@ -23,6 +23,26 @@ struct NotchContentHeightPreferenceKey: PreferenceKey {
     }
 }
 
+struct LeftWingWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 {
+            value = max(value, next)
+        }
+    }
+}
+
+struct RightWingWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 {
+            value = max(value, next)
+        }
+    }
+}
+
 @MainActor
 struct ContentView: View {
     @EnvironmentObject var vm: LiquidViewModel
@@ -88,10 +108,6 @@ struct ContentView: View {
                 } else {
                     // Clipped layout strictly for collapsed resting notch
                     NotchLayout()
-                        .padding(
-                            .horizontal,
-                            Defaults[.cornerRadiusScaling] ? cornerRadiusInsets.opened.top : cornerRadiusInsets.opened.bottom
-                        )
                         .frame(
                             width: island.targetSize.width,
                             height: island.targetSize.height,
@@ -1157,6 +1173,14 @@ struct CollapsedLiveInfoWingsView: View {
     @State private var isRightHovering: Bool = false
     @State private var autoCollapseTask: Task<Void, Never>? = nil
 
+    @State private var measuredLeftWingWidth: CGFloat = 68.0
+    @State private var measuredRightWingWidth: CGFloat = 68.0
+
+    private var currentWingWidth: CGFloat {
+        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        return max(geom.wingWidth, max(measuredLeftWingWidth, measuredRightWingWidth))
+    }
+
     private var showLeftDetails: Bool {
         alwaysShowSideReadoutText || isLeftHovering || isLeftDetailExpanded || island.state == .expanded
     }
@@ -1178,15 +1202,28 @@ struct CollapsedLiveInfoWingsView: View {
         }
     }
 
+    private func reportDynamicWidth(geom: NotchGeometry) {
+        let wingW = currentWingWidth
+        let totalW: CGFloat = {
+            if geom.isNotched {
+                return geom.rawNotchWidth + 14.0 + (2.0 * wingW)
+            } else {
+                return max(geom.compactPillWidth, (2.0 * wingW) + 40.0)
+            }
+        }()
+        IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: wingW)
+    }
+
     var body: some View {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let activeWingW = currentWingWidth
 
         if enableSideReadouts && !isFullScreenHidden && isDisplayAllowed(geom: geom) {
             HStack(spacing: 0) {
                 if geom.isNotched {
                     // Left Drop: Attached to notch left edge
                     if leftWingMetric != .none {
-                        leftDropView(geom: geom)
+                        leftDropView(geom: geom, wingW: activeWingW)
                     }
 
                     // Center Hardware Notch Area (Clear hole matching hardware cutout)
@@ -1195,7 +1232,7 @@ struct CollapsedLiveInfoWingsView: View {
 
                     // Right Drop: Attached to notch right edge
                     if rightWingMetric != .none {
-                        rightDropView(geom: geom)
+                        rightDropView(geom: geom, wingW: activeWingW)
                     }
                 } else {
                     // Non-notched display: drops sit on both sides of the central pill
@@ -1204,6 +1241,12 @@ struct CollapsedLiveInfoWingsView: View {
                             leftDropContent
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width + 16.0)
+                                    }
+                                )
                                 .background(
                                     Capsule()
                                         .fill(Color.black.opacity(0.60))
@@ -1226,6 +1269,12 @@ struct CollapsedLiveInfoWingsView: View {
                             rightDropContent
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width + 16.0)
+                                    }
+                                )
                                 .background(
                                     Capsule()
                                         .fill(Color.black.opacity(0.60))
@@ -1248,6 +1297,20 @@ struct CollapsedLiveInfoWingsView: View {
                 }
             }
             .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+            .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
+                let clamped = max(geom.wingWidth, w)
+                if abs(self.measuredLeftWingWidth - clamped) >= 2.0 {
+                    self.measuredLeftWingWidth = clamped
+                    self.reportDynamicWidth(geom: geom)
+                }
+            }
+            .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
+                let clamped = max(geom.wingWidth, w)
+                if abs(self.measuredRightWingWidth - clamped) >= 2.0 {
+                    self.measuredRightWingWidth = clamped
+                    self.reportDynamicWidth(geom: geom)
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .toggleSideReadoutDetails)) { notif in
                 if let target = notif.object as? String {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -1324,14 +1387,21 @@ struct CollapsedLiveInfoWingsView: View {
 
     // MARK: - Left Drop
     @ViewBuilder
-    private func leftDropView(geom: NotchGeometry) -> some View {
+    private func leftDropView(geom: NotchGeometry, wingW: CGFloat) -> some View {
         HStack(spacing: 0) {
+            Spacer(minLength: 0)
             leftDropContent
                 .padding(.leading, 10)
                 .padding(.trailing, 8)
                 .padding(.vertical, 3)
+                .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width + 18.0)
+                    }
+                )
         }
-        .frame(height: vm.effectiveClosedNotchHeight)
+        .frame(width: wingW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
         .background(
             LeftNotchDropShape()
                 .fill(
@@ -1377,14 +1447,21 @@ struct CollapsedLiveInfoWingsView: View {
 
     // MARK: - Right Drop
     @ViewBuilder
-    private func rightDropView(geom: NotchGeometry) -> some View {
+    private func rightDropView(geom: NotchGeometry, wingW: CGFloat) -> some View {
         HStack(spacing: 0) {
             rightDropContent
                 .padding(.leading, 8)
                 .padding(.trailing, 10)
                 .padding(.vertical, 3)
+                .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width + 18.0)
+                    }
+                )
+            Spacer(minLength: 0)
         }
-        .frame(height: vm.effectiveClosedNotchHeight)
+        .frame(width: wingW, height: vm.effectiveClosedNotchHeight, alignment: .leading)
         .background(
             RightNotchDropShape()
                 .fill(

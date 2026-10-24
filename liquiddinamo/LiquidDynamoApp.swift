@@ -741,7 +741,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             targetSize = CGSize(width: capsuleSize.width, height: popH)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            targetSize = CGSize(width: max(geom.compactPillWidth, geom.rawNotchWidth + 240), height: geom.notchHeight)
+            let neededW = max(geom.compactPillWidth, geom.rawNotchWidth + 240, explicitSize?.width ?? IslandController.shared.targetSize.width)
+            targetSize = CGSize(width: neededW, height: geom.notchHeight)
             shouldIgnore = false
         }
 
