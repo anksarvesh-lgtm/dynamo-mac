@@ -83,19 +83,31 @@ public struct LiquidOrganicNotchView: View {
 
             // Liquid Glass Body Content - Centered under the physical notch
             VStack(spacing: 12) {
-                // 1. Transient Charging or Hardware Sensor Liquid Indicator
+                // Transient Charging or Hardware Sensor Liquid Indicator (stays above group 1)
                 sensorAndChargingBar
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                // 2. Primary Organic Hover Row (Connected Devices + Clipboard + Dropper)
-                primaryLiquidRow
+                // 1. Group 1: Connected Devices (Bluetooth, USB, displays, chargers, etc. - Android devices filtered out)
+                if !nonAndroidDevices.isEmpty {
+                    devicesGroup
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+
+                // 2. Group 2: Quick Tools (Clipboard, Dropper, Purge side by side)
+                quickToolsRow
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                // 3. System Metrics Bar (CPU Temp & RAM Status)
+                // 3. Group 3: Android and Plexo (Plexo chip and ADB device chips)
+                if hasAndroidOrPlexoItems {
+                    androidRow
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+
+                // 4. Group 4: System Metrics Bar (CPU Temp & RAM Status)
                 systemMetricsBar
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                // 4. Detail Expansion (Expands only for the clicked item, centered)
+                // Detail Expansion (Expands only for the clicked item, centered)
                 if activeExpandedItem != .none {
                     expandedDetailView
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -256,48 +268,84 @@ struct CenteredFlowLayout: Layout {
     }
 }
 
-    // MARK: - Primary Organic Hover Row
-    @ViewBuilder
-    private var primaryLiquidRow: some View {
-        CenteredFlowLayout(horizontalSpacing: 12, verticalSpacing: 8) {
-            // Connected Devices (Icons only, no placeholders when empty)
-            if !deviceMonitor.sortedActiveDevices.isEmpty {
-                CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
-                    ForEach(deviceMonitor.sortedActiveDevices) { device in
-                        deviceIconButton(device: device)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.black.opacity(0.60))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
-                        )
-                )
-            }
+typealias WrappingFlowLayout = CenteredFlowLayout
 
-            // Clipboard Status Button
-            clipboardStatusButton
-
-            // Dropper Status Button
-            dropperStatusButton
-
-            // Storage Clean / Purge Status Button
-            storageCleanStatusButton
-
-            // Plexo Multi-Network Downloader Status Button
-            plexoStatusButton
-
-            // FileDroid & OpenMTP Android Storage Button
-            filedroidStatusButton
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
+    // MARK: - Device & Group 3 Filter Helpers
+    private var nonAndroidDevices: [DeviceIdentity] {
+        deviceMonitor.sortedActiveDevices.filter { $0.kind != .androidPhone }
     }
 
-    // MARK: - System Metrics Bar (CPU Temp & RAM Status)
+    private var androidDevicesFromMonitor: [DeviceIdentity] {
+        let allAndroid = deviceMonitor.sortedActiveDevices.filter { $0.kind == .androidPhone }
+        if let connectedDev = filedroidEngine.selectedDevice, connectedDev.status == .connected {
+            return allAndroid.filter { dev in
+                !dev.displayName.localizedCaseInsensitiveContains(connectedDev.displayName) &&
+                !connectedDev.displayName.localizedCaseInsensitiveContains(dev.displayName)
+            }
+        }
+        return allAndroid
+    }
+
+    private var hasAndroidOrPlexoItems: Bool {
+        if UserDefaults.standard.bool(forKey: "debug_hide_group3") {
+            return false
+        }
+        return true
+    }
+
+    // MARK: - Group 1: Connected Devices Row (Bluetooth, USB, displays, chargers, etc. - Android devices filtered out)
+    @ViewBuilder
+    private var devicesGroup: some View {
+        if !nonAndroidDevices.isEmpty {
+            CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
+                ForEach(nonAndroidDevices) { device in
+                    deviceIconButton(device: device)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color.black.opacity(0.60))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
+                    )
+            )
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Connected devices")
+        }
+    }
+
+    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Storage Purge)
+    @ViewBuilder
+    private var quickToolsRow: some View {
+        CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
+            clipboardStatusButton
+            dropperStatusButton
+            storageCleanStatusButton
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Quick tools")
+    }
+
+    // MARK: - Group 3: Android and Plexo Row
+    @ViewBuilder
+    private var androidRow: some View {
+        if hasAndroidOrPlexoItems {
+            CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
+                plexoStatusButton
+                filedroidStatusButton
+                ForEach(androidDevicesFromMonitor) { device in
+                    deviceIconButton(device: device)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Android and Plexo")
+        }
+    }
+
+    // MARK: - Group 4: System Metrics Bar (CPU Temp & RAM Status)
     @ViewBuilder
     private var systemMetricsBar: some View {
         HStack(spacing: 12) {
@@ -343,6 +391,8 @@ struct CenteredFlowLayout: Layout {
                 .fill(Color.black.opacity(0.45))
                 .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("System status")
     }
 
     // MARK: - Device Icon Button
