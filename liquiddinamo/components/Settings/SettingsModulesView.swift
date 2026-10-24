@@ -21,6 +21,7 @@ public struct SettingsModulesView: View {
     @Default(.hydrationEnabled) private var hydrationEnabled
     @Default(.cameraNotchGlowEnabled) private var cameraNotchGlow
     @Default(.micNotchGlowEnabled) private var micNotchGlow
+    @State private var breakReminderPlaceholder: Bool = false
 
     @State private var expandedModuleID: String? = nil
 
@@ -121,18 +122,31 @@ public struct SettingsModulesView: View {
                         configTarget: "StorageCleaner"
                     )
 
-                    // 8. Hydration Reminder
+                    // 8. Water Reminder (Coming Soon)
                     moduleTile(
-                        id: "hydration",
-                        title: "Hydration Reminder",
-                        subtitle: "Mascot water breaks & notch reminders",
+                        id: "water_reminder",
+                        title: "Water Reminder",
+                        subtitle: "Smart hydration cadence & fluid droplet notch alerts",
                         icon: .generic,
                         accent: Color(red: 0.15, green: 0.75, blue: 0.95),
                         isOn: $hydrationEnabled,
-                        configTarget: "Hydration"
+                        configTarget: "Hydration",
+                        badge: "COMING SOON"
                     )
 
-                    // 9. Camera Activity
+                    // 9. Break Reminder (Coming Soon)
+                    moduleTile(
+                        id: "break_reminder",
+                        title: "Break Reminder",
+                        subtitle: "20-20-20 screen rest, posture & stretch intervals",
+                        icon: .stats,
+                        accent: Color(red: 1.0, green: 0.55, blue: 0.15),
+                        isOn: $breakReminderPlaceholder,
+                        configTarget: "Hydration",
+                        badge: "COMING SOON"
+                    )
+
+                    // 10. Camera Activity
                     moduleTile(
                         id: "camera",
                         title: "Camera Activity",
@@ -143,7 +157,7 @@ public struct SettingsModulesView: View {
                         configTarget: "Privacy"
                     )
 
-                    // 10. Microphone Activity
+                    // 11. Microphone Activity
                     moduleTile(
                         id: "mic",
                         title: "Microphone Activity",
@@ -167,7 +181,8 @@ public struct SettingsModulesView: View {
         icon: Premium3DIcon,
         accent: Color,
         isOn: Binding<Bool>,
-        configTarget: String
+        configTarget: String,
+        badge: String? = nil
     ) -> some View {
         let isExpanded = expandedModuleID == id
         return VStack(alignment: .leading, spacing: 14) {
@@ -187,9 +202,22 @@ public struct SettingsModulesView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+
+                        if let badge = badge {
+                            Text(badge)
+                                .font(.system(size: 8.5, weight: .heavy, design: .rounded))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(accent.opacity(0.18))
+                                .foregroundStyle(accent)
+                                .clipShape(Capsule())
+                                .overlay(Capsule().strokeBorder(accent.opacity(0.40), lineWidth: 0.6))
+                        }
+                    }
 
                     Text(subtitle)
                         .font(.system(size: 11, design: .rounded))
@@ -211,12 +239,12 @@ public struct SettingsModulesView: View {
             HStack {
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(isOn.wrappedValue ? Color.green : Color.gray)
+                        .fill(badge != nil ? accent : (isOn.wrappedValue ? Color.green : Color.gray))
                         .frame(width: 6, height: 6)
 
-                    Text(isOn.wrappedValue ? "Active" : "Disabled")
+                    Text(badge != nil ? "Coming Soon" : (isOn.wrappedValue ? "Active" : "Disabled"))
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(isOn.wrappedValue ? .primary : .secondary)
+                        .foregroundStyle(badge != nil ? accent : (isOn.wrappedValue ? .primary : .secondary))
                 }
 
                 Spacer()

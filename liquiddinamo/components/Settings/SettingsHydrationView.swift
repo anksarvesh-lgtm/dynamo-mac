@@ -49,6 +49,10 @@ public struct SettingsHydrationView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
 
+                // Coming Soon Health & Focus Suite Card
+                comingSoonRemindersCard
+                    .padding(.horizontal, 24)
+
                 // Mascot Hero Card
                 mascotHeroCard
                     .padding(.horizontal, 24)
@@ -314,5 +318,105 @@ public struct SettingsHydrationView: View {
         case 120: return "2 hours"
         default: return "\(mins) min"
         }
+    }
+
+    // MARK: - Coming Soon Suite Card
+    private var comingSoonRemindersCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Wellness & Health Reminders", systemImage: "sparkles")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("COMING SOON")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.cyan.opacity(0.18))
+                    .foregroundStyle(Color.cyan)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().strokeBorder(Color.cyan.opacity(0.4), lineWidth: 0.8))
+            }
+
+            Text("Next-generation physical wellness monitors integrating directly with your Dynamic Island.")
+                .font(.system(size: 11, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            Divider().opacity(0.2)
+
+            HStack(spacing: 12) {
+                // Water Reminder Box
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "drop.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color.cyan)
+                        Text("Water Reminder")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
+
+                    Text("Intelligent hydration cadence, drink logging, and animated water droplet mascot alerts.")
+                        .font(.system(size: 10.5, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
+                        Text("Coming Soon")
+                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.cyan)
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.cyan.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.cyan.opacity(0.25), lineWidth: 0.8))
+                )
+
+                // Break Reminder Box
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "figure.walk")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color.orange)
+                        Text("Break Reminder")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
+
+                    Text("20-20-20 screen rest, posture realignment cues, and gentle stretch prompts.")
+                        .font(.system(size: 10.5, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.orange).frame(width: 5, height: 5)
+                        Text("Coming Soon")
+                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.orange)
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.orange.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.orange.opacity(0.25), lineWidth: 0.8))
+                )
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        )
     }
 }

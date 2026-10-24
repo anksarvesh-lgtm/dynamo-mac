@@ -119,6 +119,10 @@
 - **Interactive Notch & Wing Customizer**: Real-time photorealistic preview with independent Left & Right Wing Content selectors and a 4x3 Available Wing Items interactive grid.
 - **Unified Permission & Troubleshooting Center**: Live status badges, one-click grant buttons, and integrated 1-Click Stale TCC Repair for macOS accessibility permissions.
 
+### ⏳ Upcoming Features [Coming Soon]
+- 💧 **Water Reminder**: Smart hydration tracking, customizable drink intervals, intake logging, and animated water droplet mascot notifications directly in your notch.
+- ☕ **Break Reminder**: Scientific 20-20-20 screen rest rules, posture realignment prompts, and mindful micro-stretch intervals designed for prolonged focus work.
+
 ---
 
 ## 📐 Architecture & Principles
