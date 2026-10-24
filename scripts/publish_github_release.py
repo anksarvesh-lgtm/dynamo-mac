@@ -43,6 +43,8 @@ LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid G
    - Proportional bounding with instant dismissal and accurate battery telemetry.
 
 ### Direct Downloads:
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.8/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
 - **[LiquidDynamo-1.9.8.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.8/LiquidDynamo-1.9.8.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
@@ -57,6 +59,16 @@ if not os.path.exists(dmg_file):
 
 with open(dmg_file, "rb") as f:
     dmg_data = f.read()
+
+zip_file = os.path.expanduser("~/Desktop/liquiddynamo.zip")
+if not os.path.exists(zip_file):
+    zip_file = os.path.join(os.getcwd(), "build", "liquiddynamo.zip")
+
+zip_data = None
+if os.path.exists(zip_file):
+    with open(zip_file, "rb") as f:
+        zip_data = f.read()
+    print(f"Loaded liquiddynamo.zip ({len(zip_data) // (1024*1024)} MB)")
 
 headers = {
     "Authorization": f"Bearer {token}",
@@ -100,13 +112,13 @@ for repo in repos:
     release_id = release["id"]
     upload_url_base = release["upload_url"].split("{")[0]
 
-    # Delete existing asset if any
+    # Delete existing assets if any
     assets_url = f"https://api.github.com/repos/{repo}/releases/{release_id}/assets"
     try:
         with urllib.request.urlopen(urllib.request.Request(assets_url, headers=headers)) as resp:
             assets = json.loads(resp.read().decode())
             for asset in assets:
-                if asset["name"] in [f"LiquidDynamo-{version}.dmg", "LiquidDynamo.dmg"]:
+                if asset["name"] in [f"LiquidDynamo-{version}.dmg", "LiquidDynamo.dmg", "liquiddynamo.zip"]:
                     print(f"  Deleting existing asset {asset['name']} (ID: {asset['id']})")
                     del_req = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/assets/{asset['id']}", headers=headers, method="DELETE")
                     with urllib.request.urlopen(del_req):
@@ -136,7 +148,19 @@ for repo in repos:
     except Exception as e:
         print(f"  Failed to upload generic asset: {e}")
 
-    # Also update 'app' tag release with latest LiquidDynamo.dmg
+    # Upload liquiddynamo.zip (containing liquiddynamo.app)
+    if zip_data:
+        upload_url_zip = f"{upload_url_base}?name=liquiddynamo.zip"
+        up_req_zip = urllib.request.Request(upload_url_zip, data=zip_data, headers={**headers, "Content-Type": "application/zip"}, method="POST")
+        try:
+            print(f"  Uploading liquiddynamo.zip ({len(zip_data) // (1024*1024)} MB)...")
+            with urllib.request.urlopen(up_req_zip) as resp:
+                info = json.loads(resp.read().decode())
+                print(f"  SUCCESS: Uploaded to {info.get('browser_download_url')}")
+        except Exception as e:
+            print(f"  Failed to upload liquiddynamo.zip: {e}")
+
+    # Also update 'app' tag release with latest LiquidDynamo.dmg and liquiddynamo.zip
     print(f"  Updating 'app' tag release...")
     get_app_rel_url = f"https://api.github.com/repos/{repo}/releases/tags/app"
     app_release = None
@@ -165,12 +189,12 @@ for repo in repos:
     if app_release:
         app_rel_id = app_release["id"]
         app_upload_base = app_release["upload_url"].split("{")[0]
-        # Remove old asset
+        # Remove old assets
         try:
             with urllib.request.urlopen(urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/{app_rel_id}/assets", headers=headers)) as resp:
                 a_list = json.loads(resp.read().decode())
                 for a in a_list:
-                    if a["name"] == "LiquidDynamo.dmg":
+                    if a["name"] in ["LiquidDynamo.dmg", "liquiddynamo.zip"]:
                         d_req = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/assets/{a['id']}", headers=headers, method="DELETE")
                         with urllib.request.urlopen(d_req):
                             pass
@@ -185,5 +209,15 @@ for repo in repos:
                 print(f"  SUCCESS: Updated app release asset: {a_res.get('browser_download_url')}")
         except Exception as e:
             print(f"  Notice uploading to app tag: {e}")
+
+        # Upload new liquiddynamo.zip
+        if zip_data:
+            up_app_zip_req = urllib.request.Request(f"{app_upload_base}?name=liquiddynamo.zip", data=zip_data, headers={**headers, "Content-Type": "application/zip"}, method="POST")
+            try:
+                with urllib.request.urlopen(up_app_zip_req) as resp:
+                    a_res = json.loads(resp.read().decode())
+                    print(f"  SUCCESS: Updated app release asset (liquiddynamo.zip): {a_res.get('browser_download_url')}")
+            except Exception as e:
+                print(f"  Notice uploading liquiddynamo.zip to app tag: {e}")
 
 print("\n==> All GitHub release operations completed successfully!")

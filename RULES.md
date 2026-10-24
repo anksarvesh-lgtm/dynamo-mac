@@ -81,3 +81,20 @@ This document outlines the core engineering guidelines, design constraints, and 
    ```
 3. **Distribution DMG**:
    - Production releases are packaged into a standalone DMG with custom volume background and `/Applications` symlink via `build_dmg.sh`.
+
+---
+
+## 6. GitHub Release Assets & App Bundle Rule
+
+1. **Mandatory `.app` Name: `liquiddynamo.app`**:
+   - The application bundle must ALWAYS be named `liquiddynamo.app` (all lowercase, no spaces) when packaged and uploaded to GitHub releases.
+   - On GitHub releases, the `.app` bundle must be archived as `liquiddynamo.zip` containing `liquiddynamo.app` at its root (via `ditto -c -k --keepParent liquiddynamo.app liquiddynamo.zip`) so macOS permissions, executable flags, and code signatures remain intact during download.
+
+2. **Dual Asset Distribution (DMG + ZIP)**:
+   - Every GitHub release (`v{version}` and the rolling `app` tag) MUST include both:
+     1. `liquiddynamo.zip` (containing `liquiddynamo.app` for high-speed in-app updates).
+     2. `LiquidDynamo.dmg` / `LiquidDynamo-{version}.dmg` (standalone disk image for first-time installation).
+
+3. **In-App Auto-Update & In-Place Replacement**:
+   - When an update is detected, the app must notify the user via the Dynamic Island and via a banner at the top of every section in the application.
+   - 1-click update must directly download `liquiddynamo.zip`, extract `liquiddynamo.app`, replace `/Applications/liquiddynamo.app` (and `/Applications/LiquidDynamo.app`), strip quarantine attributes, and relaunch cleanly.
