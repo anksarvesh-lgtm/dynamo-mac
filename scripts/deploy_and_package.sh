@@ -15,24 +15,24 @@ echo "==> 2. Terminating old LiquidDynamo instances..."
 killall LiquidDynamo 2>/dev/null || true
 sleep 1
 
-echo "==> 3. Creating and codesigning liquiddynamo.app..."
-rm -rf "$DIR/build/liquiddynamo.app"
-cp -R "$APP_PATH" "$DIR/build/liquiddynamo.app"
-codesign --force --deep --sign - --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$DIR/build/liquiddynamo.app"
+echo "==> 3. Packaging $OUTPUT_DIR/liquiddynamo.zip (containing liquiddynamo.app)..."
+ZIP_STAGE="/tmp/liquiddynamo_zip_stage"
+rm -rf "$ZIP_STAGE"
+mkdir -p "$ZIP_STAGE"
+cp -R "$APP_PATH" "$ZIP_STAGE/liquiddynamo.app"
+codesign --force --deep --sign - --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$ZIP_STAGE/liquiddynamo.app"
 
-echo "==> 4. Packaging $OUTPUT_DIR/liquiddynamo.zip (containing liquiddynamo.app)..."
 rm -f "$OUTPUT_DIR/liquiddynamo.zip" "$DIR/build/liquiddynamo.zip"
-(cd "$DIR/build" && ditto -c -k --keepParent "liquiddynamo.app" "$OUTPUT_DIR/liquiddynamo.zip")
+(cd "$ZIP_STAGE" && ditto -c -k --keepParent "liquiddynamo.app" "$OUTPUT_DIR/liquiddynamo.zip")
 cp "$OUTPUT_DIR/liquiddynamo.zip" "$DIR/build/liquiddynamo.zip"
+rm -rf "$ZIP_STAGE"
 
-echo "==> 5. Installing to /Applications/$APP_NAME.app and /Applications/liquiddynamo.app..."
-rm -rf "/Applications/$APP_NAME.app" "/Applications/liquiddynamo.app"
+echo "==> 4. Installing to /Applications/$APP_NAME.app..."
+rm -rf "/Applications/$APP_NAME.app"
 cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
-cp -R "$DIR/build/liquiddynamo.app" "/Applications/liquiddynamo.app"
 xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
-xattr -dr com.apple.quarantine "/Applications/liquiddynamo.app" 2>/dev/null || true
 
-echo "==> 6. Packaging professional DMG: $DMG_PATH..."
+echo "==> 5. Packaging professional DMG: $DMG_PATH..."
 STAGE="$DIR/build/dmg-stage"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
@@ -90,7 +90,7 @@ hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" >
 rm -f "$TEMP_DMG"
 rm -rf "$STAGE"
 
-echo "==> 7. Launching updated /Applications/liquiddynamo.app..."
-open "/Applications/liquiddynamo.app"
+echo "==> 6. Launching updated /Applications/$APP_NAME.app..."
+open "/Applications/$APP_NAME.app"
 
 echo "==> Done! App installed, liquiddynamo.zip created, and DMG ready at $DMG_PATH."
