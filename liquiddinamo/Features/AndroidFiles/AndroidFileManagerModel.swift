@@ -107,8 +107,8 @@ public final class AndroidFileManagerViewModel: ObservableObject {
 
     // Navigation & State
     @Published public private(set) var currentPath: String = "/sdcard"
-    @Published public private(set) var currentEntries: [ADBFileEntry] = []
-    @Published public private(set) var isLoading: Bool = false
+    @Published public var currentEntries: [ADBFileEntry] = []
+    @Published public var isLoading: Bool = false
     @Published public var searchQuery: String = ""
     @Published public var isGridView: Bool = false
     @Published public var sortField: AndroidSortField = .name
@@ -117,8 +117,8 @@ public final class AndroidFileManagerViewModel: ObservableObject {
     @Published public var selectedPaths: Set<String> = []
 
     // Storage info
-    @Published public private(set) var totalStorageBytes: Int64 = 0
-    @Published public private(set) var freeStorageBytes: Int64 = 0
+    @Published public var totalStorageBytes: Int64 = 0
+    @Published public var freeStorageBytes: Int64 = 0
 
     // Alerts & Notifications
     @Published public var errorMessage: String? = nil
@@ -127,7 +127,7 @@ public final class AndroidFileManagerViewModel: ObservableObject {
     @Published public var newFolderName: String = ""
 
     // Transfer Queue
-    @Published public private(set) var transferQueue: [AndroidFileTransfer] = []
+    @Published public var transferQueue: [AndroidFileTransfer] = []
     @Published public var isTransferDrawerExpanded: Bool = false
 
     private var navigationHistory: [String] = ["/sdcard"]

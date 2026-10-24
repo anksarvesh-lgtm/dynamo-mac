@@ -950,6 +950,9 @@ public final class FakeADBClient: ADBClient, @unchecked Sendable {
     }
 
     public func listDirectory(serial: String, path: String, showHidden: Bool) async throws -> [ADBFileEntry] {
+        if case .unauthorized = connectionState {
+            throw NSError(domain: "FakeADBClient", code: 401, userInfo: [NSLocalizedDescriptionKey: "Device Unauthorized: Please unlock your phone and tap 'Allow USB debugging' on the prompt."])
+        }
         let norm = ADBShellSecurity.normalizeRemotePath(path)
         if ADBShellSecurity.isScopedStorageRestricted(path: norm) {
             throw NSError(domain: "FakeADBClient", code: 403, userInfo: [NSLocalizedDescriptionKey: "Restricted by Android 11+ scoped storage."])

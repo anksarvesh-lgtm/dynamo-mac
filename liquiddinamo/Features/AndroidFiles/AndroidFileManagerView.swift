@@ -25,7 +25,7 @@ public struct AndroidFileManagerView: View {
             Color(red: 0.08, green: 0.09, blue: 0.11)
                 .ignoresSafeArea()
 
-            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+            AndroidVisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
                 .ignoresSafeArea()
 
             HSplitView {
@@ -730,6 +730,29 @@ public struct AndroidFileManagerView: View {
         case .cancelled: return .secondary
         }
     }
+}
+
+public struct AndroidVisualEffectBackdropView: NSViewRepresentable {
+    public var material: NSVisualEffectView.Material = .hudWindow
+    public var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+
+    public init(
+        material: NSVisualEffectView.Material = .hudWindow,
+        blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+    ) {
+        self.material = material
+        self.blendingMode = blendingMode
+    }
+
+    public func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 // MARK: - Row & Cell Subviews

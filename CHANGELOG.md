@@ -2,6 +2,20 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [1.9.11] — 2026-10-24
+
+### In-App Android File Manager & Device Card "Open in app"
+- **"Open in app" Action on Android Device Detail Card**: Replaced the previous button with "Open in app" (`folder.badge.gearshape`) on the Android device card only (`motorola edge 50`, subtitle "MTP Media Bridge", "Android" badge). Tapping opens or focuses a dedicated native liquid glass window per device serial. Clicking does not collapse or unpin the Dynamic Island.
+- **Dedicated Android File Manager Window (`Features/AndroidFiles/`)**:
+  - **Asynchronous ADB Client (`ADBClient.swift`)**: Process-based async/await client supporting connection states (`noAdb`, `noDevice`, `unauthorized`, `offline`, `multipleDevices`, `ready`, `error`), strict shell escaping with single-quote escaping `'\''`, toybox `ls -lA` directory parsing with symlink resolution (`/sdcard` -> `/storage/emulated/0`), disk free space (`df`), progress-tracked streaming pulls/pushes, conflict policy, and Android 11+ scoped storage protection detection for `/Android/data` and `/Android/obb`.
+  - **Liquid Glass Interface (`AndroidFileManagerView.swift`)**: Native SwiftUI window with top toolbar (navigation history, path breadcrumbs, search, new folder, upload, list/grid toggle, sort picker, hidden files toggle, refresh), quick locations sidebar (`Internal Storage`, `DCIM`, `Pictures`, `Download`, `Documents`, `Movies`, `Music`, `WhatsApp Media`), device capacity bar, lazy list/grid rows, and status bar.
+  - **LRU Thumbnail Cache (`AndroidThumbnailCache.swift`)**: Size-capped disk and memory thumbnail generator (default 200 MB) for images and videos with lazy background extraction.
+  - **Transfer Manager**: Real-time drawer showing active downloads/uploads with throughput speeds (`MB/s`), progress bars, cancellation, and "Reveal in Finder" for finished pulls on macOS.
+- **Storage Devices Intact**: SSD, USB stick, and mounted disk volumes strictly retain "Open in Finder".
+- **Settings Configuration**: Added Android File Manager section in Settings with custom ADB binary path, default download location, thumbnail cache capacity, and stop-daemon on quit toggle.
+
+---
+
 ## [1.9.10] — 2026-10-24
 
 ### Plexo Multi-Network Discovery & Hardware Interface Bonding
