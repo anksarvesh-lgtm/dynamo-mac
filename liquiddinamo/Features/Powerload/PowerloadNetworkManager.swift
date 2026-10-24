@@ -1,14 +1,16 @@
 //
-//  PlexoNetworkManager.swift
+//  PowerloadNetworkManager.swift
 //  LiquidDynamo
 //
 //  Discovers all hardware and virtual network interfaces on macOS:
-//  - Queries `networksetup -listallhardwareports` for human-readable port labels
+//  - Queries SystemConfiguration (SCNetworkSetCopyServices & SCNetworkInterfaceCopyAll)
+//  - Language-agnostic hardware port lookup from `networksetup -listallhardwareports`
+//  - SCDynamicStore inspection for instantaneous hardware link state & IP assignment
 //  - Enumerates BSD devices and IP addresses via Darwin `getifaddrs`
-//  - Continuously monitors interface state via `NWPathMonitor`
+//  - Continuously monitors interface state via `NWPathMonitor` and 1-second dynamic checks
 //  - Measures real-time per-interface bandwidth throughput
 //  - Manages per-interface enable toggles, custom nicknames, and color themes
-//  Faithfully ported from Plexo (https://github.com/anmolkapil/plexo).
+//  Rebranded and enhanced from Plexo (https://github.com/anmolkapil/plexo).
 //
 
 import Combine
@@ -17,18 +19,19 @@ import Network
 import SystemConfiguration
 
 @MainActor
-public final class PlexoNetworkManager: ObservableObject {
-    public static let shared = PlexoNetworkManager()
+public final class PowerloadNetworkManager: ObservableObject {
+    public static let shared = PowerloadNetworkManager()
 
-    @Published public private(set) var interfaces: [PlexoInterface] = []
+    @Published public private(set) var interfaces: [PowerloadInterface] = []
     @Published public private(set) var totalDownloadSpeed: Double = 0
     @Published public private(set) var totalUploadSpeed: Double = 0
 
     private let pathMonitor = NWPathMonitor()
-    private let monitorQueue = DispatchQueue(label: "com.liquiddynamo.plexo.network", qos: .utility)
+    private let monitorQueue = DispatchQueue(label: "com.liquiddynamo.powerload.network", qos: .utility)
     private var throughputTimer: Timer?
     private var previousInterfaceBytes: [String: (rx: UInt64, tx: UInt64, timestamp: Date)] = [:]
-    private let defaultsKey = "plexoInterfaceCustomizations"
+    private let defaultsKey = "powerloadInterfaceCustomizations"
+    private var dynamicStore: SCDynamicStore?
 
     private struct CustomizationRecord: Codable {
         var nickname: String?
@@ -39,6 +42,7 @@ public final class PlexoNetworkManager: ObservableObject {
     }
 
     private init() {
+        self.dynamicStore = SCDynamicStoreCreate(nil, "com.liquiddynamo.powerload" as CFString, nil, nil)
         refreshInterfaces()
         setupPathMonitor()
         startThroughputTimer()
@@ -52,14 +56,16 @@ public final class PlexoNetworkManager: ObservableObject {
     // MARK: - Interface Discovery
 
     public func refreshInterfaces() {
-        // 1. Hardware ports from SystemConfiguration (SCNetworkInterfaceCopyAll)
+        // 1. Hardware ports from SystemConfiguration (SCNetworkInterfaceCopyAll & SCNetworkSetCopyServices)
         let scAdapters = Self.querySystemConfigurationInterfaces()
-        // 2. Hardware port name map from networksetup -listallhardwareports (supplementary)
+        // 2. Hardware port name map from networksetup -listallhardwareports (language-agnostic)
         let hardwarePorts = Self.queryHardwarePortNames()
         // 3. Addresses and link state from getifaddrs
         let ifaddrsMap = Self.queryIfaddrsInfo()
+        // 4. Live SCDynamicStore link state map
+        let linkStateMap = Self.queryDynamicStoreLinkStates(store: dynamicStore)
 
-        var discoveredMap: [String: PlexoInterface] = [:]
+        var discoveredMap: [String: PowerloadInterface] = [:]
         let savedCustomizations = loadCustomizations()
 
         // First pass: add all physical and virtual adapters known to macOS SystemConfiguration
@@ -68,8 +74,9 @@ public final class PlexoNetworkManager: ObservableObject {
             let ifInfo = ifaddrsMap[bsd]
             let custom = savedCustomizations[bsd]
             let mac = sc.macAddress ?? ifInfo?.macAddress
+            let isLinkActive = linkStateMap[bsd] ?? (ifInfo?.isUp == true && ifInfo?.isRunning == true)
 
-            let iface = PlexoInterface(
+            let iface = PowerloadInterface(
                 id: bsd,
                 bsdName: bsd,
                 displayName: sc.displayName,
@@ -79,6 +86,7 @@ public final class PlexoNetworkManager: ObservableObject {
                 ipv6Address: ifInfo?.ipv6,
                 macAddress: mac,
                 netmask: ifInfo?.netmask,
+                isLinkActive: isLinkActive,
                 isEnabled: custom?.isEnabled ?? true,
                 colorHex: custom?.colorHex ?? sc.kind.defaultColorHex,
                 downloadSpeed: 0,
@@ -97,8 +105,9 @@ public final class PlexoNetworkManager: ObservableObject {
             let ifInfo = ifaddrsMap[bsd]
             let custom = savedCustomizations[bsd]
             let kind = Self.classifyInterface(hardwarePortName: portName, bsdName: bsd)
+            let isLinkActive = linkStateMap[bsd] ?? (ifInfo?.isUp == true && ifInfo?.isRunning == true)
 
-            let iface = PlexoInterface(
+            let iface = PowerloadInterface(
                 id: bsd,
                 bsdName: bsd,
                 displayName: portName,
@@ -108,6 +117,7 @@ public final class PlexoNetworkManager: ObservableObject {
                 ipv6Address: ifInfo?.ipv6,
                 macAddress: ifInfo?.macAddress,
                 netmask: ifInfo?.netmask,
+                isLinkActive: isLinkActive,
                 isEnabled: custom?.isEnabled ?? true,
                 colorHex: custom?.colorHex ?? kind.defaultColorHex,
                 downloadSpeed: 0,
@@ -119,15 +129,16 @@ public final class PlexoNetworkManager: ObservableObject {
             discoveredMap[bsd] = iface
         }
 
-        // Third pass: any active network devices from getifaddrs (e.g. USB tethering, mobile hotspots)
+        // Third pass: any active network devices from getifaddrs (e.g. USB tethering, mobile hotspots, Thunderbolt)
         for (bsd, ifInfo) in ifaddrsMap {
             guard discoveredMap[bsd] == nil else { continue }
-            guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec") else { continue }
+            guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec"), !bsd.hasPrefix("anpi") else { continue }
             let custom = savedCustomizations[bsd]
             let fallbackName = hardwarePorts[bsd] ?? bsd
             let kind = Self.classifyInterface(hardwarePortName: fallbackName, bsdName: bsd)
+            let isLinkActive = linkStateMap[bsd] ?? (ifInfo.isUp && ifInfo.isRunning)
 
-            let iface = PlexoInterface(
+            let iface = PowerloadInterface(
                 id: bsd,
                 bsdName: bsd,
                 displayName: fallbackName,
@@ -137,6 +148,7 @@ public final class PlexoNetworkManager: ObservableObject {
                 ipv6Address: ifInfo.ipv6,
                 macAddress: ifInfo.macAddress,
                 netmask: ifInfo.netmask,
+                isLinkActive: isLinkActive,
                 isEnabled: custom?.isEnabled ?? true,
                 colorHex: custom?.colorHex ?? kind.defaultColorHex,
                 downloadSpeed: 0,
@@ -151,14 +163,18 @@ public final class PlexoNetworkManager: ObservableObject {
         var discovered = Array(discoveredMap.values)
 
         // Sort:
-        // 1. Online adapters before offline adapters
-        // 2. Wi-Fi first, then Ethernet, then USB, then Bridge, then other
-        // 3. Alphabetical by BSD device name
+        // 1. Interfaces with IP / Online first
+        // 2. Interfaces with physical Link Active second
+        // 3. Kind order: Wi-Fi, Ethernet, USB / Mobile, Bridge, Other
+        // 4. Alphabetical BSD name
         discovered.sort { lhs, rhs in
-            if lhs.isOnline != rhs.isOnline {
-                return lhs.isOnline && !rhs.isOnline
+            if lhs.hasIP != rhs.hasIP {
+                return lhs.hasIP && !rhs.hasIP
             }
-            let order: [PlexoInterfaceKind: Int] = [.wifi: 0, .ethernet: 1, .usb: 2, .bridge: 3, .other: 4]
+            if lhs.isLinkActive != rhs.isLinkActive {
+                return lhs.isLinkActive && !rhs.isLinkActive
+            }
+            let order: [PowerloadInterfaceKind: Int] = [.wifi: 0, .ethernet: 1, .usb: 2, .bridge: 3, .other: 4]
             let lhsOrder = order[lhs.kind] ?? 99
             let rhsOrder = order[rhs.kind] ?? 99
             if lhsOrder != rhsOrder { return lhsOrder < rhsOrder }
@@ -205,23 +221,45 @@ public final class PlexoNetworkManager: ObservableObject {
         }
     }
 
-    public var enabledInterfaces: [PlexoInterface] {
+    public var enabledInterfaces: [PowerloadInterface] {
         interfaces.filter { $0.isEnabled }
     }
 
-    public var activeConnectedInterfaces: [PlexoInterface] {
+    public var activeConnectedInterfaces: [PowerloadInterface] {
         let active = interfaces.filter { $0.isEnabled && $0.isOnline }
         return active.isEmpty ? interfaces.filter { $0.isEnabled } : active
     }
 
-    // MARK: - Live Throughput Sampling
+    // MARK: - Live Throughput Sampling & Periodic Interface Verification
 
     private func startThroughputTimer() {
         throughputTimer?.invalidate()
+        var tickCount = 0
         throughputTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.sampleThroughput()
+                guard let self = self else { return }
+                self.sampleThroughput()
+                tickCount += 1
+                // Check for new hot-plugged devices or link changes every 2 seconds
+                if tickCount % 2 == 0 {
+                    self.verifyHardwareInterfacesIfNeeded()
+                }
             }
+        }
+    }
+
+    private func verifyHardwareInterfacesIfNeeded() {
+        let currentLink = Self.queryDynamicStoreLinkStates(store: dynamicStore)
+        var needsRefresh = false
+        for iface in interfaces {
+            let active = currentLink[iface.bsdName] ?? false
+            if active != iface.isLinkActive {
+                needsRefresh = true
+                break
+            }
+        }
+        if needsRefresh {
+            refreshInterfaces()
         }
     }
 
@@ -279,7 +317,7 @@ public final class PlexoNetworkManager: ObservableObject {
     private struct DiscoveredAdapter {
         var bsdName: String
         var displayName: String
-        var kind: PlexoInterfaceKind
+        var kind: PowerloadInterfaceKind
         var macAddress: String?
     }
 
@@ -294,23 +332,58 @@ public final class PlexoNetworkManager: ObservableObject {
 
     private static func querySystemConfigurationInterfaces() -> [DiscoveredAdapter] {
         var results: [DiscoveredAdapter] = []
-        guard let allInterfaces = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] else {
-            return results
+
+        // 1. Check current network set services for user-configured names
+        if let prefs = SCPreferencesCreate(nil, "Powerload" as CFString, nil),
+           let currentSet = SCNetworkSetCopyCurrent(prefs),
+           let services = SCNetworkSetCopyServices(currentSet) as? [SCNetworkService] {
+            for service in services {
+                guard let iface = SCNetworkServiceGetInterface(service),
+                      let bsd = SCNetworkInterfaceGetBSDName(iface) as String?,
+                      !bsd.isEmpty else { continue }
+                guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec"), !bsd.hasPrefix("anpi") else { continue }
+
+                let serviceName = (SCNetworkServiceGetName(service) as String?) ?? bsd
+                let type = SCNetworkInterfaceGetInterfaceType(iface) as String?
+                let mac = SCNetworkInterfaceGetHardwareAddressString(iface) as String?
+                let kind = classifyInterface(hardwarePortName: serviceName, bsdName: bsd, scType: type)
+                results.append(DiscoveredAdapter(bsdName: bsd, displayName: serviceName, kind: kind, macAddress: mac))
+            }
         }
 
-        for iface in allInterfaces {
-            guard let bsd = SCNetworkInterfaceGetBSDName(iface) as String?, !bsd.isEmpty else { continue }
-            // Ignore loopback and internal virtual tunnels
-            guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec") else { continue }
+        // 2. Supplement with SCNetworkInterfaceCopyAll for any raw interfaces not in default service set
+        if let allInterfaces = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] {
+            for iface in allInterfaces {
+                guard let bsd = SCNetworkInterfaceGetBSDName(iface) as String?, !bsd.isEmpty else { continue }
+                guard results.contains(where: { $0.bsdName == bsd }) == false else { continue }
+                guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec"), !bsd.hasPrefix("anpi") else { continue }
 
-            let rawName = (SCNetworkInterfaceGetLocalizedDisplayName(iface) as String?) ?? bsd
-            let type = SCNetworkInterfaceGetInterfaceType(iface) as String?
-            let mac = SCNetworkInterfaceGetHardwareAddressString(iface) as String?
-
-            let kind = classifyInterface(hardwarePortName: rawName, bsdName: bsd, scType: type)
-            results.append(DiscoveredAdapter(bsdName: bsd, displayName: rawName, kind: kind, macAddress: mac))
+                let rawName = (SCNetworkInterfaceGetLocalizedDisplayName(iface) as String?) ?? bsd
+                let type = SCNetworkInterfaceGetInterfaceType(iface) as String?
+                let mac = SCNetworkInterfaceGetHardwareAddressString(iface) as String?
+                let kind = classifyInterface(hardwarePortName: rawName, bsdName: bsd, scType: type)
+                results.append(DiscoveredAdapter(bsdName: bsd, displayName: rawName, kind: kind, macAddress: mac))
+            }
         }
+
         return results
+    }
+
+    private static func queryDynamicStoreLinkStates(store: SCDynamicStore?) -> [String: Bool] {
+        guard let store = store else { return [:] }
+        var result: [String: Bool] = [:]
+        if let keys = SCDynamicStoreCopyKeyList(store, "State:/Network/Interface/.*/Link" as CFString) as? [String] {
+            for key in keys {
+                let parts = key.components(separatedBy: "/")
+                guard parts.count >= 4 else { continue }
+                let bsd = parts[3]
+                if let dict = SCDynamicStoreCopyValue(store, key as CFString) as? [String: Any],
+                   let active = dict["Active"] as? Int {
+                    result[bsd] = (active == 1)
+                }
+            }
+        }
+        return result
     }
 
     private static func queryIfaddrsInfo() -> [String: InterfaceAddressInfo] {
@@ -325,7 +398,7 @@ public final class PlexoNetworkManager: ObservableObject {
             defer { ptr = current.pointee.ifa_next }
             guard let namePtr = current.pointee.ifa_name else { continue }
             let name = String(cString: namePtr)
-            guard !name.hasPrefix("lo"), !name.hasPrefix("utun"), !name.hasPrefix("llw"), !name.hasPrefix("awdl"), !name.hasPrefix("ipsec") else { continue }
+            guard !name.hasPrefix("lo"), !name.hasPrefix("utun"), !name.hasPrefix("llw"), !name.hasPrefix("awdl"), !name.hasPrefix("ipsec"), !name.hasPrefix("anpi") else { continue }
             guard let addrPtr = current.pointee.ifa_addr else { continue }
 
             let flags = Int32(current.pointee.ifa_flags)
@@ -399,19 +472,28 @@ public final class PlexoNetworkManager: ObservableObject {
             process.waitUntilExit()
 
             if let output = String(data: data, encoding: .utf8) {
+                // Language-agnostic parser: splits into blocks separated by empty lines.
+                // Each valid block has key: value lines where line 1 is Port Name, line 2 is Device.
                 let blocks = output.components(separatedBy: "\n\n")
                 for block in blocks {
                     let lines = block.components(separatedBy: .newlines)
-                    var currentPort: String?
-                    var currentDevice: String?
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { $0.contains(":") }
+                    
+                    var portName: String?
+                    var deviceName: String?
                     for line in lines {
-                        if line.hasPrefix("Hardware Port:") {
-                            currentPort = line.replacingOccurrences(of: "Hardware Port:", with: "").trimmingCharacters(in: .whitespaces)
-                        } else if line.hasPrefix("Device:") {
-                            currentDevice = line.replacingOccurrences(of: "Device:", with: "").trimmingCharacters(in: .whitespaces)
+                        let parts = line.components(separatedBy: ":")
+                        guard parts.count >= 2 else { continue }
+                        let key = parts[0].lowercased()
+                        let val = parts.dropFirst().joined(separator: ":").trimmingCharacters(in: .whitespaces)
+                        if key.contains("port") || key.contains("hardware") || key.contains("matériel") {
+                            portName = val
+                        } else if key.contains("device") || key.contains("appareil") || key.contains("gerät") {
+                            deviceName = val
                         }
                     }
-                    if let port = currentPort, let device = currentDevice, !device.isEmpty {
+                    if let port = portName, let device = deviceName, !device.isEmpty {
                         map[device] = port
                     }
                 }
@@ -446,7 +528,7 @@ public final class PlexoNetworkManager: ObservableObject {
         return result
     }
 
-    private static func classifyInterface(hardwarePortName: String, bsdName: String, scType: String? = nil) -> PlexoInterfaceKind {
+    private static func classifyInterface(hardwarePortName: String, bsdName: String, scType: String? = nil) -> PowerloadInterfaceKind {
         if let scType {
             if scType == (kSCNetworkInterfaceTypeIEEE80211 as String) {
                 return .wifi
@@ -465,7 +547,7 @@ public final class PlexoNetworkManager: ObservableObject {
         if name.contains("bridge") || name.contains("thunderbolt bridge") {
             return .bridge
         }
-        if name.contains("ethernet") || name.contains("lan") || name.contains("thunderbolt") {
+        if name.contains("ethernet") || name.contains("lan") || name.contains("thunderbolt") || name.contains("ax88") || name.contains("realtek") {
             return .ethernet
         }
         if bsdName.hasPrefix("en") {
@@ -500,3 +582,6 @@ public final class PlexoNetworkManager: ObservableObject {
         return decoded
     }
 }
+
+// MARK: - Backward Compatibility Typealias
+public typealias PlexoNetworkManager = PowerloadNetworkManager

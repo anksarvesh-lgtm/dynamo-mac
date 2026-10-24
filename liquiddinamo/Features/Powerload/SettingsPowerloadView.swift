@@ -1,8 +1,8 @@
 //
-//  SettingsPlexoView.swift
+//  SettingsPowerloadView.swift
 //  LiquidDynamo
 //
-//  Dedicated Preferences and Configuration tab for Plexo Turbo Downloader.
+//  Dedicated Preferences and Configuration tab for Powerload Multi-Network Accelerator.
 //  Provides multi-network adapter management, parallel connection tuning,
 //  chunk size optimization, bandwidth limits, and download storage options.
 //
@@ -11,19 +11,19 @@ import AppKit
 import Defaults
 import SwiftUI
 
-public struct SettingsPlexoView: View {
-    @ObservedObject private var netManager = PlexoNetworkManager.shared
-    @ObservedObject private var engine = PlexoDownloadEngine.shared
-    @ObservedObject private var bandwidth = PlexoBandwidthManager.shared
+public struct SettingsPowerloadView: View {
+    @ObservedObject private var netManager = PowerloadNetworkManager.shared
+    @ObservedObject private var engine = PowerloadDownloadEngine.shared
+    @ObservedObject private var bandwidth = PowerloadBandwidthManager.shared
 
-    @Default(.plexoDefaultFolder) var defaultFolder
-    @Default(.plexoChunkSizeMB) var chunkSizeMB
-    @Default(.plexoMaxConnectionsPerFile) var maxConnectionsPerFile
-    @Default(.plexoMaxParallelDownloads) var maxParallelDownloads
-    @Default(.plexoBandwidthLimitMbps) var bandwidthLimitMbps
-    @Default(.plexoClipboardAutoDetect) var clipboardAutoDetect
-    @Default(.plexoCompletionAlert) var completionAlert
-    @Default(.plexoTorrentAutoStart) var torrentAutoStart
+    @Default(.powerloadDefaultFolder) var defaultFolder
+    @Default(.powerloadChunkSizeMB) var chunkSizeMB
+    @Default(.powerloadMaxConnectionsPerFile) var maxConnectionsPerFile
+    @Default(.powerloadMaxParallelDownloads) var maxParallelDownloads
+    @Default(.powerloadBandwidthLimitMbps) var bandwidthLimitMbps
+    @Default(.powerloadClipboardAutoDetect) var clipboardAutoDetect
+    @Default(.powerloadCompletionAlert) var completionAlert
+    @Default(.powerloadTorrentAutoStart) var torrentAutoStart
 
     @State private var isShowingClearConfirm: Bool = false
 
@@ -44,7 +44,7 @@ public struct SettingsPlexoView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Plexo Turbo Downloader")
+                        Text("Powerload Multi-Network Accelerator")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                         Text("Multi-network chunk bonding, connection pooling, and bandwidth acceleration")
                             .font(.system(size: 11.5, weight: .medium, design: .rounded))
@@ -61,7 +61,7 @@ public struct SettingsPlexoView: View {
                                 Text("Total Combined Speed")
                                     .font(.system(size: 10.5, weight: .medium, design: .rounded))
                                     .foregroundStyle(.secondary)
-                                Text(PlexoFormatting.formatSpeed(netManager.totalDownloadSpeed))
+                                Text(PowerloadFormatting.formatSpeed(netManager.totalDownloadSpeed))
                                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                                     .foregroundStyle(netManager.totalDownloadSpeed > 1024 ? Color.green : .primary)
                             }
@@ -103,7 +103,7 @@ public struct SettingsPlexoView: View {
                                         .font(.system(size: 10.5, weight: .medium, design: .rounded))
                                         .foregroundStyle(iface.isOnline && iface.isEnabled ? .primary : .secondary)
                                     if iface.isOnline && iface.isEnabled {
-                                        Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
+                                        Text(PowerloadFormatting.formatSpeed(iface.downloadSpeed))
                                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                                             .foregroundStyle(iface.color)
                                     } else if !iface.isOnline {
@@ -175,7 +175,7 @@ public struct SettingsPlexoView: View {
                         Stepper("Max Connections per File: \(maxConnectionsPerFile)", value: $maxConnectionsPerFile, in: 2...16)
                             .font(.system(size: 11.5, weight: .medium, design: .rounded))
 
-                        Text("Plexo breaks files into dynamic chunks and downloads them across all enabled network interfaces concurrently.")
+                        Text("Powerload breaks files into dynamic chunks and downloads them across all enabled network interfaces concurrently.")
                             .font(.system(size: 10.5, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
@@ -302,3 +302,7 @@ public struct SettingsPlexoView: View {
         }
     }
 }
+
+
+// MARK: - Backward Compatibility Typealias
+public typealias SettingsPlexoView = SettingsPowerloadView

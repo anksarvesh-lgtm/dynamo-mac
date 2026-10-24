@@ -695,8 +695,8 @@ struct ContentView: View {
                     case .cleaner:
                         NotchStorageCleanerView()
                             .frame(maxWidth: .infinity, alignment: .center)
-                    case .plexo:
-                        PlexoView()
+                    case .plexo, .powerload:
+                        PowerloadView()
                             .frame(maxWidth: .infinity, alignment: .center)
                     case .filedroid:
                         FileDroidView()

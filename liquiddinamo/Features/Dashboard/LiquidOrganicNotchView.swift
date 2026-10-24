@@ -23,6 +23,7 @@ public enum OrganicNotchExpandedItem: Equatable {
     case storageCleaner
     case colorDropper
     case plexo
+    case powerload
     case filedroid
     case watcher
     case waterReminder
@@ -399,19 +400,19 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         .accessibilityLabel("Quick tools")
     }
 
-    // MARK: - Group 3: Android and Plexo Row
+    // MARK: - Group 3: Android and Powerload Row
     @ViewBuilder
     private var androidRow: some View {
         if hasAndroidOrPlexoItems {
             CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
-                plexoStatusButton
+                powerloadStatusButton
                 filedroidStatusButton
                 ForEach(androidDevicesFromMonitor) { device in
                     deviceIconButton(device: device)
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Android and Plexo")
+            .accessibilityLabel("Android and Powerload")
         }
     }
 
@@ -813,14 +814,14 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         .help("Watcher AI Agent Monitor")
     }
 
-    // MARK: - Plexo Multi-Network Downloader Status Button
+    // MARK: - Powerload Multi-Network Downloader Status Button
     @ViewBuilder
-    private var plexoStatusButton: some View {
-        let isSelected = activeExpandedItem == .plexo
-        let activeCount = PlexoDownloadEngine.shared.activeTasks.filter { $0.state == .downloading }.count
+    private var powerloadStatusButton: some View {
+        let isSelected = activeExpandedItem == .powerload || activeExpandedItem == .plexo
+        let activeCount = PowerloadDownloadEngine.shared.activeTasks.filter { $0.state == .downloading }.count
 
         Button {
-            toggleExpandedItem(.plexo)
+            toggleExpandedItem(.powerload)
         } label: {
             HStack(spacing: 6) {
                 ZStack {
@@ -836,11 +837,11 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                     Text("\(activeCount) Turbo")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.cyan)
-                    Text(PlexoFormatting.formatSpeed(PlexoNetworkManager.shared.totalDownloadSpeed))
+                    Text(PowerloadFormatting.formatSpeed(PowerloadNetworkManager.shared.totalDownloadSpeed))
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(.white)
                 } else {
-                    Text("Plexo")
+                    Text("Powerload")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.9))
                 }
@@ -854,7 +855,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             )
         }
         .buttonStyle(.plain)
-        .help("Plexo Multi-Network Download Accelerator")
+        .accessibilityLabel("Powerload multi-network downloader")
+        .help("Powerload Multi-Network Download Accelerator")
+    }
+
+    @ViewBuilder
+    private var plexoStatusButton: some View {
+        powerloadStatusButton
     }
 
     // MARK: - FileDroid & OpenMTP Status Button
@@ -1005,8 +1012,8 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         case .colorDropper:
             colorDropperDetailCard
 
-        case .plexo:
-            PlexoView()
+        case .plexo, .powerload:
+            PowerloadView()
 
         case .filedroid:
             FileDroidView()

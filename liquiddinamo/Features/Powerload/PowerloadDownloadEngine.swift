@@ -1,9 +1,9 @@
 //
-//  PlexoDownloadEngine.swift
+//  PowerloadDownloadEngine.swift
 //  LiquidDynamo
 //
 //  Multi-Network Parallel Chunk Download Engine.
-//  Faithfully ports Plexo's multi-network downloading architecture:
+//  Faithfully ports Powerload's multi-network downloading architecture:
 //  - Divides files into dynamic chunks
 //  - Binds worker streams to separate physical network interfaces simultaneously
 //  - Balances chunks dynamically (work stealing: faster adapters pull more chunks)
@@ -20,12 +20,12 @@ import Foundation
 import Network
 import SwiftUI
 
-public actor PlexoDownloadWorkerPool {
+public actor PowerloadDownloadWorkerPool {
     private var pendingChunkIndices: [Int] = []
     private var completedChunkIndices: Set<Int> = []
     private var inFlightChunkIndices: [Int: String] = [:]
 
-    public init(chunks: [PlexoChunk]) {
+    public init(chunks: [PowerloadChunk]) {
         self.pendingChunkIndices = chunks.filter { !$0.isCompleted }.map { $0.id }
         self.completedChunkIndices = Set(chunks.filter { $0.isCompleted }.map { $0.id })
     }
@@ -59,17 +59,17 @@ public actor PlexoDownloadWorkerPool {
 }
 
 @MainActor
-public final class PlexoDownloadEngine: ObservableObject {
-    public static let shared = PlexoDownloadEngine()
+public final class PowerloadDownloadEngine: ObservableObject {
+    public static let shared = PowerloadDownloadEngine()
 
-    @Published public private(set) var activeTasks: [PlexoDownloadTask] = []
-    @Published public private(set) var completedTasks: [PlexoDownloadTask] = []
+    @Published public private(set) var activeTasks: [PowerloadDownloadTask] = []
+    @Published public private(set) var completedTasks: [PowerloadDownloadTask] = []
 
     private var activeDownloadJobs: [UUID: Task<Void, Never>] = [:]
     private var speedSamplingTimer: Timer?
     private var lastSampledBytes: [UUID: (total: Int64, perIface: [String: Int64], time: Date)] = [:]
-    private let metaExtension = ".plexo-meta.json"
-    private let tasksPersistenceKey = "plexoSavedTasks"
+    private let metaExtension = ".powerload-meta.json"
+    private let tasksPersistenceKey = "powerloadSavedTasks"
 
     public static let defaultDownloadDirectory: String = {
         let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -89,11 +89,11 @@ public final class PlexoDownloadEngine: ObservableObject {
 
     @discardableResult
     public func addDownload(urlString: String, destinationDirectory: String? = nil, autoStart: Bool = true) -> UUID {
-        let dest = destinationDirectory ?? Defaults[.plexoDefaultFolder]
+        let dest = destinationDirectory ?? Defaults[.powerloadDefaultFolder]
         let rawFileName = Self.extractFileName(from: urlString)
         let isTorrent = urlString.hasPrefix("magnet:") || urlString.hasSuffix(".torrent")
 
-        let task = PlexoDownloadTask(
+        let task = PowerloadDownloadTask(
             id: UUID(),
             urlString: urlString,
             fileName: rawFileName,
@@ -188,7 +188,7 @@ public final class PlexoDownloadEngine: ObservableObject {
     }
 
     private func checkAndStartNextQueued() {
-        let maxConcurrent = Defaults[.plexoMaxParallelDownloads]
+        let maxConcurrent = Defaults[.powerloadMaxParallelDownloads]
         let currentRunning = activeTasks.filter { $0.state == .downloading || $0.state == .probing }.count
         guard currentRunning < maxConcurrent else { return }
 
@@ -199,7 +199,7 @@ public final class PlexoDownloadEngine: ObservableObject {
 
     // MARK: - Core Multi-Network Pipeline
 
-    private func runDownloadJob(for initialTask: PlexoDownloadTask) async {
+    private func runDownloadJob(for initialTask: PowerloadDownloadTask) async {
         let taskID = initialTask.id
         guard let url = URL(string: initialTask.urlString) else {
             updateTask(id: taskID) { $0.state = .failed("Invalid URL") }
@@ -214,7 +214,7 @@ public final class PlexoDownloadEngine: ObservableObject {
         task.totalBytes = probeResult.contentLength ?? task.totalBytes
         task.supportsRange = probeResult.supportsRange
 
-        let chunkSizeMB = max(2, Defaults[.plexoChunkSizeMB])
+        let chunkSizeMB = max(2, Defaults[.powerloadChunkSizeMB])
         let chunkSizeBytes = Int64(chunkSizeMB) * 1024 * 1024
 
         // Try restoring existing chunks from metadata file
@@ -227,7 +227,7 @@ public final class PlexoDownloadEngine: ObservableObject {
             task.chunks = Self.planChunks(totalBytes: task.totalBytes, chunkSize: chunkSizeBytes)
         } else if !task.supportsRange {
             // Non-range fallback: single chunk or direct stream
-            task.chunks = [PlexoChunk(id: 0, rangeStart: 0, rangeEnd: max(0, task.totalBytes - 1))]
+            task.chunks = [PowerloadChunk(id: 0, rangeStart: 0, rangeEnd: max(0, task.totalBytes - 1))]
         }
 
         // Pre-allocate destination file
@@ -250,19 +250,19 @@ public final class PlexoDownloadEngine: ObservableObject {
             await runSingleStreamDownload(taskID: taskID, url: url, filePath: filePath)
         } else {
             // Multi-Interface Parallel Chunk Execution
-            let connected = PlexoNetworkManager.shared.activeConnectedInterfaces
+            let connected = PowerloadNetworkManager.shared.activeConnectedInterfaces
             let baseAdapters = connected.isEmpty
-                ? [PlexoInterface(id: "default", bsdName: "default", displayName: "Default Network", kind: .other)]
+                ? [PowerloadInterface(id: "default", bsdName: "default", displayName: "Default Network", kind: .other)]
                 : connected
-            let maxConns = max(1, Defaults[.plexoMaxConnectionsPerFile])
+            let maxConns = max(1, Defaults[.powerloadMaxConnectionsPerFile])
 
             // Distribute parallel connections across active interfaces (work stealing pool)
-            var workerAdapters: [PlexoInterface] = []
+            var workerAdapters: [PowerloadInterface] = []
             for i in 0..<maxConns {
                 workerAdapters.append(baseAdapters[i % baseAdapters.count])
             }
 
-            let workerPool = PlexoDownloadWorkerPool(chunks: task.chunks)
+            let workerPool = PowerloadDownloadWorkerPool(chunks: task.chunks)
 
             await withTaskGroup(of: Void.self) { group in
                 for adapter in workerAdapters {
@@ -300,10 +300,10 @@ public final class PlexoDownloadEngine: ObservableObject {
                 completedTasks.insert(finished, at: 0)
                 savePersistedTasks()
 
-                if Defaults[.plexoCompletionAlert] {
+                if Defaults[.powerloadCompletionAlert] {
                     DynamicIslandHub.shared.triggerCustomAlert(
                         title: "Download Finished",
-                        subtitle: "\(finished.fileName) (\(PlexoFormatting.formatBytes(finished.totalBytes)))",
+                        subtitle: "\(finished.fileName) (\(PowerloadFormatting.formatBytes(finished.totalBytes)))",
                         iconName: "arrow.down.circle.fill",
                         tint: Color.green,
                         duration: 5.0,
@@ -366,8 +366,8 @@ public final class PlexoDownloadEngine: ObservableObject {
         taskID: UUID,
         url: URL,
         filePath: String,
-        adapter: PlexoInterface,
-        pool: PlexoDownloadWorkerPool
+        adapter: PowerloadInterface,
+        pool: PowerloadDownloadWorkerPool
     ) async {
         let fileHandle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filePath))
         defer { try? fileHandle?.close() }
@@ -414,7 +414,7 @@ public final class PlexoDownloadEngine: ObservableObject {
         url: URL,
         rangeStart: Int64,
         rangeEnd: Int64,
-        adapter: PlexoInterface,
+        adapter: PowerloadInterface,
         fileHandle: FileHandle?
     ) async -> Bool {
         var request = URLRequest(url: url)
@@ -497,12 +497,12 @@ public final class PlexoDownloadEngine: ObservableObject {
         }
     }
 
-    private func getChunk(taskID: UUID, index: Int) -> PlexoChunk? {
+    private func getChunk(taskID: UUID, index: Int) -> PowerloadChunk? {
         guard let task = activeTasks.first(where: { $0.id == taskID }), index < task.chunks.count else { return nil }
         return task.chunks[index]
     }
 
-    private func updateTask(id: UUID, mutate: (inout PlexoDownloadTask) -> Void) {
+    private func updateTask(id: UUID, mutate: (inout PowerloadDownloadTask) -> Void) {
         if let idx = activeTasks.firstIndex(where: { $0.id == id }) {
             mutate(&activeTasks[idx])
         }
@@ -551,14 +551,14 @@ public final class PlexoDownloadEngine: ObservableObject {
         return ProbeResult(contentLength: nil, supportsRange: false, fileName: nil)
     }
 
-    private static func planChunks(totalBytes: Int64, chunkSize: Int64) -> [PlexoChunk] {
-        var chunks: [PlexoChunk] = []
+    private static func planChunks(totalBytes: Int64, chunkSize: Int64) -> [PowerloadChunk] {
+        var chunks: [PowerloadChunk] = []
         var offset: Int64 = 0
         var id = 0
 
         while offset < totalBytes {
             let end = min(totalBytes - 1, offset + chunkSize - 1)
-            chunks.append(PlexoChunk(id: id, rangeStart: offset, rangeEnd: end))
+            chunks.append(PowerloadChunk(id: id, rangeStart: offset, rangeEnd: end))
             offset = end + 1
             id += 1
         }
@@ -654,34 +654,34 @@ public final class PlexoDownloadEngine: ObservableObject {
         // Update collapsed notch live activity
         if let taskName = firstActiveName, aggregateDownloadingSpeed > 0 {
             IslandController.shared.registerActivity(IslandActivity(
-                id: "plexo_download",
+                id: "powerload_download",
                 kind: .networkSpeed,
                 priority: 80,
                 leadingIcon: "bolt.horizontal.fill",
                 title: taskName,
                 tintColor: Color.cyan,
-                trailingText: PlexoFormatting.formatSpeed(aggregateDownloadingSpeed)
+                trailingText: PowerloadFormatting.formatSpeed(aggregateDownloadingSpeed)
             ))
         } else {
-            IslandController.shared.removeActivity(id: "plexo_download")
+            IslandController.shared.removeActivity(id: "powerload_download")
         }
     }
 
     private func updateLiveActivity() {
         let isDownloading = activeTasks.contains { $0.state == .downloading }
         if !isDownloading {
-            IslandController.shared.removeActivity(id: "plexo_download")
+            IslandController.shared.removeActivity(id: "powerload_download")
         }
     }
 
     // MARK: - Metadata & Persistence
 
     private struct TaskMetaRecord: Codable {
-        var chunks: [PlexoChunk]
+        var chunks: [PowerloadChunk]
         var perInterfaceBytes: [String: Int64]
     }
 
-    private func saveMetadata(for task: PlexoDownloadTask) {
+    private func saveMetadata(for task: PowerloadDownloadTask) {
         let metaPath = task.destinationFilePath + metaExtension
         let record = TaskMetaRecord(chunks: task.chunks, perInterfaceBytes: task.perInterfaceBytes)
         if let data = try? JSONEncoder().encode(record) {
@@ -698,7 +698,7 @@ public final class PlexoDownloadEngine: ObservableObject {
     }
 
     private func savePersistedTasks() {
-        let activeToSave = activeTasks.map { task -> PlexoDownloadTask in
+        let activeToSave = activeTasks.map { task -> PowerloadDownloadTask in
             var t = task
             if t.state == .downloading || t.state == .probing { t.state = .paused }
             t.speed = 0
@@ -716,12 +716,17 @@ public final class PlexoDownloadEngine: ObservableObject {
 
     private func loadPersistedTasks() {
         if let data = UserDefaults.standard.data(forKey: tasksPersistenceKey + "_active"),
-           let decoded = try? JSONDecoder().decode([PlexoDownloadTask].self, from: data) {
+           let decoded = try? JSONDecoder().decode([PowerloadDownloadTask].self, from: data) {
             self.activeTasks = decoded
         }
         if let data = UserDefaults.standard.data(forKey: tasksPersistenceKey + "_completed"),
-           let decoded = try? JSONDecoder().decode([PlexoDownloadTask].self, from: data) {
+           let decoded = try? JSONDecoder().decode([PowerloadDownloadTask].self, from: data) {
             self.completedTasks = decoded
         }
     }
 }
+
+
+// MARK: - Backward Compatibility Typealiases
+public typealias PlexoDownloadEngine = PowerloadDownloadEngine
+public typealias PlexoDownloadWorkerPool = PowerloadDownloadWorkerPool

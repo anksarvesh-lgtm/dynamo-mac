@@ -435,15 +435,25 @@ extension Defaults.Keys {
     static let androidFilesThumbnailCacheSizeMB = Key<Int>("android_files_thumbnail_cache_size_mb", default: 200)
     static let androidFilesStopAdbOnQuit = Key<Bool>("android_files_stop_adb_on_quit", default: false)
 
-    // MARK: Plexo Turbo Downloader
-    static let plexoDefaultFolder = Key<String>("plexoDefaultFolder", default: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads"))
-    static let plexoChunkSizeMB = Key<Int>("plexoChunkSizeMB", default: 8)
-    static let plexoMaxConnectionsPerFile = Key<Int>("plexoMaxConnectionsPerFile", default: 8)
-    static let plexoMaxParallelDownloads = Key<Int>("plexoMaxParallelDownloads", default: 3)
-    static let plexoBandwidthLimitMbps = Key<Double>("plexoBandwidthLimitMbps", default: 0.0)
-    static let plexoClipboardAutoDetect = Key<Bool>("plexoClipboardAutoDetect", default: true)
-    static let plexoCompletionAlert = Key<Bool>("plexoCompletionAlert", default: true)
-    static let plexoTorrentAutoStart = Key<Bool>("plexoTorrentAutoStart", default: true)
+    // MARK: Powerload Multi-Network Downloader
+    static let powerloadDefaultFolder = Key<String>("powerloadDefaultFolder", default: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads"))
+    static let powerloadChunkSizeMB = Key<Int>("powerloadChunkSizeMB", default: 8)
+    static let powerloadMaxConnectionsPerFile = Key<Int>("powerloadMaxConnectionsPerFile", default: 8)
+    static let powerloadMaxParallelDownloads = Key<Int>("powerloadMaxParallelDownloads", default: 3)
+    static let powerloadBandwidthLimitMbps = Key<Double>("powerloadBandwidthLimitMbps", default: 0.0)
+    static let powerloadClipboardAutoDetect = Key<Bool>("powerloadClipboardAutoDetect", default: true)
+    static let powerloadCompletionAlert = Key<Bool>("powerloadCompletionAlert", default: true)
+    static let powerloadTorrentAutoStart = Key<Bool>("powerloadTorrentAutoStart", default: true)
+
+    // MARK: Plexo Turbo Downloader (Backward Compatibility)
+    static let plexoDefaultFolder = powerloadDefaultFolder
+    static let plexoChunkSizeMB = powerloadChunkSizeMB
+    static let plexoMaxConnectionsPerFile = powerloadMaxConnectionsPerFile
+    static let plexoMaxParallelDownloads = powerloadMaxParallelDownloads
+    static let plexoBandwidthLimitMbps = powerloadBandwidthLimitMbps
+    static let plexoClipboardAutoDetect = powerloadClipboardAutoDetect
+    static let plexoCompletionAlert = powerloadCompletionAlert
+    static let plexoTorrentAutoStart = powerloadTorrentAutoStart
 
     // MARK: Watcher AI Agent Monitor
     static let enableWatcherIntegration = Key<Bool>("enableWatcherIntegration", default: true)

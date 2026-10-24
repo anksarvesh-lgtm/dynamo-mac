@@ -1,9 +1,9 @@
 //
-//  PlexoBandwidthManager.swift
+//  PowerloadBandwidthManager.swift
 //  LiquidDynamo
 //
-//  Bandwidth management, rate limiting, Slow Mode, and scheduling for Plexo.
-//  Faithfully ports Plexo's bandwidth controls:
+//  Bandwidth management, rate limiting, Slow Mode, and scheduling for Powerload.
+//  Rebranded and extended from Plexo (https://github.com/anmolkapil/plexo).
 //  - Global & per-network speed limits
 //  - Slow Mode toggle for video calls & streaming
 //  - Download scheduling (off-peak hours)
@@ -14,22 +14,25 @@ import Combine
 import Foundation
 
 @MainActor
-public final class PlexoBandwidthManager: ObservableObject {
-    public static let shared = PlexoBandwidthManager()
+public final class PowerloadBandwidthManager: ObservableObject {
+    public static let shared = PowerloadBandwidthManager()
 
-    @Published public var settings: PlexoBandwidthSettings {
+    @Published public var settings: PowerloadBandwidthSettings {
         didSet { saveSettings() }
     }
 
     private var scheduleCheckTimer: Timer?
-    private let settingsKey = "plexoBandwidthSettings"
+    private let settingsKey = "powerloadBandwidthSettings"
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: settingsKey),
-           let decoded = try? JSONDecoder().decode(PlexoBandwidthSettings.self, from: data) {
+           let decoded = try? JSONDecoder().decode(PowerloadBandwidthSettings.self, from: data) {
             self.settings = decoded
+        } else if let oldData = UserDefaults.standard.data(forKey: "plexoBandwidthSettings"),
+                  let oldDecoded = try? JSONDecoder().decode(PowerloadBandwidthSettings.self, from: oldData) {
+            self.settings = oldDecoded
         } else {
-            self.settings = PlexoBandwidthSettings()
+            self.settings = PowerloadBandwidthSettings()
         }
 
         startScheduleTimer()
@@ -83,13 +86,13 @@ public final class PlexoBandwidthManager: ObservableObject {
 
         if inSchedule {
             // Auto-resume paused queued downloads
-            for task in PlexoDownloadEngine.shared.activeTasks where task.state == .paused {
-                PlexoDownloadEngine.shared.resumeDownload(id: task.id)
+            for task in PowerloadDownloadEngine.shared.activeTasks where task.state == .paused {
+                PowerloadDownloadEngine.shared.resumeDownload(id: task.id)
             }
         } else {
             // Pause active downloads outside scheduled window
-            for task in PlexoDownloadEngine.shared.activeTasks where task.state == .downloading {
-                PlexoDownloadEngine.shared.pauseDownload(id: task.id)
+            for task in PowerloadDownloadEngine.shared.activeTasks where task.state == .downloading {
+                PowerloadDownloadEngine.shared.pauseDownload(id: task.id)
             }
         }
     }
@@ -100,3 +103,6 @@ public final class PlexoBandwidthManager: ObservableObject {
         }
     }
 }
+
+// MARK: - Backward Compatibility Typealias
+public typealias PlexoBandwidthManager = PowerloadBandwidthManager

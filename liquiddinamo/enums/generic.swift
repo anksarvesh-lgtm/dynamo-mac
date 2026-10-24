@@ -35,6 +35,7 @@ public enum NotchViews {
     case network
     case cleaner
     case plexo
+    case powerload
     case filedroid
 }
 

@@ -1,9 +1,9 @@
 //
-//  PlexoView.swift
+//  PowerloadView.swift
 //  LiquidDynamo
 //
-//  Complete native liquid-glass interface for Plexo Multi-Network Downloader.
-//  Faithfully ports Plexo's dashboard into native SwiftUI:
+//  Complete native liquid-glass interface for Powerload Multi-Network Downloader.
+//  Faithfully ports Powerload's dashboard into native SwiftUI:
 //  - Multi-network speed strip with live per-adapter readouts and enable toggles
 //  - Active downloads cards with multi-colored chunk progress visualization
 //  - Direct link, magnet link, and .torrent file addition drawer with clipboard auto-detect
@@ -17,18 +17,18 @@ import Defaults
 import SwiftUI
 import UniformTypeIdentifiers
 
-public struct PlexoView: View {
-    @ObservedObject private var netManager = PlexoNetworkManager.shared
-    @ObservedObject private var engine = PlexoDownloadEngine.shared
-    @ObservedObject private var bandwidth = PlexoBandwidthManager.shared
+public struct PowerloadView: View {
+    @ObservedObject private var netManager = PowerloadNetworkManager.shared
+    @ObservedObject private var engine = PowerloadDownloadEngine.shared
+    @ObservedObject private var bandwidth = PowerloadBandwidthManager.shared
 
-    @Default(.plexoDefaultFolder) var defaultFolder
-    @Default(.plexoClipboardAutoDetect) var clipboardAutoDetect
+    @Default(.powerloadDefaultFolder) var defaultFolder
+    @Default(.powerloadClipboardAutoDetect) var clipboardAutoDetect
 
     @State private var isAddDrawerOpen: Bool = false
     @State private var inputURL: String = ""
     @State private var selectedDestination: String = ""
-    @State private var selectedInterfaceForEditing: PlexoInterface? = nil
+    @State private var selectedInterfaceForEditing: PowerloadInterface? = nil
     @State private var editingNickname: String = ""
     @State private var clipboardDetectedURL: String? = nil
 
@@ -81,7 +81,7 @@ public struct PlexoView: View {
                         .foregroundStyle(.white)
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Plexo Turbo Downloader")
+                    Text("Powerload Accelerator")
                         .font(.system(size: 12.5, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
                     Text("Multi-Network Acceleration")
@@ -97,7 +97,7 @@ public struct PlexoView: View {
                 Circle()
                     .fill(netManager.totalDownloadSpeed > 1024 ? Color.green : Color.gray)
                     .frame(width: 5, height: 5)
-                Text(PlexoFormatting.formatSpeed(netManager.totalDownloadSpeed))
+                Text(PowerloadFormatting.formatSpeed(netManager.totalDownloadSpeed))
                     .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(.primary)
             }
@@ -203,7 +203,7 @@ public struct PlexoView: View {
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 .foregroundStyle(iface.isOnline && iface.isEnabled ? .primary : .secondary)
                             if iface.isOnline {
-                                Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
+                                Text(PowerloadFormatting.formatSpeed(iface.downloadSpeed))
                                     .font(.system(size: 8.5, weight: .medium, design: .monospaced))
                                     .foregroundStyle(iface.isEnabled ? iface.color : .secondary)
                             } else {
@@ -366,7 +366,7 @@ public struct PlexoView: View {
         .frame(maxHeight: 260)
     }
 
-    private func downloadTaskCard(for task: PlexoDownloadTask) -> some View {
+    private func downloadTaskCard(for task: PowerloadDownloadTask) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 7) {
                 Image(systemName: task.isTorrent ? "point.3.filled.connected.trianglepath.dotted" : "doc.fill")
@@ -463,7 +463,7 @@ public struct PlexoView: View {
                                 Circle()
                                     .fill(iface.color)
                                     .frame(width: 4, height: 4)
-                                Text("\(iface.effectiveName): \(PlexoFormatting.formatSpeed(ifaceSpeed))")
+                                Text("\(iface.effectiveName): \(PowerloadFormatting.formatSpeed(ifaceSpeed))")
                                     .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
                                     .foregroundStyle(iface.color)
                             }
@@ -485,7 +485,7 @@ public struct PlexoView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private func multiNetworkProgressBar(for task: PlexoDownloadTask) -> some View {
+    private func multiNetworkProgressBar(for task: PowerloadDownloadTask) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 3)
@@ -542,7 +542,7 @@ public struct PlexoView: View {
                         Text(task.fileName)
                             .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                             .lineLimit(1)
-                        Text(PlexoFormatting.formatBytes(task.totalBytes))
+                        Text(PowerloadFormatting.formatBytes(task.totalBytes))
                             .font(.system(size: 9, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
@@ -645,7 +645,7 @@ public struct PlexoView: View {
         panel.allowedContentTypes = [UTType(filenameExtension: "torrent") ?? .data]
         panel.title = "Select .torrent File"
         if panel.runModal() == .OK, let url = panel.url {
-            if let meta = try? PlexoTorrentEngine.parseTorrentFile(at: url) {
+            if let meta = try? PowerloadTorrentEngine.parseTorrentFile(at: url) {
                 engine.addDownload(urlString: url.absoluteString, destinationDirectory: selectedDestination, autoStart: true)
                 isAddDrawerOpen = false
             } else {
@@ -657,7 +657,7 @@ public struct PlexoView: View {
 
     // MARK: - Interface Edit Sheet
 
-    private func interfaceEditSheet(for iface: PlexoInterface) -> some View {
+    private func interfaceEditSheet(for iface: PowerloadInterface) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Circle()
@@ -711,14 +711,9 @@ public struct PlexoView: View {
                 Text("Theme Color")
                     .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                 HStack(spacing: 8) {
-                    ForEach(["#00E5FF", "#00E676", "#FFD600", "#FF4081", "#7C4DFF", "#2979FF"], id: \.self) { hex in
-                        Circle()
-                            .fill(Color(hex: hex) ?? .cyan)
-                            .frame(width: 22, height: 22)
-                            .overlay(Circle().stroke(Color.white, lineWidth: iface.colorHex == hex ? 2 : 0))
-                            .onTapGesture {
-                                netManager.setInterfaceColor(iface.id, colorHex: hex)
-                            }
+                    let palette = ["#00E5FF", "#00E676", "#FFD600", "#FF4081", "#7C4DFF", "#2979FF"]
+                    ForEach(palette, id: \.self) { hex in
+                        colorCircle(hex: hex, selectedHex: iface.colorHex, ifaceId: iface.id)
                     }
                 }
             }
@@ -742,4 +737,24 @@ public struct PlexoView: View {
         .padding(16)
         .frame(width: 280)
     }
+
+    @ViewBuilder
+    private func colorCircle(hex: String, selectedHex: String, ifaceId: String) -> some View {
+        let isChosen = (hex == selectedHex)
+        let fill = Color(hex: hex) ?? Color.cyan
+        Circle()
+            .fill(fill)
+            .frame(width: 22, height: 22)
+            .overlay(
+                Circle()
+                    .stroke(Color.white, lineWidth: isChosen ? 2.0 : 0.0)
+            )
+            .onTapGesture {
+                netManager.setInterfaceColor(ifaceId, colorHex: hex)
+            }
+    }
 }
+
+
+// MARK: - Backward Compatibility Typealias
+public typealias PlexoView = PowerloadView

@@ -54,7 +54,7 @@ public struct SettingsControlCenterSidebar: View {
         SettingsSidebarItem(id: "Watcher", title: "Watcher (Agents)", symbolBackup: "sparkles", badgeText: "AI"),
         SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", symbolBackup: "trash.circle.fill", badgeText: "Clean"),
         SettingsSidebarItem(id: "FileDroid", title: "FileDroid (ADB)", symbolBackup: "externaldrive.fill.badge.wifi"),
-        SettingsSidebarItem(id: "Plexo", title: "Plexo Turbo", symbolBackup: "bolt.horizontal.fill"),
+        SettingsSidebarItem(id: "Powerload", title: "Powerload Turbo", symbolBackup: "bolt.horizontal.fill"),
         SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command")
     ]
 

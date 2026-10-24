@@ -1,9 +1,9 @@
 //
-//  PlexoModels.swift
+//  PowerloadModels.swift
 //  LiquidDynamo
 //
-//  Data models and types for Plexo Multi-Network Download Accelerator.
-//  Faithfully ported from Plexo (https://github.com/anmolkapil/plexo).
+//  Data models and types for Powerload Multi-Network Download Accelerator.
+//  Rebranded and extended from Plexo (https://github.com/anmolkapil/plexo).
 //  Supports multi-network interface bonding, parallel chunking, work stealing,
 //  torrent/magnet link handling, bandwidth limits, and scheduling.
 //
@@ -12,10 +12,10 @@ import AppKit
 import Foundation
 import SwiftUI
 
-public enum PlexoInterfaceKind: String, Codable, CaseIterable, Sendable {
+public enum PowerloadInterfaceKind: String, Codable, CaseIterable, Sendable {
     case wifi
     case ethernet
-    case usb // iPhone USB tethering, mobile hotspot
+    case usb // iPhone USB tethering, mobile hotspot, Android RNDIS
     case bridge
     case other
 
@@ -24,8 +24,8 @@ public enum PlexoInterfaceKind: String, Codable, CaseIterable, Sendable {
         case .wifi: return "Wi-Fi"
         case .ethernet: return "Ethernet"
         case .usb: return "USB / Mobile"
-        case .bridge: return "Bridge"
-        case .other: return "Network"
+        case .bridge: return "Thunderbolt Bridge"
+        case .other: return "Network Adapter"
         }
     }
 
@@ -50,16 +50,17 @@ public enum PlexoInterfaceKind: String, Codable, CaseIterable, Sendable {
     }
 }
 
-public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
+public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
     public let id: String // e.g. "en0"
     public var bsdName: String // "en0"
-    public var displayName: String // "Wi-Fi", "iPhone USB"
+    public var displayName: String // "Wi-Fi", "iPhone USB", "Ethernet Adapter"
     public var userNickname: String?
-    public var kind: PlexoInterfaceKind
+    public var kind: PowerloadInterfaceKind
     public var ipAddress: String?
     public var ipv6Address: String?
     public var macAddress: String?
     public var netmask: String?
+    public var isLinkActive: Bool // Physical carrier link active (cable plugged in / connected)
     public var isEnabled: Bool
     public var colorHex: String
     public var downloadSpeed: Double // bytes/sec
@@ -73,11 +74,12 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
         bsdName: String,
         displayName: String,
         userNickname: String? = nil,
-        kind: PlexoInterfaceKind,
+        kind: PowerloadInterfaceKind,
         ipAddress: String? = nil,
         ipv6Address: String? = nil,
         macAddress: String? = nil,
         netmask: String? = nil,
+        isLinkActive: Bool = false,
         isEnabled: Bool = true,
         colorHex: String? = nil,
         downloadSpeed: Double = 0,
@@ -95,6 +97,7 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
         self.ipv6Address = ipv6Address
         self.macAddress = macAddress
         self.netmask = netmask
+        self.isLinkActive = isLinkActive
         self.isEnabled = isEnabled
         self.colorHex = colorHex ?? kind.defaultColorHex
         self.downloadSpeed = downloadSpeed
@@ -104,18 +107,46 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
         self.dataAllowanceBytes = dataAllowanceBytes
     }
 
+    public var hasIP: Bool {
+        (ipAddress != nil && !ipAddress!.isEmpty) || (ipv6Address != nil && !ipv6Address!.isEmpty)
+    }
+
     public var isOnline: Bool {
-        ipAddress != nil && !ipAddress!.isEmpty
+        hasIP || isLinkActive
     }
 
     public var statusDescription: String {
         if let ip = ipAddress, !ip.isEmpty {
             return ip
+        } else if let ip6 = ipv6Address, !ip6.isEmpty {
+            return ip6
+        } else if isLinkActive {
+            return "Link Active (DHCP...)"
         } else if isEnabled {
-            return "Not Connected"
+            return "Ready / Disconnected"
         } else {
             return "Disabled"
         }
+    }
+
+    public var isWifi: Bool {
+        kind == .wifi
+    }
+
+    public var type: PowerloadInterfaceKind {
+        kind
+    }
+
+    public var name: String {
+        bsdName
+    }
+
+    public var speedMbps: Int {
+        kind == .wifi ? 866 : 1000
+    }
+
+    public var isDefaultRoute: Bool {
+        kind == .wifi || kind == .ethernet
     }
 
     public var effectiveName: String {
@@ -127,7 +158,31 @@ public struct PlexoInterface: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
-public enum PlexoDownloadState: Codable, Equatable, Sendable {
+// MARK: - Color Hex Initializer
+extension Color {
+    public init?(hex: String) {
+        var cleanHex = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanHex.hasPrefix("#") { cleanHex.removeFirst() }
+        guard let intVal = UInt64(cleanHex, radix: 16) else { return nil }
+        let r, g, b, a: Double
+        if cleanHex.count == 6 {
+            r = Double((intVal >> 16) & 0xFF) / 255.0
+            g = Double((intVal >> 8) & 0xFF) / 255.0
+            b = Double(intVal & 0xFF) / 255.0
+            a = 1.0
+        } else if cleanHex.count == 8 {
+            r = Double((intVal >> 24) & 0xFF) / 255.0
+            g = Double((intVal >> 16) & 0xFF) / 255.0
+            b = Double((intVal >> 8) & 0xFF) / 255.0
+            a = Double(intVal & 0xFF) / 255.0
+        } else {
+            return nil
+        }
+        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
+    }
+}
+
+public enum PowerloadDownloadState: Codable, Equatable, Sendable {
     case queued
     case probing
     case downloading
@@ -147,7 +202,7 @@ public enum PlexoDownloadState: Codable, Equatable, Sendable {
     }
 }
 
-public struct PlexoChunk: Identifiable, Codable, Equatable, Sendable {
+public struct PowerloadChunk: Identifiable, Codable, Equatable, Sendable {
     public let id: Int
     public let rangeStart: Int64
     public let rangeEnd: Int64
@@ -175,20 +230,24 @@ public struct PlexoChunk: Identifiable, Codable, Equatable, Sendable {
         max(0, rangeEnd - rangeStart + 1)
     }
 
+    public var totalBytes: Int64 {
+        size
+    }
+
     public var progress: Double {
         guard size > 0 else { return 0 }
         return Double(downloadedBytes) / Double(size)
     }
 }
 
-public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
+public struct PowerloadDownloadTask: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public var urlString: String
     public var fileName: String
     public var destinationDirectory: String
     public var totalBytes: Int64
     public var downloadedBytes: Int64
-    public var state: PlexoDownloadState
+    public var state: PowerloadDownloadState
     public var speed: Double // bytes/sec
     public var perInterfaceBytes: [String: Int64] // interfaceId -> bytes
     public var perInterfaceSpeeds: [String: Double] // interfaceId -> bytes/sec
@@ -196,7 +255,7 @@ public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
     public var isTorrent: Bool
     public var torrentInfoHash: String?
     public var torrentPeersCount: Int
-    public var chunks: [PlexoChunk]
+    public var chunks: [PowerloadChunk]
     public var dateAdded: Date
     public var dateCompleted: Date?
 
@@ -207,7 +266,7 @@ public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
         destinationDirectory: String,
         totalBytes: Int64 = 0,
         downloadedBytes: Int64 = 0,
-        state: PlexoDownloadState = .queued,
+        state: PowerloadDownloadState = .queued,
         speed: Double = 0,
         perInterfaceBytes: [String: Int64] = [:],
         perInterfaceSpeeds: [String: Double] = [:],
@@ -215,7 +274,7 @@ public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
         isTorrent: Bool = false,
         torrentInfoHash: String? = nil,
         torrentPeersCount: Int = 0,
-        chunks: [PlexoChunk] = [],
+        chunks: [PowerloadChunk] = [],
         dateAdded: Date = Date(),
         dateCompleted: Date? = nil
     ) {
@@ -248,15 +307,15 @@ public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
     }
 
     public var formattedSpeed: String {
-        PlexoFormatting.formatSpeed(speed)
+        PowerloadFormatting.formatSpeed(speed)
     }
 
     public var formattedTotalSize: String {
-        PlexoFormatting.formatBytes(totalBytes)
+        PowerloadFormatting.formatBytes(totalBytes)
     }
 
     public var formattedDownloadedSize: String {
-        PlexoFormatting.formatBytes(downloadedBytes)
+        PowerloadFormatting.formatBytes(downloadedBytes)
     }
 
     public var destinationFilePath: String {
@@ -267,17 +326,29 @@ public struct PlexoDownloadTask: Identifiable, Codable, Equatable, Sendable {
         guard speed > 1024, totalBytes > downloadedBytes else { return "—" }
         let remainingBytes = totalBytes - downloadedBytes
         let seconds = Double(remainingBytes) / speed
-        if seconds < 60 {
-            return String(format: "%.0fs", seconds)
-        } else if seconds < 3600 {
-            return String(format: "%.0fm %.0fs", seconds / 60, seconds.truncatingRemainder(dividingBy: 60))
-        } else {
-            return String(format: "%.1fh", seconds / 3600)
-        }
+        return PowerloadFormatting.formatTimeRemaining(bytesLeft: remainingBytes, speedBytesPerSec: speed)
     }
 }
 
-public struct PlexoBandwidthSettings: Codable, Equatable, Sendable {
+public struct PowerloadTorrentInfo: Codable, Equatable, Sendable {
+    public var infoHashHex: String
+    public var displayName: String
+    public var trackers: [String]
+    public var piecesCount: Int
+    public var pieceLength: Int64
+    public var totalSize: Int64
+
+    public init(infoHashHex: String, displayName: String, trackers: [String] = [], piecesCount: Int = 0, pieceLength: Int64 = 0, totalSize: Int64 = 0) {
+        self.infoHashHex = infoHashHex
+        self.displayName = displayName
+        self.trackers = trackers
+        self.piecesCount = piecesCount
+        self.pieceLength = pieceLength
+        self.totalSize = totalSize
+    }
+}
+
+public struct PowerloadBandwidthSettings: Codable, Equatable, Sendable {
     public var globalSpeedLimitBytesPerSec: Double?
     public var isSlowModeActive: Bool
     public var slowModeSpeedLimitBytesPerSec: Double
@@ -305,9 +376,7 @@ public struct PlexoBandwidthSettings: Codable, Equatable, Sendable {
     }
 }
 
-// MARK: - Utilities & Color Extension
-
-public enum PlexoFormatting {
+public enum PowerloadFormatting {
     public static func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
@@ -328,17 +397,26 @@ public enum PlexoFormatting {
         let gb = mb / 1024.0
         return String(format: "%.2f GB/s", gb)
     }
-}
 
-extension Color {
-    public init?(hex: String) {
-        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if clean.hasPrefix("#") { clean.removeFirst() }
-        guard clean.count == 6, let rgbValue = UInt64(clean, radix: 16) else { return nil }
-        self.init(
-            red: Double((rgbValue & 0xFF0000) >> 16) / 255.0,
-            green: Double((rgbValue & 0x00FF00) >> 8) / 255.0,
-            blue: Double(rgbValue & 0x0000FF) / 255.0
-        )
+    public static func formatTimeRemaining(bytesLeft: Int64, speedBytesPerSec: Double) -> String {
+        guard speedBytesPerSec > 1024, bytesLeft > 0 else { return "—" }
+        let seconds = Double(bytesLeft) / speedBytesPerSec
+        if seconds < 60 {
+            return String(format: "%.0fs", seconds)
+        } else if seconds < 3600 {
+            return String(format: "%.0fm %.0fs", seconds / 60, seconds.truncatingRemainder(dividingBy: 60))
+        } else {
+            return String(format: "%.1fh", seconds / 3600)
+        }
     }
 }
+
+// MARK: - Backward Compatibility Typealiases
+public typealias PlexoInterfaceKind = PowerloadInterfaceKind
+public typealias PlexoInterface = PowerloadInterface
+public typealias PlexoDownloadState = PowerloadDownloadState
+public typealias PlexoChunk = PowerloadChunk
+public typealias PlexoDownloadTask = PowerloadDownloadTask
+public typealias PlexoTorrentInfo = PowerloadTorrentInfo
+public typealias PlexoFormatting = PowerloadFormatting
+public typealias PlexoBandwidthSettings = PowerloadBandwidthSettings

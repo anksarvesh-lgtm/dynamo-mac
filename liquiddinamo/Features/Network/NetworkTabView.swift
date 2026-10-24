@@ -23,6 +23,7 @@ public struct NetworkTabView: View {
     @ObservedObject private var throughputService = NetworkThroughputService.shared
     @ObservedObject private var speedTestService = SpeedTestService.shared
     @ObservedObject private var publicIPService = PublicIPService.shared
+    @ObservedObject private var powerloadNetwork = PowerloadNetworkManager.shared
     @Default(.showCollapsedNetworkWing) var showCollapsedNetworkWing
 
     public init() {}
@@ -31,8 +32,9 @@ public struct NetworkTabView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
                 topRowCard
-                PlexoNetworkCardView()
+                PowerloadNetworkCardView()
                 wiFiCard
+                activeNonWifiCards
                 liveSpeedCard
                 SpeedTestView()
             }
@@ -314,6 +316,49 @@ public struct NetworkTabView: View {
         }
         .padding(14)
         .liquidGlassCard(cornerRadius: 20, tint: .cyan)
+    }
+
+    // MARK: - Active Non-Wi-Fi Telemetry Cards (Ethernet, USB iPhone/Android Tethering, Thunderbolt)
+
+    @ViewBuilder
+    private var activeNonWifiCards: some View {
+        let nonWifi = powerloadNetwork.interfaces.filter { !$0.isWifi && ($0.isOnline || $0.isLinkActive) }
+        ForEach(nonWifi) { iface in
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("\(iface.type.rawValue.uppercased()) TELEMETRY", systemImage: iface.type.iconName)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(iface.isOnline ? Color.green : Color.orange)
+                            .frame(width: 6, height: 6)
+                        Text(iface.isOnline ? "Active (\(iface.name))" : "Carrier Ready (\(iface.name))")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(iface.isOnline ? Color.green : Color.orange)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background((iface.isOnline ? Color.green : Color.orange).opacity(0.15))
+                    .clipShape(Capsule())
+                }
+
+                Divider()
+                    .overlay(Color.white.opacity(0.06))
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    telemetryCell(title: "ADAPTER", value: iface.displayName)
+                    telemetryCell(title: "INTERFACE BSD", value: iface.name)
+                    telemetryCell(title: "LINK SPEED", value: "\(iface.speedMbps) Mbps")
+                    telemetryCell(title: "IPV4 ADDRESS", value: iface.ipAddress ?? (iface.isLinkActive ? "Configuring..." : "No IP"))
+                    telemetryCell(title: "MAC ADDRESS", value: iface.macAddress ?? "Unavailable")
+                    telemetryCell(title: "DEFAULT ROUTE", value: iface.isDefaultRoute ? "Yes (Primary)" : "Bonded Secondary")
+                }
+            }
+            .padding(14)
+            .liquidGlassCard(cornerRadius: 20, tint: .indigo)
+        }
     }
 
     private func signalBarsView(bars: Int) -> some View {
