@@ -137,11 +137,11 @@ LiquidDynamo strictly adheres to modern native macOS development guidelines:
 
 ## 🚀 Installation
 
-### ⚡ Option 1: Quick 1-Line Terminal Run (Recommended)
-Paste and run this single command in macOS **Terminal** (`Terminal.app`) to download, bypass Gatekeeper quarantine flags automatically, and launch LiquidDynamo instantly:
+### ⚡ Option 1: Pure 1-Line Terminal Install & Run (Zero Files Needed)
+Open macOS **Terminal** (`Terminal.app`), paste this single command, and press Enter. It automatically downloads from GitHub, installs to `/Applications`, strips Gatekeeper quarantine flags, and launches LiquidDynamo immediately:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/dynamo-mac/main/install.sh)"
+curl -fsSL https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip -o /tmp/ld.zip && ditto -xk /tmp/ld.zip /Applications && xattr -cr /Applications/LiquidDynamo.app && rm -f /tmp/ld.zip && open /Applications/LiquidDynamo.app
 ```
 
 ---
