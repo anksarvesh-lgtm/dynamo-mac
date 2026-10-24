@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Defaults
 import SwiftUI
 
 // MARK: - View Model
@@ -31,112 +32,220 @@ public final class DeviceShowcasePopupViewModel: ObservableObject {
     }
 }
 
-// MARK: - Popup View
+// MARK: - Compact Connected-Device Liquid Glass Capsule
 
-/// Collapsed notch notification popup displayed when a device connects.
-/// Left: 3D interactive turntable model + device name.
-/// Center: Hardware notch physical cutout spacing.
-/// Right: Live metrics (battery or storage free space & capacity) + Eject button (for storage).
+/// Compact, notch-anchored 3D Liquid Glass capsule for connected-device notifications.
+/// Features content-aware sizing (200–300 pt width, 38–46 pt height), minimal horizontal layout,
+/// and smooth Apple Liquid Glass specular highlights without covering the user's workspace.
 public struct DeviceShowcasePopupView: View {
     public let device: DeviceIdentity
 
     @ObservedObject private var vm = LiquidViewModel.shared
     @ObservedObject private var coordinator = LiquidViewCoordinator.shared
     @ObservedObject private var showcase = DeviceShowcaseCoordinator.shared
+    @ObservedObject private var safeArea = NotchSafeAreaEngine.shared
     @StateObject private var model = DeviceShowcasePopupViewModel()
+
+    @State private var measuredContentWidth: CGFloat = 0
 
     public init(device: DeviceIdentity) {
         self.device = device
     }
 
-    public var body: some View {
-        HStack(spacing: 12) {
-            // MARK: - Left Side: 3D Model & Name
-            HStack(spacing: 8) {
-                DeviceInteractive3DView(
-                    device: device,
-                    size: 28,
-                    rpm: 20.0,
-                    isPaused: false
-                )
+    private var conciseDisplayName: String {
+        let name = device.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? device.kind.rawValue : name
+    }
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(device.displayName)
-                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-
-                    Text(device.kind.rawValue)
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            // MARK: - Right Side: Metrics & Controls
-            HStack(spacing: 6) {
-                if device.connectionType == .storage {
-                    storageMetricsView
-                } else if device.connectionType == .bluetooth {
-                    bluetoothMetricsView
-                } else {
-                    genericMetricsView
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .frame(width: 400, height: 50)
-        .liquidGlassCapsule(interactive: true)
-        .avoidsNotch(id: "DeviceShowcasePopup")
-        .contentShape(Capsule())
-        .onHover { hovering in
-            showcase.isHovering = hovering
-        }
-        .onTapGesture {
-            // Clicking background expands notch directly into the Devices tab
-            openInDevicesTab()
+    private var deviceAccentColor: Color {
+        if device.kind == .charger || device.connectionType == .power {
+            return .green
+        } else if device.connectionType == .storage {
+            return .cyan
+        } else if device.kind == .androidPhone {
+            return .green
+        } else if device.kind == .phone {
+            return .blue
+        } else {
+            return .accentColor
         }
     }
 
-    // MARK: - Subviews
+    private var capsuleDimensions: (width: CGFloat, height: CGFloat) {
+        let geom = safeArea.currentGeometry
+        let minW: CGFloat = geom.hasPhysicalNotch ? max(200.0, geom.rawNotchWidth) : 200.0
+        let maxW: CGFloat = min(300.0, max(220.0, geom.screenFrame.width * 0.35))
+        let effectiveMeasuredW = measuredContentWidth > 0 ? (measuredContentWidth + 24.0) : 220.0
+        let finalWidth = min(maxW, max(minW, effectiveMeasuredW))
+        let finalHeight = max(38.0, min(46.0, max(geom.notchHeight, 38.0)))
+        return (finalWidth, finalHeight)
+    }
+
+    public var body: some View {
+        let dims = capsuleDimensions
+
+        compactHorizontalContent
+            .fixedSize(horizontal: true, vertical: false)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(key: EventCapsuleIntrinsicWidthPreferenceKey.self, value: geo.size.width)
+                }
+            )
+            .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
+                if newWidth > 0 && abs(newWidth - measuredContentWidth) > 1.0 {
+                    measuredContentWidth = newWidth
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .frame(width: dims.width, height: dims.height)
+            .background(
+                ZStack {
+                    LiquidGlassSurface(
+                        shape: Capsule(),
+                        isNotchAnchored: false,
+                        ambientColor: deviceAccentColor,
+                        scrimFloor: 0.35
+                    )
+                    // 3D Glass Specular Sheen Highlight
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.35),
+                                    Color.white.opacity(0.12),
+                                    Color.white.opacity(0.02)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.8
+                        )
+                }
+            )
+            .clipShape(Capsule())
+            .shadow(color: Color.black.opacity(0.40), radius: 8, y: 3)
+            .avoidsNotch(id: "DeviceShowcasePopup")
+            .contentShape(Capsule())
+            .onHover { hovering in
+                showcase.isHovering = hovering
+            }
+            .onTapGesture {
+                openInDevicesTab()
+            }
+    }
+
+    // MARK: - Minimal Horizontal Content
+
+    private var compactHorizontalContent: some View {
+        HStack(spacing: 8) {
+            // 1. Recognizable Device Icon
+            leadingDeviceIcon
+
+            // 2. Concise Device Name
+            Text(conciseDisplayName)
+                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 130, alignment: .leading)
+
+            // 3. Dot Separator
+            Text("•")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.35))
+
+            // 4. Concise Status & Key Metrics
+            trailingMetricsView
+        }
+    }
+
+    @ViewBuilder
+    private var leadingDeviceIcon: some View {
+        if device.kind == .charger || device.connectionType == .power {
+            Premium3DIconView(name: device.iconName, size: 18, interactive: false)
+        } else if Defaults[.enableDeviceShowcasePopup] {
+            DeviceInteractive3DView(
+                device: device,
+                size: 20,
+                rpm: 20.0,
+                isPaused: false
+            )
+            .frame(width: 20, height: 20)
+        } else {
+            Premium3DIconView(name: device.iconName, size: 18, interactive: false)
+        }
+    }
+
+    @ViewBuilder
+    private var trailingMetricsView: some View {
+        if device.kind == .charger || device.connectionType == .power {
+            chargerMetricsView
+        } else if device.connectionType == .storage {
+            storageMetricsView
+        } else if device.connectionType == .bluetooth || device.kind == .headphones || device.kind == .earbuds || device.kind == .airpods {
+            bluetoothMetricsView
+        } else if device.kind == .phone || device.kind == .androidPhone {
+            phoneMetricsView
+        } else {
+            genericMetricsView
+        }
+    }
+
+    // MARK: - Device Category Views
+
+    @ViewBuilder
+    private var chargerMetricsView: some View {
+        HStack(spacing: 5) {
+            if let watts = device.chargerWatts, watts > 0 {
+                Text("\(watts) W")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.green)
+            } else {
+                Text("Charging")
+                    .font(.system(size: 9.5, weight: .medium))
+                    .foregroundStyle(.green)
+            }
+
+            if let bat = device.batteryPercentage {
+                Text("•")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.35))
+
+                Text("\(bat)%")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.green)
+            }
+        }
+    }
 
     @ViewBuilder
     private var storageMetricsView: some View {
         HStack(spacing: 6) {
-            VStack(alignment: .trailing, spacing: 1) {
-                if let free = device.formattedFreeSpace {
-                    Text("\(free) free")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .lineLimit(1)
-                }
-
-                if let total = device.formattedCapacity {
-                    Text("of \(total)")
-                        .font(.system(size: 9, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .lineLimit(1)
-                }
+            if let free = device.formattedFreeSpace {
+                Text("\(free) free")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(1)
+            } else {
+                Text("Connected")
+                    .font(.system(size: 9.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.75))
             }
 
-            // Eject Button
+            // Compact Eject Button
             Button(action: {
                 model.handleEject(device: device) {
                     showcase.dismiss()
                 }
             }) {
-                ZStack {
-                    Circle()
-                        .fill(model.isEjectHovered ? Color.red.opacity(0.3) : Color.white.opacity(0.12))
-                        .frame(width: 22, height: 22)
-
-                    Image(systemName: model.isEjected ? "checkmark" : "eject.fill")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(model.isEjected ? .green : (model.isEjectHovered ? .red : .white))
-                }
+                Image(systemName: model.isEjected ? "checkmark" : "eject.fill")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(model.isEjected ? .green : (model.isEjectHovered ? .red : .white.opacity(0.85)))
+                    .frame(width: 18, height: 18)
+                    .background(model.isEjectHovered ? Color.red.opacity(0.25) : Color.white.opacity(0.12))
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
             .help(model.isEjected ? "Ejected" : "Eject \(device.displayName)")
@@ -148,26 +257,35 @@ public struct DeviceShowcasePopupView: View {
     @ViewBuilder
     private var bluetoothMetricsView: some View {
         HStack(spacing: 6) {
+            Text("Connected")
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(.white.opacity(0.75))
+
             if let battery = device.batteryPercentage {
                 HStack(spacing: 3) {
                     Image(systemName: batteryIconName(percentage: battery))
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(batteryColor(percentage: battery))
 
                     Text("\(battery)%")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.95))
                 }
             }
+        }
+    }
 
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 5, height: 5)
+    @ViewBuilder
+    private var phoneMetricsView: some View {
+        HStack(spacing: 5) {
+            Text("Connected")
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(.white.opacity(0.75))
 
-                Text("Connected")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+            if let battery = device.batteryPercentage {
+                Text("\(battery)%")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.green)
             }
         }
     }
@@ -180,8 +298,8 @@ public struct DeviceShowcasePopupView: View {
                 .frame(width: 5, height: 5)
 
             Text("Connected")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(.white.opacity(0.75))
         }
     }
 
