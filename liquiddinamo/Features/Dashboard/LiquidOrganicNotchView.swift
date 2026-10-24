@@ -880,10 +880,10 @@ typealias WrappingFlowLayout = CenteredFlowLayout
     // MARK: - Device Detail Card (with 3D Asset & Controls)
     @ViewBuilder
     private func deviceDetailCard(device: DeviceIdentity) -> some View {
-        HStack(spacing: 16) {
-            // Interactive 3D Model Asset
-            DeviceInteractive3DView(device: device, size: 84, rpm: 18)
-                .frame(width: 88, height: 88)
+        HStack(spacing: 12) {
+            // Interactive 3D Model Asset (Compact proportionate size)
+            DeviceInteractive3DView(device: device, size: 40, rpm: 18)
+                .frame(width: 44, height: 44)
                 .background(
                     Circle()
                         .fill(Color.black.opacity(0.40))
@@ -891,28 +891,28 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                 )
 
             // Device Context Information
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(device.displayName)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(1)
 
-                    Spacer()
+                    Spacer(minLength: 4)
 
                     let isConnected = deviceMonitor.activeDevices[device.stableKey] != nil
                     if !isConnected {
                         Text("Not connected")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .padding(.horizontal, 6)
+                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                            .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .background(Capsule().fill(Color.white.opacity(0.08)))
                             .foregroundStyle(.secondary)
                     }
 
                     Text(device.kind.rawValue)
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 6)
+                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Color.white.opacity(0.12)))
                         .foregroundStyle(.secondary)
@@ -935,7 +935,9 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(12)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: 360)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.black.opacity(0.65))

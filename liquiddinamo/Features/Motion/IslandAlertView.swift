@@ -495,21 +495,34 @@ public struct IslandAlertView: View {
     // MARK: - 5. Charging Connected
 
     private func chargingConnectedView(level: Double) -> some View {
-        HStack(spacing: 8) {
-            Premium3DIconView(.charging, size: 20, interactive: false)
+        let isMagSafe = alert.title.contains("MagSafe") || (alert.subtitle?.contains("MagSafe") ?? false)
+        let titleText = isMagSafe ? "MagSafe" : "Charging"
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Charging")
+        return HStack(spacing: 8) {
+            Premium3DIconView(.charging, size: 18, interactive: false)
+
+            HStack(spacing: 6) {
+                Text(titleText)
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.green)
 
-                Text("\(Int(level * 100))% Available")
-                    .font(.system(size: 9.5, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Text("•")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.35))
+
+                if let sub = alert.subtitle, !sub.isEmpty {
+                    Text(sub)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.85))
+                } else {
+                    Text("\(Int(level * 100))%")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.green)
+                }
             }
 
-            OrganicFluidLevelView(value: CGFloat(level), tintColor: .green, height: 6)
-                .frame(width: 44, height: 16)
+            OrganicFluidLevelView(value: CGFloat(level), tintColor: .green, height: 5)
+                .frame(width: 36, height: 14)
         }
     }
 
