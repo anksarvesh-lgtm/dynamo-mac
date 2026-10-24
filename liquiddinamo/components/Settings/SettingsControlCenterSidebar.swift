@@ -33,6 +33,7 @@ public struct SettingsSidebarItem: Identifiable, Hashable {
 }
 
 public struct SettingsControlCenterSidebar: View {
+    @ObservedObject private var updateChecker = GitHubUpdateChecker.shared
     @Binding var selectedTab: String
     @Binding var searchText: String
     @State private var hoveredTab: String? = nil
@@ -81,6 +82,22 @@ public struct SettingsControlCenterSidebar: View {
                     Text("Notch, Wings & More")
                         .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.68))
+
+                    if updateChecker.isUpdateAvailable {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color(red: 0.20, green: 0.55, blue: 1.0))
+                                .frame(width: 5, height: 5)
+                            Text("v\(updateChecker.latestVersionString) Available")
+                                .font(.system(size: 9.5, weight: .semibold))
+                                .foregroundStyle(Color(red: 0.40, green: 0.75, blue: 1.0))
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(Color.blue.opacity(0.18))
+                        .clipShape(Capsule())
+                        .padding(.top, 2)
+                    }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -128,7 +145,17 @@ public struct SettingsControlCenterSidebar: View {
                 Spacer()
 
                 // Optional Badge
-                if let badge = item.badgeText {
+                if item.id == "About" && updateChecker.isUpdateAvailable {
+                    Text("UPDATE")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.blue)
+                        )
+                        .foregroundStyle(Color.white)
+                } else if let badge = item.badgeText {
                     Text(badge)
                         .font(.system(size: 9.5, weight: .semibold))
                         .padding(.horizontal, 6)

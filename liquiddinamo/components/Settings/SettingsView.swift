@@ -43,6 +43,9 @@ struct SettingsView: View {
 
             // Content Area: Active Tab View
             VStack(spacing: 0) {
+                // Section Update Banner (Displayed across all sections when update available)
+                AppUpdateTopBannerView()
+
                 if !searchText.isEmpty {
                     SettingsTopBarView(searchText: $searchText)
                 }

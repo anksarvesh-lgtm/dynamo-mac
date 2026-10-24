@@ -85,6 +85,12 @@ public struct LiquidOrganicNotchView: View {
 
             // Liquid Glass Body Content - Centered under the physical notch
             VStack(spacing: 12) {
+                // Organic Island Update Notice
+                if GitHubUpdateChecker.shared.isUpdateAvailable && !GitHubUpdateChecker.shared.isBannerDismissed {
+                    organicUpdateNotice
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+
                 // Transient Charging or Hardware Sensor Liquid Indicator (stays above group 1)
                 sensorAndChargingBar
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -147,6 +153,46 @@ public struct LiquidOrganicNotchView: View {
         .onDisappear {
             statsService.stop()
         }
+    }
+
+    // MARK: - Organic Island Update Notice
+    @ViewBuilder
+    private var organicUpdateNotice: some View {
+        let checker = GitHubUpdateChecker.shared
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color(red: 0.35, green: 0.70, blue: 1.0))
+
+            Text("LiquidDynamo v\(checker.latestVersionString) Available")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+
+            Spacer()
+
+            Button {
+                checker.downloadAndInstallUpdate()
+            } label: {
+                Text(checker.isDownloading ? "Updating…" : "Update")
+                    .font(.system(size: 10.5, weight: .bold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.blue)
+                    .foregroundStyle(.white)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color(red: 0.10, green: 0.14, blue: 0.22).opacity(0.92))
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color.blue.opacity(0.35), lineWidth: 0.8)
+                )
+        )
     }
 
     // MARK: - Sensor & Charging Ambient Bar

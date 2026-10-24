@@ -872,6 +872,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }
+        // Auto-check for updates from GitHub releases
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            GitHubUpdateChecker.shared.checkForUpdates(silent: true)
+        }
         #if DEBUG
         if CommandLine.arguments.contains("--run-notch-safety-tests") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
