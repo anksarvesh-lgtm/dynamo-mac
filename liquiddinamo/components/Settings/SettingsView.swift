@@ -16,7 +16,7 @@ import SwiftUIIntrospect
 
 final class SettingsNavigationState: ObservableObject {
     static let shared = SettingsNavigationState()
-    @Published var selectedTab: String = "Dashboard"
+    @Published var selectedTab: String = "General"
 }
 
 struct SettingsView: View {
@@ -47,11 +47,15 @@ struct SettingsView: View {
 
                 ZStack {
                     switch navState.selectedTab {
-                    case "Dashboard":
+                    case "General":
+                        GeneralSettingsView()
+                    case "NotchWings", "Look":
+                        LookSettingsView()
+                    case "Dashboard", "Metrics":
                         SettingsDashboardView()
-                    case "Appearance", "Look":
+                    case "Appearance":
                         SettingsAppearanceView()
-                    case "Modules", "Show":
+                    case "Media", "Modules", "Show":
                         SettingsModulesView()
                     case "StorageCleaner":
                         SettingsStorageCleanerView()
@@ -76,7 +80,7 @@ struct SettingsView: View {
                     case "About":
                         AboutSettingsView(updaterController: updaterController)
                     default:
-                        SettingsDashboardView()
+                        GeneralSettingsView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
