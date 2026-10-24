@@ -80,6 +80,14 @@
 - **Swatch Card**: Copy picked colors instantly in HEX, RGB, or HSL format.
 - **Privacy-First Clipboard**: Clipboard history with automatic screening of password managers and transient password items.
 
+### 👁️ Watcher — AI Agent & Coding Session Monitor
+- **Live Notch Agent Monitoring**: Follow your AI coding sessions in real-time right from your notch or floating island—supporting **Claude Code**, **Antigravity (`agy`)**, **Cursor**, **Codex**, **Gemini CLI**, **GitHub Copilot CLI**, **OpenCode**, **Amp**, and **Hermes**.
+- **Native 3D Liquid Glass Design**: Rebranded and designed strictly to match LiquidDynamo's native macOS frosted-glass aesthetic (`LiquidGlassSurface`) with realistic specular sheen, OLED black blending, and bounded 360 pt detail cards.
+- **Real-Time Step & Diff Ticker**: Live visual feedback of current agent thinking state, running tools, files modified, and line delta counts (`+N -M`).
+- **One-Click Notch Permissions**: Authorize tool executions directly from the notch with **Allow**, **Deny**, or **Always Allow** buttons without switching windows or interrupting your CLI flow.
+- **Zero-Idle-CPU Socket Server**: Event-driven Unix domain socket server (`~/Library/Application Support/LiquidDynamo/watcher.sock` with symlink `/tmp/liquid_watcher.sock`) powered by native GCD `DispatchSourceRead`—0% idle CPU and fail-open non-blocking execution.
+- **Granular Approvals**: Configurable auto-approval for read-only inspection tools while safeguarding destructive bash commands and file writes behind notch approval popups.
+
 ---
 
 ## 📐 Architecture & Principles
@@ -151,6 +159,52 @@ bash build_dmg.sh
 
 ---
 
+## 🛠️ Setting Up Watcher Agent Hooks
+
+Watcher listens for newline-delimited JSON events on `/tmp/liquid_watcher.sock` or `~/Library/Application Support/LiquidDynamo/watcher.sock`. You can hook your favorite agent in seconds:
+
+### Claude Code (`~/.claude/settings.json`)
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "type": "command", "command": "echo '{\"hook_event_name\":\"UserPromptSubmit\",\"coucou_agent\":\"claude\",\"prompt\":\"'\"$PROMPT\"'\"}' | nc -U /tmp/liquid_watcher.sock" }
+    ],
+    "PreToolUse": [
+      { "type": "command", "command": "echo '{\"hook_event_name\":\"PreToolUse\",\"coucou_agent\":\"claude\",\"tool_name\":\"'\"$TOOL\"'\"}' | nc -U /tmp/liquid_watcher.sock" }
+    ],
+    "Stop": [
+      { "type": "command", "command": "echo '{\"hook_event_name\":\"Stop\",\"coucou_agent\":\"claude\"}' | nc -U /tmp/liquid_watcher.sock" }
+    ]
+  }
+}
+```
+
+### Antigravity / agy (`~/.gemini/config/hooks.json`)
+```json
+{
+  "hooks": {
+    "PreInvocation": [
+      { "type": "command", "command": "echo '{\"hook_event_name\":\"UserPromptSubmit\",\"coucou_agent\":\"antigravity\",\"prompt\":\"'\"$PROMPT\"'\"}' | nc -U /tmp/liquid_watcher.sock" }
+    ],
+    "PreToolUse": [
+      { "type": "command", "command": "echo '{\"hook_event_name\":\"PreToolUse\",\"coucou_agent\":\"antigravity\",\"tool_name\":\"'\"$TOOL_NAME\"'\"}' | nc -U /tmp/liquid_watcher.sock" }
+    ],
+    "Stop": [
+      { "type": "command", "command": "echo '{\"hook_event_name\":\"Stop\",\"coucou_agent\":\"antigravity\"}' | nc -U /tmp/liquid_watcher.sock" }
+    ]
+  }
+}
+```
+
+### Generic CLI Script / Custom Agent
+```bash
+# Pipe event JSON directly to the Watcher socket
+echo '{"hook_event_name": "UserPromptSubmit", "coucou_agent": "cursor", "prompt": "Refactoring components"}' | nc -U /tmp/liquid_watcher.sock
+```
+
+---
+
 ## ⌨️ Gestures & Controls
 
 | Action | Gesture / Shortcut | Result |
@@ -168,7 +222,7 @@ bash build_dmg.sh
 
 - **Zero Data Collection**: LiquidDynamo never transmits data over the internet.
 - **No Analytics / Telemetry**: No tracking SDKs, crash reporters, or usage analytics are embedded.
-- **Local Access Only**: FileDroid and Plexo operations only communicate with your local USB devices and the direct network URLs you specify.
+- **Local Access Only**: FileDroid, Plexo, and Watcher operations only communicate with your local USB devices, local sockets, and the direct network URLs you specify.
 
 ---
 
@@ -179,4 +233,5 @@ LiquidDynamo is open-source software licensed under the **GNU General Public Lic
 ### Upstream Attribution
 - Base notch foundation inspired by [Boring Notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam.
 - Storage cleaner engine and safety allowlist principles ported from [Purge](https://github.com/jithin-sabu/purge-app) by Jithin Sabu (MIT License).
+- AI agent session IPC protocol and hook architecture adapted from [Coucou](https://github.com/Louis-CFM/coucou) by Louis Raillé (MIT License), rebranded as **Watcher** and integrated using LiquidDynamo's native 3D Liquid Glass UI system.
 - All custom architectures, FileDroid & OpenMTP engine, Plexo turbo downloader, interactive collapsed wing readouts, and liquid motion systems are Copyright © 2026 Agrigence.
