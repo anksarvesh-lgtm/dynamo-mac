@@ -3,8 +3,8 @@ set -e
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
-VERSION="1.9.3"
-APP_PATH="$DIR/build/derived/Build/Products/Release/LiquidDynamo.app"
+VERSION="1.9.8"
+APP_PATH="$DIR/build/LiquidDynamo.app"
 OUTPUT_DIR="$HOME/Desktop"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
 

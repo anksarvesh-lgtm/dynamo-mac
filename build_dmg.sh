@@ -10,10 +10,10 @@
 set -euo pipefail
 
 APP_NAME="LiquidDynamo"
-VERSION="1.9.7"
+VERSION="1.9.8"
 CONFIG="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$HOME/Desktop}"
-INSTALL_APP="${INSTALL_APP:-false}"
+INSTALL_APP="${INSTALL_APP:-true}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 BUILD_DIR="$(pwd)/build"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
@@ -68,7 +68,7 @@ else
   rm -rf "$APP_PATH"
   cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
-  plutil -replace CFBundleVersion -string "16" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  plutil -replace CFBundleVersion -string "18" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
   # Install fresh compiled binary
   cp /tmp/spm_deps/LiquidDynamo_test "$APP_PATH/Contents/MacOS/$APP_NAME"
   chmod +x "$APP_PATH/Contents/MacOS/$APP_NAME"
@@ -200,37 +200,28 @@ fi
 say "Writing Release Notes and Build Report"
 
 cat <<'EOF' > "$OUTPUT_DIR/ReleaseNotes.txt"
-LiquidDynamo 1.9.7 — Production Release
+LiquidDynamo 1.9.8 — Production Release
 ========================================
 Release Date: October 2026
-Version: 1.9.7 (Build 17)
+Version: 1.9.8 (Build 18)
 Build Type: Production Release
 
 LiquidDynamo transforms the MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-Core Highlights in Version 1.9.7:
-1. In-Place Auto-Update & Permanent Release Link
-   - Auto-downloads LiquidDynamo.dmg and seamlessly replaces the application file in-place and restarts.
-   - Guaranteed permanent download link: https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg
-   - Live download progress indicator, extraction status, and one-click 'Auto-Update App' in Settings.
-2. FileDroid & OpenMTP — Android Storage Bridge
-   - Dual backend architecture (ADB and native MTP protocols) without requiring third-party drivers.
-   - Finder External SSD Emulation: Android devices mount automatically in macOS Finder with storage folder hierarchy.
-   - Live Device Specs & Telemetry: Model name, Android OS version, battery percentage, battery temperature, and storage metrics.
-   - Interactive Island browser, batch file upload/download, rename/delete, and transfer progress drawer with retry.
-   - Dedicated SettingsFileDroidView with ADB path picker, auto-mount toggles, and concurrency controls.
-2. Plexo — Turbo Downloader & Multi-Network Booster
-   - Parallel Chunk Acceleration: Splits large files into byte-range segments handled by an asynchronous worker pool.
-   - Multi-Network Interface Bonding: Simultaneous download streaming across Wi-Fi, Ethernet, and USB-C cellular hotspots.
-   - Single-Stream Fallback: Gracefully streams downloads to disk when servers do not support byte ranges.
-   - BitTorrent & Magnet Link Engine: Built-in BEP 0003 Bencode decoder and magnet link parser.
-   - Bandwidth Limiter & Slow Mode: Global speed throttling and clipboard URL auto-detection banner.
-   - Dedicated SettingsPlexoView pane with network interface toggles and chunk size configuration.
-3. Interactive Collapsed Notch Wings & Live Readout Expansion
-   - Click or hover wing icons in the collapsed notch state to reveal detailed measurements (e.g. 45%, ↓14.2M ↑2.1M).
-   - 3-second auto-collapse timer and outside click dismissal.
-   - Shared hit rects in NotchSafeAreaEngine with +8pt hit padding.
-   - Native event pass-through ensuring zero click theft from menu bar items or active windows.
+Core Highlights in Version 1.9.8:
+1. Native Settings Window Redesign:
+   - Full dark frosted-glass visual overhaul matching the reference specification.
+   - 3D liquid droplet branding, solid blue navigation pill, and compact cards.
+   - Realistic notch and wing preview capsules.
+   - Independent Left & Right Wing Content selectors with dropdown pill pickers.
+   - 4x3 Available Wing Items interactive grid.
+2. Watcher — AI Agent Session Monitor:
+   - Native 3D Liquid Glass session monitoring for Claude Code, Antigravity, Cursor, Codex, Gemini CLI, Copilot CLI, etc.
+   - Real-time diff counters (+N -M) and step ticker directly in the notch.
+   - One-click Allow / Deny / Always tool authorizations from the notch.
+   - Zero-idle CPU Unix domain socket IPC listener.
+3. Compact Connected-Device Overlays:
+   - Notch-anchored 3D Liquid Glass capsule replacing oversized device overlays.
 EOF
 
 cat <<EOF > "$OUTPUT_DIR/BuildReport.txt"
@@ -238,7 +229,7 @@ LiquidDynamo Production Build Report
 =====================================
 Application Name: $APP_NAME
 Marketing Version: $VERSION
-Current Project Version: 16
+Current Project Version: 18
 Build Configuration: $CONFIG
 Build Type: Production Release
 Deployment Target: macOS 14.0+
@@ -260,6 +251,18 @@ say "Done: $DMG_PATH"
 say "Convenience: $OUTPUT_DIR/LiquidDynamo.dmg"
 say "Release Notes: $OUTPUT_DIR/ReleaseNotes.txt"
 say "Build Report: $OUTPUT_DIR/BuildReport.txt"
+
+# ---- install to /Applications if requested ----
+if [ "$INSTALL_APP" = "true" ]; then
+  say "Installing $APP_NAME to /Applications/$APP_NAME.app..."
+  killall "$APP_NAME" 2>/dev/null || true
+  sleep 1
+  rm -rf "/Applications/$APP_NAME.app"
+  cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
+  xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
+  say "Launching updated /Applications/$APP_NAME.app..."
+  open "/Applications/$APP_NAME.app"
+fi
 
 # ---- optional upload to GitHub tag [app] ----
 if [ "${UPLOAD_APP_RELEASE:-true}" = "true" ]; then
