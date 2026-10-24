@@ -2,8 +2,8 @@
 //  SettingsControlCenterSidebar.swift
 //  LiquidDynamo
 //
-//  Futuristic macOS-native Liquid Glass sidebar with animated 3D icons,
-//  specular lighting highlights, liquid glow effects, and soft expansion on hover.
+//  Clean native macOS frosted-glass sidebar with authentic application branding,
+//  SF Symbols, restrained blue selection background, and responsive search.
 //
 
 import AppKit
@@ -13,7 +13,6 @@ import SwiftUI
 public struct SettingsSidebarItem: Identifiable, Hashable {
     public let id: String
     public let title: String
-    public let icon3D: Premium3DIcon
     public let symbolBackup: String
     public let badgeText: String?
     public let accentColor: Color
@@ -21,14 +20,12 @@ public struct SettingsSidebarItem: Identifiable, Hashable {
     public init(
         id: String,
         title: String,
-        icon3D: Premium3DIcon,
         symbolBackup: String,
         badgeText: String? = nil,
         accentColor: Color = .blue
     ) {
         self.id = id
         self.title = title
-        self.icon3D = icon3D
         self.symbolBackup = symbolBackup
         self.badgeText = badgeText
         self.accentColor = accentColor
@@ -39,22 +36,23 @@ public struct SettingsControlCenterSidebar: View {
     @Binding var selectedTab: String
     @Binding var searchText: String
     @State private var hoveredTab: String? = nil
+    @Environment(\.colorScheme) private var colorScheme
 
     public static let items: [SettingsSidebarItem] = [
-        SettingsSidebarItem(id: "Dashboard", title: "Dashboard", icon3D: .desktopMac, symbolBackup: "house.fill", accentColor: Color(red: 0.20, green: 0.60, blue: 1.0)),
-        SettingsSidebarItem(id: "Appearance", title: "Appearance", icon3D: .favorites, symbolBackup: "paintpalette.fill", accentColor: Color(red: 0.95, green: 0.35, blue: 0.75)),
-        SettingsSidebarItem(id: "Modules", title: "Modules", icon3D: .shelf, symbolBackup: "puzzlepiece.extension.fill", badgeText: "10", accentColor: Color(red: 0.40, green: 0.45, blue: 0.95)),
-        SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", icon3D: .downloads, symbolBackup: "trash.circle.fill", badgeText: "New", accentColor: Color(red: 0.15, green: 0.85, blue: 0.65)),
-        SettingsSidebarItem(id: "Behavior", title: "Behavior", icon3D: .settings, symbolBackup: "gearshape.2.fill", accentColor: Color(red: 0.70, green: 0.72, blue: 0.78)),
-        SettingsSidebarItem(id: "Permissions", title: "Permissions", icon3D: .library, symbolBackup: "checkmark.shield.fill", accentColor: Color(red: 0.10, green: 0.80, blue: 0.50)),
-        SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", icon3D: .keyboard, symbolBackup: "command", accentColor: Color(red: 0.85, green: 0.65, blue: 0.20)),
-        SettingsSidebarItem(id: "FileDroid", title: "FileDroid & OpenMTP", icon3D: .generic, symbolBackup: "externaldrive.fill.badge.wifi", badgeText: "Storage", accentColor: Color(red: 0.20, green: 0.85, blue: 0.55)),
-        SettingsSidebarItem(id: "Plexo", title: "Plexo Turbo Downloader", icon3D: .downloads, symbolBackup: "bolt.horizontal.fill", badgeText: "Turbo", accentColor: Color(red: 0.10, green: 0.70, blue: 0.95)),
-        SettingsSidebarItem(id: "Devices", title: "Connected Devices", icon3D: .airPods, symbolBackup: "laptopcomputer.and.iphone", accentColor: Color(red: 0.35, green: 0.75, blue: 0.95)),
-        SettingsSidebarItem(id: "Clipboard", title: "Clipboard", icon3D: .playlist, symbolBackup: "doc.on.clipboard.fill", accentColor: Color(red: 0.90, green: 0.50, blue: 0.25)),
-        SettingsSidebarItem(id: "Hydration", title: "Hydration", icon3D: .generic, symbolBackup: "drop.fill", badgeText: "Fresh", accentColor: Color(red: 0.20, green: 0.70, blue: 1.0)),
-        SettingsSidebarItem(id: "Privacy", title: "Camera & Mic", icon3D: .camera, symbolBackup: "video.badge.waveform.fill", accentColor: Color(red: 0.10, green: 0.85, blue: 0.45)),
-        SettingsSidebarItem(id: "About", title: "About", icon3D: .userProfile, symbolBackup: "info.circle.fill", accentColor: Color(red: 0.60, green: 0.45, blue: 0.90))
+        SettingsSidebarItem(id: "General", title: "General", symbolBackup: "gearshape.fill"),
+        SettingsSidebarItem(id: "NotchWings", title: "Notch & Wings", symbolBackup: "sparkles.rectangle.stack.fill"),
+        SettingsSidebarItem(id: "Appearance", title: "Appearance", symbolBackup: "paintpalette.fill"),
+        SettingsSidebarItem(id: "Media", title: "Media & Controls", symbolBackup: "play.rectangle.fill"),
+        SettingsSidebarItem(id: "Metrics", title: "Metrics", symbolBackup: "gauge.with.needle.fill"),
+        SettingsSidebarItem(id: "Devices", title: "Battery & Devices", symbolBackup: "laptopcomputer.and.iphone"),
+        SettingsSidebarItem(id: "Clipboard", title: "Clipboard", symbolBackup: "doc.on.clipboard.fill"),
+        SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", symbolBackup: "trash.circle.fill", badgeText: "Clean"),
+        SettingsSidebarItem(id: "FileDroid", title: "FileDroid (ADB)", symbolBackup: "externaldrive.fill.badge.wifi"),
+        SettingsSidebarItem(id: "Plexo", title: "Plexo Turbo", symbolBackup: "bolt.horizontal.fill"),
+        SettingsSidebarItem(id: "Hydration", title: "Hydration", symbolBackup: "drop.fill"),
+        SettingsSidebarItem(id: "Permissions", title: "Permissions", symbolBackup: "checkmark.shield.fill"),
+        SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command"),
+        SettingsSidebarItem(id: "About", title: "About", symbolBackup: "info.circle.fill")
     ]
 
     var filteredItems: [SettingsSidebarItem] {
@@ -69,177 +67,114 @@ public struct SettingsControlCenterSidebar: View {
         VStack(spacing: 0) {
             // App Branding Header
             HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.cyan.opacity(0.8),
-                                    Color.blue.opacity(0.6),
-                                    Color.purple.opacity(0.7)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(Color.white.opacity(0.4), lineWidth: 1)
-                        )
-                        .shadow(color: Color.cyan.opacity(0.4), radius: 8, x: 0, y: 2)
+                // Genuine LiquidDynamo App Icon
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 38, height: 38)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
 
-                    Premium3DIconView(.generic, size: 20, interactive: false)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("LiquidDynamo")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
 
                     Text("Control Center")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.top, 18)
+            .padding(.top, 20)
             .padding(.bottom, 14)
 
             Divider()
-                .opacity(0.2)
+                .opacity(colorScheme == .dark ? 0.2 : 0.12)
                 .padding(.horizontal, 14)
-                .padding(.bottom, 10)
+                .padding(.bottom, 8)
 
-            // Scrollable Navigation Items
+            // Scrollable Navigation Destination Rows
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 4) {
+                VStack(spacing: 3) {
                     ForEach(filteredItems) { item in
                         sidebarRow(for: item)
                     }
                 }
                 .padding(.horizontal, 10)
-                .padding(.bottom, 20)
+                .padding(.vertical, 4)
             }
         }
-        .frame(width: 220)
+        .frame(width: NativeSettingsTheme.sidebarWidth)
         .background(
             ZStack {
                 // Frosted Liquid Glass Sidebar Surface
-                Color(nsColor: .windowBackgroundColor).opacity(0.45)
-
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.06),
-                        Color.clear,
-                        Color.black.opacity(0.12)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                if colorScheme == .dark {
+                    Color(nsColor: .windowBackgroundColor).opacity(0.35)
+                } else {
+                    Color.white.opacity(0.40)
+                }
             }
         )
     }
 
     @ViewBuilder
     private func sidebarRow(for item: SettingsSidebarItem) -> some View {
-        let isSelected = selectedTab == item.id
+        let isSelected = selectedTab == item.id || (item.id == "General" && selectedTab == "Dashboard") || (item.id == "NotchWings" && selectedTab == "Look") || (item.id == "Media" && selectedTab == "Modules")
         let isHovered = hoveredTab == item.id
 
         Button {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                 selectedTab = item.id
             }
         } label: {
-            HStack(spacing: 12) {
-                // 3D Animated Icon Container
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(
-                            isSelected
-                            ? item.accentColor.opacity(0.28)
-                            : (isHovered ? Color.white.opacity(0.10) : Color.white.opacity(0.04))
-                        )
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(
-                                    isSelected ? item.accentColor.opacity(0.6) : Color.white.opacity(0.12),
-                                    lineWidth: 0.8
-                                )
-                        )
-                        .shadow(
-                            color: isSelected ? item.accentColor.opacity(0.35) : Color.clear,
-                            radius: 6,
-                            x: 0,
-                            y: 2
-                        )
-
-                    Premium3DIconView(item.icon3D, size: 18, interactive: false)
-                        .scaleEffect(isHovered ? 1.08 : 1.0)
-                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovered)
-                }
+            HStack(spacing: 10) {
+                // SF Symbol with balanced frame
+                Image(systemName: item.symbolBackup)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.effectiveAccent : Color.secondary)
+                    .frame(width: 22, alignment: .center)
 
                 // Title Label
                 Text(item.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium, design: .rounded))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .font(.system(size: 12.5, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
 
                 Spacer()
 
-                // Optional Pill Badge
+                // Optional Badge
                 if let badge = item.badgeText {
                     Text(badge)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .medium))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(isSelected ? item.accentColor.opacity(0.3) : Color.white.opacity(0.12))
+                                .fill(isSelected ? Color.effectiveAccent.opacity(0.20) : Color.primary.opacity(0.06))
                         )
-                        .foregroundStyle(isSelected ? item.accentColor : .secondary)
+                        .foregroundStyle(isSelected ? Color.effectiveAccent : Color.secondary)
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.vertical, 7)
             .background(
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        item.accentColor.opacity(0.18),
-                                        item.accentColor.opacity(0.08)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.effectiveAccent.opacity(colorScheme == .dark ? 0.22 : 0.12))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.4),
-                                                item.accentColor.opacity(0.3)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .strokeBorder(Color.effectiveAccent.opacity(colorScheme == .dark ? 0.35 : 0.20), lineWidth: 0.8)
                             )
-                            .shadow(color: item.accentColor.opacity(0.2), radius: 8, x: 0, y: 3)
                     } else if isHovered {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.white.opacity(0.06))
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
                     }
                 }
             )
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { h in
