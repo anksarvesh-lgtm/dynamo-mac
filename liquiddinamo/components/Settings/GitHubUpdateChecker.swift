@@ -185,95 +185,201 @@ public final class GitHubUpdateChecker: ObservableObject {
 
     // MARK: - 3. Auto-Download and In-Place Replace in /Applications
 
+    private func sanitizeDownloadURL(_ url: URL) -> URL {
+        var str = url.absoluteString
+        if str.contains("banksarvesh-lgtm/dynamomac") {
+            str = str.replacingOccurrences(of: "banksarvesh-lgtm/dynamomac", with: "\(Self.repoOwner)/\(Self.repoName)")
+        }
+        return URL(string: str) ?? url
+    }
+
+    private func buildDownloadCandidates(targetURL: URL?) -> [URL] {
+        var candidates: [URL] = []
+        var seen = Set<String>()
+
+        func add(_ url: URL?) {
+            guard let url = url else { return }
+            let sanitized = sanitizeDownloadURL(url)
+            let key = sanitized.absoluteString.lowercased()
+            if !seen.contains(key) {
+                seen.insert(key)
+                candidates.append(sanitized)
+            }
+        }
+
+        // 1. Explicit target URL passed in
+        add(targetURL)
+
+        // 2. Previously resolved URL from GitHub API
+        add(resolvedDownloadURL)
+
+        // 3. Tag-specific ZIP releases across primary and fallback repos
+        let version = latestVersionString.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
+        if !version.isEmpty {
+            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(version)/liquiddynamo.zip"))
+            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/v\(version)/liquiddynamo.zip"))
+        }
+
+        // 4. Permanent ZIP download link (releases/download/app/liquiddynamo.zip)
+        add(Self.permanentZipURL)
+        add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/app/liquiddynamo.zip"))
+
+        // 5. Tag-specific DMG releases
+        if !version.isEmpty {
+            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(version)/LiquidDynamo-\(version).dmg"))
+            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(version)/LiquidDynamo.dmg"))
+            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/v\(version)/LiquidDynamo-\(version).dmg"))
+            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/v\(version)/LiquidDynamo.dmg"))
+        }
+
+        // 6. Permanent DMG fallback
+        add(Self.permanentDMGURL)
+        add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/app/LiquidDynamo.dmg"))
+
+        return candidates
+    }
+
     public func downloadAndInstallUpdate(from url: URL? = nil) {
-        let downloadTarget = url ?? resolvedDownloadURL ?? Self.permanentZipURL
         activeDownloadTask?.cancel()
 
         isDownloading = true
         downloadProgress = 0.0
-        downloadStatusFormatted = "0 B / Calculating…"
-        status = .downloading(progress: 0.0, downloadedFormatted: "0 B", totalFormatted: "Calculating…")
+        downloadStatusFormatted = "Preparing download…"
+        status = .downloading(progress: 0.0, downloadedFormatted: "0 B", totalFormatted: "Connecting…")
 
         activeDownloadTask = Task {
-            do {
-                var request = URLRequest(url: downloadTarget)
-                request.timeoutInterval = 180
-                request.setValue("LiquidDynamo-AutoUpdater", forHTTPHeaderField: "User-Agent")
-
-                let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
-                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                    throw NSError(domain: "AutoUpdater", code: 1, userInfo: [NSLocalizedDescriptionKey: "Download server returned HTTP \( (response as? HTTPURLResponse)?.statusCode ?? 0 )."])
+            // If we don't have the latest version string or resolved download URL yet, fetch release info first
+            if self.latestVersionString.isEmpty || self.resolvedDownloadURL == nil {
+                if let release = try? await self.fetchLatestRelease() {
+                    self.latestVersionString = release.version
+                    if self.resolvedDownloadURL == nil {
+                        self.resolvedDownloadURL = release.downloadURL
+                    }
                 }
+            }
 
-                let totalBytes = httpResponse.expectedContentLength
-                var downloadedBytes: Int64 = 0
+            let candidates = self.buildDownloadCandidates(targetURL: url)
+            guard !candidates.isEmpty else {
+                self.isDownloading = false
+                self.status = .error(message: "No valid download URLs found.")
+                return
+            }
 
-                let isZip = downloadTarget.lastPathComponent.lowercased().hasSuffix(".zip") || downloadTarget.absoluteString.contains(".zip")
+            var lastError: Error? = nil
+            var succeeded = false
+
+            for (index, candidateURL) in candidates.enumerated() {
+                if Task.isCancelled { break }
+
+                let isZip = candidateURL.lastPathComponent.lowercased().hasSuffix(".zip") || candidateURL.absoluteString.contains(".zip")
                 let tempDownloadURL = FileManager.default.temporaryDirectory.appendingPathComponent(isZip ? "liquiddynamo_update.zip" : "liquiddynamo_update.dmg")
 
-                if FileManager.default.fileExists(atPath: tempDownloadURL.path) {
-                    try? FileManager.default.removeItem(at: tempDownloadURL)
-                }
-                FileManager.default.createFile(atPath: tempDownloadURL.path, contents: nil)
-                guard let fileHandle = try? FileHandle(forWritingTo: tempDownloadURL) else {
-                    throw NSError(domain: "AutoUpdater", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not create temporary download file."])
-                }
+                do {
+                    if index > 0 {
+                        self.downloadStatusFormatted = "Retrying download (mirror \(index + 1))…"
+                    } else {
+                        self.downloadStatusFormatted = "Connecting to download server…"
+                    }
 
-                var lastUpdate = Date()
-                var buffer = Data()
-                buffer.reserveCapacity(64 * 1024)
+                    var request = URLRequest(url: candidateURL)
+                    request.timeoutInterval = 120
+                    request.setValue("LiquidDynamo-AutoUpdater", forHTTPHeaderField: "User-Agent")
 
-                for try await byte in asyncBytes {
-                    if Task.isCancelled {
-                        try? fileHandle.close()
+                    let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        throw NSError(domain: "AutoUpdater", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid server response."])
+                    }
+
+                    // If non-2xx (e.g. 404, 403, 500), throw to fall back to the next candidate
+                    guard (200...299).contains(httpResponse.statusCode) else {
+                        throw NSError(domain: "AutoUpdater", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Download server returned HTTP \(httpResponse.statusCode)."])
+                    }
+
+                    let totalBytes = httpResponse.expectedContentLength
+                    var downloadedBytes: Int64 = 0
+
+                    if FileManager.default.fileExists(atPath: tempDownloadURL.path) {
                         try? FileManager.default.removeItem(at: tempDownloadURL)
+                    }
+                    FileManager.default.createFile(atPath: tempDownloadURL.path, contents: nil)
+                    guard let fileHandle = try? FileHandle(forWritingTo: tempDownloadURL) else {
+                        throw NSError(domain: "AutoUpdater", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not create temporary download file."])
+                    }
+
+                    var lastUpdate = Date()
+                    var buffer = Data()
+                    buffer.reserveCapacity(64 * 1024)
+
+                    for try await byte in asyncBytes {
+                        if Task.isCancelled {
+                            try? fileHandle.close()
+                            try? FileManager.default.removeItem(at: tempDownloadURL)
+                            self.isDownloading = false
+                            return
+                        }
+
+                        buffer.append(byte)
+                        downloadedBytes += 1
+
+                        if buffer.count >= 64 * 1024 {
+                            fileHandle.write(buffer)
+                            buffer.removeAll(keepingCapacity: true)
+
+                            if Date().timeIntervalSince(lastUpdate) > 0.12 {
+                                lastUpdate = Date()
+                                let fraction = totalBytes > 0 ? Double(downloadedBytes) / Double(totalBytes) : 0.0
+                                let downloadedStr = Self.formatBytes(downloadedBytes)
+                                let totalStr = totalBytes > 0 ? Self.formatBytes(totalBytes) : "…"
+                                self.downloadProgress = fraction
+                                self.downloadStatusFormatted = "\(downloadedStr) / \(totalStr)"
+                                self.status = .downloading(
+                                    progress: fraction,
+                                    downloadedFormatted: downloadedStr,
+                                    totalFormatted: totalStr
+                                )
+                            }
+                        }
+                    }
+
+                    if !buffer.isEmpty {
+                        fileHandle.write(buffer)
+                    }
+                    try? fileHandle.close()
+
+                    // Verify file size is non-empty (> 1MB)
+                    let downloadedFileSize = (try? FileManager.default.attributesOfItem(atPath: tempDownloadURL.path)[.size] as? Int64) ?? 0
+                    guard downloadedFileSize > 1024 * 1024 else {
+                        try? FileManager.default.removeItem(at: tempDownloadURL)
+                        throw NSError(domain: "AutoUpdater", code: 8, userInfo: [NSLocalizedDescriptionKey: "Incomplete download file."])
+                    }
+
+                    // Download completed successfully
+                    succeeded = true
+                    self.status = .extracting
+                    self.downloadStatusFormatted = "Extracting application…"
+
+                    if isZip {
+                        try await self.extractAndReplaceFromZip(zipURL: tempDownloadURL)
+                    } else {
+                        try await self.extractAndReplaceFromDMG(dmgURL: tempDownloadURL)
+                    }
+
+                    break // Successful download and trigger, exit loop
+
+                } catch {
+                    lastError = error
+                    try? FileManager.default.removeItem(at: tempDownloadURL)
+                    if Task.isCancelled {
                         self.isDownloading = false
                         return
                     }
-
-                    buffer.append(byte)
-                    downloadedBytes += 1
-
-                    if buffer.count >= 64 * 1024 {
-                        fileHandle.write(buffer)
-                        buffer.removeAll(keepingCapacity: true)
-
-                        if Date().timeIntervalSince(lastUpdate) > 0.12 {
-                            lastUpdate = Date()
-                            let fraction = totalBytes > 0 ? Double(downloadedBytes) / Double(totalBytes) : 0.0
-                            let downloadedStr = Self.formatBytes(downloadedBytes)
-                            let totalStr = totalBytes > 0 ? Self.formatBytes(totalBytes) : "…"
-                            self.downloadProgress = fraction
-                            self.downloadStatusFormatted = "\(downloadedStr) / \(totalStr)"
-                            self.status = .downloading(
-                                progress: fraction,
-                                downloadedFormatted: downloadedStr,
-                                totalFormatted: totalStr
-                            )
-                        }
-                    }
+                    print("⚠️ AutoUpdater download candidate \(candidateURL.absoluteString) failed: \(error.localizedDescription). Trying next candidate...")
                 }
+            }
 
-                if !buffer.isEmpty {
-                    fileHandle.write(buffer)
-                }
-                try? fileHandle.close()
-
-                // Download completed, extract application bundle
-                self.status = .extracting
-                self.downloadStatusFormatted = "Extracting application…"
-
-                if isZip {
-                    try await self.extractAndReplaceFromZip(zipURL: tempDownloadURL)
-                } else {
-                    try await self.extractAndReplaceFromDMG(dmgURL: tempDownloadURL)
-                }
-
-            } catch {
-                if !Task.isCancelled {
-                    self.isDownloading = false
-                    self.status = .error(message: error.localizedDescription)
-                }
+            if !succeeded && !Task.isCancelled {
+                self.isDownloading = false
+                self.status = .error(message: lastError?.localizedDescription ?? "Download failed. Please check internet connection.")
             }
         }
     }

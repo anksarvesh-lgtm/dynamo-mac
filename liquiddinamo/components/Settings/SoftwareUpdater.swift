@@ -152,6 +152,11 @@ struct CheckForUpdatesView: View {
                         gitHubChecker.downloadAndInstallUpdate()
                     }
                     .controlSize(.small)
+
+                    Button("Open Releases") {
+                        gitHubChecker.openReleasesPage()
+                    }
+                    .controlSize(.small)
                 }
             }
         }

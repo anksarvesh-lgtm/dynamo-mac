@@ -69,6 +69,11 @@ public struct AppUpdateTopBannerView: View {
                             Text("Replacing in /Applications & relaunching…")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(Color.green.opacity(0.9))
+                        } else if case .error(let msg) = updateChecker.status {
+                            Text("Download error: \(msg)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.45))
+                                .lineLimit(1)
                         } else {
                             Text("A new release is ready. Click update to download and replace in /Applications.")
                                 .font(.system(size: 11, weight: .regular))
@@ -102,21 +107,29 @@ public struct AppUpdateTopBannerView: View {
                             ProgressView()
                                 .controlSize(.small)
                         } else {
-                            // Update Now Button
+                            // Update Now / Retry Button
+                            let isErrorState: Bool = {
+                                if case .error = updateChecker.status { return true }
+                                return false
+                            }()
+
                             Button {
                                 updateChecker.downloadAndInstallUpdate()
                             } label: {
                                 HStack(spacing: 5) {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                    Image(systemName: isErrorState ? "arrow.clockwise" : "arrow.triangle.2.circlepath")
                                         .font(.system(size: 10.5, weight: .bold))
-                                    Text("Update Now")
+                                    Text(isErrorState ? "Retry" : "Update Now")
                                         .font(.system(size: 11.5, weight: .semibold))
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(
                                     LinearGradient(
-                                        colors: [
+                                        colors: isErrorState ? [
+                                            Color(red: 0.85, green: 0.25, blue: 0.25),
+                                            Color(red: 0.65, green: 0.15, blue: 0.15)
+                                        ] : [
                                             Color(red: 0.15, green: 0.52, blue: 0.98),
                                             Color(red: 0.08, green: 0.40, blue: 0.88)
                                         ],
@@ -126,7 +139,7 @@ public struct AppUpdateTopBannerView: View {
                                 )
                                 .foregroundStyle(.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                .shadow(color: Color.blue.opacity(0.4), radius: 4, y: 1.5)
+                                .shadow(color: isErrorState ? Color.red.opacity(0.4) : Color.blue.opacity(0.4), radius: 4, y: 1.5)
                             }
                             .buttonStyle(.plain)
 
