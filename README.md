@@ -137,7 +137,16 @@ LiquidDynamo strictly adheres to modern native macOS development guidelines:
 
 ## 🚀 Installation
 
-### Download Pre-Built DMG
+### ⚡ Option 1: Quick 1-Line Terminal Run (Recommended)
+Paste and run this single command in macOS **Terminal** (`Terminal.app`) to download, bypass Gatekeeper quarantine flags automatically, and launch LiquidDynamo instantly:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/dynamo-mac/main/install.sh)"
+```
+
+---
+
+### 📦 Option 2: Download Pre-Built DMG
 
 - **Direct Download**: [**Download Latest LiquidDynamo.dmg**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg) *(Always points to the newest release)*
 - **All Releases**: [GitHub Releases](https://github.com/anksarvesh-lgtm/dynamo-mac/releases)
@@ -146,9 +155,9 @@ LiquidDynamo strictly adheres to modern native macOS development guidelines:
 2. Launch the app from Applications or Spotlight.
 
 > [!TIP]
-> If macOS Gatekeeper displays a security prompt on first launch for unnotarized builds, run:
+> If macOS displays a Gatekeeper security prompt ("App is damaged" or "Unverified developer") on first launch, run this quick command in Terminal to clear quarantine flags and launch:
 > ```bash
-> xattr -dr com.apple.quarantine "/Applications/LiquidDynamo.app"
+> xattr -cr /Applications/LiquidDynamo.app && open /Applications/LiquidDynamo.app
 > ```
 > Or navigate to **System Settings** > **Privacy & Security** and click **Open Anyway**.
 
