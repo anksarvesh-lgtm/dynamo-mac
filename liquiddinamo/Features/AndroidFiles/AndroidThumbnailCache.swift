@@ -31,7 +31,7 @@ public final class AndroidThumbnailCache: ObservableObject {
         if let mem = memoryCache.object(forKey: key as NSString) {
             return mem
         }
-        let fileURL = cacheDirectory.appendingPathComponent(sanitizedKey(key))
+        let fileURL = cacheDirectory.appendingPathComponent(Self.sanitizedKey(key))
         if let data = try? Data(contentsOf: fileURL), let img = NSImage(data: data) {
             memoryCache.setObject(img, forKey: key as NSString)
             return img
@@ -41,15 +41,18 @@ public final class AndroidThumbnailCache: ObservableObject {
 
     public func storeImage(_ image: NSImage, for key: String) {
         memoryCache.setObject(image, forKey: key as NSString)
-        Task.detached(priority: .background) { [weak self] in
-            guard let self = self else { return }
-            let fileURL = self.cacheDirectory.appendingPathComponent(self.sanitizedKey(key))
+        let dir = self.cacheDirectory
+        let safeKey = Self.sanitizedKey(key)
+        let maxDisk = self.maxDiskBytes
+
+        Task.detached(priority: .background) {
+            let fileURL = dir.appendingPathComponent(safeKey)
             if let tiff = image.tiffRepresentation,
                let rep = NSBitmapImageRep(data: tiff),
                let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75]) {
                 try? data.write(to: fileURL)
             }
-            await self.pruneDiskCacheIfNeeded()
+            Self.pruneDiskDirectory(dir, maxDiskBytes: maxDisk)
         }
     }
 
@@ -134,13 +137,17 @@ public final class AndroidThumbnailCache: ObservableObject {
         return newImage
     }
 
-    private func sanitizedKey(_ key: String) -> String {
+    nonisolated static func sanitizedKey(_ key: String) -> String {
         key.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
     }
 
     private func pruneDiskCacheIfNeeded() {
+        Self.pruneDiskDirectory(cacheDirectory, maxDiskBytes: maxDiskBytes)
+    }
+
+    nonisolated static func pruneDiskDirectory(_ dir: URL, maxDiskBytes: Int64) {
         guard let files = try? FileManager.default.contentsOfDirectory(
-            at: cacheDirectory,
+            at: dir,
             includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
             options: .skipsHiddenFiles
         ) else { return }

@@ -308,7 +308,7 @@ public final class AndroidFileManagerViewModel: ObservableObject {
             do {
                 try await self.client.pullFile(serial: self.deviceSerial, remotePath: item.path, localURL: localURL, onProgress: nil)
                 await MainActor.run {
-                    NSWorkspace.shared.open(localURL)
+                    _ = NSWorkspace.shared.open(localURL)
                 }
             } catch {
                 await MainActor.run {
@@ -426,7 +426,7 @@ public final class AndroidFileManagerViewModel: ObservableObject {
 
     private func queueDownload(item: ADBFileEntry, destinationURL: URL) {
         let transferId = UUID()
-        var transfer = AndroidFileTransfer(
+        let transfer = AndroidFileTransfer(
             id: transferId,
             filename: item.name,
             remotePath: item.path,
@@ -485,7 +485,7 @@ public final class AndroidFileManagerViewModel: ObservableObject {
         let attrs = try? FileManager.default.attributesOfItem(atPath: localURL.path)
         let fSize = (attrs?[.size] as? Int64) ?? 0
 
-        var transfer = AndroidFileTransfer(
+        let transfer = AndroidFileTransfer(
             id: transferId,
             filename: localURL.lastPathComponent,
             remotePath: remotePath,

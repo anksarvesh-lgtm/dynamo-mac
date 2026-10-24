@@ -415,6 +415,12 @@ extension Defaults.Keys {
     static let filedroidNotifications = Key<Bool>("filedroidNotifications", default: true)
     static let filedroidBackendType = Key<String>("filedroidBackendType", default: "adb")
 
+    // MARK: Android File Manager
+    static let androidFilesAdbPath = Key<String>("android_files_custom_adb_path", default: "")
+    static let androidFilesDefaultDownloadFolder = Key<String>("android_files_default_download_folder", default: "")
+    static let androidFilesThumbnailCacheSizeMB = Key<Int>("android_files_thumbnail_cache_size_mb", default: 200)
+    static let androidFilesStopAdbOnQuit = Key<Bool>("android_files_stop_adb_on_quit", default: false)
+
     // MARK: Plexo Turbo Downloader
     static let plexoDefaultFolder = Key<String>("plexoDefaultFolder", default: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads"))
     static let plexoChunkSizeMB = Key<Int>("plexoChunkSizeMB", default: 8)

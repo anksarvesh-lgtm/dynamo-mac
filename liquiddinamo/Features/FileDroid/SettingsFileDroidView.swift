@@ -22,6 +22,11 @@ public struct SettingsFileDroidView: View {
     @Default(.filedroidNotifications) var filedroidNotifications
     @Default(.filedroidBackendType) var backendType
 
+    @Default(.androidFilesAdbPath) var androidFilesAdbPath
+    @Default(.androidFilesDefaultDownloadFolder) var androidFilesDefaultDownloadFolder
+    @Default(.androidFilesThumbnailCacheSizeMB) var androidFilesThumbnailCacheSizeMB
+    @Default(.androidFilesStopAdbOnQuit) var androidFilesStopAdbOnQuit
+
     @State private var customAdbInput: String = ""
     @State private var adbStatusMessage: String? = nil
 
@@ -255,6 +260,48 @@ public struct SettingsFileDroidView: View {
                             }
 
                         Toggle("Show notifications on transfer complete", isOn: $filedroidNotifications)
+                            .tint(.accentColor)
+                    }
+                    .padding(8)
+                }
+
+                // 6. In-App Android File Manager
+                GroupBox(label: Label("Android File Manager (In-App)", systemImage: "folder.badge.gearshape")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            Text("Custom ADB Path:")
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            TextField("Inherit default / auto-detected", text: $androidFilesAdbPath)
+                                .textFieldStyle(.roundedBorder)
+                        }
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Default Download Folder:")
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                Text(androidFilesDefaultDownloadFolder.isEmpty ? "~/Downloads/<Device Name>" : androidFilesDefaultDownloadFolder)
+                                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Button("Choose…") {
+                                let panel = NSOpenPanel()
+                                panel.canChooseFiles = false
+                                panel.canChooseDirectories = true
+                                panel.canCreateDirectories = true
+                                panel.title = "Select In-App Download Destination"
+                                if panel.runModal() == .OK, let url = panel.url {
+                                    androidFilesDefaultDownloadFolder = url.path
+                                }
+                            }
+                            .controlSize(.small)
+                        }
+
+                        Stepper("Thumbnail Cache: \(androidFilesThumbnailCacheSizeMB) MB", value: $androidFilesThumbnailCacheSizeMB, in: 50...1000, step: 50)
+                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
+
+                        Toggle("Stop ADB daemon server on application quit", isOn: $androidFilesStopAdbOnQuit)
                             .tint(.accentColor)
                     }
                     .padding(8)

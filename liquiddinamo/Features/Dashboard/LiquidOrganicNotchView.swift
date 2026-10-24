@@ -272,7 +272,22 @@ typealias WrappingFlowLayout = CenteredFlowLayout
 
     // MARK: - Device & Group 3 Filter Helpers
     private var nonAndroidDevices: [DeviceIdentity] {
-        deviceMonitor.sortedActiveDevices.filter { $0.kind != .androidPhone }
+        if UserDefaults.standard.bool(forKey: "debug_simulate_0_devices") {
+            return []
+        }
+        let simCount = UserDefaults.standard.integer(forKey: "debug_simulate_device_count")
+        if simCount > 0 {
+            let sampleDevices: [DeviceIdentity] = [
+                DeviceIdentity(stableKey: "sim_magsafe", kind: .charger, displayName: "MagSafe 3 Charger", vendor: "Apple", model: "MagSafe", connectionType: .power, capacityBytes: nil, freeSpaceBytes: nil, batteryPercentage: nil, iconName: "bolt.shield.fill", chargerWatts: 140, chargerPort: "MagSafe 3"),
+                DeviceIdentity(stableKey: "sim_airpods", kind: .airpods, displayName: "AirPods Pro", vendor: "Apple", model: "AirPods Pro 2", connectionType: .bluetooth, capacityBytes: nil, freeSpaceBytes: nil, batteryPercentage: 95, iconName: "airpodspro", chargerWatts: nil, chargerPort: nil),
+                DeviceIdentity(stableKey: "sim_ssd", kind: .ssdDrive, displayName: "Samsung T9 SSD", vendor: "Samsung", model: "T9 2TB", connectionType: .storage, capacityBytes: 2_000_000_000_000, freeSpaceBytes: 1_200_000_000_000, batteryPercentage: nil, iconName: "internaldrive.fill", chargerWatts: nil, chargerPort: nil),
+                DeviceIdentity(stableKey: "sim_buds", kind: .headphones, displayName: "realme Buds Wireless", vendor: "realme", model: "Buds", connectionType: .bluetooth, capacityBytes: nil, freeSpaceBytes: nil, batteryPercentage: 70, iconName: "headphones", chargerWatts: nil, chargerPort: nil),
+                DeviceIdentity(stableKey: "sim_display", kind: .monitor, displayName: "Studio Display", vendor: "Apple", model: "27-inch 5K", connectionType: .display, capacityBytes: nil, freeSpaceBytes: nil, batteryPercentage: nil, iconName: "display", chargerWatts: nil, chargerPort: nil),
+                DeviceIdentity(stableKey: "sim_iphone", kind: .phone, displayName: "iPhone 16 Pro", vendor: "Apple", model: "iPhone 16 Pro", connectionType: .usb, capacityBytes: nil, freeSpaceBytes: nil, batteryPercentage: 88, iconName: "iphone", chargerWatts: nil, chargerPort: nil)
+            ]
+            return Array(sampleDevices.prefix(simCount))
+        }
+        return deviceMonitor.sortedActiveDevices.filter { $0.kind != .androidPhone }
     }
 
     private var androidDevicesFromMonitor: [DeviceIdentity] {
@@ -1068,22 +1083,37 @@ typealias WrappingFlowLayout = CenteredFlowLayout
 
                 Spacer()
 
+                let adbClient = LiveADBClient.shared
+                let adbPath = adbClient.adbPath
+                let hasAdb = adbPath != nil && !adbPath!.isEmpty
+                let targetSerial = fdDev?.serial ?? device.stableKey
+
                 Button {
-                    FileDroidWindowController.shared.showWindow()
+                    if hasAdb {
+                        AndroidFileManagerWindowManager.shared.openWindow(
+                            for: targetSerial,
+                            deviceName: device.displayName,
+                            deviceModel: fdDev?.model ?? device.model,
+                            client: adbClient
+                        )
+                    } else {
+                        SettingsWindowController.shared.showWindow()
+                    }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "folder.fill")
+                        Image(systemName: "folder.badge.gearshape")
                             .font(.system(size: 9, weight: .bold))
-                        Text("Open Device Folders")
+                        Text(hasAdb ? "Open in app" : "Set adb path…")
                             .font(.system(size: 9.5, weight: .bold, design: .rounded))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3.5)
-                    .background(Color.green.opacity(0.35))
+                    .background(hasAdb ? Color.green.opacity(0.35) : Color.orange.opacity(0.35))
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.green.opacity(0.6), lineWidth: 0.75))
+                    .overlay(Capsule().stroke((hasAdb ? Color.green : Color.orange).opacity(0.6), lineWidth: 0.75))
                 }
                 .buttonStyle(.plain)
+                .help(hasAdb ? "Open in-app Android File Manager for \(device.displayName)" : "ADB binary not found. Click to configure ADB path in Settings.")
             }
 
             if let total = fdDev?.internalStorageTotal, total > 0, let free = fdDev?.internalStorageFree {

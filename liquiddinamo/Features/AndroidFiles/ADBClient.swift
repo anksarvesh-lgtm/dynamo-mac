@@ -144,6 +144,13 @@ public struct ADBFileEntry: Identifiable, Equatable, Hashable, Sendable {
         if isApk { return "shippingbox.fill" }
         return "doc.fill"
     }
+
+    public var systemIconName: String { iconSystemName }
+    public var modifiedDate: Date? { modificationDate }
+    public var isHidden: Bool { name.hasPrefix(".") }
+    public var formattedSize: String {
+        ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
 }
 
 // MARK: - Transfer Models

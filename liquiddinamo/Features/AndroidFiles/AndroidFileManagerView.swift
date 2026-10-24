@@ -425,68 +425,22 @@ public struct AndroidFileManagerView: View {
         ScrollView {
             LazyVStack(spacing: 1) {
                 ForEach(viewModel.displayEntries) { item in
-                    let isSelected = viewModel.selectedPaths.contains(item.path)
-
-                    HStack(spacing: 10) {
-                        Image(systemName: item.iconSystemName)
-                            .font(.system(size: 14))
-                            .foregroundStyle(item.isDirectory ? Color.yellow : (item.isImage ? Color.cyan : (item.isVideo ? Color.purple : Color.white.opacity(0.8))))
-                            .frame(width: 22)
-
-                        Text(item.name)
-                            .font(.system(size: 12, weight: item.isDirectory ? .bold : .regular, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-
-                        if item.isSymlink {
-                            Text("→ \(item.symlinkTarget ?? "")")
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-
-                        Spacer()
-
-                        if !item.isDirectory {
-                            Text(formatBytes(item.size))
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 80, alignment: .trailing)
-                        } else {
-                            Text("--")
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.secondary.opacity(0.5))
-                                .frame(width: 80, alignment: .trailing)
-                        }
-
-                        if let date = item.modificationDate {
-                            Text(formatDate(date))
-                                .font(.system(size: 10.5, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 110, alignment: .trailing)
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isSelected ? Color.blue.opacity(0.35) : Color.white.opacity(0.02))
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
-                        viewModel.openEntry(item)
-                    }
-                    .onTapGesture {
-                        if NSEvent.modifierFlags.contains(.command) {
-                            if isSelected {
-                                viewModel.selectedPaths.remove(item.path)
+                    AndroidListRowView(
+                        item: item,
+                        isSelected: viewModel.selectedPaths.contains(item.path),
+                        onOpen: { viewModel.openEntry(item) },
+                        onSelect: { isCmd in
+                            if isCmd {
+                                if viewModel.selectedPaths.contains(item.path) {
+                                    viewModel.selectedPaths.remove(item.path)
+                                } else {
+                                    viewModel.selectedPaths.insert(item.path)
+                                }
                             } else {
-                                viewModel.selectedPaths.insert(item.path)
+                                viewModel.selectedPaths = [item.path]
                             }
-                        } else {
-                            viewModel.selectedPaths = [item.path]
                         }
-                    }
+                    )
                 }
             }
             .padding(.horizontal, 8)
@@ -500,69 +454,24 @@ public struct AndroidFileManagerView: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100, maximum: 130), spacing: 12)], spacing: 12) {
                 ForEach(viewModel.displayEntries) { item in
-                    let isSelected = viewModel.selectedPaths.contains(item.path)
-
-                    VStack(spacing: 6) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(0.06))
-                                .frame(height: 74)
-
-                            if let thumb = thumbnailCache.cachedImage(for: "\(viewModel.deviceSerial)_\(item.path)_\(item.size)") {
-                                Image(nsImage: thumb)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(maxHeight: 68)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    AndroidGridCellView(
+                        item: item,
+                        isSelected: viewModel.selectedPaths.contains(item.path),
+                        deviceSerial: viewModel.deviceSerial,
+                        client: viewModel.client,
+                        onOpen: { viewModel.openEntry(item) },
+                        onSelect: { isCmd in
+                            if isCmd {
+                                if viewModel.selectedPaths.contains(item.path) {
+                                    viewModel.selectedPaths.remove(item.path)
+                                } else {
+                                    viewModel.selectedPaths.insert(item.path)
+                                }
                             } else {
-                                Image(systemName: item.iconSystemName)
-                                    .font(.system(size: 30))
-                                    .foregroundStyle(item.isDirectory ? Color.yellow : (item.isImage ? Color.cyan : (item.isVideo ? Color.purple : Color.white.opacity(0.75))))
+                                viewModel.selectedPaths = [item.path]
                             }
                         }
-
-                        Text(item.name)
-                            .font(.system(size: 11, weight: item.isDirectory ? .bold : .regular, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
-                            .frame(height: 30, alignment: .top)
-
-                        if !item.isDirectory {
-                            Text(formatBytes(item.size))
-                                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(isSelected ? Color.blue.opacity(0.35) : Color.white.opacity(0.03))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(isSelected ? Color.blue.opacity(0.6) : Color.clear, lineWidth: 1)
-                            )
                     )
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
-                        viewModel.openEntry(item)
-                    }
-                    .onTapGesture {
-                        if NSEvent.modifierFlags.contains(.command) {
-                            if isSelected {
-                                viewModel.selectedPaths.remove(item.path)
-                            } else {
-                                viewModel.selectedPaths.insert(item.path)
-                            }
-                        } else {
-                            viewModel.selectedPaths = [item.path]
-                        }
-                    }
-                    .task {
-                        if item.isImage || item.isVideo {
-                            _ = await thumbnailCache.loadThumbnail(for: item, serial: viewModel.deviceSerial, client: viewModel.client)
-                        }
-                    }
                 }
             }
             .padding(14)
@@ -822,3 +731,193 @@ public struct AndroidFileManagerView: View {
         }
     }
 }
+
+// MARK: - Row & Cell Subviews
+
+public struct AndroidListRowView: View {
+    public let item: ADBFileEntry
+    public let isSelected: Bool
+    public let onOpen: () -> Void
+    public let onSelect: (Bool) -> Void
+
+    public var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: item.iconSystemName)
+                .font(.system(size: 15))
+                .foregroundStyle(iconColor)
+                .frame(width: 20)
+
+            Text(item.name)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(isSelected ? .white : (item.isHidden ? .secondary : .primary))
+                .lineLimit(1)
+
+            Spacer()
+
+            if !item.isDirectory {
+                Text(item.formattedSize)
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 80, alignment: .trailing)
+            } else {
+                Text("--")
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(.secondary.opacity(0.5))
+                    .frame(width: 80, alignment: .trailing)
+            }
+
+            if let date = item.modificationDate {
+                Text(formatDate(date))
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 140, alignment: .trailing)
+            } else {
+                Text("--")
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(.secondary.opacity(0.5))
+                    .frame(width: 140, alignment: .trailing)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isSelected ? Color.accentColor.opacity(0.35) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            onOpen()
+        }
+        .simultaneousGesture(
+            TapGesture().modifiers(.command).onEnded {
+                onSelect(true)
+            }
+        )
+        .onTapGesture(count: 1) {
+            onSelect(NSEvent.modifierFlags.contains(.command))
+        }
+    }
+
+    private var iconColor: Color {
+        if item.isDirectory {
+            return .cyan
+        }
+        if item.isImage {
+            return .pink
+        }
+        if item.isVideo {
+            return .purple
+        }
+        if item.isAudio {
+            return .orange
+        }
+        return .secondary
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+public struct AndroidGridCellView: View {
+    public let item: ADBFileEntry
+    public let isSelected: Bool
+    public let deviceSerial: String
+    public let client: ADBClient
+    public let onOpen: () -> Void
+    public let onSelect: (Bool) -> Void
+
+    @State private var thumbnail: NSImage? = nil
+
+    @ViewBuilder
+    private var thumbnailPreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.04))
+                .frame(width: 72, height: 72)
+
+            if let img = thumbnail {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                Image(systemName: item.iconSystemName)
+                    .font(.system(size: 32))
+                    .foregroundStyle(iconColor)
+            }
+        }
+    }
+
+    public var body: some View {
+        VStack(spacing: 6) {
+            thumbnailPreview
+                .task(id: item.path) {
+                    if item.isImage || item.isVideo {
+                        thumbnail = await AndroidThumbnailCache.shared.loadThumbnail(
+                            for: item,
+                            serial: deviceSerial,
+                            client: client
+                        )
+                    }
+                }
+
+            Text(item.name)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(isSelected ? .white : (item.isHidden ? .secondary : .primary))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(height: 28, alignment: .top)
+
+            if !item.isDirectory {
+                Text(item.formattedSize)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(8)
+        .frame(width: 104)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isSelected ? Color.accentColor.opacity(0.35) : Color.white.opacity(0.02))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isSelected ? Color.accentColor : Color.white.opacity(0.05), lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            onOpen()
+        }
+        .simultaneousGesture(
+            TapGesture().modifiers(.command).onEnded {
+                onSelect(true)
+            }
+        )
+        .onTapGesture(count: 1) {
+            onSelect(NSEvent.modifierFlags.contains(.command))
+        }
+    }
+
+    private var iconColor: Color {
+        if item.isDirectory {
+            return .cyan
+        }
+        if item.isImage {
+            return .pink
+        }
+        if item.isVideo {
+            return .purple
+        }
+        if item.isAudio {
+            return .orange
+        }
+        return .secondary
+    }
+}
+
+
