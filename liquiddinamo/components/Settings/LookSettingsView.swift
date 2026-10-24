@@ -16,6 +16,7 @@ public struct LookSettingsView: View {
     @Default(.waterSagAmount) private var waterSagAmount
     @Default(.compactMode) private var compactMode
     @Default(.wingWidth) private var wingWidth
+    @Default(.autoFitWings) private var autoFitWings
     @Default(.leftWingMetric) private var leftWingMetric
     @Default(.rightWingMetric) private var rightWingMetric
     @Default(.hideWingsInFullScreen) private var hideWingsInFullScreen
@@ -63,34 +64,53 @@ public struct LookSettingsView: View {
                 MockNotchWingsPreview(
                     leftMetric: leftWingMetric,
                     rightMetric: rightWingMetric,
-                    wingWidth: wingWidth
+                    wingWidth: wingWidth,
+                    autoFit: autoFitWings
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
 
-                Picker("Left Wing Metric", selection: $leftWingMetric) {
-                    ForEach(WingMetric.selectableCases) { metric in
-                        Label(metric.displayName, systemImage: metric.iconName)
-                            .tag(metric)
+                // MARK: 2.1 Left Wing Content Selector
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Left Wing Content")
+                        .font(.headline)
+                    Picker("Left Wing Content", selection: $leftWingMetric) {
+                        ForEach(WingMetric.selectableCases) { metric in
+                            Label(metric.displayName, systemImage: metric.iconName)
+                                .tag(metric)
+                        }
                     }
+                    .labelsHidden()
                 }
                 .onChange(of: leftWingMetric) {
                     triggerLivePreview()
                 }
 
-                Picker("Right Wing Metric", selection: $rightWingMetric) {
-                    ForEach(WingMetric.selectableCases) { metric in
-                        Label(metric.displayName, systemImage: metric.iconName)
-                            .tag(metric)
+                // MARK: 2.2 Right Wing Content Selector
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Right Wing Content")
+                        .font(.headline)
+                    Picker("Right Wing Content", selection: $rightWingMetric) {
+                        ForEach(WingMetric.selectableCases) { metric in
+                            Label(metric.displayName, systemImage: metric.iconName)
+                                .tag(metric)
+                        }
                     }
+                    .labelsHidden()
                 }
                 .onChange(of: rightWingMetric) {
                     triggerLivePreview()
                 }
 
+                Defaults.Toggle("Auto-fit wing widths to content", key: .autoFitWings)
+                    .onChange(of: autoFitWings) {
+                        NotificationCenter.default.post(name: Notification.Name.notchHeightChanged, object: nil)
+                        triggerLivePreview()
+                    }
+
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Wing Width")
+                        Text(autoFitWings ? "Minimum Wing Width" : "Wing Width")
                             .font(.headline)
                         Spacer()
                         Text("\(Int(wingWidth)) pt")
@@ -113,7 +133,9 @@ public struct LookSettingsView: View {
                         triggerLivePreview()
                     }
 
-                    Text("Width of the left and right informational streams flanking the notch.")
+                    Text(autoFitWings
+                         ? "Minimum width floor. Each wing dynamically expands to accommodate its selected content without clipping."
+                         : "Fixed width of the left and right informational streams flanking the notch.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -124,7 +146,7 @@ public struct LookSettingsView: View {
             } header: {
                 Text("Notch Wings & Slots")
             } footer: {
-                Text("Live telemetry streams flanking the notch. Set a slot to 'None' to collapse that side cleanly without empty padding.")
+                Text("Live telemetry and control streams flanking the notch. Each wing operates and auto-fits independently. Set a slot to 'None' to collapse that side cleanly.")
             }
 
             Section {
@@ -326,11 +348,13 @@ public struct MockNotchWingsPreview: View {
     let leftMetric: WingMetric
     let rightMetric: WingMetric
     let wingWidth: CGFloat
+    let autoFit: Bool
 
-    public init(leftMetric: WingMetric, rightMetric: WingMetric, wingWidth: CGFloat) {
+    public init(leftMetric: WingMetric, rightMetric: WingMetric, wingWidth: CGFloat, autoFit: Bool = true) {
         self.leftMetric = leftMetric
         self.rightMetric = rightMetric
         self.wingWidth = wingWidth
+        self.autoFit = autoFit
     }
 
     public var body: some View {
@@ -360,36 +384,28 @@ public struct MockNotchWingsPreview: View {
 
                     // Left wing pill (if active)
                     if leftMetric != .none {
-                        HStack(spacing: 4) {
-                            Image(systemName: leftMetric.iconName)
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
-                            Text(mockText(for: leftMetric))
-                                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal, 6)
-                        .frame(width: max(46, min(wingWidth * 0.75, 100)), height: 24)
-                        .background(
-                            UnevenRoundedRectangle(
-                                topLeadingRadius: 0,
-                                bottomLeadingRadius: 10,
-                                bottomTrailingRadius: 6,
-                                topTrailingRadius: 0
-                            )
-                            .fill(Color.black.opacity(0.85))
-                            .overlay(
+                        mockWingContent(for: leftMetric)
+                            .padding(.horizontal, 6)
+                            .frame(width: mockWidth(for: leftMetric), height: 24)
+                            .background(
                                 UnevenRoundedRectangle(
                                     topLeadingRadius: 0,
                                     bottomLeadingRadius: 10,
                                     bottomTrailingRadius: 6,
                                     topTrailingRadius: 0
                                 )
-                                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                                .fill(Color.black.opacity(0.85))
+                                .overlay(
+                                    UnevenRoundedRectangle(
+                                        topLeadingRadius: 0,
+                                        bottomLeadingRadius: 10,
+                                        bottomTrailingRadius: 6,
+                                        topTrailingRadius: 0
+                                    )
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                                )
                             )
-                        )
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
 
                     // Hardware Notch Cutout
@@ -420,36 +436,28 @@ public struct MockNotchWingsPreview: View {
 
                     // Right wing pill (if active)
                     if rightMetric != .none {
-                        HStack(spacing: 4) {
-                            Image(systemName: rightMetric.iconName)
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
-                            Text(mockText(for: rightMetric))
-                                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal, 6)
-                        .frame(width: max(46, min(wingWidth * 0.75, 100)), height: 24)
-                        .background(
-                            UnevenRoundedRectangle(
-                                topLeadingRadius: 0,
-                                bottomLeadingRadius: 6,
-                                bottomTrailingRadius: 10,
-                                topTrailingRadius: 0
-                            )
-                            .fill(Color.black.opacity(0.85))
-                            .overlay(
+                        mockWingContent(for: rightMetric)
+                            .padding(.horizontal, 6)
+                            .frame(width: mockWidth(for: rightMetric), height: 24)
+                            .background(
                                 UnevenRoundedRectangle(
                                     topLeadingRadius: 0,
                                     bottomLeadingRadius: 6,
                                     bottomTrailingRadius: 10,
                                     topTrailingRadius: 0
                                 )
-                                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                                .fill(Color.black.opacity(0.85))
+                                .overlay(
+                                    UnevenRoundedRectangle(
+                                        topLeadingRadius: 0,
+                                        bottomLeadingRadius: 6,
+                                        bottomTrailingRadius: 10,
+                                        topTrailingRadius: 0
+                                    )
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                                )
                             )
-                        )
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
 
                     Spacer(minLength: 0)
@@ -457,6 +465,7 @@ public struct MockNotchWingsPreview: View {
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: leftMetric)
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: rightMetric)
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: wingWidth)
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: autoFit)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
@@ -466,19 +475,71 @@ public struct MockNotchWingsPreview: View {
         }
     }
 
+    @ViewBuilder
+    private func mockWingContent(for metric: WingMetric) -> some View {
+        switch metric {
+        case .mediaPlayback:
+            HStack(spacing: 5) {
+                Image(systemName: "backward.fill")
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                Image(systemName: "play.fill")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.accentColor)
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        default:
+            HStack(spacing: 4) {
+                Image(systemName: metric.iconName)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text(mockText(for: metric))
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func mockWidth(for metric: WingMetric) -> CGFloat {
+        let base = max(46, min(wingWidth * 0.75, 140))
+        guard autoFit else { return base }
+        switch metric {
+        case .mediaPlayback:
+            return max(base, 64)
+        case .mediaTitle:
+            return max(base, 118)
+        case .ramDetails:
+            return max(base, 108)
+        case .netDown, .netUp:
+            return max(base, 80)
+        case .cpuTemp:
+            return max(base, 58)
+        default:
+            return base
+        }
+    }
+
     private func mockText(for metric: WingMetric) -> String {
         switch metric {
         case .none: return ""
         case .cpuUsage: return "18%"
         case .cpuTemp: return "44°C"
         case .ramUsage: return "11.2G"
-        case .netDown, .netUp, .netDownUp: return "13.4M"
+        case .ramDetails: return "11.2 / 16 GB"
+        case .netDown: return "↓ 12.4M"
+        case .netUp: return "↑ 3.2M"
+        case .netDownUp: return "13.4M"
         case .battery: return "94%"
         case .bluetoothBattery: return "88%"
         case .volume: return "75%"
         case .brightness: return "80%"
         case .clock: return "09:41"
-        case .weather: return "21°"
+        case .weather: return "21°C"
+        case .mediaPlayback: return ""
+        case .mediaTitle: return "Starboy - Weeknd"
         }
     }
 }

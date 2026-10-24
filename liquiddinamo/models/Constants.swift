@@ -94,6 +94,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
     case cpuUsage = "CPU Usage"
     case cpuTemp = "CPU Temperature"
     case ramUsage = "RAM Usage"
+    case ramDetails = "RAM (Used / Total)"
     case netDown = "Download Speed"
     case netUp = "Upload Speed"
     case netDownUp = "Network (Up/Down)"
@@ -103,20 +104,32 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
     case brightness = "Brightness"
     case clock = "Clock"
     case weather = "Weather"
+    case mediaPlayback = "Media Controls"
+    case mediaTitle = "Now Playing Track"
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
         case .netDownUp:
-            return "Network Speed"
+            return "Network Speed (Combined)"
+        case .netDown:
+            return "Download Speed"
+        case .netUp:
+            return "Upload Speed"
+        case .mediaPlayback:
+            return "Media Controls (⏮ ⏯ ⏭)"
+        case .mediaTitle:
+            return "Now Playing Track"
+        case .ramDetails:
+            return "RAM (Used / Total)"
         default:
             return rawValue
         }
     }
 
     public static var selectableCases: [WingMetric] {
-        allCases.filter { $0 != .netDown && $0 != .netUp }
+        allCases
     }
 
     public var iconName: String {
@@ -125,6 +138,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
         case .cpuUsage: return "cpu"
         case .cpuTemp: return "thermometer.medium"
         case .ramUsage: return "memorychip"
+        case .ramDetails: return "memorychip.fill"
         case .netDown: return "arrow.down"
         case .netUp: return "arrow.up"
         case .netDownUp: return "network"
@@ -134,22 +148,14 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
         case .brightness: return "sun.max.fill"
         case .clock: return "clock.fill"
         case .weather: return "cloud.sun.fill"
+        case .mediaPlayback: return "playpause.fill"
+        case .mediaTitle: return "music.note"
         }
     }
 }
 
 @MainActor
 public func migrateWingMetricsIfNeeded() {
-    // Rewrite deprecated separate download/upload metrics to combined Network Speed on every launch
-    let rawLeft = UserDefaults.standard.string(forKey: "leftWingMetric")?.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-    if rawLeft == "Download Speed" || rawLeft == "Upload Speed" || Defaults[.leftWingMetric] == .netDown || Defaults[.leftWingMetric] == .netUp {
-        Defaults[.leftWingMetric] = .netDownUp
-    }
-    let rawRight = UserDefaults.standard.string(forKey: "rightWingMetric")?.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-    if rawRight == "Download Speed" || rawRight == "Upload Speed" || Defaults[.rightWingMetric] == .netDown || Defaults[.rightWingMetric] == .netUp {
-        Defaults[.rightWingMetric] = .netDownUp
-    }
-
     guard !Defaults[.wingMetricsMigrated] else { return }
     let oldCpu = Defaults[.showCollapsedCPUWing]
     let oldNet = Defaults[.showCollapsedNetworkWing]
@@ -244,6 +250,7 @@ extension Defaults.Keys {
     static let rightSideReadout = Key<SideReadoutType>("rightSideReadout", default: .network)
     static let sideReadoutInterval = Key<Double>("sideReadoutInterval", default: 1.0)
     static let wingWidth = Key<CGFloat>("wingWidth", default: 68.0)
+    static let autoFitWings = Key<Bool>("autoFitWings", default: true)
     static let hideWingsInFullScreen = Key<Bool>("hideWingsInFullScreen", default: true)
     static let wingsBuiltInDisplayOnly = Key<Bool>("wingsBuiltInDisplayOnly", default: true)
     static let showLayoutGuides = Key<Bool>("showLayoutGuides", default: false)

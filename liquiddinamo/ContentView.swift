@@ -1008,8 +1008,8 @@ struct ContentView: View {
 
     private func updateSystemStatsLifecycle() {
         let isExpanded = (island.state == .expanded || vm.notchState == .open)
-        let wingNeedsStats = Defaults[.leftWingMetric] == .cpuUsage || Defaults[.leftWingMetric] == .cpuTemp || Defaults[.leftWingMetric] == .ramUsage || Defaults[.leftWingMetric] == .battery || Defaults[.leftWingMetric] == .clock
-            || Defaults[.rightWingMetric] == .cpuUsage || Defaults[.rightWingMetric] == .cpuTemp || Defaults[.rightWingMetric] == .ramUsage || Defaults[.rightWingMetric] == .battery || Defaults[.rightWingMetric] == .clock
+        let wingNeedsStats = Defaults[.leftWingMetric] == .cpuUsage || Defaults[.leftWingMetric] == .cpuTemp || Defaults[.leftWingMetric] == .ramUsage || Defaults[.leftWingMetric] == .ramDetails || Defaults[.leftWingMetric] == .battery || Defaults[.leftWingMetric] == .clock
+            || Defaults[.rightWingMetric] == .cpuUsage || Defaults[.rightWingMetric] == .cpuTemp || Defaults[.rightWingMetric] == .ramUsage || Defaults[.rightWingMetric] == .ramDetails || Defaults[.rightWingMetric] == .battery || Defaults[.rightWingMetric] == .clock
         let shouldRun = isExpanded || wingNeedsStats
         if shouldRun {
             SystemStatsService.shared.start()
@@ -1157,6 +1157,7 @@ struct CollapsedLiveInfoWingsView: View {
     @ObservedObject var volumeManager = VolumeManager.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var deviceMonitor = DeviceMonitor.shared
+    @ObservedObject var musicManager = MusicManager.shared
 
     @Default(.enableSideReadouts) var enableSideReadouts
     @Default(.leftWingMetric) var leftWingMetric: WingMetric
@@ -1166,6 +1167,7 @@ struct CollapsedLiveInfoWingsView: View {
     @Default(.islandTransparency) var islandTransparency
     @Default(.alwaysShowSideReadoutText) var alwaysShowSideReadoutText
     @Default(.wingWidth) var wingWidth: CGFloat
+    @Default(.autoFitWings) var autoFitWings: Bool
 
     @State private var isLeftDetailExpanded: Bool = false
     @State private var isRightDetailExpanded: Bool = false
@@ -1176,9 +1178,20 @@ struct CollapsedLiveInfoWingsView: View {
     @State private var measuredLeftWingWidth: CGFloat = 68.0
     @State private var measuredRightWingWidth: CGFloat = 68.0
 
-    private var currentWingWidth: CGFloat {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
-        return max(geom.wingWidth, max(measuredLeftWingWidth, measuredRightWingWidth))
+    private var currentLeftWingWidth: CGFloat {
+        let baseMin = wingWidth
+        return autoFitWings ? max(baseMin, measuredLeftWingWidth) : baseMin
+    }
+
+    private var currentRightWingWidth: CGFloat {
+        let baseMin = wingWidth
+        return autoFitWings ? max(baseMin, measuredRightWingWidth) : baseMin
+    }
+
+    private var maxWingWidth: CGFloat {
+        let leftW = (leftWingMetric != .none) ? currentLeftWingWidth : 0
+        let rightW = (rightWingMetric != .none) ? currentRightWingWidth : 0
+        return max(leftW, rightW)
     }
 
     private var showLeftDetails: Bool {
@@ -1203,37 +1216,45 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func reportDynamicWidth(geom: NotchGeometry) {
-        let wingW = currentWingWidth
+        let maxW = maxWingWidth
         let totalW: CGFloat = {
             if geom.isNotched {
-                return geom.rawNotchWidth + 14.0 + (2.0 * wingW)
+                return geom.rawNotchWidth + 14.0 + (2.0 * maxW)
             } else {
-                return max(geom.compactPillWidth, (2.0 * wingW) + 40.0)
+                return max(geom.compactPillWidth, (2.0 * maxW) + 40.0)
             }
         }()
-        IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: wingW)
+        IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: maxW)
     }
 
     var body: some View {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
-        let activeWingW = currentWingWidth
+        let maxW = maxWingWidth
 
         if enableSideReadouts && !isFullScreenHidden && isDisplayAllowed(geom: geom) {
             HStack(spacing: 0) {
                 if geom.isNotched {
-                    // Left Drop: Attached to notch left edge
-                    if leftWingMetric != .none {
-                        leftDropView(geom: geom, wingW: activeWingW)
+                    // Left Drop Container: Anchored flush to the notch left edge
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        if leftWingMetric != .none {
+                            leftDropView(geom: geom, wingW: currentLeftWingWidth)
+                        }
                     }
+                    .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
 
                     // Center Hardware Notch Area (Clear hole matching hardware cutout)
                     Color.clear
                         .frame(width: geom.rawNotchWidth + 14)
 
-                    // Right Drop: Attached to notch right edge
-                    if rightWingMetric != .none {
-                        rightDropView(geom: geom, wingW: activeWingW)
+                    // Right Drop Container: Anchored flush to the notch right edge
+                    HStack(spacing: 0) {
+                        if rightWingMetric != .none {
+                            rightDropView(geom: geom, wingW: currentRightWingWidth)
+                        }
+                        Spacer(minLength: 0)
                     }
+                    .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .leading)
                 } else {
                     // Non-notched display: drops sit on both sides of the central pill
                     HStack(spacing: 12) {
@@ -1242,6 +1263,7 @@ struct CollapsedLiveInfoWingsView: View {
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .fixedSize(horizontal: true, vertical: false)
+                                .frame(minWidth: currentLeftWingWidth)
                                 .background(
                                     GeometryReader { proxy in
                                         Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width + 16.0)
@@ -1270,6 +1292,7 @@ struct CollapsedLiveInfoWingsView: View {
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .fixedSize(horizontal: true, vertical: false)
+                                .frame(minWidth: currentRightWingWidth)
                                 .background(
                                     GeometryReader { proxy in
                                         Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width + 16.0)
@@ -1298,18 +1321,30 @@ struct CollapsedLiveInfoWingsView: View {
             }
             .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
             .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
-                let clamped = max(geom.wingWidth, w)
-                if abs(self.measuredLeftWingWidth - clamped) >= 2.0 {
+                let clamped = max(wingWidth, w)
+                if abs(self.measuredLeftWingWidth - clamped) >= 1.5 {
                     self.measuredLeftWingWidth = clamped
                     self.reportDynamicWidth(geom: geom)
                 }
             }
             .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
-                let clamped = max(geom.wingWidth, w)
-                if abs(self.measuredRightWingWidth - clamped) >= 2.0 {
+                let clamped = max(wingWidth, w)
+                if abs(self.measuredRightWingWidth - clamped) >= 1.5 {
                     self.measuredRightWingWidth = clamped
                     self.reportDynamicWidth(geom: geom)
                 }
+            }
+            .onChange(of: leftWingMetric) { _ in
+                self.reportDynamicWidth(geom: geom)
+            }
+            .onChange(of: rightWingMetric) { _ in
+                self.reportDynamicWidth(geom: geom)
+            }
+            .onChange(of: autoFitWings) { _ in
+                self.reportDynamicWidth(geom: geom)
+            }
+            .onChange(of: wingWidth) { _ in
+                self.reportDynamicWidth(geom: geom)
             }
             .onReceive(NotificationCenter.default.publisher(for: .toggleSideReadoutDetails)) { notif in
                 if let target = notif.object as? String {
@@ -1373,8 +1408,8 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func startActiveServices() {
-        let needsStats = leftWingMetric == .cpuUsage || leftWingMetric == .cpuTemp || leftWingMetric == .ramUsage || leftWingMetric == .battery || leftWingMetric == .clock
-            || rightWingMetric == .cpuUsage || rightWingMetric == .cpuTemp || rightWingMetric == .ramUsage || rightWingMetric == .battery || rightWingMetric == .clock
+        let needsStats = leftWingMetric == .cpuUsage || leftWingMetric == .cpuTemp || leftWingMetric == .ramUsage || leftWingMetric == .ramDetails || leftWingMetric == .battery || leftWingMetric == .clock
+            || rightWingMetric == .cpuUsage || rightWingMetric == .cpuTemp || rightWingMetric == .ramUsage || rightWingMetric == .ramDetails || rightWingMetric == .battery || rightWingMetric == .clock
         if needsStats { statsService.start() }
 
         let needsNet = leftWingMetric == .netDown || leftWingMetric == .netUp || leftWingMetric == .netDownUp
@@ -1557,7 +1592,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(cpuColor(statsService.overallCPU))
                         .fixedSize()
                 }
@@ -1573,7 +1607,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
@@ -1589,13 +1622,57 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
             }
 
-        case .netDown, .netUp, .netDownUp:
+        case .ramDetails:
+            HStack(spacing: 3.5) {
+                Image(systemName: "memorychip.fill")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(Color.purple)
+                if showDetails {
+                    Text("\(statsService.formattedMemoryUsed) / \(statsService.formattedMemoryTotal)")
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .netDown:
+            HStack(spacing: 3.5) {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(Color.green)
+                if showDetails {
+                    Text(speedProvider.formattedDownload)
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .netUp:
+            HStack(spacing: 3.5) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(Color.cyan)
+                if showDetails {
+                    Text(speedProvider.formattedUpload)
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .netDownUp:
             HStack(spacing: 3.5) {
                 Image(systemName: "network")
                     .font(.system(size: 8.5, weight: .bold))
@@ -1605,7 +1682,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
@@ -1621,7 +1697,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
@@ -1639,7 +1714,6 @@ struct CollapsedLiveInfoWingsView: View {
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                             .monospacedDigit()
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
                             .foregroundStyle(.white)
                             .fixedSize()
                     } else {
@@ -1647,7 +1721,6 @@ struct CollapsedLiveInfoWingsView: View {
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
                             .fixedSize()
                     }
                 }
@@ -1663,7 +1736,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
@@ -1679,7 +1751,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
@@ -1695,7 +1766,6 @@ struct CollapsedLiveInfoWingsView: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
@@ -1711,7 +1781,53 @@ struct CollapsedLiveInfoWingsView: View {
                     Text(w.condition.rawValue)
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .mediaPlayback:
+            HStack(spacing: 6) {
+                Button(action: {
+                    MusicManager.shared.previousTrack()
+                }) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: {
+                    MusicManager.shared.togglePlay()
+                }) {
+                    Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+
+                Button(action: {
+                    MusicManager.shared.nextTrack()
+                }) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 2)
+
+        case .mediaTitle:
+            let title = musicManager.songTitle.isEmpty ? "No Media" : musicManager.songTitle
+            let artist = musicManager.artistName
+            HStack(spacing: 4) {
+                Image(systemName: "music.note")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(Color.accentColor)
+                if showDetails {
+                    Text(artist.isEmpty ? title : "\(title) • \(artist)")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .lineLimit(1)
                         .foregroundStyle(.white)
                         .fixedSize()
                 }
