@@ -526,7 +526,9 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     public func pullFile(serial: String, remotePath: String, localPath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
         let bridge = KalamBridge.shared
         _ = await bridge.initialize()
-        let res = await bridge.downloadFiles(storageId: self.cachedStorageId, sources: [remotePath], destination: localPath, onProgress: onProgress)
+        let localDir = (localPath as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: localDir, withIntermediateDirectories: true)
+        let res = await bridge.downloadFiles(storageId: self.cachedStorageId, sources: [remotePath], destination: localDir, onProgress: onProgress)
         await bridge.dispose()
         if case .failure(let err) = res {
             throw err

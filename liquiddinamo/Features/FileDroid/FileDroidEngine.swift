@@ -321,10 +321,25 @@ public final class FileDroidEngine: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
+    public static var defaultDownloadFolder: String {
+        let saved = Defaults[.filedroidDefaultMacFolder]
+        let baseDownloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads")
+        let androidFolder = (baseDownloads as NSString).appendingPathComponent("Android")
+
+        let target = (saved.isEmpty || saved == baseDownloads || saved == (baseDownloads + "/")) ? androidFolder : saved
+        if !FileManager.default.fileExists(atPath: target) {
+            try? FileManager.default.createDirectory(atPath: target, withIntermediateDirectories: true)
+        }
+        return target
+    }
+
     public func openMacDownloadsFolder() {
-        let dest = Defaults[.filedroidDefaultMacFolder]
+        let dest = Self.defaultDownloadFolder
+        if !FileManager.default.fileExists(atPath: dest) {
+            try? FileManager.default.createDirectory(atPath: dest, withIntermediateDirectories: true)
+        }
         let url = URL(fileURLWithPath: dest)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        NSWorkspace.shared.open(url)
     }
 
     public func openPhoneDownloadsFolder() {
@@ -475,7 +490,10 @@ public final class FileDroidEngine: ObservableObject {
 
     public func downloadFiles(remoteFiles: [AndroidFileItem], destinationLocalURL: URL? = nil, conflictResolution: FileConflictResolution = .replace) {
         guard let dev = selectedDevice, dev.status == .connected else { return }
-        let destFolder = destinationLocalURL?.path ?? Defaults[.filedroidDefaultMacFolder]
+        let destFolder = destinationLocalURL?.path ?? Self.defaultDownloadFolder
+        if !FileManager.default.fileExists(atPath: destFolder) {
+            try? FileManager.default.createDirectory(atPath: destFolder, withIntermediateDirectories: true)
+        }
 
         // Disk space check
         if let attrs = try? FileManager.default.attributesOfFileSystem(forPath: destFolder),

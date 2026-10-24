@@ -409,7 +409,7 @@ extension Defaults.Keys {
     static let filedroidAutoDetectAdb = Key<Bool>("filedroidAutoDetectAdb", default: true)
     static let filedroidAutoMountOnConnect = Key<Bool>("filedroidAutoMountOnConnect", default: true)
     static let filedroidAutoRevealInFinder = Key<Bool>("filedroidAutoRevealInFinder", default: false)
-    static let filedroidDefaultMacFolder = Key<String>("filedroidDefaultMacFolder", default: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads"))
+    static let filedroidDefaultMacFolder = Key<String>("filedroidDefaultMacFolder", default: (FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads")) + "/Android")
     static let filedroidTransferConcurrency = Key<Int>("filedroidTransferConcurrency", default: 2)
     static let filedroidShowHiddenFiles = Key<Bool>("filedroidShowHiddenFiles", default: false)
     static let filedroidNotifications = Key<Bool>("filedroidNotifications", default: true)
