@@ -250,14 +250,22 @@ public final class PlexoDownloadEngine: ObservableObject {
             await runSingleStreamDownload(taskID: taskID, url: url, filePath: filePath)
         } else {
             // Multi-Interface Parallel Chunk Execution
-            let interfaces = PlexoNetworkManager.shared.enabledInterfaces
-            let maxConns = Defaults[.plexoMaxConnectionsPerFile]
-            let activeAdapters = interfaces.isEmpty ? [PlexoInterface(id: "default", bsdName: "default", displayName: "Default Network", kind: .other)] : Array(interfaces.prefix(maxConns))
+            let connected = PlexoNetworkManager.shared.activeConnectedInterfaces
+            let baseAdapters = connected.isEmpty
+                ? [PlexoInterface(id: "default", bsdName: "default", displayName: "Default Network", kind: .other)]
+                : connected
+            let maxConns = max(1, Defaults[.plexoMaxConnectionsPerFile])
+
+            // Distribute parallel connections across active interfaces (work stealing pool)
+            var workerAdapters: [PlexoInterface] = []
+            for i in 0..<maxConns {
+                workerAdapters.append(baseAdapters[i % baseAdapters.count])
+            }
 
             let workerPool = PlexoDownloadWorkerPool(chunks: task.chunks)
 
             await withTaskGroup(of: Void.self) { group in
-                for adapter in activeAdapters {
+                for adapter in workerAdapters {
                     group.addTask { [weak self, workerPool] in
                         guard let self = self else { return }
                         await self.workerLoop(
@@ -420,7 +428,7 @@ public final class PlexoDownloadEngine: ObservableObject {
         config.allowsConstrainedNetworkAccess = true
 
         if adapter.bsdName != "default" {
-            config.setValue(adapter.bsdName, forKey: "interfaceBinding")
+            config.setValue(["kCFStreamPropertyBoundInterfaceIdentifier": adapter.bsdName], forKey: "_socketStreamProperties")
         }
 
         let session = URLSession(configuration: config)
