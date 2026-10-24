@@ -142,6 +142,11 @@ struct ContentView: View {
             .overlay {
                 privacyIndicatorOverlay(isExpandedState: isExpandedState)
             }
+            // Powerload Glowing Download Progress Bar Directly Under Notch (1% Red -> 100% Green)
+            .overlay(alignment: .bottom) {
+                PowerloadUnderNotchProgressBar(isExpanded: isExpandedState)
+                    .offset(y: isExpandedState ? -2 : 0)
+            }
             // Dedicated Activation Zone: Aligned strictly inside visible notch bounds
             .overlay(alignment: .top) {
                 if island.state != .expanded && vm.notchState != .open {

@@ -659,7 +659,7 @@ public final class PowerloadDownloadEngine: ObservableObject {
                 priority: 80,
                 leadingIcon: "bolt.horizontal.fill",
                 title: taskName,
-                tintColor: Color.cyan,
+                tintColor: PowerloadGlowColor.color(for: activeTasks.first(where: { $0.state == .downloading })?.progress ?? 0.0),
                 trailingText: PowerloadFormatting.formatSpeed(aggregateDownloadingSpeed)
             ))
         } else {
