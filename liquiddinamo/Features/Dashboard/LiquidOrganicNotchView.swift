@@ -176,13 +176,93 @@ public struct LiquidOrganicNotchView: View {
         }
     }
 
+// MARK: - Centered Flow Layout for Wrapping Chips and Device Icons
+struct CenteredFlowLayout: Layout {
+    var horizontalSpacing: CGFloat = 12
+    var verticalSpacing: CGFloat = 8
+
+    struct Row {
+        var subviews: [(LayoutSubview, CGSize)]
+        var width: CGFloat
+        var height: CGFloat
+    }
+
+    private func computeRows(proposal: ProposedViewSize, subviews: Subviews) -> [Row] {
+        let maxWidth: CGFloat
+        if let w = proposal.width, w > 0, w != .infinity {
+            maxWidth = w
+        } else {
+            maxWidth = .infinity
+        }
+
+        var rows: [Row] = []
+        var currentRow: [(LayoutSubview, CGSize)] = []
+        var currentLineWidth: CGFloat = 0
+        var currentLineHeight: CGFloat = 0
+
+        for subview in subviews {
+            var size = subview.sizeThatFits(.unspecified)
+            if maxWidth != .infinity && size.width > maxWidth {
+                size = subview.sizeThatFits(ProposedViewSize(width: maxWidth, height: nil))
+            }
+
+            let spacing = currentRow.isEmpty ? 0 : horizontalSpacing
+            if !currentRow.isEmpty && currentLineWidth + spacing + size.width > maxWidth {
+                rows.append(Row(subviews: currentRow, width: currentLineWidth, height: currentLineHeight))
+                currentRow = [(subview, size)]
+                currentLineWidth = size.width
+                currentLineHeight = size.height
+            } else {
+                currentRow.append((subview, size))
+                currentLineWidth += spacing + size.width
+                currentLineHeight = max(currentLineHeight, size.height)
+            }
+        }
+
+        if !currentRow.isEmpty {
+            rows.append(Row(subviews: currentRow, width: currentLineWidth, height: currentLineHeight))
+        }
+
+        return rows
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = computeRows(proposal: proposal, subviews: subviews)
+        if rows.isEmpty { return .zero }
+        let totalHeight = rows.map(\.height).reduce(0, +) + CGFloat(rows.count - 1) * verticalSpacing
+        let maxRowWidth = rows.map(\.width).max() ?? 0
+        return CGSize(width: maxRowWidth, height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = computeRows(proposal: ProposedViewSize(width: bounds.width, height: bounds.height), subviews: subviews)
+        var y = bounds.minY
+
+        for row in rows {
+            let startX = bounds.minX + max(0, (bounds.width - row.width) / 2)
+            var x = startX
+
+            for (subview, size) in row.subviews {
+                let yOffset = y + (row.height - size.height) / 2
+                subview.place(
+                    at: CGPoint(x: x, y: yOffset),
+                    proposal: ProposedViewSize(width: size.width, height: size.height)
+                )
+                x += size.width + horizontalSpacing
+            }
+
+            y += row.height + verticalSpacing
+        }
+    }
+}
+
     // MARK: - Primary Organic Hover Row
     @ViewBuilder
     private var primaryLiquidRow: some View {
-        HStack(spacing: 12) {
+        CenteredFlowLayout(horizontalSpacing: 12, verticalSpacing: 8) {
             // Connected Devices (Icons only, no placeholders when empty)
             if !deviceMonitor.sortedActiveDevices.isEmpty {
-                HStack(spacing: 8) {
+                CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
                     ForEach(deviceMonitor.sortedActiveDevices) { device in
                         deviceIconButton(device: device)
                     }
@@ -190,9 +270,12 @@ public struct LiquidOrganicNotchView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .background(
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(Color.black.opacity(0.60))
-                        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
+                        )
                 )
             }
 
@@ -204,9 +287,6 @@ public struct LiquidOrganicNotchView: View {
 
             // Storage Clean / Purge Status Button
             storageCleanStatusButton
-
-            // Color Dropper Status Button
-            colorDropperStatusButton
 
             // Plexo Multi-Network Downloader Status Button
             plexoStatusButton

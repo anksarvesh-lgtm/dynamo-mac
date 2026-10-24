@@ -69,7 +69,7 @@ public struct LookSettingsView: View {
                 .padding(.vertical, 6)
 
                 Picker("Left Wing Metric", selection: $leftWingMetric) {
-                    ForEach(WingMetric.allCases) { metric in
+                    ForEach(WingMetric.selectableCases) { metric in
                         Label(metric.displayName, systemImage: metric.iconName)
                             .tag(metric)
                     }
@@ -79,7 +79,7 @@ public struct LookSettingsView: View {
                 }
 
                 Picker("Right Wing Metric", selection: $rightWingMetric) {
-                    ForEach(WingMetric.allCases) { metric in
+                    ForEach(WingMetric.selectableCases) { metric in
                         Label(metric.displayName, systemImage: metric.iconName)
                             .tag(metric)
                     }
@@ -472,9 +472,7 @@ public struct MockNotchWingsPreview: View {
         case .cpuUsage: return "18%"
         case .cpuTemp: return "44°C"
         case .ramUsage: return "11.2G"
-        case .netDown: return "↓ 12M"
-        case .netUp: return "↑ 1.4M"
-        case .netDownUp: return "↓12 ↑1"
+        case .netDown, .netUp, .netDownUp: return "13.4M"
         case .battery: return "94%"
         case .bluetoothBattery: return "88%"
         case .volume: return "75%"

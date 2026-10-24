@@ -106,7 +106,18 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
 
     public var id: String { rawValue }
 
-    public var displayName: String { rawValue }
+    public var displayName: String {
+        switch self {
+        case .netDownUp:
+            return "Network Speed"
+        default:
+            return rawValue
+        }
+    }
+
+    public static var selectableCases: [WingMetric] {
+        allCases.filter { $0 != .netDown && $0 != .netUp }
+    }
 
     public var iconName: String {
         switch self {
@@ -116,7 +127,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
         case .ramUsage: return "memorychip"
         case .netDown: return "arrow.down"
         case .netUp: return "arrow.up"
-        case .netDownUp: return "arrow.up.arrow.down"
+        case .netDownUp: return "network"
         case .battery: return "battery.100"
         case .bluetoothBattery: return "antenna.radiowaves.left.and.right"
         case .volume: return "speaker.wave.2.fill"
@@ -129,6 +140,16 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
 
 @MainActor
 public func migrateWingMetricsIfNeeded() {
+    // Rewrite deprecated separate download/upload metrics to combined Network Speed on every launch
+    let rawLeft = UserDefaults.standard.string(forKey: "leftWingMetric")?.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    if rawLeft == "Download Speed" || rawLeft == "Upload Speed" || Defaults[.leftWingMetric] == .netDown || Defaults[.leftWingMetric] == .netUp {
+        Defaults[.leftWingMetric] = .netDownUp
+    }
+    let rawRight = UserDefaults.standard.string(forKey: "rightWingMetric")?.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    if rawRight == "Download Speed" || rawRight == "Upload Speed" || Defaults[.rightWingMetric] == .netDown || Defaults[.rightWingMetric] == .netUp {
+        Defaults[.rightWingMetric] = .netDownUp
+    }
+
     guard !Defaults[.wingMetricsMigrated] else { return }
     let oldCpu = Defaults[.showCollapsedCPUWing]
     let oldNet = Defaults[.showCollapsedNetworkWing]

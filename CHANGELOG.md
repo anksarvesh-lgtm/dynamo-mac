@@ -4,6 +4,16 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ---
 
+## [1.9.8] — 2026-10-24
+
+### Home Dashboard Primary Row Multi-Line Wrapping
+- **Dynamic Centered Flow Layout**: Replaced the single-line row with `CenteredFlowLayout` to wrap chips across multiple centered lines without clipping; wrapped connected devices into a continuous rounded rectangle, and removed the Color Dropper chip from the primary row.
+
+### Combined Network Speed Wing Readout
+- **Unified Total Throughput**: Combined download and upload throughput into a single rate formatted with monospaced digits and network icon in the wing readout, filtered wing pickers to `Network Speed`, and added automatic migration for legacy separate metrics on launch.
+
+---
+
 ## [1.9.7] — 2026-10-23
 
 ### In-Place Auto-Update & Permanent Release Distribution

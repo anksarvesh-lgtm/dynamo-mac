@@ -1518,46 +1518,14 @@ struct CollapsedLiveInfoWingsView: View {
                 }
             }
 
-        case .netDown:
+        case .netDown, .netUp, .netDownUp:
             HStack(spacing: 3.5) {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.cyan)
-                if showDetails {
-                    Text(NetworkSpeedProvider.formatCompactRate(speedProvider.bytesInPerSecond))
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(.white)
-                        .fixedSize()
-                }
-            }
-
-        case .netUp:
-            HStack(spacing: 3.5) {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.mint)
-                if showDetails {
-                    Text(NetworkSpeedProvider.formatCompactRate(speedProvider.bytesOutPerSecond))
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .foregroundStyle(.white)
-                        .fixedSize()
-                }
-            }
-
-        case .netDownUp:
-            HStack(spacing: 3) {
                 Image(systemName: "network")
                     .font(.system(size: 8.5, weight: .bold))
                     .foregroundStyle(Color.cyan)
                 if showDetails {
                     Text(speedProvider.formattedCombined)
-                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
