@@ -2,6 +2,14 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [1.9.10] — 2026-10-24
+
+### Plexo Multi-Network Discovery & Hardware Interface Bonding
+- **Comprehensive Hardware Adapter Discovery**: Enhanced `PlexoNetworkManager` using native macOS `SystemConfiguration` (`SCNetworkInterfaceCopyAll`) and BSD `getifaddrs` to discover and list all physical and virtual network interfaces (Ethernet adapters `en3`/`en4`, Wi-Fi `en0`, Thunderbolt Bridge `bridge0`, USB-C cellular tethering, and hotspot connections) instead of only listing active Wi-Fi.
+- **Hardware Metadata & Status Detection**: Each network interface now displays its localized human-readable port label, hardware BSD device identifier, MAC address, IPv4 address, and subnet mask.
+- **Online vs. Ready/Unconnected State Indicators**: Interfaces without an active carrier or DHCP lease are clearly presented with "Ready" / "Not Connected" badges and enable toggles, dynamically transitioning to neon status and live throughput meters as soon as a cable or device is connected.
+- **Per-Interface Socket Stream Binding**: Upgraded worker connection allocation in `PlexoDownloadEngine` to use CFNetwork's native `kCFStreamPropertyBoundInterfaceIdentifier` in `_socketStreamProperties`. Worker chunk pools dynamically distribute parallel connections across all active connected interfaces (`activeConnectedInterfaces`), executing true multi-network bonding and work-stealing across Wi-Fi and Ethernet concurrently.
+
 ---
 
 ## [1.9.9] — 2026-10-24
