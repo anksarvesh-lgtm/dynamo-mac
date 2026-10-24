@@ -19,37 +19,31 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "1.9.8"
+version = "1.9.9"
 tag_name = f"v{version}"
 release_title = f"LiquidDynamo {version} — Production Release"
-release_body = """## LiquidDynamo 1.9.8 — Production Release
+release_body = """## LiquidDynamo 1.9.9 — Production Release
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 1.9.8:
-1. **Native Settings Window Redesign**:
-   - Full dark frosted-glass visual overhaul matching native macOS design standards.
-   - 3D liquid droplet branding, solid blue navigation pill, and compact cards.
-   - Photorealistic notch and wing preview capsules.
-   - Independent Left & Right Wing Content selectors with dropdown pill pickers.
-   - 4x3 Available Wing Items interactive grid.
-2. **Watcher — AI Agent Session Monitor**:
-   - Native 3D Liquid Glass session monitoring for Claude Code, Antigravity (`agy`), Cursor, Codex, Gemini CLI, Copilot CLI, etc.
-   - Real-time diff counters (`+N -M`) and step ticker directly in the notch.
-   - One-click Allow / Deny / Always tool authorizations from the notch.
-   - Zero-idle CPU Unix domain socket IPC listener (`/tmp/liquid_watcher.sock`).
-3. **Compact Connected-Device Overlays**:
-   - Notch-anchored 3D Liquid Glass capsule replacing oversized device overlays.
-   - Proportional bounding with instant dismissal and accurate battery telemetry.
+### Core Highlights in Version 1.9.9:
+1. **Multi-Layer Accessibility Verification**:
+   - Advanced composite ground-truth check combining AXIsProcessTrusted, AXIsProcessTrustedWithOptions, and passive CGEvent tap probing to eliminate false negatives.
+2. **1-Click Stale TCC Repair**:
+   - Added instant one-click TCC reset & re-authorization tool in Settings > Permissions to effortlessly fix stale macOS permission grants.
+3. **Codesign Designated Requirement Persistence**:
+   - Explicit identifier-based designated requirements (`identifier "com.agrigence.liquiddynamo"`) ensure system permissions persist across all future app updates and rebuilds.
+4. **Enhanced Auto-Update & Dynamic Island Delivery**:
+   - Full GitHub Releases synchronization with in-island update banners and one-click in-place background replacement.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.8/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.9/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-1.9.8.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.8/LiquidDynamo-1.9.8.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-1.9.9.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v1.9.9/LiquidDynamo-1.9.9.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 
-dmg_file = os.path.expanduser("~/Desktop/LiquidDynamo-1.9.8.dmg")
+dmg_file = os.path.expanduser(f"~/Desktop/LiquidDynamo-{version}.dmg")
 if not os.path.exists(dmg_file):
     dmg_file = os.path.expanduser("~/Desktop/LiquidDynamo.dmg")
 
