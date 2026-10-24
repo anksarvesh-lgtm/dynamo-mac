@@ -17,13 +17,28 @@ import SwiftUI
 public final class FileDroidEngine: ObservableObject {
     public static let shared = FileDroidEngine()
 
-    // MARK: - Backends (Option B)
+    // MARK: - Backends (Option B: Kalam Native MTP & FileDroid ADB)
 
     public let adbBackend = AdbBackend()
     public let mtpBackend = MtpBackend()
 
+    public func backend(for connectionType: FileDroidConnectionType) -> AndroidTransferBackend {
+        switch connectionType {
+        case .mtp:
+            return mtpBackend
+        case .adb, .wireless:
+            return adbBackend
+        }
+    }
+
     public var activeBackend: AndroidTransferBackend {
+        if let dev = selectedDevice {
+            return backend(for: dev.connectionType)
+        }
         if Defaults[.filedroidBackendType] == "mtp" && mtpBackend.isAvailable {
+            return mtpBackend
+        }
+        if mtpBackend.isAvailable {
             return mtpBackend
         }
         return adbBackend
@@ -96,6 +111,9 @@ public final class FileDroidEngine: ObservableObject {
     public func selectDevice(serial: String) {
         if let dev = connectedDevices.first(where: { $0.serial == serial }) {
             self.selectedDevice = dev
+            if dev.connectionType == .mtp && (self.currentRemotePath == "/sdcard" || !self.currentRemotePath.hasPrefix("/")) {
+                self.currentRemotePath = "/"
+            }
             fetchDirectoryContents(path: self.currentRemotePath)
         }
     }
@@ -134,8 +152,17 @@ public final class FileDroidEngine: ObservableObject {
 
         Task { [weak self] in
             guard let self = self else { return }
-            let backend = self.activeBackend
-            let discovered = await backend.scanDevices()
+
+            // Probe both Kalam native MTP and FileDroid ADB
+            let mtpDevices = await self.mtpBackend.scanDevices()
+            let adbDevices = await self.adbBackend.scanDevices()
+
+            var discovered: [AndroidDevice] = mtpDevices
+            for adbDev in adbDevices {
+                if !discovered.contains(where: { $0.serial == adbDev.serial || $0.model == adbDev.model }) {
+                    discovered.append(adbDev)
+                }
+            }
 
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
@@ -145,7 +172,10 @@ public final class FileDroidEngine: ObservableObject {
 
                 if self.selectedDevice == nil || !discovered.contains(where: { $0.serial == self.selectedDevice?.serial }) {
                     self.selectedDevice = discovered.first
-                    if self.selectedDevice != nil {
+                    if let sel = self.selectedDevice {
+                        if sel.connectionType == .mtp && self.currentRemotePath == "/sdcard" {
+                            self.currentRemotePath = "/"
+                        }
                         self.fetchDirectoryContents(path: self.currentRemotePath)
                     }
                 }
@@ -298,7 +328,11 @@ public final class FileDroidEngine: ObservableObject {
     }
 
     public func openPhoneDownloadsFolder() {
-        navigateTo(path: "/sdcard/Download")
+        if selectedDevice?.connectionType == .mtp {
+            navigateTo(path: "/Download")
+        } else {
+            navigateTo(path: "/sdcard/Download")
+        }
     }
 
     // MARK: - Remote File Browsing
@@ -309,7 +343,11 @@ public final class FileDroidEngine: ObservableObject {
     }
 
     public func navigateUp() {
-        guard currentRemotePath != "/" && currentRemotePath != "/sdcard" else { return }
+        if selectedDevice?.connectionType == .mtp {
+            guard currentRemotePath != "/" else { return }
+        } else {
+            guard currentRemotePath != "/" && currentRemotePath != "/sdcard" else { return }
+        }
         let parent = (currentRemotePath as NSString).deletingLastPathComponent
         navigateTo(path: parent.isEmpty ? "/" : parent)
     }

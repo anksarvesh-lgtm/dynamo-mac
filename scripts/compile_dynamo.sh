@@ -12,9 +12,9 @@ echo "==> LiquidDynamo CLI Compiler using SDK: $SDK"
 mkdir -p "$MODULES_DIR" "$FRAMEWORKS_DIR" "$BUNDLE_FRAMEWORKS"
 
 # 1. Compile 7 Swift dependencies if not already present
-if [ ! -f "$MODULES_DIR/Defaults.swiftmodule" ] || [ ! -f "$MODULES_DIR/libDefaults.dylib" ]; then
-    echo "==> Compiling Swift package dependencies into $MODULES_DIR..."
-    bash /tmp/spm_deps/build_all_deps.sh
+if [ ! -f "$MODULES_DIR/Defaults.swiftmodule" ] || [ ! -f "$MODULES_DIR/libDefaults.dylib" ] || [ ! -d "$FRAMEWORKS_DIR/Sparkle.framework" ]; then
+    echo "==> Compiling Swift package dependencies via setup_spm_deps.sh..."
+    bash "$DIR/scripts/setup_spm_deps.sh"
 fi
 
 for lib in AsyncXPCConnection Defaults KeyboardShortcuts LaunchAtLogin MacroVisionKit SkyLightWindow SwiftUIIntrospect; do

@@ -41,12 +41,33 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
         return "ADB platform-tools not found. Install via Homebrew: 'brew install android-platform-tools' or configure a custom path."
     }
     
+    private static var cachedResolvedAdbPath: String? = nil
+
     public var effectiveAdbPath: String? {
+        if let cached = Self.cachedResolvedAdbPath, FileManager.default.isExecutableFile(atPath: cached) {
+            return cached
+        }
+
+        // 1. User custom setting
         let custom = UserDefaults.standard.string(forKey: "filedroid_custom_adb_path") ?? ""
         if !custom.isEmpty && FileManager.default.isExecutableFile(atPath: custom) {
+            Self.cachedResolvedAdbPath = custom
             return custom
         }
+
+        // 2. Check FileDroid app config if previously configured
+        let userHome = "/Users/\(NSUserName())"
+        let filedroidConfig = "\(userHome)/Library/Application Support/com.filedroid/adb_path.txt"
+        if let saved = try? String(contentsOfFile: filedroidConfig, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+           !saved.isEmpty, FileManager.default.isExecutableFile(atPath: saved) {
+            Self.cachedResolvedAdbPath = saved
+            return saved
+        }
+
+        // 3. Fast check common paths
         let candidates = [
+            "\(userHome)/.local/bin/adb",
+            "\(userHome)/Library/Android/sdk/platform-tools/adb",
             "/opt/homebrew/bin/adb",
             "/usr/local/bin/adb",
             "\(NSHomeDirectory())/Library/Android/sdk/platform-tools/adb",
@@ -54,7 +75,32 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
             "/opt/android-sdk/platform-tools/adb",
             "/usr/bin/adb"
         ]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        if let found = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
+            Self.cachedResolvedAdbPath = found
+            return found
+        }
+
+        // 4. Login shell resolution ('which adb')
+        let pipe = Pipe()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-l", "-c", "which adb"]
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            process.waitUntilExit()
+            if process.terminationStatus == 0 {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if !path.isEmpty && FileManager.default.isExecutableFile(atPath: path) {
+                    Self.cachedResolvedAdbPath = path
+                    return path
+                }
+            }
+        } catch {}
+
+        return nil
     }
     
     public init() {}
@@ -309,118 +355,181 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 }
 
-// MARK: - MTP Transfer Backend (Option B)
+// MARK: - MTP Transfer Backend (Native Kalam & OpenMTP Engine)
 
 public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     public let backendType: FileDroidConnectionType = .mtp
-    
+    private var cachedStorageId: UInt32 = 65537
+
     public var isAvailable: Bool {
-        return effectiveMtpDetectPath != nil
+        return KalamBridge.shared.isLoaded
     }
-    
+
     public var availabilityHint: String? {
         if isAvailable { return nil }
-        return "Native MTP tools (libmtp) are optional for non-debugging USB transfer. Install via Homebrew: 'brew install libmtp', or enable USB Debugging on your phone."
+        return "Native OpenMTP Kalam engine dylib is initializing or missing from Frameworks."
     }
-    
-    public var effectiveMtpDetectPath: String? {
-        let candidates = [
-            "/opt/homebrew/bin/mtp-detect",
-            "/usr/local/bin/mtp-detect",
-            "/usr/bin/mtp-detect"
-        ]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+
+    public init() {
+        KalamBridge.shared.loadDylib()
     }
-    
-    public init() {}
-    
+
     public func scanDevices() async -> [AndroidDevice] {
-        guard let mtpDetect = effectiveMtpDetectPath else { return [] }
-        let output = await Self.runProcess(executable: mtpDetect, arguments: [])
-        guard output.contains("Device 0 (VID=") || output.contains("Manufacturer:") else { return [] }
-        
-        var manufacturer = "Android"
-        var model = "MTP Device"
-        for line in output.components(separatedBy: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("Manufacturer:") {
-                manufacturer = trimmed.replacingOccurrences(of: "Manufacturer:", with: "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix("Model:") {
-                model = trimmed.replacingOccurrences(of: "Model:", with: "").trimmingCharacters(in: .whitespaces)
-            }
+        let bridge = KalamBridge.shared
+        if !bridge.isLoaded {
+            bridge.loadDylib()
         }
-        
-        let dev = AndroidDevice(
-            serial: "MTP-\(abs(model.hashValue))",
-            model: model,
-            manufacturer: manufacturer,
-            marketName: model,
-            connectionType: .mtp,
-            status: .connected
-        )
-        return [dev]
+        guard bridge.isLoaded else { return [] }
+
+        let initRes = await bridge.initialize()
+        switch initRes {
+        case .success(let info):
+            let model = info.mtpDeviceInfo?.Model ?? info.usbDeviceInfo?.Product ?? "Android Device"
+            let manufacturer = info.mtpDeviceInfo?.Manufacturer ?? info.usbDeviceInfo?.Manufacturer ?? "Android"
+            let serial = info.mtpDeviceInfo?.SerialNumber ?? info.usbDeviceInfo?.SerialNumber ?? "MTP-\(abs(model.hashValue))"
+
+            var totalBytes: UInt64 = 0
+            var freeBytes: UInt64 = 0
+            var usedBytes: UInt64 = 0
+            var sdTotal: UInt64? = nil
+            var sdFree: UInt64? = nil
+            var sdUsed: UInt64? = nil
+
+            let storagesRes = await bridge.fetchStorages()
+            if case .success(let storages) = storagesRes, !storages.isEmpty {
+                if let first = storages.first {
+                    self.cachedStorageId = first.Sid
+                    totalBytes = first.Info.MaxCapability
+                    freeBytes = first.Info.FreeSpaceInBytes
+                    usedBytes = totalBytes > freeBytes ? (totalBytes - freeBytes) : 0
+                }
+                if storages.count > 1 {
+                    let second = storages[1]
+                    sdTotal = second.Info.MaxCapability
+                    sdFree = second.Info.FreeSpaceInBytes
+                    sdUsed = (sdTotal ?? 0) > (sdFree ?? 0) ? ((sdTotal ?? 0) - (sdFree ?? 0)) : 0
+                }
+            }
+
+            await bridge.dispose()
+
+            let dev = AndroidDevice(
+                serial: serial,
+                model: model,
+                manufacturer: manufacturer,
+                marketName: model,
+                androidVersion: "MTP Media Bridge",
+                apiLevel: 34,
+                batteryLevel: nil,
+                batteryTemperature: nil,
+                batteryHealth: nil,
+                isCharging: true,
+                internalStorageTotal: totalBytes,
+                internalStorageUsed: usedBytes,
+                internalStorageFree: freeBytes,
+                sdCardTotal: sdTotal,
+                sdCardUsed: sdUsed,
+                sdCardFree: sdFree,
+                connectionType: .mtp,
+                status: .connected
+            )
+            return [dev]
+
+        case .failure:
+            await bridge.dispose()
+            return []
+        }
     }
-    
+
     public func fetchDirectoryContents(serial: String, path: String, showHidden: Bool) async throws -> [AndroidFileItem] {
-        guard let mtpFiles = ["/opt/homebrew/bin/mtp-files", "/usr/local/bin/mtp-files"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw NSError(domain: "MtpBackend", code: 1, userInfo: [NSLocalizedDescriptionKey: "libmtp tools not installed"])
+        let bridge = KalamBridge.shared
+        let initRes = await bridge.initialize()
+        guard case .success = initRes else {
+            await bridge.dispose()
+            throw NSError(domain: "MtpBackend", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to open MTP session"])
         }
-        let out = await Self.runProcess(executable: mtpFiles, arguments: [])
-        var items: [AndroidFileItem] = []
-        for line in out.components(separatedBy: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard trimmed.hasPrefix("File ID:") else { continue }
-            // Basic parsing of MTP file listing
-            items.append(AndroidFileItem(name: "MTP Item", remotePath: path + "/item", sizeBytes: 1024, isDirectory: false))
+
+        let storagesRes = await bridge.fetchStorages()
+        if case .success(let storages) = storagesRes, let first = storages.first {
+            self.cachedStorageId = first.Sid
         }
-        return items
-    }
-    
-    public func createFolder(serial: String, remotePath: String) async throws {
-        throw NSError(domain: "MtpBackend", code: 2, userInfo: [NSLocalizedDescriptionKey: "Folder creation requires ADB or full libmtp integration"])
-    }
-    
-    public func renameItem(serial: String, remotePath: String, newName: String) async throws {
-        throw NSError(domain: "MtpBackend", code: 3, userInfo: [NSLocalizedDescriptionKey: "Rename requires ADB or full libmtp integration"])
-    }
-    
-    public func deleteItems(serial: String, remotePaths: [String]) async throws {
-        throw NSError(domain: "MtpBackend", code: 4, userInfo: [NSLocalizedDescriptionKey: "Delete requires ADB or full libmtp integration"])
-    }
-    
-    public func pushFile(serial: String, localPath: String, remotePath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
-        guard let mtpSend = ["/opt/homebrew/bin/mtp-sendfile", "/usr/local/bin/mtp-sendfile"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw NSError(domain: "MtpBackend", code: 5, userInfo: [NSLocalizedDescriptionKey: "libmtp tools not installed. Use ADB mode for transfers."])
-        }
-        let size = (try? FileManager.default.attributesOfItem(atPath: localPath)[.size] as? Int64) ?? 0
-        onProgress?(0, size)
-        _ = await Self.runProcess(executable: mtpSend, arguments: [localPath, (remotePath as NSString).lastPathComponent])
-        onProgress?(size, size)
-    }
-    
-    public func pullFile(serial: String, remotePath: String, localPath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
-        guard let mtpGet = ["/opt/homebrew/bin/mtp-getfile", "/usr/local/bin/mtp-getfile"].first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw NSError(domain: "MtpBackend", code: 6, userInfo: [NSLocalizedDescriptionKey: "libmtp tools not installed. Use ADB mode for transfers."])
-        }
-        _ = await Self.runProcess(executable: mtpGet, arguments: [remotePath, localPath])
-    }
-    
-    private static func runProcess(executable: String, arguments: [String]) async -> String {
-        return await withCheckedContinuation { continuation in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: executable)
-            process.arguments = arguments
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = pipe
-            do {
-                try process.run()
-                process.waitUntilExit()
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                continuation.resume(returning: String(data: data, encoding: .utf8) ?? "")
-            } catch {
-                continuation.resume(returning: "")
+
+        let walkRes = await bridge.walk(storageId: self.cachedStorageId, fullPath: path, recursive: false, skipHidden: !showHidden)
+        await bridge.dispose()
+
+        switch walkRes {
+        case .success(let items):
+            let isoFormatter = ISO8601DateFormatter()
+            return items.map { item in
+                let modDate = isoFormatter.date(from: item.dateAdded) ?? Date()
+                let cleanExt = item.extension.trimmingCharacters(in: .whitespacesAndNewlines)
+                return AndroidFileItem(
+                    name: item.name,
+                    remotePath: item.path,
+                    sizeBytes: UInt64(max(0, item.size)),
+                    modificationDate: modDate,
+                    isDirectory: item.isFolder,
+                    isHidden: item.name.hasPrefix(".")
+                )
+            }.sorted {
+                if $0.isDirectory != $1.isDirectory {
+                    return $0.isDirectory && !$1.isDirectory
+                }
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
+
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    public func createFolder(serial: String, remotePath: String) async throws {
+        let bridge = KalamBridge.shared
+        _ = await bridge.initialize()
+        let res = await bridge.makeDirectory(storageId: self.cachedStorageId, fullPath: remotePath)
+        await bridge.dispose()
+        if case .failure(let err) = res {
+            throw err
+        }
+    }
+
+    public func renameItem(serial: String, remotePath: String, newName: String) async throws {
+        let bridge = KalamBridge.shared
+        _ = await bridge.initialize()
+        let res = await bridge.renameFile(storageId: self.cachedStorageId, fullPath: remotePath, newFileName: newName)
+        await bridge.dispose()
+        if case .failure(let err) = res {
+            throw err
+        }
+    }
+
+    public func deleteItems(serial: String, remotePaths: [String]) async throws {
+        let bridge = KalamBridge.shared
+        _ = await bridge.initialize()
+        let res = await bridge.deleteFiles(storageId: self.cachedStorageId, files: remotePaths)
+        await bridge.dispose()
+        if case .failure(let err) = res {
+            throw err
+        }
+    }
+
+    public func pushFile(serial: String, localPath: String, remotePath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
+        let bridge = KalamBridge.shared
+        _ = await bridge.initialize()
+        let res = await bridge.uploadFiles(storageId: self.cachedStorageId, sources: [localPath], destination: remotePath, onProgress: onProgress)
+        await bridge.dispose()
+        if case .failure(let err) = res {
+            throw err
+        }
+    }
+
+    public func pullFile(serial: String, remotePath: String, localPath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
+        let bridge = KalamBridge.shared
+        _ = await bridge.initialize()
+        let res = await bridge.downloadFiles(storageId: self.cachedStorageId, sources: [remotePath], destination: localPath, onProgress: onProgress)
+        await bridge.dispose()
+        if case .failure(let err) = res {
+            throw err
         }
     }
 }

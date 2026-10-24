@@ -357,15 +357,19 @@ public struct FileDroidView: View {
     // MARK: - Quick Access Navigation Row
 
     private var quickAccessRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let isMtp = engine.selectedDevice?.connectionType == .mtp
+        let rootPrefix = isMtp ? "" : "/sdcard"
+        let rootPath = isMtp ? "/" : "/sdcard"
+
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                quickAccessButton(title: "Internal", path: "/sdcard", icon: "internaldrive")
-                quickAccessButton(title: "Camera", path: "/sdcard/DCIM/Camera", icon: "camera.fill")
-                quickAccessButton(title: "Downloads", path: "/sdcard/Download", icon: "arrow.down.circle.fill")
-                quickAccessButton(title: "Pictures", path: "/sdcard/Pictures", icon: "photo.stack.fill")
-                quickAccessButton(title: "Documents", path: "/sdcard/Documents", icon: "doc.fill")
-                quickAccessButton(title: "Music", path: "/sdcard/Music", icon: "music.note")
-                quickAccessButton(title: "Movies", path: "/sdcard/Movies", icon: "film.fill")
+                quickAccessButton(title: "Internal", path: rootPath, icon: "internaldrive")
+                quickAccessButton(title: "DCIM", path: "\(rootPrefix)/DCIM", icon: "camera.fill")
+                quickAccessButton(title: "Downloads", path: "\(rootPrefix)/Download", icon: "arrow.down.circle.fill")
+                quickAccessButton(title: "Pictures", path: "\(rootPrefix)/Pictures", icon: "photo.stack.fill")
+                quickAccessButton(title: "Documents", path: "\(rootPrefix)/Documents", icon: "doc.fill")
+                quickAccessButton(title: "Music", path: "\(rootPrefix)/Music", icon: "music.note")
+                quickAccessButton(title: "Movies", path: "\(rootPrefix)/Movies", icon: "film.fill")
             }
             .padding(.vertical, 2)
         }
@@ -406,7 +410,7 @@ public struct FileDroidView: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
-            .disabled(engine.currentRemotePath == "/sdcard" || engine.currentRemotePath == "/")
+            .disabled(engine.selectedDevice?.connectionType == .mtp ? engine.currentRemotePath == "/" : (engine.currentRemotePath == "/sdcard" || engine.currentRemotePath == "/"))
 
             HStack(spacing: 4) {
                 Image(systemName: "folder.fill")

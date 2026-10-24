@@ -78,6 +78,7 @@ else
   rm -rf "$APP_PATH/Contents/Frameworks/Sparkle.framework" "$APP_PATH/Contents/Frameworks/Lottie.framework"
   cp -R /tmp/spm_deps/frameworks_flat/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
   cp -R /tmp/spm_deps/frameworks_flat/Lottie.framework "$APP_PATH/Contents/Frameworks/"
+  cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/"
 fi
 
 say "Staged Application: $APP_PATH"
