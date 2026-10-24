@@ -19,6 +19,8 @@
 
 <p align="center">
   <img src="docs/assets/preview_island_expanded.png" alt="LiquidDynamo Dynamic Island Expanded Dashboard" width="850" />
+  <br>
+  <em>LiquidDynamo Expanded Island Dashboard with live MagSafe telemetry, dual Bluetooth battery meters, and quick-access utility shelves</em>
 </p>
 
 ---
@@ -47,6 +49,8 @@
 ### 🪽 Interactive Notch Wings & Collapsed Live Readouts
 <p align="center">
   <img src="docs/assets/preview_notch_wings.png" alt="Interactive Hardware Notch with Live Telemetry Wings" width="850" />
+  <br>
+  <em>Hardware Notch flanked by interactive real-time telemetry wings (CPU, RAM, network, battery, temperature)</em>
 </p>
 
 - **Flanking Telemetry Slots**: Modular wing slots flanking the hardware notch cutout (`WingMetric`).
@@ -68,6 +72,8 @@
 ### 🖥️ Native System HUD Replacements
 <p align="center">
   <img src="docs/assets/preview_capsule_hud.png" alt="Unified Liquid Capsule HUD" width="600" />
+  <br>
+  <em>Minimalist top-edge liquid capsule HUD replacing default macOS volume & brightness overlays</em>
 </p>
 
 - **Unified Liquid Capsules**: Replaces Apple's standard square HUDs for Volume, Brightness, and Keyboard Backlight with sleek top-edge liquid animations.
@@ -99,6 +105,8 @@
 ### 🎛️ Native Settings Window Redesign
 <p align="center">
   <img src="docs/assets/preview_settings_redesign.png" alt="LiquidDynamo Native Frosted-Glass Settings Window" width="850" />
+  <br>
+  <em>Native Frosted-Glass Settings Window with live Notch & Wings customizer, real-time notch preview, and permission center</em>
 </p>
 
 - **Frosted-Glass Visual Overhaul**: Built strictly to macOS native aesthetic standards with 3D liquid droplet branding, solid blue navigation pill, and compact card layouts.
