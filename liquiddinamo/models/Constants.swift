@@ -265,7 +265,7 @@ extension Defaults.Keys {
 
     // MARK: Transparency & Liquid Glass
     static let islandTransparency = Key<Double>("islandTransparency", default: 0.50) // 50% transparency with liquid glass 3D effects
-    static let enableWindowTransparency = Key<Bool>("enableWindowTransparency", default: false) // Translucent window materials for Settings/Onboarding
+    static let enableWindowTransparency = Key<Bool>("enableWindowTransparency", default: true) // Translucent frosted-glass window materials for Settings/Onboarding
 
     static let enableBluetoothDeviceShowcase = Key<Bool>("enableBluetoothDeviceShowcase", default: true)
     static let enableStorageDeviceShowcase = Key<Bool>("enableStorageDeviceShowcase", default: true)
