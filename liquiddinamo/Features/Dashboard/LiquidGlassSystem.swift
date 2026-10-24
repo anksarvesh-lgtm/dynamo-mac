@@ -623,6 +623,10 @@ public struct LiquidGlassContainerBackdrop: View {
         if isExpanded {
             // User request: Remove the background black dropdown completely; keep only individual floating contents
             EmptyView()
+        } else if !isFloating && (Defaults[.enableSideReadouts] && (Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none)) {
+            // On physical notch screens with active wings, individual droplets render their own fluid shapes (LeftNotchDropShape & RightNotchDropShape).
+            // Do not paint a solid symmetric black shape that would override content-aware asymmetric droplet widths.
+            EmptyView()
         } else {
             // Closed resting physical notch or compact floating pill
             DynamicIslandShape(

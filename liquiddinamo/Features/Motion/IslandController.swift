@@ -30,7 +30,9 @@ public final class IslandController: ObservableObject {
     @Published public private(set) var topCornerRadius: CGFloat = 6.0
     @Published public private(set) var bottomCornerRadius: CGFloat = 14.0
     @Published public private(set) var hasShadow: Bool = false
-    @Published public private(set) var activeWingWidth: CGFloat = 68.0
+    @Published public private(set) var activeWingWidth: CGFloat = 46.0
+    @Published public private(set) var activeLeftWingWidth: CGFloat = 46.0
+    @Published public private(set) var activeRightWingWidth: CGFloat = 46.0
 
     // MARK: - Staged Content Reveal Pipeline
 
@@ -743,22 +745,28 @@ public final class IslandController: ObservableObject {
     }
 
     /// Dynamically expands the target width of the island when wings contain expanded details (e.g. CPU %, Network Speed, Hover/Tapped details).
-    public func adjustTargetWidthForWingsIfNeeded(_ measuredWidth: CGFloat, wingWidth: CGFloat) {
+    public func adjustTargetWidthForWingsIfNeeded(_ measuredWidth: CGFloat, wingWidth: CGFloat, leftWidth: CGFloat? = nil, rightWidth: CGFloat? = nil) {
         guard state == .idle || state == .compact else { return }
         let geom = NotchSafeAreaEngine.shared.currentGeometry
-        let minW = geom.compactPillWidth
+        let minW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 28.0) : 140.0
         let neededW = max(minW, measuredWidth)
 
+        if let lw = leftWidth, abs(activeLeftWingWidth - lw) >= 1.0 {
+            activeLeftWingWidth = lw
+        }
+        if let rw = rightWidth, abs(activeRightWingWidth - rw) >= 1.0 {
+            activeRightWingWidth = rw
+        }
         if abs(activeWingWidth - wingWidth) >= 1.0 {
             activeWingWidth = wingWidth
         }
 
-        guard abs(targetSize.width - neededW) >= 3.0 else { return }
+        guard abs(targetSize.width - neededW) >= 2.0 else { return }
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self, self.state == .idle || self.state == .compact else { return }
             let finalW = max(minW, neededW)
-            if abs(self.targetSize.width - finalW) >= 3.0 {
+            if abs(self.targetSize.width - finalW) >= 2.0 {
                 withAnimation(IslandMotion.shared.expandSpring) {
                     self.targetSize.width = finalW
                 }

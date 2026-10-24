@@ -415,7 +415,8 @@ public final class NotchSafeAreaEngine: ObservableObject {
             notchRect = CGRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         }
 
-        let wingW = max(50.0, currentGeometry.wingWidth, IslandController.shared.activeWingWidth)
+        let leftW = max(38.0, IslandController.shared.activeLeftWingWidth)
+        let rightW = max(38.0, IslandController.shared.activeRightWingWidth)
         let notchH = notchRect.height
 
         let leftWingRect: CGRect
@@ -423,13 +424,13 @@ public final class NotchSafeAreaEngine: ObservableObject {
 
         if screenHasNotch {
             // Drawn wings have a 7pt spacer offset (rawNotchWidth + 14 center spacer).
-            // Left drop attaches from (notchRect.minX - 7 - wingW) to notchRect.minX
-            // Right drop attaches from notchRect.maxX to (notchRect.maxX + 7 + wingW)
-            let leftX = notchRect.minX - 7.0 - wingW
+            // Left drop attaches from (notchRect.minX - 7 - leftW) to notchRect.minX
+            // Right drop attaches from notchRect.maxX to (notchRect.maxX + 7 + rightW)
+            let leftX = notchRect.minX - 7.0 - leftW
             leftWingRect = CGRect(
                 x: leftX - padding,
                 y: topY - notchH - padding,
-                width: wingW + 7.0 + (padding * 2.0),
+                width: leftW + 7.0 + (padding * 2.0),
                 height: notchH + (padding * 2.0)
             )
 
@@ -437,7 +438,7 @@ public final class NotchSafeAreaEngine: ObservableObject {
             rightWingRect = CGRect(
                 x: rightX - padding,
                 y: topY - notchH - padding,
-                width: wingW + 7.0 + (padding * 2.0),
+                width: rightW + 7.0 + (padding * 2.0),
                 height: notchH + (padding * 2.0)
             )
         } else {

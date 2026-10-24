@@ -28,7 +28,7 @@ struct LeftWingWidthPreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         let next = nextValue()
         if next > 0 {
-            value = max(value, next)
+            value = next
         }
     }
 }
@@ -38,7 +38,7 @@ struct RightWingWidthPreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         let next = nextValue()
         if next > 0 {
-            value = max(value, next)
+            value = next
         }
     }
 }
@@ -106,20 +106,12 @@ struct ContentView: View {
                             }
                         )
                 } else {
-                    // Clipped layout strictly for collapsed resting notch
+                    // Collapsed resting notch
                     NotchLayout()
                         .frame(
                             width: island.targetSize.width,
                             height: island.targetSize.height,
                             alignment: .top
-                        )
-                        .clipped()
-                        .clipShape(
-                            DynamicIslandShape(
-                                topCornerRadius: island.topCornerRadius,
-                                bottomCornerRadius: island.bottomCornerRadius,
-                                isFloating: island.isFloatingDisplay
-                            )
                         )
                 }
             }
@@ -148,33 +140,7 @@ struct ContentView: View {
             }
             // Localized Hardware Privacy Indicator Notch Glow (Camera = Green, Mic = Amber, Both = Dual Gradient)
             .overlay {
-                let cameraActive = sensorMonitor.isCameraActive
-                let micActive = sensorMonitor.isMicrophoneActive
-                if (cameraActive || micActive) && !isExpandedState {
-                    DynamicIslandShape(
-                        topCornerRadius: island.topCornerRadius,
-                        bottomCornerRadius: island.bottomCornerRadius,
-                        isFloating: island.isFloatingDisplay
-                    )
-                    .stroke(
-                        LinearGradient(
-                            colors: (cameraActive && micActive)
-                                ? [Color.green, Color.orange, Color.green]
-                                : (cameraActive ? [Color.green.opacity(0.9), Color.green] : [Color.orange.opacity(0.9), Color.orange]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        lineWidth: 2.0
-                    )
-                    .shadow(
-                        color: cameraActive ? Color.green.opacity(0.7) : Color.orange.opacity(0.7),
-                        radius: 5,
-                        x: 0,
-                        y: 1
-                    )
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                }
+                privacyIndicatorOverlay(isExpandedState: isExpandedState)
             }
             // Dedicated Activation Zone: Aligned strictly inside visible notch bounds
             .overlay(alignment: .top) {
@@ -765,6 +731,46 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    private func privacyIndicatorOverlay(isExpandedState: Bool) -> some View {
+        let cameraActive = sensorMonitor.isCameraActive
+        let micActive = sensorMonitor.isMicrophoneActive
+        if (cameraActive || micActive) && !isExpandedState {
+            let colors: [Color] = {
+                if cameraActive && micActive {
+                    return [Color.green, Color.orange, Color.green]
+                } else if cameraActive {
+                    return [Color.green.opacity(0.9), Color.green]
+                } else {
+                    return [Color.orange.opacity(0.9), Color.orange]
+                }
+            }()
+            let shadowCol = cameraActive ? Color.green.opacity(0.7) : Color.orange.opacity(0.7)
+
+            DynamicIslandShape(
+                topCornerRadius: island.topCornerRadius,
+                bottomCornerRadius: island.bottomCornerRadius,
+                isFloating: island.isFloatingDisplay
+            )
+            .stroke(
+                LinearGradient(
+                    colors: colors,
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ),
+                lineWidth: 2.0
+            )
+            .shadow(
+                color: shadowCol,
+                radius: 5,
+                x: 0,
+                y: 1
+            )
+            .allowsHitTesting(false)
+            .transition(.opacity)
+        }
+    }
+
+    @ViewBuilder
     func liquidFaceAnimation() -> some View {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
         HStack(spacing: 0) {
@@ -1175,23 +1181,23 @@ struct CollapsedLiveInfoWingsView: View {
     @State private var isRightHovering: Bool = false
     @State private var autoCollapseTask: Task<Void, Never>? = nil
 
-    @State private var measuredLeftWingWidth: CGFloat = 68.0
-    @State private var measuredRightWingWidth: CGFloat = 68.0
+    @State private var measuredLeftWingWidth: CGFloat = 46.0
+    @State private var measuredRightWingWidth: CGFloat = 46.0
+
+    private let minWingFloor: CGFloat = 38.0
 
     private var currentLeftWingWidth: CGFloat {
-        let baseMin = wingWidth
-        return autoFitWings ? max(baseMin, measuredLeftWingWidth) : baseMin
+        guard leftWingMetric != .none else { return 0 }
+        return autoFitWings ? max(minWingFloor, measuredLeftWingWidth) : max(minWingFloor, wingWidth)
     }
 
     private var currentRightWingWidth: CGFloat {
-        let baseMin = wingWidth
-        return autoFitWings ? max(baseMin, measuredRightWingWidth) : baseMin
+        guard rightWingMetric != .none else { return 0 }
+        return autoFitWings ? max(minWingFloor, measuredRightWingWidth) : max(minWingFloor, wingWidth)
     }
 
     private var maxWingWidth: CGFloat {
-        let leftW = (leftWingMetric != .none) ? currentLeftWingWidth : 0
-        let rightW = (rightWingMetric != .none) ? currentRightWingWidth : 0
-        return max(leftW, rightW)
+        max(currentLeftWingWidth, currentRightWingWidth)
     }
 
     private var showLeftDetails: Bool {
@@ -1216,15 +1222,17 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func reportDynamicWidth(geom: NotchGeometry) {
-        let maxW = maxWingWidth
+        let leftW = currentLeftWingWidth
+        let rightW = currentRightWingWidth
+        let maxW = max(leftW, rightW)
         let totalW: CGFloat = {
             if geom.isNotched {
                 return geom.rawNotchWidth + 14.0 + (2.0 * maxW)
             } else {
-                return max(geom.compactPillWidth, (2.0 * maxW) + 40.0)
+                return max(geom.compactPillWidth, leftW + rightW + 48.0)
             }
         }()
-        IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: maxW)
+        IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: maxW, leftWidth: leftW, rightWidth: rightW)
     }
 
     var body: some View {
@@ -1260,13 +1268,14 @@ struct CollapsedLiveInfoWingsView: View {
                     HStack(spacing: 12) {
                         if leftWingMetric != .none {
                             leftDropContent
-                                .padding(.horizontal, 8)
+                                .padding(.leading, 11)
+                                .padding(.trailing, 14)
                                 .padding(.vertical, 3)
                                 .fixedSize(horizontal: true, vertical: false)
                                 .frame(minWidth: currentLeftWingWidth)
                                 .background(
                                     GeometryReader { proxy in
-                                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width + 16.0)
+                                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width)
                                     }
                                 )
                                 .background(
@@ -1289,13 +1298,14 @@ struct CollapsedLiveInfoWingsView: View {
 
                         if rightWingMetric != .none {
                             rightDropContent
-                                .padding(.horizontal, 8)
+                                .padding(.leading, 11)
+                                .padding(.trailing, 14)
                                 .padding(.vertical, 3)
                                 .fixedSize(horizontal: true, vertical: false)
                                 .frame(minWidth: currentRightWingWidth)
                                 .background(
                                     GeometryReader { proxy in
-                                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width + 16.0)
+                                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width)
                                     }
                                 )
                                 .background(
@@ -1321,16 +1331,16 @@ struct CollapsedLiveInfoWingsView: View {
             }
             .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
             .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
-                let clamped = max(wingWidth, w)
-                if abs(self.measuredLeftWingWidth - clamped) >= 1.5 {
-                    self.measuredLeftWingWidth = clamped
+                guard w > 0 else { return }
+                if abs(self.measuredLeftWingWidth - w) >= 1.5 {
+                    self.measuredLeftWingWidth = w
                     self.reportDynamicWidth(geom: geom)
                 }
             }
             .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
-                let clamped = max(wingWidth, w)
-                if abs(self.measuredRightWingWidth - clamped) >= 1.5 {
-                    self.measuredRightWingWidth = clamped
+                guard w > 0 else { return }
+                if abs(self.measuredRightWingWidth - w) >= 1.5 {
+                    self.measuredRightWingWidth = w
                     self.reportDynamicWidth(geom: geom)
                 }
             }
@@ -1426,13 +1436,13 @@ struct CollapsedLiveInfoWingsView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             leftDropContent
-                .padding(.leading, 10)
-                .padding(.trailing, 8)
+                .padding(.leading, 12)
+                .padding(.trailing, 14)
                 .padding(.vertical, 3)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(
                     GeometryReader { proxy in
-                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width + 18.0)
+                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width)
                     }
                 )
         }
@@ -1485,13 +1495,13 @@ struct CollapsedLiveInfoWingsView: View {
     private func rightDropView(geom: NotchGeometry, wingW: CGFloat) -> some View {
         HStack(spacing: 0) {
             rightDropContent
-                .padding(.leading, 8)
-                .padding(.trailing, 10)
+                .padding(.leading, 12)
+                .padding(.trailing, 14)
                 .padding(.vertical, 3)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(
                     GeometryReader { proxy in
-                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width + 18.0)
+                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width)
                     }
                 )
             Spacer(minLength: 0)
