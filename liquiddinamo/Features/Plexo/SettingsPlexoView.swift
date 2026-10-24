@@ -97,14 +97,19 @@ public struct SettingsPlexoView: View {
                             ForEach(netManager.interfaces) { iface in
                                 HStack(spacing: 5) {
                                     Circle()
-                                        .fill(iface.color)
+                                        .fill(iface.isOnline ? iface.color : Color.gray.opacity(0.6))
                                         .frame(width: 6, height: 6)
                                     Text(iface.effectiveName)
                                         .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                                    if iface.isEnabled {
+                                        .foregroundStyle(iface.isOnline && iface.isEnabled ? .primary : .secondary)
+                                    if iface.isOnline && iface.isEnabled {
                                         Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
                                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                                             .foregroundStyle(iface.color)
+                                    } else if !iface.isOnline {
+                                        Text("(Inactive)")
+                                            .font(.system(size: 9.5, design: .rounded))
+                                            .foregroundStyle(.secondary)
                                     } else {
                                         Text("(Disabled)")
                                             .font(.system(size: 9.5, design: .rounded))
@@ -183,17 +188,30 @@ public struct SettingsPlexoView: View {
                         ForEach(netManager.interfaces) { iface in
                             HStack(spacing: 10) {
                                 Circle()
-                                    .fill(iface.color)
+                                    .fill(iface.isOnline ? iface.color : Color.gray.opacity(0.6))
                                     .frame(width: 8, height: 8)
 
                                 Image(systemName: iface.kind.iconName)
                                     .font(.system(size: 12))
+                                    .foregroundStyle(iface.isOnline ? .primary : .secondary)
                                     .frame(width: 16)
 
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(iface.effectiveName)
-                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                                    Text("\(iface.displayName) (\(iface.bsdName)) • \(iface.ipAddress ?? "No IP")")
+                                    HStack(spacing: 6) {
+                                        Text(iface.effectiveName)
+                                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(iface.isOnline ? .primary : .secondary)
+                                        if !iface.isOnline {
+                                            Text("Not Connected")
+                                                .font(.system(size: 9, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 1)
+                                                .background(Color.white.opacity(0.05))
+                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        }
+                                    }
+                                    Text("\(iface.displayName) (\(iface.bsdName)) • \(iface.statusDescription)\(iface.macAddress != nil ? " • MAC: \(iface.macAddress!)" : "")")
                                         .font(.system(size: 9.5, design: .monospaced))
                                         .foregroundStyle(.secondary)
                                 }

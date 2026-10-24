@@ -62,17 +62,24 @@ public struct PlexoNetworkCardView: View {
                 ForEach(netManager.interfaces) { iface in
                     HStack(spacing: 5) {
                         Circle()
-                            .fill(iface.color)
+                            .fill(iface.isOnline ? iface.color : Color.gray.opacity(0.6))
                             .frame(width: 6, height: 6)
                         Text(iface.effectiveName)
                             .font(.system(size: 10, weight: .medium, design: .rounded))
-                        Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(iface.color)
+                            .foregroundStyle(iface.isOnline && iface.isEnabled ? .primary : .secondary)
+                        if iface.isOnline {
+                            Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(iface.color)
+                        } else {
+                            Text("Ready")
+                                .font(.system(size: 8.5, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.white.opacity(iface.isEnabled ? 0.06 : 0.02))
+                    .background(Color.white.opacity(iface.isOnline && iface.isEnabled ? 0.06 : 0.02))
                     .clipShape(Capsule())
                 }
             }

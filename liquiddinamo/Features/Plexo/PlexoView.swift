@@ -191,20 +191,26 @@ public struct PlexoView: View {
                 ForEach(netManager.interfaces) { iface in
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(iface.color)
+                            .fill(iface.isOnline ? iface.color : Color.gray.opacity(0.6))
                             .frame(width: 6, height: 6)
 
                         Image(systemName: iface.kind.iconName)
                             .font(.system(size: 10))
-                            .foregroundStyle(iface.isEnabled ? .primary : .secondary)
+                            .foregroundStyle(iface.isOnline && iface.isEnabled ? .primary : .secondary)
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(iface.effectiveName)
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundStyle(iface.isEnabled ? .primary : .secondary)
-                            Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
-                                .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                                .foregroundStyle(iface.isEnabled ? iface.color : .secondary)
+                                .foregroundStyle(iface.isOnline && iface.isEnabled ? .primary : .secondary)
+                            if iface.isOnline {
+                                Text(PlexoFormatting.formatSpeed(iface.downloadSpeed))
+                                    .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(iface.isEnabled ? iface.color : .secondary)
+                            } else {
+                                Text("Offline")
+                                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
 
                         Toggle("", isOn: Binding(
@@ -217,11 +223,11 @@ public struct PlexoView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Color.white.opacity(iface.isEnabled ? 0.08 : 0.03))
+                    .background(Color.white.opacity(iface.isOnline && iface.isEnabled ? 0.08 : 0.03))
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(iface.isEnabled ? iface.color.opacity(0.3) : Color.clear, lineWidth: 0.8)
+                            .stroke(iface.isOnline && iface.isEnabled ? iface.color.opacity(0.3) : Color.clear, lineWidth: 0.8)
                     )
                     .onTapGesture {
                         editingNickname = iface.userNickname ?? ""
@@ -652,34 +658,88 @@ public struct PlexoView: View {
     // MARK: - Interface Edit Sheet
 
     private func interfaceEditSheet(for iface: PlexoInterface) -> some View {
-        VStack(spacing: 12) {
-            Text("Customize Interface")
-                .font(.system(size: 12.5, weight: .bold, design: .rounded))
-
-            TextField("Custom Nickname", text: $editingNickname)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 200)
-
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                ForEach(["#00E5FF", "#00E676", "#FFD600", "#FF4081", "#7C4DFF"], id: \.self) { hex in
-                    Circle()
-                        .fill(Color(hex: hex) ?? .cyan)
-                        .frame(width: 20, height: 20)
-                        .overlay(Circle().stroke(Color.white, lineWidth: iface.colorHex == hex ? 2 : 0))
-                        .onTapGesture {
-                            netManager.setInterfaceColor(iface.id, colorHex: hex)
-                        }
+                Circle()
+                    .fill(iface.isOnline ? iface.color : Color.gray.opacity(0.6))
+                    .frame(width: 10, height: 10)
+                Text(iface.effectiveName)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                Spacer()
+                Text(iface.isOnline ? "Online" : "Not Connected")
+                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(iface.isOnline ? Color.green : Color.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(iface.isOnline ? Color.green.opacity(0.12) : Color.white.opacity(0.06))
+                    .clipShape(Capsule())
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Device: \(iface.displayName) (\(iface.bsdName))")
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                if let ip = iface.ipAddress {
+                    Text("IPv4: \(ip)")
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                if let mask = iface.netmask {
+                    Text("Subnet: \(mask)")
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                if let mac = iface.macAddress {
+                    Text("MAC: \(mac)")
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Custom Nickname")
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                TextField(iface.displayName, text: $editingNickname)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Theme Color")
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                HStack(spacing: 8) {
+                    ForEach(["#00E5FF", "#00E676", "#FFD600", "#FF4081", "#7C4DFF", "#2979FF"], id: \.self) { hex in
+                        Circle()
+                            .fill(Color(hex: hex) ?? .cyan)
+                            .frame(width: 22, height: 22)
+                            .overlay(Circle().stroke(Color.white, lineWidth: iface.colorHex == hex ? 2 : 0))
+                            .onTapGesture {
+                                netManager.setInterfaceColor(iface.id, colorHex: hex)
+                            }
+                    }
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack {
                 Button("Done") {
                     netManager.setInterfaceNickname(iface.id, nickname: editingNickname.isEmpty ? nil : editingNickname)
                     selectedInterfaceForEditing = nil
                 }
                 .keyboardShortcut(.defaultAction)
+                .controlSize(.small)
+
+                Spacer()
+
+                Button("Cancel") {
+                    selectedInterfaceForEditing = nil
+                }
+                .controlSize(.small)
             }
         }
         .padding(16)
+        .frame(width: 280)
     }
 }
