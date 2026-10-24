@@ -4,6 +4,21 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ---
 
+## [1.9.9] — 2026-10-24
+
+### Dedicated App Window for Android File Management
+- **Native FileDroid Window Controller**: Clicking an Android device chip or "Open Device Folders" opens the full file manager in a dedicated native AppKit window (`FileDroidWindowController`), featuring dual-pane directory navigation, breadcrumb path traversal, quick-access shortcuts (`DCIM`, `Download`, `Documents`, `Pictures`), search, and transfer queue drawers directly in the app UI—without opening in Finder and without notch size constraints.
+
+### Dedicated Android Downloads Directory
+- **Automated Downloads Organization**: All downloads and pulls from Android devices via ADB and MTP are saved directly into a dedicated directory at `~/Downloads/Android`. The target directory is automatically created if missing, and clicking "Open Mac Downloads Folder" reveals all saved Android files directly in Finder.
+
+### Dynamic Notch Wing Expansion
+- **Content-Driven Width Measurement**: Collapsed live info wings dynamically measure their intrinsic contents using `LeftWingWidthPreferenceKey` and `RightWingWidthPreferenceKey`. When readouts contain expanded telemetry (e.g. CPU %, Network Throughput, RAM %, Battery %, or Hover/Tap details), the wing drops and `targetSize.width` organically expand with spring animation so no text or units are clipped.
+- **Removed Collapsed Padding Restriction**: Eliminated extraneous horizontal padding in the resting notch container that previously pinched the wings and clipped digits on outer boundaries.
+- **Synchronized Hit Rects**: `NotchSafeAreaEngine.collapsedWingHitRects` dynamically tracks the expanded wing width, ensuring hover and tap interactions register smoothly across the entire wing surface.
+
+---
+
 ## [1.9.8] — 2026-10-24
 
 ### Home Dashboard Primary Row Multi-Line Wrapping
