@@ -722,7 +722,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 || LiveActivityCenter.shared.activeAlert != nil
                 || LiveActivityCenter.shared.activeNotification != nil
             if hasAlert && IslandController.shared.activeOrganicItem == .none {
-                let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+                let contentW = IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeExpandedAlert?.customSize?.width
+                let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
                 let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
                 targetSize = CGSize(width: capsuleSize.width, height: targetH)
             } else if LiquidViewCoordinator.shared.currentView == .shelf {
@@ -736,12 +737,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             shouldIgnore = false
         case .alertPop:
-            let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+            let contentW = explicitSize?.width ?? IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeAlert?.customSize?.width
+            let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
             let popH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
             targetSize = CGSize(width: capsuleSize.width, height: popH)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            let neededW = max(geom.compactPillWidth, geom.rawNotchWidth + 240, explicitSize?.width ?? IslandController.shared.targetSize.width)
+            let neededW = max(geom.compactPillWidth, explicitSize?.width ?? IslandController.shared.targetSize.width)
             targetSize = CGSize(width: neededW, height: geom.notchHeight)
             shouldIgnore = false
         }
@@ -829,7 +831,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 || LiveActivityCenter.shared.activeAlert != nil
                 || LiveActivityCenter.shared.activeNotification != nil
             if hasAlert && IslandController.shared.activeOrganicItem == .none {
-                let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+                let contentW = IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeExpandedAlert?.customSize?.width
+                let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
                 let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
                 targetSize = CGSize(width: capsuleSize.width, height: targetH)
             } else if LiquidViewCoordinator.shared.currentView == .shelf {
@@ -843,12 +846,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             shouldIgnore = false
         case .alertPop:
-            let capsuleSize = IslandController.alertCapsuleSize(for: geom)
+            let contentW = IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeAlert?.customSize?.width
+            let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
             let popH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
             targetSize = CGSize(width: capsuleSize.width, height: popH)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            targetSize = CGSize(width: max(geom.compactPillWidth, geom.rawNotchWidth + 240), height: geom.notchHeight)
+            targetSize = CGSize(width: max(geom.compactPillWidth, IslandController.shared.targetSize.width), height: geom.notchHeight)
             shouldIgnore = false
         }
 
