@@ -19,29 +19,31 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.0"
+version = "2.0.1"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Major Production Release"
-release_body = """## LiquidDynamo 2.0.0 — Major Production Release
+release_title = f"LiquidDynamo {version} — Powerload Multi-Network Turbo & Glowing Under-Notch Release"
+release_body = """## LiquidDynamo 2.0.1 — Powerload Multi-Network Turbo & Glowing Under-Notch Release
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.0:
-1. **In-App GitHub Release Changelog**:
-   - Added native live changelog viewer directly in Settings > About > Links & Diagnostics (`sparkles.rectangle.stack`) querying GitHub Releases API with markdown formatting and direct links.
-2. **Zero-File One-Line Terminal Installer**:
-   - Single terminal command downloads, installs to `/Applications`, strips macOS Gatekeeper quarantine flags (`xattr -cr`), and launches LiquidDynamo immediately without external scripts.
-3. **Dedicated In-App Android File Manager**:
-   - Native AppKit window (`Features/AndroidFiles/`) with asynchronous ADB client, MTP bridge support, directory navigation, thumbnails, and progress-tracked transfers.
-4. **Plexo Multi-Network Interface Bonding**:
-   - Real-time BSD interface discovery and parallel socket bonding across Wi-Fi, Ethernet, and Thunderbolt simultaneously.
-5. **Multi-Candidate Download Fallback & 404 Resilience**:
-   - Built-in URL sanitization and multi-repository fallback in GitHub update downloader to eliminate 404 errors during asset propagation.
+### Core Highlights in Version 2.0.1:
+1. **Powerload Turbo Multi-Network Acceleration**:
+   - Rebranded and natively ported multi-network bonding engine across Wi-Fi, Gigabit Ethernet, iPhone USB tethering, Android USB hotspots (RNDIS), and Thunderbolt bridges.
+   - Low-latency `SCDynamicStore` carrier link inspection (`Active == 1`) and hardware port parser for instant plug-and-play adapter discovery.
+2. **Glowing Under-Notch Download Progress Bar**:
+   - Real-time animated glowing beam rendered directly beneath the hardware notch with continuous 1% Red to 100% Green dynamic hue shift.
+   - Atmospheric neon bloom, specular shimmer highlight sweep, leading droplet orb, and hover telemetry badge.
+3. **Dedicated Non-Wi-Fi Telemetry Cards**:
+   - `NetworkTabView` now displays full live telemetry cards for every active Ethernet, USB, and Thunderbolt connection.
+4. **App UI Coming Soon Indicators**:
+   - Water and Break Reminder items seamlessly integrated into the Dynamic Island and Settings with signature droplet icons.
+5. **Strict Single-Digit Semantic Versioning**:
+   - 100% compliant single-digit version scheme across all components.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.0/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.1/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.0.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.0/LiquidDynamo-2.0.0.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.1.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.1/LiquidDynamo-2.0.1.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 

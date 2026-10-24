@@ -10,7 +10,7 @@
 set -euo pipefail
 
 APP_NAME="LiquidDynamo"
-VERSION="1.9.8"
+VERSION="2.0.1"
 CONFIG="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$HOME/Desktop}"
 INSTALL_APP="${INSTALL_APP:-true}"
@@ -68,7 +68,7 @@ else
   rm -rf "$APP_PATH"
   cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
-  plutil -replace CFBundleVersion -string "18" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  plutil -replace CFBundleVersion -string "14" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
   # Install fresh compiled binary
   cp /tmp/spm_deps/LiquidDynamo_test "$APP_PATH/Contents/MacOS/$APP_NAME"
   chmod +x "$APP_PATH/Contents/MacOS/$APP_NAME"

@@ -38,13 +38,18 @@
 - **Robust Transfer Engine**: Safe process-based file streaming, path escaping for Unicode and spaced paths, transfer progress drawer, retry on disconnect, and customizable file conflict resolution (`Replace`, `Keep Both`, `Skip`).
 - **Island & Settings Dual Control**: Browse files, manage transfers, and eject storage directly from the expanded notch dropdown or the comprehensive dedicated Settings pane.
 
-### ⚡ Plexo — Turbo Downloader & Multi-Network Booster
-- **Parallel Chunk Acceleration (`PlexoDownloadEngine`)**: Automatically partitions large files into concurrent byte-range chunks handled by an asynchronous worker pool, maximizing link throughput.
-- **Multi-Network Interface Bonding**: Distributes download chunks simultaneously across active network interfaces (Wi-Fi, Gigabit Ethernet, USB-C Cellular Hotspot) for combined speeds.
-- **Single-Stream Resilience**: Automatically senses servers lacking byte-range support (`Accept-Ranges`) and seamlessly falls back to streaming disk writes with zero stalled downloads.
-- **Torrent & Magnet Link Engine (`PlexoTorrentEngine`)**: Built-in BEP 0003 Bencode decoder and magnet link parser for quick inspection of info-hashes, display names, and announce trackers.
-- **Bandwidth Control & Slow Mode**: Set global download rate limits or toggle "Slow Mode" with a single click when prioritizing video calls or gaming traffic.
-- **Clipboard Intelligence**: Automatically detects downloadable URLs in your clipboard with a one-tap "Start Turbo Download" banner.
+### ⚡ Powerload Turbo — Multi-Network Accelerator & Download Engine
+- **Parallel Chunk Acceleration (`PowerloadDownloadEngine`)**: Automatically partitions large downloads into concurrent byte-range chunks handled by an asynchronous worker pool with dynamic work-stealing, maximizing raw link throughput.
+- **Universal Multi-Network Interface Bonding (`PowerloadNetworkManager`)**: Automatically discovers, classifies, and bonds every active network adapter—including **Wi-Fi**, **Gigabit Ethernet**, **iPhone USB Tethering**, **Android USB Hotspot (RNDIS)**, and **Thunderbolt Bridge**—to download concurrently across all pipes at aggregate speed.
+- **Instant Hardware Carrier Detection (`SCDynamicStore`)**: Uses low-latency system configuration carrier polling (`Active == 1`) and non-localized hardware port parsing (`networksetup -listallhardwareports`) to detect hotplugged USB mobile devices and Ethernet dongles within milliseconds, eliminating stale Wi-Fi-only detection.
+- **Glowing Under-Notch Download Progress Bar (`PowerloadUnderNotchProgressBar`)**: Projects a sleek, fluid glowing progress beam directly beneath the hardware notch or Dynamic Island whenever a download is in flight:
+  - **Dynamic 1% Red → 100% Green Color Shift**: Smoothly transitions from vivid crimson red at 1% through warm orange and golden yellow to brilliant neon electric green at 100%.
+  - **Atmospheric Liquid Bloom & Shimmer**: Multi-layered diffuse ambient glow and specular highlight shimmer sweeping across the beam with an animated leading droplet orb.
+  - **Hover Telemetry & Instant Expansion**: Hovering over the under-notch beam reveals live filename, percentage, and MB/s transfer speed; clicking expands directly into the Powerload dashboard.
+- **Single-Stream Resilience**: Automatically probes remote servers for HTTP `Accept-Ranges` and seamlessly falls back to streaming disk writes with zero stalled downloads.
+- **BitTorrent & Magnet Link Engine (`PowerloadTorrentEngine`)**: Built-in BEP 0003 Bencode parser and magnet URL decoder for rapid inspection of info-hashes, torrent file hierarchies, display names, and tracker tiers.
+- **Bandwidth Shaping & Slow Mode**: Configure per-interface limits, set a global rate ceiling, or toggle "Slow Mode" instantly when prioritizing video calls or low-latency gaming.
+- **Clipboard Intelligence**: Automatically detects downloadable HTTP, HTTPS, and Magnet URLs in your clipboard with a one-tap "Start Turbo Download" notch banner.
 
 ### 🪽 Interactive Notch Wings & Collapsed Live Readouts
 <p align="center">
@@ -266,7 +271,7 @@ echo '{"hook_event_name": "UserPromptSubmit", "coucou_agent": "cursor", "prompt"
 
 - **Zero Data Collection**: LiquidDynamo never transmits data over the internet.
 - **No Analytics / Telemetry**: No tracking SDKs, crash reporters, or usage analytics are embedded.
-- **Local Access Only**: FileDroid, Plexo, and Watcher operations only communicate with your local USB devices, local sockets, and the direct network URLs you specify.
+- **Local Access Only**: FileDroid, Powerload, and Watcher operations only communicate with your local USB devices, local sockets, and the direct network URLs you specify.
 
 ---
 
@@ -278,4 +283,5 @@ LiquidDynamo is open-source software licensed under the **GNU General Public Lic
 - Base notch foundation inspired by [Boring Notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam.
 - Storage cleaner engine and safety allowlist principles ported from [Purge](https://github.com/jithin-sabu/purge-app) by Jithin Sabu (MIT License).
 - AI agent session IPC protocol and hook architecture adapted from [Coucou](https://github.com/Louis-CFM/coucou) by Louis Raillé (MIT License), rebranded as **Watcher** and integrated using LiquidDynamo's native 3D Liquid Glass UI system.
-- All custom architectures, FileDroid & OpenMTP engine, Plexo turbo downloader, interactive collapsed wing readouts, and liquid motion systems are Copyright © 2026 Agrigence.
+- Multi-network socket bonding algorithms and parallel chunking concepts ported from [Plexo](https://github.com/anmolkapil/plexo) by Anmol Kapil, completely redesigned and natively integrated in Swift as **Powerload Turbo**.
+- All custom architectures, FileDroid & OpenMTP engine, Powerload multi-network accelerator, interactive collapsed wing readouts, glowing under-notch progress bar, and liquid motion systems are Copyright © 2026 Agrigence.
