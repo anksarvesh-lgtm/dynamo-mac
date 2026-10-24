@@ -16,7 +16,7 @@ import SwiftUIIntrospect
 
 final class SettingsNavigationState: ObservableObject {
     static let shared = SettingsNavigationState()
-    @Published var selectedTab: String = "General"
+    @Published var selectedTab: String = "NotchWings"
 }
 
 struct SettingsView: View {
@@ -32,57 +32,59 @@ struct SettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Left Sidebar: Animated 3D Icons & Liquid Glass Navigation
+            // Left Sidebar: Reference 3D Droplet & Dark Glass Navigation
             SettingsControlCenterSidebar(
                 selectedTab: $navState.selectedTab,
                 searchText: $searchText
             )
 
             Divider()
-                .opacity(0.2)
+                .opacity(0.15)
 
-            // Content Area: Top Bar + Active Tab View
+            // Content Area: Active Tab View
             VStack(spacing: 0) {
-                SettingsTopBarView(searchText: $searchText)
+                if !searchText.isEmpty {
+                    SettingsTopBarView(searchText: $searchText)
+                }
 
                 ZStack {
                     switch navState.selectedTab {
-                    case "General":
-                        GeneralSettingsView()
                     case "NotchWings", "Look":
                         LookSettingsView()
-                    case "Dashboard", "Metrics":
-                        SettingsDashboardView()
+                    case "General":
+                        GeneralSettingsView()
                     case "Appearance":
                         SettingsAppearanceView()
-                    case "Media", "Modules", "Show":
+                    case "Dashboard", "Metrics":
+                        SettingsDashboardView()
+                    case "Media", "Media & Controls", "Modules", "Show":
                         SettingsModulesView()
-                    case "StorageCleaner":
-                        SettingsStorageCleanerView()
-                    case "Behavior":
+                    case "Notifications", "Behavior":
                         BehaviorSettingsView()
+                    case "Devices", "Battery & Devices":
+                        SettingsDevicesView()
+                    case "Clipboard":
+                        SettingsClipboardView()
+                    case "Hydration", "Focus & Timers":
+                        SettingsHydrationView()
                     case "Permissions":
                         PermissionsSettingsView()
-                    case "Shortcuts":
-                        SettingsShortcutsView()
+                    case "Watcher":
+                        SettingsWatcherView()
+                    case "StorageCleaner":
+                        SettingsStorageCleanerView()
                     case "FileDroid":
                         SettingsFileDroidView()
                     case "Plexo":
                         SettingsPlexoView()
-                    case "Watcher":
-                        SettingsWatcherView()
-                    case "Devices":
-                        SettingsDevicesView()
-                    case "Clipboard":
-                        SettingsClipboardView()
-                    case "Hydration":
-                        SettingsHydrationView()
+                    case "Shortcuts":
+                        SettingsShortcutsView()
                     case "Privacy":
                         SettingsPrivacyView()
                     case "About":
                         AboutSettingsView(updaterController: updaterController)
                     default:
-                        GeneralSettingsView()
+                        LookSettingsView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -95,21 +97,13 @@ struct SettingsView: View {
                     VisualEffectBackdropView(material: .sidebar, blendingMode: .behindWindow)
                         .ignoresSafeArea()
                 } else {
-                    Color(NSColor.windowBackgroundColor)
+                    Color(red: 0.08, green: 0.10, blue: 0.13)
                 }
 
-                LinearGradient(
-                    colors: [
-                        Color.cyan.opacity(0.04),
-                        Color.clear,
-                        Color.purple.opacity(0.03)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(red: 0.08, green: 0.10, blue: 0.13).opacity(0.88)
             }
         }
-        .tint(.effectiveAccent)
+        .tint(NativeSettingsTheme.accentBlue)
         .id(accentColorUpdateTrigger)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AccentColorChanged"))) { _ in
             accentColorUpdateTrigger = UUID()

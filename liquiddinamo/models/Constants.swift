@@ -253,6 +253,13 @@ extension Defaults.Keys {
     static let autoFitWings = Key<Bool>("autoFitWings", default: true)
     static let hideWingsInFullScreen = Key<Bool>("hideWingsInFullScreen", default: true)
     static let wingsBuiltInDisplayOnly = Key<Bool>("wingsBuiltInDisplayOnly", default: true)
+    static let leftWingShowLabel = Key<Bool>("leftWingShowLabel", default: true)
+    static let leftWingShowPercentage = Key<Bool>("leftWingShowPercentage", default: true)
+    static let leftWingShowMiniGraph = Key<Bool>("leftWingShowMiniGraph", default: true)
+    static let rightWingShowIcon = Key<Bool>("rightWingShowIcon", default: true)
+    static let rightWingShowTemperature = Key<Bool>("rightWingShowTemperature", default: true)
+    static let rightWingShowCondition = Key<Bool>("rightWingShowCondition", default: true)
+    static let showWingSeparators = Key<Bool>("showWingSeparators", default: false)
     static let showLayoutGuides = Key<Bool>("showLayoutGuides", default: false)
     static let dockIconStyle = Key<DockIconStyle>("dockIconStyle", default: .threeD)
     

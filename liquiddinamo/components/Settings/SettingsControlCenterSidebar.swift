@@ -39,21 +39,22 @@ public struct SettingsControlCenterSidebar: View {
     @Environment(\.colorScheme) private var colorScheme
 
     public static let items: [SettingsSidebarItem] = [
-        SettingsSidebarItem(id: "General", title: "General", symbolBackup: "gearshape.fill"),
         SettingsSidebarItem(id: "NotchWings", title: "Notch & Wings", symbolBackup: "sparkles.rectangle.stack.fill"),
         SettingsSidebarItem(id: "Appearance", title: "Appearance", symbolBackup: "paintpalette.fill"),
-        SettingsSidebarItem(id: "Media", title: "Media & Controls", symbolBackup: "play.rectangle.fill"),
-        SettingsSidebarItem(id: "Metrics", title: "Metrics", symbolBackup: "gauge.with.needle.fill"),
-        SettingsSidebarItem(id: "Devices", title: "Battery & Devices", symbolBackup: "laptopcomputer.and.iphone"),
-        SettingsSidebarItem(id: "Clipboard", title: "Clipboard", symbolBackup: "doc.on.clipboard.fill"),
+        SettingsSidebarItem(id: "Metrics", title: "Metrics", symbolBackup: "chart.bar.fill"),
+        SettingsSidebarItem(id: "Media", title: "Media & Controls", symbolBackup: "play.fill"),
+        SettingsSidebarItem(id: "Notifications", title: "Notifications", symbolBackup: "bell.fill"),
+        SettingsSidebarItem(id: "Devices", title: "Battery & Devices", symbolBackup: "battery.100"),
+        SettingsSidebarItem(id: "Clipboard", title: "Clipboard", symbolBackup: "doc.on.clipboard"),
+        SettingsSidebarItem(id: "Hydration", title: "Focus & Timers", symbolBackup: "clock"),
+        SettingsSidebarItem(id: "Permissions", title: "Permissions", symbolBackup: "lock.fill"),
+        SettingsSidebarItem(id: "General", title: "General", symbolBackup: "gearshape.fill"),
+        SettingsSidebarItem(id: "About", title: "About", symbolBackup: "info.circle"),
+        SettingsSidebarItem(id: "Watcher", title: "Watcher (Agents)", symbolBackup: "sparkles", badgeText: "AI"),
         SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", symbolBackup: "trash.circle.fill", badgeText: "Clean"),
         SettingsSidebarItem(id: "FileDroid", title: "FileDroid (ADB)", symbolBackup: "externaldrive.fill.badge.wifi"),
         SettingsSidebarItem(id: "Plexo", title: "Plexo Turbo", symbolBackup: "bolt.horizontal.fill"),
-        SettingsSidebarItem(id: "Watcher", title: "Watcher (Agents)", symbolBackup: "sparkles", badgeText: "New"),
-        SettingsSidebarItem(id: "Hydration", title: "Hydration", symbolBackup: "drop.fill"),
-        SettingsSidebarItem(id: "Permissions", title: "Permissions", symbolBackup: "checkmark.shield.fill"),
-        SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command"),
-        SettingsSidebarItem(id: "About", title: "About", symbolBackup: "info.circle.fill")
+        SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command")
     ]
 
     var filteredItems: [SettingsSidebarItem] {
@@ -66,36 +67,24 @@ public struct SettingsControlCenterSidebar: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // App Branding Header
-            HStack(spacing: 12) {
-                // Genuine LiquidDynamo App Icon
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 38, height: 38)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
+            // App Branding Header matching reference
+            VStack(alignment: .center, spacing: 6) {
+                // 3D Liquid Blue Droplet Icon
+                ReferenceAppIcon(size: 36)
+                    .padding(.top, 14)
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(spacing: 2) {
                     Text("LiquidDynamo")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
 
-                    Text("Control Center")
+                    Text("Notch, Wings & More")
                         .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.68))
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, 14)
-
-            Divider()
-                .opacity(colorScheme == .dark ? 0.2 : 0.12)
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 16)
 
             // Scrollable Navigation Destination Rows
             ScrollView(.vertical, showsIndicators: false) {
@@ -110,20 +99,13 @@ public struct SettingsControlCenterSidebar: View {
         }
         .frame(width: NativeSettingsTheme.sidebarWidth)
         .background(
-            ZStack {
-                // Frosted Liquid Glass Sidebar Surface
-                if colorScheme == .dark {
-                    Color(nsColor: .windowBackgroundColor).opacity(0.35)
-                } else {
-                    Color.white.opacity(0.40)
-                }
-            }
+            Color(red: 0.08, green: 0.10, blue: 0.13).opacity(0.92)
         )
     }
 
     @ViewBuilder
     private func sidebarRow(for item: SettingsSidebarItem) -> some View {
-        let isSelected = selectedTab == item.id || (item.id == "General" && selectedTab == "Dashboard") || (item.id == "NotchWings" && selectedTab == "Look") || (item.id == "Media" && selectedTab == "Modules")
+        let isSelected = selectedTab == item.id || (item.id == "General" && selectedTab == "Dashboard") || (item.id == "NotchWings" && (selectedTab == "Look" || selectedTab == "NotchWings")) || (item.id == "Media" && selectedTab == "Modules") || (item.id == "Notifications" && selectedTab == "Behavior")
         let isHovered = hoveredTab == item.id
 
         Button {
@@ -132,30 +114,30 @@ public struct SettingsControlCenterSidebar: View {
             }
         } label: {
             HStack(spacing: 10) {
-                // SF Symbol with balanced frame
+                // SF Symbol
                 Image(systemName: item.symbolBackup)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? Color.effectiveAccent : Color.secondary)
-                    .frame(width: 22, alignment: .center)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.68))
+                    .frame(width: 20, alignment: .center)
 
                 // Title Label
                 Text(item.title)
                     .font(.system(size: 12.5, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                    .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.75))
 
                 Spacer()
 
                 // Optional Badge
                 if let badge = item.badgeText {
                     Text(badge)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .semibold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(isSelected ? Color.effectiveAccent.opacity(0.20) : Color.primary.opacity(0.06))
+                                .fill(isSelected ? Color.white.opacity(0.20) : Color.white.opacity(0.08))
                         )
-                        .foregroundStyle(isSelected ? Color.effectiveAccent : Color.secondary)
+                        .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.65))
                 }
             }
             .padding(.horizontal, 10)
@@ -163,15 +145,13 @@ public struct SettingsControlCenterSidebar: View {
             .background(
                 ZStack {
                     if isSelected {
+                        // Solid Blue Pill matching reference image
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.effectiveAccent.opacity(colorScheme == .dark ? 0.22 : 0.12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .strokeBorder(Color.effectiveAccent.opacity(colorScheme == .dark ? 0.35 : 0.20), lineWidth: 0.8)
-                            )
+                            .fill(NativeSettingsTheme.accentBlue)
+                            .shadow(color: NativeSettingsTheme.accentBlue.opacity(0.35), radius: 6, x: 0, y: 2)
                     } else if isHovered {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                            .fill(Color.white.opacity(0.06))
                     }
                 }
             )
