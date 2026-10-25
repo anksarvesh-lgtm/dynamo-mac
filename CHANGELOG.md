@@ -2,6 +2,17 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.4] — 2026-10-25
+
+### Live Dynamic Wing Auto-Arrangement & Multi-Display Architecture
+- **Real-Time Content-Based Wing Sizing**: Dynamic notch wings automatically arrange their size in real-time according to their live intrinsic content (CPU %, RAM details, Network upload/download speeds, live track titles, system battery, volume, and ambient weather).
+- **Organic Fluid Spring Animations**: All wing dimension changes are orchestrated through `IslandMotion.shared.expandSpring` for seamless, non-jittery morphing during telemetry fluctuations and detail card expansions.
+- **Bi-Directional Shrink & Expand**: Removed rigid `compactPillWidth` window clamping. Wings now naturally shrink down to compact icon-only footprints (265 pt) and expand dynamically for verbose metric readouts (303 pt+) without clipping.
+- **Perfect Multi-Display Symmetry**: On external and non-notched monitors, the central Dynamic Island pill remains locked in the true center while left and right wings independently auto-size within symmetrical slots.
+- **Eliminated Initialization Deadlock**: Decoupled `getClosedNotchSize` from the `IslandController.shared` singleton, preventing recursive `dispatch_once` locks on startup.
+
+---
+
 ## [2.0.3] — 2026-10-25
 
 ### Continuous Background Persistence & Stability Fixes
