@@ -1,125 +1,147 @@
-# LiquidDynamo — Public macOS Distribution & Notarization Guide
+# LiquidDynamo — Public macOS Distribution, Signing & Notarization Guide
 
-This guide describes the complete release, signing, notarization, and distribution process for **LiquidDynamo** on macOS 14.0+.
+This guide details the complete end-to-end process for packaging, Developer ID codesigning, Apple notarization, stapling, and distribution of **LiquidDynamo** on macOS 14.0+.
+
+Following this guide guarantees that any user downloading `LiquidDynamo.dmg` in a web browser can drag the application to `/Applications`, launch it, and experience **zero Gatekeeper malware alerts** ("Apple could not verify it is free of malware"), without needing "Open Anyway" or Terminal quarantine workarounds (`xattr -dr com.apple.quarantine`), even when offline.
 
 ---
 
-## 1. Distribution Readiness Audit
+## 1. Distribution & Architecture Overview
 
-| Configuration | Value | Purpose / Impact |
+| Dimension | Value / Setting | Distribution Impact |
 | :--- | :--- | :--- |
-| **Bundle Identifier** | `com.agrigence.liquiddynamo` | Unique app identity registered with Apple Developer portal. |
-| **Deployment Target** | macOS 14.0 (Sonoma) or newer | Required for modern SwiftUI, continuous squircles, and Metal shaders. |
-| **Architecture** | `arm64` / Universal | Optimized natively for Apple Silicon (M1/M2/M3/M4) MacBooks. |
-| **Hardened Runtime** | `ENABLE_HARDENED_RUNTIME = YES` | Mandatory requirement for Apple Notarization (`notarytool`). |
-| **Entitlements** | `liquiddinamo/LiquidDynamo.entitlements` | Non-sandboxed (Direct Distribution) allowing Accessibility key tap, display DDC/CI, and sensor queries. |
-| **XPC Helper** | `com.agrigence.liquiddynamo.helper` | Handles privileged brightness and hardware sensor calls. |
+| **Distribution Channel** | Direct Distribution (Outside Mac App Store) | Required for hardware display DDC, global media keys (`CGEventTap`), and CPU thermal reading. |
+| **Bundle Identifier** | `com.agrigence.liquiddynamo` | Unique bundle identity registered in Apple Developer portal. |
+| **XPC Helper Identifier** | `com.agrigence.liquiddynamo.LiquidDynamoXPCHelper` | Privileged helper for hardware sensor access and display management. |
+| **Hardened Runtime** | `ENABLE_HARDENED_RUNTIME = YES` (`flags=0x10000(runtime)`) | **Mandatory** for Apple Notarization. Protects against code injection and memory corruption. |
+| **Entitlements** | `liquiddinamo/LiquidDynamo.entitlements` | Non-sandboxed (`app-sandbox = false`) with `disable-library-validation = true` for dylibs. |
+| **Debug Entitlement** | `com.apple.security.get-task-allow` | **Safely absent** from Release builds. (Presence causes immediate Apple Notary rejection). |
+| **Target Architectures** | Apple Silicon (`arm64`) & Universal | Native execution on Apple Silicon (M1/M2/M3/M4) and Intel Macs. |
 
 ---
 
-## 2. Direct Distribution vs. Mac App Store
+## 2. Apple Developer Account Prerequisites
 
-### Why Direct Distribution (Developer ID) is Required
-LiquidDynamo relies on:
-1. **Accessibility (`AXIsProcessTrusted`) & CGEventTap**: Captures media keys and trackpad gestures.
-2. **IOKit / Private Frameworks (`DisplayServices`, `IOHIDEventSystemClient`)**: Reads hardware display brightness and Apple Silicon CPU die thermal sensors directly without requiring third-party kernel extensions or SIP bypass.
-3. **CoreMediaIO (`CMIOObjectGetPropertyData`)**: Passive hardware sensor state detection (camera/mic active glow) without capturing actual video streams.
+The agent or CI runner cannot perform these steps for you. Complete this short checklist once on your Mac:
 
-> [!IMPORTANT]
-> Because the Mac App Store sandbox strictly prohibits `CGEventTap` global monitoring and direct `IOHIDEventSystem` sensor access, **Direct Distribution signed with Developer ID Application is the recommended and primary release path**.
+### 1. Apple Developer Program Membership
+- An active paid Apple Developer Program account ($99/year) is required at [developer.apple.com](https://developer.apple.com). Free Apple IDs cannot generate Developer ID certificates.
 
----
+### 2. Developer ID Application Certificate
+- Open **Xcode** > **Settings** (or **Preferences**) > **Accounts**.
+- Select your Apple ID, choose your Team, and click **Manage Certificates...**.
+- Click the **+** (plus) button in the bottom left corner and select **Developer ID Application**.
+- Confirm that the certificate is installed in your macOS Keychain:
+  ```bash
+  security find-identity -v -p codesigning | grep "Developer ID Application"
+  ```
+  Expected output:
+  ```text
+  1) 1234567890ABCDEF... "Developer ID Application: Your Name (TEAMID)"
+  ```
 
-## 3. Apple Developer Prerequisites
-
-To distribute LiquidDynamo outside the Mac App Store without triggering Gatekeeper blocking alerts:
-
-1. **Apple Developer Program Account**: Active membership at [developer.apple.com](https://developer.apple.com).
-2. **Developer ID Application Certificate**:
-   - Certificate Name: `Developer ID Application: <Your Team Name> (<Team ID>)`
-   - Installed in your macOS Keychain (`login.keychain-db`).
-3. **App-Specific Password / App Store Connect API Key**:
-   - Create an App-Specific Password at [appleid.apple.com](https://appleid.apple.com), or generate an App Store Connect API Key (recommended for CI/CD).
-
----
-
-## 4. Setting Up `notarytool` Keychain Credentials
-
-Store your Apple Developer credentials securely in the macOS Keychain (never hardcode passwords or private keys in the repository):
-
-```bash
-xcrun notarytool store-credentials "LIQUIDDYNAMO_NOTARY" \
-  --apple-id "your-apple-id@email.com" \
-  --team-id "YOUR_TEAM_ID" \
-  --password "xxxx-xxxx-xxxx-xxxx"
-```
-
-Verify that the profile is saved:
-```bash
-xcrun notarytool credentials-history
-```
+### 3. Store Notarytool Keychain Profile
+- Generate an App-Specific Password at [account.apple.com](https://account.apple.com) under **Sign-In and Security** > **App-Specific Passwords**.
+- Store the credentials securely in your macOS Keychain using `notarytool`:
+  ```bash
+  xcrun notarytool store-credentials "LIQUIDDYNAMO_NOTARY" \
+    --apple-id "your-apple-id@example.com" \
+    --team-id "YOUR_TEAM_ID" \
+    --password "xxxx-xxxx-xxxx-xxxx"
+  ```
+- Test and verify connection:
+  ```bash
+  xcrun notarytool history --keychain-profile LIQUIDDYNAMO_NOTARY
+  ```
 
 ---
 
-## 5. Building, Packaging, and Signing
+## 3. The Professional Packaging & Signing Pipeline
 
-The repository provides an automated, self-contained release script: [`build_dmg.sh`](file:///Users/sarvesh/Documents/LiquidDynamo-with-brain/build_dmg.sh).
+The packaging workflow is automated by [`build_dmg.sh`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/build_dmg.sh).
 
-### Step 5.1: Build Release Package
+### Inside-Out Signing Hierarchy
+Apple Notarization strictly inspects every Mach-O binary in the bundle. Signing must be performed **inside-out** so outer digital seals remain intact:
+1. **Standalone executables in Resources**: `Contents/Resources/MediaRemoteAdapterTestClient`
+2. **Individual Dynamic Libraries**: `Contents/Frameworks/*.dylib`
+3. **Nested Framework XPC Services**: `Sparkle.framework/Versions/B/XPCServices/*.xpc`
+4. **Nested Framework Helper Apps**: `Sparkle.framework/Versions/B/Updater.app`
+5. **Nested Framework Executables**: `Sparkle.framework/Versions/B/Autoupdate`
+6. **Framework Bundles**: `Sparkle.framework`, `Lottie.framework`, `MediaRemoteAdapter.framework`
+7. **Top-Level XPC Services**: `Contents/XPCServices/LiquidDynamoXPCHelper.xpc` (signed with `LiquidDynamoXPCHelper.entitlements`)
+8. **Main App Bundle**: `LiquidDynamo.app` (signed with `LiquidDynamo.entitlements`)
 
-To create an ad-hoc local test build:
+All signatures are applied with `--force --options runtime --timestamp --sign "$SIGN_IDENTITY"`.
+
+### Two-Stage Notarization & Offline Stapling
+To allow offline usage without Gatekeeper network lookups:
+1. **Stage 1 (App Bundle)**:
+   - Package `.app` into a temporary zip: `ditto -c -k --keepParent LiquidDynamo.app LiquidDynamo.zip`.
+   - Submit zip to notary service: `xcrun notarytool submit LiquidDynamo.zip --keychain-profile LIQUIDDYNAMO_NOTARY --wait`.
+   - On Accepted, staple ticket directly to the `.app`: `xcrun stapler staple LiquidDynamo.app`.
+2. **Stage 2 (DMG Container)**:
+   - Create disk image containing the stapled `.app` and custom folder presentation.
+   - Sign the DMG: `codesign --force --timestamp --sign "$SIGN_IDENTITY" LiquidDynamo.dmg`.
+   - Submit DMG to notary service: `xcrun notarytool submit LiquidDynamo.dmg --keychain-profile LIQUIDDYNAMO_NOTARY --wait`.
+   - On Accepted, staple ticket to the DMG: `xcrun stapler staple LiquidDynamo.dmg`.
+
+---
+
+## 4. Release Commands
+
+### Production Distribution Release Build
 ```bash
-bash build_dmg.sh
-```
-
-To create a signed, production-ready build for Apple Notarization:
-```bash
-SIGN_IDENTITY="Developer ID Application: Your Company (TEAM_ID)" \
+SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 NOTARY_PROFILE="LIQUIDDYNAMO_NOTARY" \
+RELEASE=1 bash build_dmg.sh
+```
+
+### Local Test Build (Ad-hoc)
+```bash
+# Creates an ad-hoc local build for testing on this machine only
 bash build_dmg.sh
 ```
 
-### What `build_dmg.sh` Performs Automatically:
-1. Cleans and builds `LiquidDynamo` in `Release` configuration with Hardened Runtime enabled.
-2. Signs nested code:
-   - Frameworks in `Contents/Frameworks/*.framework`
-   - XPCServices in `Contents/XPCServices/*.xpc`
-3. Signs the main application bundle with `LiquidDynamo.entitlements` and `--options runtime`.
-4. Validates deep code signature with `codesign --verify --deep --strict --verbose=2`.
-5. Stages the disk image with `LiquidDynamo.app`, `/Applications` symlink, `.VolumeIcon.icns`, and custom window geometry.
-6. Compresses the DMG using `hdiutil convert -format UDZO`.
-7. Submits the DMG to Apple Notary Service via `xcrun notarytool submit --wait`.
-8. Staples the notarization ticket to the DMG using `xcrun stapler staple`.
-
 ---
 
-## 6. Verifying Notarization & Gatekeeper Compliance
+## 5. Verification: `verify_release.sh`
 
-Once the DMG is built and stapled, verify Gatekeeper acceptance:
-
+Always verify your built release artifact before publishing:
 ```bash
-# 1. Assess with Gatekeeper
-spctl -a -vvv -t install ~/Desktop/LiquidDynamo-1.9.1.dmg
-
-# 2. Check stapled ticket
-xcrun stapler validate ~/Desktop/LiquidDynamo-1.9.1.dmg
+bash scripts/verify_release.sh ~/Desktop/LiquidDynamo-2.0.5.dmg
 ```
 
-Expected output:
-```
-source=Notarized Developer ID
-accepted
-```
+### Checks Performed by `verify_release.sh`:
+- ✅ Deep code signature validity (`codesign --verify --deep --strict`).
+- ✅ Developer ID Application authority and Team ID verification.
+- ✅ Hardened Runtime enabled (`flags=0x10000(runtime)`).
+- ✅ Secure Apple Timestamp embedded on all Mach-Os and DMG.
+- ✅ Gatekeeper assessment (`spctl -a -vvv -t install` on DMG / `-t exec` on `.app`) yields `source=Notarized Developer ID`.
+- ✅ Apple Notarization staple ticket validation (`xcrun stapler validate`).
+- ✅ Scan of all embedded Mach-O binaries (zero unsigned binaries).
+- ✅ Safety check: `com.apple.security.get-task-allow` is absent.
 
 ---
 
-## 7. End-User Installation & Permission Instructions
+## 6. Notarization Troubleshooting Reference
 
-When users install LiquidDynamo:
-1. Open `LiquidDynamo-1.9.1.dmg`.
-2. Drag `LiquidDynamo` into the `Applications` folder.
-3. Launch `LiquidDynamo` from `/Applications`.
-4. Follow the setup assistant to enable requested permissions:
-   - **Accessibility**: Enables media key HUD and volume gestures.
-   - **Bluetooth**: Enables battery reporting and peripheral device identification.
-   - **Camera / Mic**: Optional quick mirror and localized notch privacy glow.
+If Apple Notary Service returns `status: Invalid`, `build_dmg.sh` automatically fetches and displays the failure log (`xcrun notarytool log <id>`). Consult this reference for common causes and fixes:
+
+| Failure Message / Symptom | Root Cause | Fix / Solution |
+| :--- | :--- | :--- |
+| `The binary is not signed with a valid Developer ID certificate.` | Built with `Apple Development`, `Mac Developer`, or ad-hoc `-`. | Use `Developer ID Application: <Name> (<TeamID>)`. |
+| `The executable does not have the hardened runtime enabled.` | Missing `--options runtime` or `ENABLE_HARDENED_RUNTIME = NO`. | `build_dmg.sh` signs with `--options runtime`. Verify `project.pbxproj` has `ENABLE_HARDENED_RUNTIME = YES`. |
+| `The signature does not include a secure timestamp.` | Missing `--timestamp` during signing. | Never omit `--timestamp`. `build_dmg.sh` includes `--timestamp` automatically. |
+| `The signature of the binary is invalid.` | Out-of-order signing or modified files after signing. | Sign inside-out; never modify files inside `.app` after signing. |
+| `The executable requests the com.apple.security.get-task-allow entitlement.` | Debug entitlement accidentally included in Release export. | Verify `get-task-allow` is not in `LiquidDynamo.entitlements` and configuration is `Release`. |
+| `A nested binary was not signed.` | An embedded binary (e.g. `MediaRemoteAdapterTestClient` in Resources) was skipped. | `build_dmg.sh` scans and signs all embedded Mach-O binaries deepest first. |
+| `No Keychain password item found for profile.` | Profile not created with `store-credentials`. | Run `xcrun notarytool store-credentials "LIQUIDDYNAMO_NOTARY"` with your App-Specific Password. |
+| `Authentication failed (status code 401).` | Invalid Apple ID, Team ID, or expired App-Specific Password. | Generate a fresh App-Specific Password at [account.apple.com](https://account.apple.com) and update profile. |
+
+---
+
+## 7. Software Updates & Sparkle Status
+
+- **Primary Update Mechanism**: LiquidDynamo uses a direct GitHub Releases update mechanism via `GitHubUpdateChecker.swift` pointing to `https://api.github.com/repos/anksarvesh-lgtm/dynamo-mac/releases/latest`.
+- **Sparkle Framework**: Embedded for optional AppCast compatibility. To prevent accidental upstream checks, `SUFeedURL` and `SUPublicEDKey` are kept unset in `Info.plist`, which ensures Sparkle remains inactive until you generate your own EdDSA key pair and host your own signed `appcast.xml`.
+- When publishing an update, both the zip archive and the DMG must be notarized and stapled.

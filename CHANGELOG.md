@@ -4,6 +4,27 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ## [2.0.5] — 2026-10-25
 
+### Apple Developer ID Signing, Hardened Runtime, & Apple Notarization Pipeline
+- **Inside-Out Code Signing (`build_dmg.sh`)**:
+  - Replaced ad-hoc `--deep` signing with deterministic inside-out signing order without `--deep`.
+  - Discovers and signs all embedded Mach-O binaries (including `MediaRemoteAdapterTestClient` in Resources and all framework dylibs) with `--force --options runtime --timestamp`.
+  - Signs nested Sparkle helper components (`Downloader.xpc`, `Installer.xpc`, `Updater.app`, `Autoupdate`), framework bundles, `LiquidDynamoXPCHelper.xpc` with its entitlements, and finally `LiquidDynamo.app` with its hardened runtime entitlements.
+- **Two-Stage Apple Notarization & Offline Stapling**:
+  - Implemented two-stage notarization: Stage 1 zips and submits `LiquidDynamo.app`, and staples the notarization ticket directly to `.app`. Stage 2 packages the stapled app into the custom DMG, signs the DMG with secure timestamp, submits the DMG to notary service, and staples the DMG.
+  - Ensures users who drag `LiquidDynamo.app` to `/Applications` can open it without Gatekeeper network requests, including completely offline Macs.
+  - Automatic error diagnostic retrieval (`xcrun notarytool log <id>`) whenever notarization status returns `Invalid`.
+- **Release Fail-Fast Guard**:
+  - `build_dmg.sh` refuses to proceed if `RELEASE=1` or `--release` is passed and `SIGN_IDENTITY` is `"-"` or unset, preventing accidental distribution of ad-hoc binaries.
+  - Dynamic version extraction from Xcode project / Info.plist.
+- **Automated Verification Script (`scripts/verify_release.sh`)**:
+  - Added full verification suite inspecting deep code signature, Developer ID Application authority, Team ID, Hardened Runtime flags (`0x10000(runtime)`), secure Apple timestamps, Gatekeeper assessment (`spctl -a -vvv` -> `source=Notarized Developer ID`), stapler validation (`xcrun stapler validate`), exhaustive scan of all embedded Mach-Os, and absence of `com.apple.security.get-task-allow`.
+- **Ad-Hoc Packaging Guard (`scripts/deploy_and_package.sh`)**:
+  - Added loud red warning guard requiring explicit `ALLOW_ADHOC=1` to run, preventing use of deprecated ad-hoc `--deep` packaging for distribution.
+- **Documentation & Install Guide Overhaul**:
+  - Rewrote `docs/DISTRIBUTION_GUIDE.md` with complete prerequisites, Keychain setup, release commands, verification instructions, and a detailed troubleshooting matrix for `notarytool` error codes.
+  - Updated `README.md` install instructions to guide users through standard drag-to-Applications installation without quarantine stripping, noting normal macOS privacy permission prompts.
+
+
 ### Permanent Multi-Display Island & Ambient Wing Indicators
 - **Permanent "Show on all displays" Enforcement (Change A)**:
   - "Show on all displays" is now permanently ON for all users, including existing installs with a stored `false`.

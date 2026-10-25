@@ -161,20 +161,18 @@ curl -fsSL https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/l
 
 ---
 
-### 📦 Option 2: Download Pre-Built DMG
+### 📦 Option 2: Download Pre-Built DMG (Recommended)
 
 - **Direct Download**: [**Download Latest LiquidDynamo.dmg**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg) *(Always points to the newest release)*
 - **All Releases**: [GitHub Releases](https://github.com/anksarvesh-lgtm/dynamo-mac/releases)
 
-1. Open `LiquidDynamo.dmg` and drag **LiquidDynamo** to your `/Applications` folder.
-2. Launch the app from Applications or Spotlight.
+1. Open `LiquidDynamo.dmg` and drag **LiquidDynamo** into your `/Applications` folder.
+2. Launch **LiquidDynamo** from Applications, Launchpad, or Spotlight.
 
-> [!TIP]
-> If macOS displays a Gatekeeper security prompt ("App is damaged" or "Unverified developer") on first launch, run this quick command in Terminal to clear quarantine flags and launch:
-> ```bash
-> xattr -cr /Applications/LiquidDynamo.app && open /Applications/LiquidDynamo.app
-> ```
-> Or navigate to **System Settings** > **Privacy & Security** and click **Open Anyway**.
+> [!NOTE]
+> Official releases are signed with an Apple Developer ID certificate and notarized by Apple. When you first launch LiquidDynamo, macOS will ask for standard system permissions (Accessibility, Bluetooth, Camera, and Calendars) so the app can display battery statuses, calendar meetings, and media keys. These are normal macOS privacy authorization prompts, not malware warnings.
+>
+> *(For self-built or development builds made without a Developer ID certificate: macOS may require navigating to **System Settings** > **Privacy & Security** and clicking **Open Anyway** on first launch).*
 
 ---
 
