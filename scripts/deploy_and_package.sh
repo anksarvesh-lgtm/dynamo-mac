@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
+# TEST-ONLY SCRIPT: Creates ad-hoc local build. For release builds, use build_dmg.sh.
 set -e
+
+if [ "${ALLOW_ADHOC:-0}" != "1" ]; then
+    printf "\033[31m=================================================================\n"
+    printf "❌ ERROR: AD-HOC PACKAGING DEPRECATED FOR DISTRIBUTION\n"
+    printf "=================================================================\n"
+    printf "scripts/deploy_and_package.sh creates an ad-hoc signed build ('-')\n"
+    printf "that will fail Apple Gatekeeper on any machine other than this one.\n\n"
+    printf "For official distribution with Developer ID signing and Apple notarization, use:\n"
+    printf "  SIGN_IDENTITY=\"Developer ID Application: Your Name (TEAMID)\" \\\n"
+    printf "  NOTARY_PROFILE=\"LIQUIDDYNAMO_NOTARY\" \\\n"
+    printf "  RELEASE=1 bash build_dmg.sh\n\n"
+    printf "If you explicitly want an unnotarized local test build, re-run with:\n"
+    printf "  ALLOW_ADHOC=1 bash scripts/deploy_and_package.sh\n"
+    printf "=================================================================\033[0m\n"
+    exit 1
+fi
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
