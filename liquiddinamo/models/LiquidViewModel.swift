@@ -34,13 +34,23 @@ class LiquidViewModel: NSObject, ObservableObject {
 
     @Published var screenUUID: String?
 
+    public var currentScreen: NSScreen? {
+        if let uuid = screenUUID {
+            return NSScreen.screen(withUUID: uuid)
+        }
+        return NSScreen.main
+    }
+
+    public var geometry: NotchGeometry {
+        NotchSafeAreaEngine.shared.geometry(for: currentScreen)
+    }
+
     @Published var notchSize: CGSize = getClosedNotchSize()
     @Published var closedNotchSize: CGSize = getClosedNotchSize()
     
     /// Width of the physical hardware notch cutout on the active screen (0 if non-notched or external display).
     var notchExclusionWidth: CGFloat {
-        let engine = NotchSafeAreaEngine.shared
-        return engine.currentGeometry.hasPhysicalNotch ? engine.currentGeometry.rawNotchWidth : 0
+        return geometry.hasPhysicalNotch ? geometry.rawNotchWidth : 0
     }
     
     let webcamManager = WebcamManager.shared

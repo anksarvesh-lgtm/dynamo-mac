@@ -91,7 +91,7 @@ struct ContentView: View {
                 LiquidGlassContainerBackdrop(
                     topCornerRadius: island.topCornerRadius,
                     bottomCornerRadius: island.bottomCornerRadius,
-                    isFloating: island.isFloatingDisplay,
+                    isFloating: !vm.geometry.hasPhysicalNotch,
                     isExpanded: isExpandedState,
                     ambientColor: Defaults[.playerColorTinting] ? Color(nsColor: musicManager.avgColor) : nil
                 )
@@ -134,7 +134,7 @@ struct ContentView: View {
                     DynamicIslandShape(
                         topCornerRadius: island.topCornerRadius,
                         bottomCornerRadius: island.bottomCornerRadius,
-                        isFloating: island.isFloatingDisplay
+                        isFloating: !vm.geometry.hasPhysicalNotch
                     )
                 )
             }
@@ -150,7 +150,7 @@ struct ContentView: View {
             // Dedicated Activation Zone: Aligned strictly inside visible notch bounds
             .overlay(alignment: .top) {
                 if island.state != .expanded && vm.notchState != .open {
-                    let geom = NotchSafeAreaEngine.shared.currentGeometry
+                    let geom = vm.geometry
                     let notchW = geom.hasPhysicalNotch ? (geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0) : 140.0
                     Color.clear
                         .frame(width: notchW, height: geom.notchHeight)
@@ -335,7 +335,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var belowAreaPresentations: some View {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = vm.geometry
         let notchH = geom.notchHeight
         let yOffset = geom.isNotched ? (notchH + 8) : 0
         if vm.notchState == .closed && island.state != .expanded && island.activeExpandedAlert == nil {
@@ -577,7 +577,7 @@ struct ContentView: View {
                     .padding(.top, 40)
                     Spacer()
                 } else if (island.state == .expanded || vm.notchState == .open) {
-                    let geom = NotchSafeAreaEngine.shared.currentGeometry
+                    let geom = vm.geometry
                     let topNotchGap = geom.isNotched ? (geom.notchHeight + 8) : 0
                     VStack(spacing: 4) {
                         if let notif = hub.activeNotification {
@@ -611,7 +611,7 @@ struct ContentView: View {
                             .padding(.horizontal, 14)
                         } else if coordinator.currentView != .home {
                             LiquidHeader()
-                                .frame(height: max(vm.effectiveClosedNotchHeight, NotchSafeAreaEngine.shared.currentGeometry.exclusionHeight))
+                                .frame(height: max(vm.effectiveClosedNotchHeight, vm.geometry.exclusionHeight))
                                 .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
                         }
                     }
@@ -754,7 +754,7 @@ struct ContentView: View {
             DynamicIslandShape(
                 topCornerRadius: island.topCornerRadius,
                 bottomCornerRadius: island.bottomCornerRadius,
-                isFloating: island.isFloatingDisplay
+                isFloating: !vm.geometry.hasPhysicalNotch
             )
             .stroke(
                 LinearGradient(
@@ -777,7 +777,7 @@ struct ContentView: View {
 
     @ViewBuilder
     func liquidFaceAnimation() -> some View {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = vm.geometry
         HStack(spacing: 0) {
             if geom.isNotched {
                 Rectangle()
@@ -800,7 +800,7 @@ struct ContentView: View {
 
     @ViewBuilder
     func CompactGenericActivityView(activity: IslandActivity) -> some View {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = vm.geometry
         HStack(spacing: 0) {
             if geom.isNotched {
                 HStack(spacing: 6) {
@@ -873,7 +873,7 @@ struct ContentView: View {
 
     @ViewBuilder
     func MusicLiveActivity() -> some View {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = vm.geometry
         HStack(spacing: 0) {
             if geom.isNotched {
                 // Leading wing: album art
@@ -1241,7 +1241,7 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     var body: some View {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = vm.geometry
         let maxW = maxWingWidth
 
         if enableSideReadouts && !isFullScreenHidden && isDisplayAllowed(geom: geom) {
@@ -1408,15 +1408,12 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func isDisplayAllowed(geom: NotchGeometry) -> Bool {
-        if wingsBuiltInDisplayOnly && !geom.isNotched {
-            return false
-        }
         return true
     }
 
     private var isFullScreenHidden: Bool {
         if !hideWingsInFullScreen { return false }
-        if let screen = NSScreen.main {
+        if let screen = vm.currentScreen {
             return screen.visibleFrame.height == screen.frame.height
         }
         return false

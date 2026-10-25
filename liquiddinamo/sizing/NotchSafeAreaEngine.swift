@@ -242,14 +242,16 @@ public final class NotchSafeAreaEngine: ObservableObject {
     
     // MARK: - Safe Area Calculation
     
-    /// Recalculates safe-area insets, notchRect, leftSlot, rightSlot, and belowArea.
-    public func recalculate(for screen: NSScreen? = nil) {
-        guard let screen = screen ?? NSScreen.main else {
-            self.currentGeometry = .conservativeFallback
-            return
+    /// Returns the exact NotchGeometry for any specified screen (built-in notch display or external display).
+    public func geometry(for screen: NSScreen? = nil) -> NotchGeometry {
+        guard let s = screen ?? NSScreen.main else {
+            return currentGeometry
         }
-        
-        self.activeScreenUUID = screen.displayUUID
+        return computeGeometry(for: s)
+    }
+
+    /// Computes safe-area insets, notchRect, leftSlot, rightSlot, and belowArea for a specific screen.
+    public func computeGeometry(for screen: NSScreen) -> NotchGeometry {
         let frame = screen.frame
         let topInset = screen.safeAreaInsets.top
         let wingW = max(50, min(160, Defaults[.wingWidth]))
@@ -335,7 +337,7 @@ public final class NotchSafeAreaEngine: ObservableObject {
             belowA = CGRect(x: 0, y: effectiveNotchHeight, width: frame.width, height: max(0, frame.height - effectiveNotchHeight))
         }
         
-        let newGeometry = NotchGeometry(
+        return NotchGeometry(
             hasPhysicalNotch: hasNotch,
             screenFrame: frame,
             safeAreaTopInset: rawHeight,
@@ -351,6 +353,17 @@ public final class NotchSafeAreaEngine: ObservableObject {
             auxiliaryRightWidth: auxRightWidth,
             isAuxiliaryUnobstructed: isUnobstructed
         )
+    }
+
+    /// Recalculates safe-area insets, notchRect, leftSlot, rightSlot, and belowArea.
+    public func recalculate(for screen: NSScreen? = nil) {
+        guard let screen = screen ?? NSScreen.main else {
+            self.currentGeometry = .conservativeFallback
+            return
+        }
+        
+        self.activeScreenUUID = screen.displayUUID
+        let newGeometry = computeGeometry(for: screen)
         
         if self.currentGeometry != newGeometry {
             self.currentGeometry = newGeometry
@@ -388,6 +401,7 @@ public final class NotchSafeAreaEngine: ObservableObject {
     /// and the left and right wing slots in screen coordinates (origin at bottom-left, y increasing upward).
     /// Used by both global event monitors and AppKit hit-testing / mouseDown handlers.
     public func collapsedWingHitRects(for screen: NSScreen) -> (notchRect: CGRect, leftWingRect: CGRect, rightWingRect: CGRect) {
+        let geom = geometry(for: screen)
         let screenFrame = screen.frame
         let topY = screenFrame.maxY
         let screenHasNotch = screen.safeAreaInsets.top > 0
@@ -405,13 +419,13 @@ public final class NotchSafeAreaEngine: ObservableObject {
             let notchH = screen.safeAreaInsets.top
             notchRect = CGRect(x: notchMinX, y: topY - notchH, width: notchW, height: notchH)
         } else if screenHasNotch {
-            let notchW = currentGeometry.rawNotchWidth > 0 ? currentGeometry.rawNotchWidth : 180.0
-            let notchH = currentGeometry.notchHeight > 0 ? currentGeometry.notchHeight : 32.0
-            let notchCenterX = (!currentGeometry.notchRect.isEmpty) ? (screenFrame.origin.x + currentGeometry.notchRect.midX) : screenFrame.midX
+            let notchW = geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0
+            let notchH = geom.notchHeight > 0 ? geom.notchHeight : 32.0
+            let notchCenterX = (!geom.notchRect.isEmpty) ? (screenFrame.origin.x + geom.notchRect.midX) : screenFrame.midX
             notchRect = CGRect(x: notchCenterX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         } else {
-            let notchW: CGFloat = 140.0
-            let notchH = currentGeometry.notchHeight > 0 ? currentGeometry.notchHeight : 32.0
+            let notchW: CGFloat = max(140.0, geom.compactPillWidth)
+            let notchH = geom.notchHeight > 0 ? geom.notchHeight : 32.0
             notchRect = CGRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         }
 
@@ -443,7 +457,7 @@ public final class NotchSafeAreaEngine: ObservableObject {
             )
         } else {
             // Non-notched display: drops sit on both sides of central pill (compactPillWidth)
-            let pillWidth = max(currentGeometry.compactPillWidth, 200.0)
+            let pillWidth = max(geom.compactPillWidth, 200.0)
             let halfPill = pillWidth / 2.0
             let midX = screenFrame.midX
 

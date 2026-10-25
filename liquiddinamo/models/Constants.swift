@@ -252,7 +252,7 @@ extension Defaults.Keys {
     static let wingWidth = Key<CGFloat>("wingWidth", default: 68.0)
     static let autoFitWings = Key<Bool>("autoFitWings", default: true)
     static let hideWingsInFullScreen = Key<Bool>("hideWingsInFullScreen", default: true)
-    static let wingsBuiltInDisplayOnly = Key<Bool>("wingsBuiltInDisplayOnly", default: true)
+    static let wingsBuiltInDisplayOnly = Key<Bool>("wingsBuiltInDisplayOnly", default: false)
     static let leftWingShowLabel = Key<Bool>("leftWingShowLabel", default: true)
     static let leftWingShowPercentage = Key<Bool>("leftWingShowPercentage", default: true)
     static let leftWingShowMiniGraph = Key<Bool>("leftWingShowMiniGraph", default: true)

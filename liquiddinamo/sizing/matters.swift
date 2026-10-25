@@ -37,7 +37,8 @@ enum MusicPlayerImageSizes {
 }
 
 @MainActor func getClosedNotchSize(screenUUID: String? = nil) -> CGSize {
-    let geom = NotchSafeAreaEngine.shared.currentGeometry
+    let screen = screenUUID.flatMap { NSScreen.screen(withUUID: $0) } ?? NSScreen.main
+    let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
     let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
     if hasWings {
         return CGSize(width: geom.compactPillWidth, height: geom.notchHeight)

@@ -677,7 +677,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func createLiquidDynamoWindow(for screen: NSScreen, with viewModel: LiquidViewModel) -> NSWindow {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
         let targetSize = CGSize(width: geom.compactPillWidth, height: geom.notchHeight)
         let screenFrame = screen.frame
         let rect = NSRect(
@@ -703,6 +703,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 .environmentObject(viewModel)
         )
 
+        window.alphaValue = 1
         window.orderFrontRegardless()
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
 
@@ -776,7 +777,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func calculateNotchCenteredRect(for sc: NSScreen, size: CGSize) -> NSRect {
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = NotchSafeAreaEngine.shared.geometry(for: sc)
         let scFrame = sc.frame
         let visible = sc.visibleFrame
         let screenHasNotch = sc.safeAreaInsets.top > 0
@@ -824,11 +825,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func positionWindow(_ window: NSWindow, on screen: NSScreen, changeAlpha: Bool = false) {
-        if changeAlpha {
-            window.alphaValue = 0
-        }
-
-        let geom = NotchSafeAreaEngine.shared.currentGeometry
+        let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
         let state = IslandController.shared.state
         let targetSize: CGSize
         let shouldIgnore: Bool
@@ -870,6 +867,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         window.ignoresMouseEvents = shouldIgnore
         IslandController.shared.updateScreenStatus(screen: screen)
+        window.orderFrontRegardless()
         window.alphaValue = 1
     }
 
@@ -950,9 +948,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             forName: Notification.Name.automaticallySwitchDisplayChanged, object: nil, queue: nil
         ) { [weak self] _ in
-            guard let self = self, let window = self.window else { return }
             Task { @MainActor in
-                window.alphaValue = self.coordinator.selectedScreenUUID == self.coordinator.preferredScreenUUID ? 1 : 0
+                self?.adjustWindowPosition()
             }
         }
 
@@ -1105,15 +1102,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        if !Defaults[.showOnAllDisplays] {
-            let viewModel = self.vm
-            let window = createLiquidDynamoWindow(
-                for: NSScreen.main ?? NSScreen.screens.first!, with: viewModel)
-            self.window = window
-            adjustWindowPosition(changeAlpha: true)
-        } else {
-            adjustWindowPosition(changeAlpha: true)
-        }
+        Defaults[.showOnAllDisplays] = true
+        Defaults[.wingsBuiltInDisplayOnly] = false
+        adjustWindowPosition(changeAlpha: false)
 
         setupDragDetectors()
 
@@ -1227,92 +1218,66 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func adjustWindowPosition(changeAlpha: Bool = false) {
-        if Defaults[.showOnAllDisplays] {
-            let currentScreenUUIDs = Set(NSScreen.screens.compactMap { $0.displayUUID })
+        Defaults[.showOnAllDisplays] = true
+        Defaults[.wingsBuiltInDisplayOnly] = false
 
-            // Remove windows for screens that no longer exist
-            for uuid in windows.keys where !currentScreenUUIDs.contains(uuid) {
-                if let window = windows[uuid] {
-                    window.close()
-                    NotchSpaceManager.shared.notchSpace.windows.remove(window)
-                    windows.removeValue(forKey: uuid)
-                    viewModels.removeValue(forKey: uuid)
-                }
+        let currentScreens = NSScreen.screens
+        let currentScreenUUIDs = Set(currentScreens.compactMap { $0.displayUUID ?? "screen_\($0.hashValue)" })
+
+        // Remove windows for screens that no longer exist
+        for uuid in Array(windows.keys) where !currentScreenUUIDs.contains(uuid) {
+            if let window = windows[uuid] {
+                window.close()
+                NotchSpaceManager.shared.notchSpace.windows.remove(window)
+                windows.removeValue(forKey: uuid)
+                viewModels.removeValue(forKey: uuid)
+            }
+        }
+
+        // Create or update windows for all screens (internal, external, etc.)
+        for screen in currentScreens {
+            let uuid = screen.displayUUID ?? "screen_\(screen.hashValue)"
+            
+            if windows[uuid] == nil {
+                let viewModel = (self.window == nil && windows.isEmpty) ? self.vm : LiquidViewModel(screenUUID: screen.displayUUID)
+                viewModel.screenUUID = screen.displayUUID
+                let window = createLiquidDynamoWindow(for: screen, with: viewModel)
+
+                windows[uuid] = window
+                viewModels[uuid] = viewModel
             }
 
-            // Create or update windows for all screens
-            for screen in NSScreen.screens {
-                guard let uuid = screen.displayUUID else { continue }
-                
-                if windows[uuid] == nil {
-                    let viewModel = LiquidViewModel(screenUUID: uuid)
-                    let window = createLiquidDynamoWindow(for: screen, with: viewModel)
-
-                    windows[uuid] = window
-                    viewModels[uuid] = viewModel
-                }
-
-                if let window = windows[uuid], let viewModel = viewModels[uuid] {
-                    positionWindow(window, on: screen, changeAlpha: changeAlpha)
-                    viewModel.closedNotchSize = getClosedNotchSize(screenUUID: uuid)
-                    if viewModel.notchState == .closed {
-                        viewModel.notchSize = viewModel.closedNotchSize
-                    }
+            if let window = windows[uuid], let viewModel = viewModels[uuid] {
+                positionWindow(window, on: screen, changeAlpha: changeAlpha)
+                viewModel.closedNotchSize = getClosedNotchSize(screenUUID: screen.displayUUID)
+                if viewModel.notchState == .closed {
+                    viewModel.notchSize = viewModel.closedNotchSize
                 }
             }
+        }
 
-            if self.window == nil {
-                self.window = windows.values.first
+        // Set primary window reference
+        if let builtIn = currentScreens.first(where: {
+            if let num = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
+                return CGDisplayIsBuiltin(CGDirectDisplayID(num.uint32Value)) != 0
             }
+            return false
+        }) {
+            let builtInUUID = builtIn.displayUUID ?? "screen_\(builtIn.hashValue)"
+            self.window = windows[builtInUUID] ?? windows.values.first
         } else {
-            let selectedScreen: NSScreen
-
-            if let preferred = coordinator.preferredScreenUUID,
-               let preferredScreen = NSScreen.screen(withUUID: preferred) {
-                coordinator.selectedScreenUUID = preferred
-                selectedScreen = preferredScreen
-            } else if let builtIn = NSScreen.screens.first(where: {
-                if let num = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
-                    return CGDisplayIsBuiltin(CGDirectDisplayID(num.uint32Value)) != 0
-                }
-                return false
-            }) {
-                // Always prioritize built-in screen with the physical notch
-                coordinator.selectedScreenUUID = builtIn.displayUUID ?? ""
-                selectedScreen = builtIn
-            } else if Defaults[.automaticallySwitchDisplay], let mainScreen = NSScreen.main,
-                      let mainUUID = mainScreen.displayUUID {
-                coordinator.selectedScreenUUID = mainUUID
-                selectedScreen = mainScreen
-            } else {
-                if let window = window {
-                    window.alphaValue = 0
-                }
-                return
-            }
-
-            vm.screenUUID = selectedScreen.displayUUID
-            vm.notchSize = getClosedNotchSize(screenUUID: selectedScreen.displayUUID)
-
-            if window == nil {
-                window = createLiquidDynamoWindow(for: selectedScreen, with: vm)
-            }
-
-            if let window = window {
-                positionWindow(window, on: selectedScreen, changeAlpha: changeAlpha)
-
-                if vm.notchState == .closed {
-                    vm.close()
-                }
-            }
+            self.window = windows.values.first
         }
     }
 
     @objc func togglePopover(_ sender: Any?) {
-        if window?.isVisible == true {
-            window?.orderOut(nil)
-        } else {
-            window?.orderFrontRegardless()
+        let anyVisible = windows.values.contains { $0.isVisible }
+        for win in windows.values {
+            if anyVisible {
+                win.orderOut(nil)
+            } else {
+                win.orderFrontRegardless()
+            }
         }
     }
 
