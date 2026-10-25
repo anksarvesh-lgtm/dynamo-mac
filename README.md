@@ -32,6 +32,16 @@
   <br />
 
   <p align="center">
+    <b>⚡ Quick Install — Paste into macOS Terminal & Press Enter:</b>
+  </p>
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/dynamo-mac/main/install.sh)"
+```
+
+  <br />
+
+  <p align="center">
     <img src="docs/assets/preview_island_expanded.png" alt="LiquidDynamo Dynamic Island Expanded Dashboard" width="920" style="border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
     <br />
     <em>LiquidDynamo Expanded Island: 3D hardware telemetry, live MagSafe charging, ambient thermal wings, and modular utility drawers</em>
@@ -167,13 +177,21 @@ LiquidDynamo features a native **SceneKit zero-gravity 3D rendering engine** tha
 
 ## 🚀 Instant Installation
 
-### ⚡ Option 1: Pure 1-Line Terminal Run (Zero Pre-Downloaded Files)
+### ⚡ Option 1: 1-Line Terminal Install & Launch (Homebrew Style)
 
-Open macOS **Terminal** (`Terminal.app`), paste this command, and press **Enter**. It downloads the latest release, installs it to `/Applications`, and launches LiquidDynamo immediately:
+Open macOS **Terminal** (`Terminal.app`), paste this single command, and press **Enter**. It automatically checks system requirements, downloads the latest release, installs it to `/Applications`, configures Gatekeeper attributes, and launches LiquidDynamo immediately:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/dynamo-mac/main/install.sh)"
+```
+
+<details>
+<summary><b>Or run standalone curl command without script (click to expand)</b></summary>
 
 ```bash
 curl -fsSL https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip -o /tmp/ld.zip && ditto -xk /tmp/ld.zip /Applications && xattr -cr /Applications/LiquidDynamo.app 2>/dev/null; rm -f /tmp/ld.zip && open /Applications/LiquidDynamo.app
 ```
+</details>
 
 ---
 
