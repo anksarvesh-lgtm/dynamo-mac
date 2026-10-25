@@ -134,17 +134,6 @@ struct DynamicNotchApp: App {
                 )
             )
 
-            Toggle("Show on all displays", isOn: Binding(
-                get: { Defaults[.showOnAllDisplays] },
-                set: {
-                    Defaults[.showOnAllDisplays] = $0
-                    NotificationCenter.default.post(
-                        name: Notification.Name.showOnAllDisplaysChanged,
-                        object: nil
-                    )
-                }
-            ))
-
             Divider()
 
             Button("About LiquidDynamo") {
@@ -191,6 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var clickOutsideMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var backgroundActivityAssertion: NSObjectProtocol?
+    private var showOnAllDisplaysObserver: _DefaultsObservation?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
@@ -219,6 +209,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cleanupDragDetectors()
         cleanupWindows()
         XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
+        showOnAllDisplaysObserver?.invalidate()
+        showOnAllDisplaysObserver = nil
     }
 
     @MainActor
@@ -889,6 +881,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         Defaults[.showOnAllDisplays] = true
         Defaults[.wingsBuiltInDisplayOnly] = false
+        setupShowOnAllDisplaysGuard()
         NSLog("🚀 [applicationDidFinishLaunching] Adjusting window position on startup...")
         adjustWindowPosition(changeAlpha: false)
         setupDragDetectors()
@@ -972,6 +965,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.setupDragDetectors()
             }
         }
+
+    private func setupShowOnAllDisplaysGuard() {
+        showOnAllDisplaysObserver = Defaults.observe(.showOnAllDisplays, options: []) { change in
+            if !change.newValue {
+                NSLog("⚠️ [showOnAllDisplays] External modification to false detected; enforcing permanently true.")
+                Defaults[.showOnAllDisplays] = true
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name.showOnAllDisplaysChanged,
+                        object: nil
+                    )
+                }
+            }
+        }
+    }
 
         NotificationCenter.default.addObserver(
             forName: Notification.Name.expandedDragDetectionChanged, object: nil, queue: nil

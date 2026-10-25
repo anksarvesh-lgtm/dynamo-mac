@@ -90,7 +90,6 @@ struct OnboardingView: View {
     @State private var openOnHover: Bool = Defaults[.openNotchOnHover]
     @State private var openOnDrag: Bool = Defaults[.openNotchOnDrag]
     @State private var launchAtLogin: Bool = LaunchAtLogin.isEnabled
-    @State private var showOnAllDisplays: Bool = Defaults[.showOnAllDisplays]
     @State private var customSearchText: String = ""
 
     // Custom Module Selection Checklist
@@ -460,13 +459,6 @@ struct OnboardingView: View {
                     }
                     .padding(8)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.04)))
-
-                    Toggle("Show on all connected displays", isOn: $showOnAllDisplays)
-                        .toggleStyle(.checkbox)
-                        .font(.system(size: 12))
-                        .onChange(of: showOnAllDisplays) { val in
-                            Defaults[.showOnAllDisplays] = val
-                        }
                 }
 
                 // Launch at Login

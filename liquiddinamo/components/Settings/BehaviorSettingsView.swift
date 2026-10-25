@@ -19,8 +19,6 @@ public struct BehaviorSettingsView: View {
     @Default(.openNotchOnHover) private var openNotchOnHover
     @Default(.openNotchOnDrag) private var openNotchOnDrag
     @Default(.minimumHoverDuration) private var minimumHoverDuration
-    @Default(.showOnAllDisplays) private var showOnAllDisplays
-    @Default(.automaticallySwitchDisplay) private var automaticallySwitchDisplay
     @Default(.nonNotchHeightMode) private var nonNotchHeightMode
     @Default(.nonNotchHeight) private var nonNotchHeight
     @Default(.hideSystemOSD) private var hideSystemOSD
@@ -30,10 +28,6 @@ public struct BehaviorSettingsView: View {
     @Default(.hideFromScreenRecording) private var hideFromScreenRecording
     @Default(.showLayoutGuides) private var showLayoutGuides
 
-    @State private var screens: [(uuid: String, name: String)] = NSScreen.screens.compactMap { s in
-        guard let u = s.displayUUID else { return nil }
-        return (u, s.localizedName)
-    }
     @State private var showMoreOptions: Bool = false
 
     public init() {}
@@ -71,25 +65,6 @@ public struct BehaviorSettingsView: View {
             }
 
             Section {
-                Defaults.Toggle(key: .showOnAllDisplays) {
-                    Text("Show on all displays")
-                }
-                .onChange(of: showOnAllDisplays) {
-                    NotificationCenter.default.post(name: Notification.Name.showOnAllDisplaysChanged, object: nil)
-                }
-
-                if !showOnAllDisplays {
-                    Picker("Preferred display", selection: $coordinator.preferredScreenUUID) {
-                        ForEach(screens, id: \.uuid) { screen in
-                            Text(screen.name).tag(screen.uuid as String?)
-                        }
-                    }
-
-                    Defaults.Toggle(key: .automaticallySwitchDisplay) {
-                        Text("Automatically switch display with active mouse")
-                    }
-                }
-
                 Picker("Macs without a physical notch", selection: $nonNotchHeightMode) {
                     Text("Match menu bar height").tag(WindowHeightMode.matchMenuBar)
                     Text("Match standard notch size").tag(WindowHeightMode.matchRealNotchSize)
