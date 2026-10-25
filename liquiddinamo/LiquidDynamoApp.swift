@@ -21,6 +21,9 @@ struct DynamicNotchApp: App {
     let updaterController: SPUStandardUpdaterController
 
     init() {
+        setbuf(__stdoutp, nil)
+        setbuf(__stderrp, nil)
+        print("🚀 [DynamicNotchApp.init]")
         updaterController = SPUStandardUpdaterController(
             startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
 
@@ -470,8 +473,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 } else if Defaults[.enableSideReadouts] && Defaults[.rightWingMetric] != .none && hitRects.rightWingRect.contains(mouseLoc) {
                     NotificationCenter.default.post(name: .toggleSideReadoutDetails, object: "right")
                 } else if hitRects.notchRect.contains(mouseLoc) {
-                    Task { @MainActor [weak self] in
-                        self?.vm.open(pinned: true)
+                    let screenUUID = screen.displayUUID ?? "screen_\(screen.hashValue)"
+                    let targetVM = self.viewModels[screenUUID] ?? self.vm
+                    Task { @MainActor in
+                        targetVM.open(pinned: true)
                     }
                 } else {
                     NotificationCenter.default.post(name: .resetSideReadoutDetails, object: nil)
@@ -594,13 +599,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if shouldCleanupMulti {
             windows.values.forEach { window in
                 window.close()
-                NotchSpaceManager.shared.notchSpace.windows.remove(window)
             }
             windows.removeAll()
             viewModels.removeAll()
         } else if let window = window {
             window.close()
-            NotchSpaceManager.shared.notchSpace.windows.remove(window)
             if let obs = windowScreenDidChangeObserver {
                 NotificationCenter.default.removeObserver(obs)
                 windowScreenDidChangeObserver = nil
@@ -677,15 +680,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func createLiquidDynamoWindow(for screen: NSScreen, with viewModel: LiquidViewModel) -> NSWindow {
-        let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
-        let targetSize = CGSize(width: geom.compactPillWidth, height: geom.notchHeight)
-        let screenFrame = screen.frame
-        let rect = NSRect(
-            x: screenFrame.origin.x + (screenFrame.width - targetSize.width) / 2.0,
-            y: screenFrame.origin.y + screenFrame.height - targetSize.height,
-            width: targetSize.width,
-            height: targetSize.height
-        )
+        let targetSize = getClosedNotchSize(screenUUID: screen.displayUUID)
+        let rect = calculateNotchCenteredRect(for: screen, size: targetSize)
         let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
 
         let window = LiquidDynamoSkyLightWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
@@ -705,7 +701,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         window.alphaValue = 1
         window.orderFrontRegardless()
-        NotchSpaceManager.shared.notchSpace.windows.insert(window)
+        NSLog("🏝️ [createLiquidDynamoWindow] Window created for \(screen.localizedName): rect=\(rect), winNum=\(window.windowNumber), isVisible=\(window.isVisible)")
 
         // Observe when the window's screen changes so we can update drag detectors
         windowScreenDidChangeObserver = NotificationCenter.default.addObserver(
@@ -857,7 +853,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             targetSize = CGSize(width: capsuleSize.width, height: popH)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            targetSize = CGSize(width: max(geom.compactPillWidth, IslandController.shared.targetSize.width), height: geom.notchHeight)
+            let restingW = getClosedNotchSize(screenUUID: screen.displayUUID).width
+            targetSize = CGSize(width: max(restingW, IslandController.shared.targetSize.width), height: geom.notchHeight)
             shouldIgnore = false
         }
 
@@ -869,9 +866,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         IslandController.shared.updateScreenStatus(screen: screen)
         window.orderFrontRegardless()
         window.alphaValue = 1
+        NSLog("🏝️ [positionWindow] Window \(window.windowNumber) frame set to \(newRect), isVisible=\(window.isVisible), alpha=\(window.alphaValue)")
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        print("🚀 [applicationDidFinishLaunching] STARTED!")
         AppDelegate.shared = self
 
         // Proactively prevent macOS automatic termination and sudden background termination
@@ -883,6 +882,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
             reason: "LiquidDynamo live notch monitor, telemetry wings, and system status"
         )
+
+        Defaults[.showOnAllDisplays] = true
+        Defaults[.wingsBuiltInDisplayOnly] = false
+        NSLog("🚀 [applicationDidFinishLaunching] Adjusting window position on startup...")
+        adjustWindowPosition(changeAlpha: false)
+        setupDragDetectors()
 
         migrateWingMetricsIfNeeded()
         startClosedEventMonitors()
@@ -1102,12 +1107,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        Defaults[.showOnAllDisplays] = true
-        Defaults[.wingsBuiltInDisplayOnly] = false
-        adjustWindowPosition(changeAlpha: false)
-
-        setupDragDetectors()
-
         if coordinator.firstLaunch {
             DispatchQueue.main.async {
                 self.showOnboardingWindow()
@@ -1222,13 +1221,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Defaults[.wingsBuiltInDisplayOnly] = false
 
         let currentScreens = NSScreen.screens
+        NSLog("🏝️ [adjustWindowPosition] Starting with \(currentScreens.count) screens: \(currentScreens.map { $0.localizedName })")
         let currentScreenUUIDs = Set(currentScreens.compactMap { $0.displayUUID ?? "screen_\($0.hashValue)" })
 
         // Remove windows for screens that no longer exist
         for uuid in Array(windows.keys) where !currentScreenUUIDs.contains(uuid) {
             if let window = windows[uuid] {
                 window.close()
-                NotchSpaceManager.shared.notchSpace.windows.remove(window)
                 windows.removeValue(forKey: uuid)
                 viewModels.removeValue(forKey: uuid)
             }

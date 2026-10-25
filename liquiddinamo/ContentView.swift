@@ -1234,44 +1234,118 @@ struct CollapsedLiveInfoWingsView: View {
             if geom.isNotched {
                 return geom.rawNotchWidth + 14.0 + (2.0 * maxW)
             } else {
-                return max(geom.compactPillWidth, leftW + rightW + 48.0)
+                let leftPart = (leftWingMetric != .none) ? (leftW + 8.0) : 0
+                let rightPart = (rightWingMetric != .none) ? (rightW + 8.0) : 0
+                return 160.0 + leftPart + rightPart
             }
         }()
         IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: maxW, leftWidth: leftW, rightWidth: rightW)
+    }
+
+    @ViewBuilder
+    private func centralFloatingIslandPill(geom: NotchGeometry) -> some View {
+        let centralPillW: CGFloat = 160.0
+        ZStack {
+            Capsule()
+                .fill(Color.black)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
+                )
+                .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.white.opacity(0.25))
+                    .frame(width: 7, height: 7)
+                    .overlay(Circle().fill(Color.black).frame(width: 3, height: 3))
+
+                if musicManager.isPlaying && !musicManager.songTitle.isEmpty {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(Defaults[.playerColorTinting] ? Color(nsColor: musicManager.avgColor) : .green)
+                    Text(musicManager.songTitle)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else {
+                    Text("LiquidDynamo")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
+            .padding(.horizontal, 10)
+        }
+        .frame(width: centralPillW, height: vm.effectiveClosedNotchHeight)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
+                vm.open(pinned: true)
+            }
+        }
+        .onHover { hovering in
+            if Defaults[.openNotchOnHover] && hovering {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
+                    vm.open()
+                }
+            }
+        }
     }
 
     var body: some View {
         let geom = vm.geometry
         let maxW = maxWingWidth
 
-        if enableSideReadouts && !isFullScreenHidden && isDisplayAllowed(geom: geom) {
-            HStack(spacing: 0) {
+        Group {
+            if !isFullScreenHidden && isDisplayAllowed(geom: geom) {
                 if geom.isNotched {
-                    // Left Drop Container: Anchored flush to the notch left edge
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        if leftWingMetric != .none {
-                            leftDropView(geom: geom, wingW: currentLeftWingWidth)
-                        }
-                    }
-                    .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
+                    if enableSideReadouts && (leftWingMetric != .none || rightWingMetric != .none) {
+                        HStack(spacing: 0) {
+                            // Left Drop Container: Anchored flush to the notch left edge
+                            HStack(spacing: 0) {
+                                Spacer(minLength: 0)
+                                if leftWingMetric != .none {
+                                    leftDropView(geom: geom, wingW: currentLeftWingWidth)
+                                }
+                            }
+                            .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
 
-                    // Center Hardware Notch Area (Clear hole matching hardware cutout)
-                    Color.clear
-                        .frame(width: geom.rawNotchWidth + 14)
+                            // Center Hardware Notch Area (Clear hole matching hardware cutout)
+                            Color.clear
+                                .frame(width: geom.rawNotchWidth + 14)
 
-                    // Right Drop Container: Anchored flush to the notch right edge
-                    HStack(spacing: 0) {
-                        if rightWingMetric != .none {
-                            rightDropView(geom: geom, wingW: currentRightWingWidth)
+                            // Right Drop Container: Anchored flush to the notch right edge
+                            HStack(spacing: 0) {
+                                if rightWingMetric != .none {
+                                    rightDropView(geom: geom, wingW: currentRightWingWidth)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .leading)
                         }
-                        Spacer(minLength: 0)
+                        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+                        .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
+                            guard w > 0 else { return }
+                            if abs(self.measuredLeftWingWidth - w) >= 1.5 {
+                                self.measuredLeftWingWidth = w
+                                self.reportDynamicWidth(geom: geom)
+                            }
+                        }
+                        .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
+                            guard w > 0 else { return }
+                            if abs(self.measuredRightWingWidth - w) >= 1.5 {
+                                self.measuredRightWingWidth = w
+                                self.reportDynamicWidth(geom: geom)
+                            }
+                        }
+                    } else {
+                        EmptyView()
                     }
-                    .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .leading)
                 } else {
-                    // Non-notched display: drops sit on both sides of the central pill
-                    HStack(spacing: 12) {
-                        if leftWingMetric != .none {
+                    // Non-notched display: Always show central Dynamic Island capsule, flanked by wings if enabled
+                    HStack(spacing: 8) {
+                        if enableSideReadouts && leftWingMetric != .none {
                             leftDropContent
                                 .padding(.leading, 8)
                                 .padding(.trailing, 9)
@@ -1285,7 +1359,7 @@ struct CollapsedLiveInfoWingsView: View {
                                 )
                                 .background(
                                     Capsule()
-                                        .fill(Color.black.opacity(0.60))
+                                        .fill(Color.black.opacity(0.75))
                                         .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
                                 )
                                 .onHover { hovering in
@@ -1301,7 +1375,10 @@ struct CollapsedLiveInfoWingsView: View {
                                 }
                         }
 
-                        if rightWingMetric != .none {
+                        // Central Floating Dynamic Island Pill
+                        centralFloatingIslandPill(geom: geom)
+
+                        if enableSideReadouts && rightWingMetric != .none {
                             rightDropContent
                                 .padding(.leading, 8)
                                 .padding(.trailing, 9)
@@ -1315,7 +1392,7 @@ struct CollapsedLiveInfoWingsView: View {
                                 )
                                 .background(
                                     Capsule()
-                                        .fill(Color.black.opacity(0.60))
+                                        .fill(Color.black.opacity(0.75))
                                         .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
                                 )
                                 .onHover { hovering in
@@ -1331,79 +1408,78 @@ struct CollapsedLiveInfoWingsView: View {
                                 }
                         }
                     }
-                    .padding(.horizontal, 10)
-                }
-            }
-            .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
-            .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
-                guard w > 0 else { return }
-                if abs(self.measuredLeftWingWidth - w) >= 1.5 {
-                    self.measuredLeftWingWidth = w
-                    self.reportDynamicWidth(geom: geom)
-                }
-            }
-            .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
-                guard w > 0 else { return }
-                if abs(self.measuredRightWingWidth - w) >= 1.5 {
-                    self.measuredRightWingWidth = w
-                    self.reportDynamicWidth(geom: geom)
-                }
-            }
-            .onChange(of: leftWingMetric) { _ in
-                self.reportDynamicWidth(geom: geom)
-            }
-            .onChange(of: rightWingMetric) { _ in
-                self.reportDynamicWidth(geom: geom)
-            }
-            .onChange(of: autoFitWings) { _ in
-                self.reportDynamicWidth(geom: geom)
-            }
-            .onChange(of: wingWidth) { _ in
-                self.reportDynamicWidth(geom: geom)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleSideReadoutDetails)) { notif in
-                if let target = notif.object as? String {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        if target == "left" {
-                            self.isLeftDetailExpanded.toggle()
-                        } else if target == "right" {
-                            self.isRightDetailExpanded.toggle()
+                    .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+                    .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
+                        guard w > 0 else { return }
+                        if abs(self.measuredLeftWingWidth - w) >= 1.5 {
+                            self.measuredLeftWingWidth = w
+                            self.reportDynamicWidth(geom: geom)
                         }
                     }
-                    self.scheduleAutoCollapse()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .sideReadoutHoverChanged)) { notif in
-                if let dict = notif.object as? [String: Bool] {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        if let left = dict["left"], self.isLeftHovering != left {
-                            self.isLeftHovering = left
-                        }
-                        if let right = dict["right"], self.isRightHovering != right {
-                            self.isRightHovering = right
+                    .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
+                        guard w > 0 else { return }
+                        if abs(self.measuredRightWingWidth - w) >= 1.5 {
+                            self.measuredRightWingWidth = w
+                            self.reportDynamicWidth(geom: geom)
                         }
                     }
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .resetSideReadoutDetails)) { _ in
-                self.autoCollapseTask?.cancel()
+        }
+        .onChange(of: leftWingMetric) { _ in
+            self.reportDynamicWidth(geom: geom)
+        }
+        .onChange(of: rightWingMetric) { _ in
+            self.reportDynamicWidth(geom: geom)
+        }
+        .onChange(of: autoFitWings) { _ in
+            self.reportDynamicWidth(geom: geom)
+        }
+        .onChange(of: wingWidth) { _ in
+            self.reportDynamicWidth(geom: geom)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSideReadoutDetails)) { notif in
+            if let target = notif.object as? String {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    if target == "left" {
+                        self.isLeftDetailExpanded.toggle()
+                    } else if target == "right" {
+                        self.isRightDetailExpanded.toggle()
+                    }
+                }
+                self.scheduleAutoCollapse()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sideReadoutHoverChanged)) { notif in
+            if let dict = notif.object as? [String: Bool] {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if let left = dict["left"], self.isLeftHovering != left {
+                        self.isLeftHovering = left
+                    }
+                    if let right = dict["right"], self.isRightHovering != right {
+                        self.isRightHovering = right
+                    }
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .resetSideReadoutDetails)) { _ in
+            self.autoCollapseTask?.cancel()
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                self.isLeftDetailExpanded = false
+                self.isRightDetailExpanded = false
+            }
+        }
+        .onChange(of: island.state) { newState in
+            if newState == .expanded {
+                self.autoCollapseTask?.cancel()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     self.isLeftDetailExpanded = false
                     self.isRightDetailExpanded = false
                 }
             }
-            .onChange(of: island.state) { newState in
-                if newState == .expanded {
-                    self.autoCollapseTask?.cancel()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        self.isLeftDetailExpanded = false
-                        self.isRightDetailExpanded = false
-                    }
-                }
-            }
-            .onAppear {
-                startActiveServices()
-            }
+        }
+        .onAppear {
+            startActiveServices()
         }
     }
 

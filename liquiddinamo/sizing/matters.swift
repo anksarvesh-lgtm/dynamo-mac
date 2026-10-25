@@ -46,6 +46,6 @@ enum MusicPlayerImageSizes {
     if geom.hasPhysicalNotch {
         return CGSize(width: geom.rawNotchWidth, height: geom.notchHeight)
     } else {
-        return CGSize(width: 140, height: geom.notchHeight)
+        return CGSize(width: 160.0, height: geom.notchHeight)
     }
 }

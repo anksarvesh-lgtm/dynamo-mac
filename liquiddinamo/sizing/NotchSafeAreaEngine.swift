@@ -168,10 +168,10 @@ public struct NotchGeometry: Equatable, Sendable {
     /// Total compact pill width based on hardware cutout and configurable wing width.
     public var compactPillWidth: CGFloat {
         if hasPhysicalNotch {
-            return rawNotchWidth + (2.0 * wingWidth)
+            return rawNotchWidth + 14.0 + (2.0 * wingWidth)
         } else {
-            // Non-notch Mac or external display: pill has no hole
-            return (2.0 * wingWidth) + 30.0
+            // Non-notch Mac or external display: central floating island (160) + wings on both sides
+            return 160.0 + (2.0 * (wingWidth + 8.0))
         }
     }
     
@@ -424,9 +424,9 @@ public final class NotchSafeAreaEngine: ObservableObject {
             let notchCenterX = (!geom.notchRect.isEmpty) ? (screenFrame.origin.x + geom.notchRect.midX) : screenFrame.midX
             notchRect = CGRect(x: notchCenterX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         } else {
-            let notchW: CGFloat = max(140.0, geom.compactPillWidth)
+            let centralPillW: CGFloat = 160.0
             let notchH = geom.notchHeight > 0 ? geom.notchHeight : 32.0
-            notchRect = CGRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
+            notchRect = CGRect(x: screenFrame.midX - (centralPillW / 2.0), y: topY - notchH, width: centralPillW, height: notchH)
         }
 
         let leftW = max(38.0, IslandController.shared.activeLeftWingWidth)
@@ -456,22 +456,20 @@ public final class NotchSafeAreaEngine: ObservableObject {
                 height: notchH + (padding * 2.0)
             )
         } else {
-            // Non-notched display: drops sit on both sides of central pill (compactPillWidth)
-            let pillWidth = max(geom.compactPillWidth, 200.0)
-            let halfPill = pillWidth / 2.0
-            let midX = screenFrame.midX
-
+            // Non-notched display: drops sit immediately flanking central island pill with 8pt gap
+            let leftX = notchRect.minX - 8.0 - leftW
             leftWingRect = CGRect(
-                x: midX - halfPill - padding,
+                x: leftX - padding,
                 y: topY - notchH - padding,
-                width: halfPill + padding,
+                width: leftW + (padding * 2.0),
                 height: notchH + (padding * 2.0)
             )
 
+            let rightX = notchRect.maxX + 8.0
             rightWingRect = CGRect(
-                x: midX,
+                x: rightX - padding,
                 y: topY - notchH - padding,
-                width: halfPill + padding,
+                width: rightW + (padding * 2.0),
                 height: notchH + (padding * 2.0)
             )
         }

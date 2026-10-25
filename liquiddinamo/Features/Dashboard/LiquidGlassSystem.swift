@@ -623,12 +623,14 @@ public struct LiquidGlassContainerBackdrop: View {
         if isExpanded {
             // User request: Remove the background black dropdown completely; keep only individual floating contents
             EmptyView()
-        } else if !isFloating && (Defaults[.enableSideReadouts] && (Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none)) {
-            // On physical notch screens with active wings, individual droplets render their own fluid shapes (LeftNotchDropShape & RightNotchDropShape).
-            // Do not paint a solid symmetric black shape that would override content-aware asymmetric droplet widths.
+        } else if Defaults[.enableSideReadouts] && (Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none) {
+            // When wings are active, individual droplets/capsules render their own fluid shapes with dedicated shadows.
+            EmptyView()
+        } else if !isFloating {
+            // Physical notch display with no wings: hardware notch already exists
             EmptyView()
         } else {
-            // Closed resting physical notch or compact floating pill
+            // Closed compact floating pill on external displays without wings
             DynamicIslandShape(
                 topCornerRadius: topCornerRadius,
                 bottomCornerRadius: bottomCornerRadius,
