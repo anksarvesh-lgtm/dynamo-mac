@@ -20,7 +20,7 @@ fi
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
-VERSION="2.0.4"
+VERSION="2.0.5"
 APP_PATH="$DIR/build/LiquidDynamo.app"
 OUTPUT_DIR="$HOME/Desktop"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
