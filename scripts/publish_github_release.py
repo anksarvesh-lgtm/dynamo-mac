@@ -19,27 +19,29 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.3"
+version = "2.0.5"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Continuous Background Persistence & Stability"
-release_body = """## LiquidDynamo 2.0.3 — Continuous Background Persistence & Stability
+release_title = f"LiquidDynamo {version} — Permanent Multi-Display Island & Ambient Wing Indicators"
+release_body = """## LiquidDynamo 2.0.5 — Permanent Multi-Display Island & Ambient Wing Indicators
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.3:
-1. **Always-Active Background Operation**:
-   - Disabled macOS Automatic Termination, Sudden Termination, and App Nap sleep across `Info.plist`, Xcode target build settings, and runtime `ProcessInfo` activity assertions in `LiquidDynamoApp.swift`.
-   - The app now runs continuously in the background without being suspended or terminated by macOS WindowServer.
-2. **Eliminated MTP libusb POSIX Thread Key Leak (SIGABRT Crash Fix)**:
-   - Fixed a critical crash caused by repeated 5-second background MTP scanner iterations exhausting the Darwin 512 POSIX `pthread_key_create` limit in `kalam.dylib`.
-   - Device detection now integrates seamlessly with Darwin IOKit notifications via `DeviceMonitor`, scanning only when an Android device is attached.
-3. **Synchronized Bundle Framework Dylibs**:
-   - Standardized compiler and packaging scripts to automatically sync all dynamic libraries (`Defaults`, `KeyboardShortcuts`, etc.) into the app bundle.
+### Core Highlights in Version 2.0.5:
+1. **Permanent "Show on all displays" Enforcement**:
+   - The Dynamic Island is now permanently enabled across all connected displays and external monitors.
+   - Removed obsolete manual display toggles from Settings, menu bar, and onboarding for a frictionless multi-monitor experience.
+2. **Ambient Wing Bottom Indicators**:
+   - **LEFT Wing CPU-Temperature Glow**: Edge-aligned smooth gradient glow dynamically visualizing thermal status (<=45°C cyan, 45-60°C green, 60-72°C yellow, 72-82°C orange, >=82°C red).
+   - **RIGHT Wing RAM Bar**: Real-time memory pressure and usage bar with hardware notch drop contour alignment.
+3. **Streamlined Open Island Capsule**:
+   - Removed redundant CPU/RAM capsule from open notch drop; island dimensions now adapt naturally via organic liquid springs.
+4. **Developer ID Signing & Notarization Pipeline**:
+   - Hardened runtime enabled, inside-out signing hierarchy, and automated verification.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.3/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.5/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.3.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.3/LiquidDynamo-2.0.3.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.5.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.5/LiquidDynamo-2.0.5.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 
