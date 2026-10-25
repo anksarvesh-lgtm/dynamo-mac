@@ -98,3 +98,16 @@ This document outlines the core engineering guidelines, design constraints, and 
 3. **In-App Auto-Update & In-Place Replacement**:
    - When an update is detected, the app must notify the user via the Dynamic Island and via a banner at the top of every section in the application.
    - 1-click update must directly download `liquiddynamo.zip`, extract `liquiddynamo.app`, replace `/Applications/liquiddynamo.app` (and `/Applications/LiquidDynamo.app`), strip quarantine attributes, and relaunch cleanly.
+
+4. **Git Tag vs. GitHub Release (Critical)**:
+   - Pushing a git tag (e.g. `git push origin v{version}`) does NOT create a GitHub Release or update `releases/latest`.
+   - `GitHubUpdateChecker.swift` queries `https://api.github.com/repos/anksarvesh-lgtm/dynamo-mac/releases/latest`.
+   - You MUST run `python3 scripts/publish_github_release.py` or create the release via GitHub Releases API / UI with attached `.dmg` and `.zip` assets so that older installed versions immediately detect the update.
+
+5. **Dual-Repository Mirror Sync**:
+   - Release operations must synchronize across both `anksarvesh-lgtm/dynamo-mac` and `anksarvesh-lgtm/dynamomac`.
+   - Update both the versioned tag release (`v{version}`) and the rolling `app` tag release with latest assets.
+
+6. **GitHub Actions CI Secrets Fallback**:
+   - `.github/workflows/release.yml` must never fail if optional Developer ID signing secrets are unset.
+   - It must gracefully log a warning, produce standard release packages, and publish the release.
