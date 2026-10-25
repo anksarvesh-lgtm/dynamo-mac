@@ -19,28 +19,27 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.2"
+version = "2.0.3"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Dynamic Island Streamlining & Clean Status Architecture"
-release_body = """## LiquidDynamo 2.0.2 — Dynamic Island Streamlining & Clean Status Architecture
+release_title = f"LiquidDynamo {version} — Continuous Background Persistence & Stability"
+release_body = """## LiquidDynamo 2.0.3 — Continuous Background Persistence & Stability
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.2:
-1. **Streamlined Dynamic Island Notch View**:
-   - Removed placeholder "Coming Soon" Water and Break Reminder cards and buttons from the Dynamic Island notch interface.
-   - 100% of visible Island tools are active, responsive, and production-ready (Clipboard History, Dropper Shelf, Storage Cleaner, Watcher, Device Showcase, and Powerload Engine).
-2. **Dedicated App Settings Preview for Upcoming Features**:
-   - Coming Soon health & focus reminders (Water Reminder & Ergonomic Break Coach) are safely hosted inside App Settings UI (`SettingsModulesView` & `SettingsHydrationView`) without cluttering notch dropdown interactions.
-3. **Powerload Multi-Network Turbo & Glowing Under-Notch Engine**:
-   - Full support for multi-interface bonding, instant plug-and-play network detection, and glowing neon under-notch download progress bar with 1% Red to 100% Green dynamic hue shift.
-4. **Optimized Height Stabilization**:
-   - Refined dynamic height calculation logic in `IslandController` for ultra-smooth fluid spring transitions.
+### Core Highlights in Version 2.0.3:
+1. **Always-Active Background Operation**:
+   - Disabled macOS Automatic Termination, Sudden Termination, and App Nap sleep across `Info.plist`, Xcode target build settings, and runtime `ProcessInfo` activity assertions in `LiquidDynamoApp.swift`.
+   - The app now runs continuously in the background without being suspended or terminated by macOS WindowServer.
+2. **Eliminated MTP libusb POSIX Thread Key Leak (SIGABRT Crash Fix)**:
+   - Fixed a critical crash caused by repeated 5-second background MTP scanner iterations exhausting the Darwin 512 POSIX `pthread_key_create` limit in `kalam.dylib`.
+   - Device detection now integrates seamlessly with Darwin IOKit notifications via `DeviceMonitor`, scanning only when an Android device is attached.
+3. **Synchronized Bundle Framework Dylibs**:
+   - Standardized compiler and packaging scripts to automatically sync all dynamic libraries (`Defaults`, `KeyboardShortcuts`, etc.) into the app bundle.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.2/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.3/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.2.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.2/LiquidDynamo-2.0.2.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.3.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.3/LiquidDynamo-2.0.3.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 

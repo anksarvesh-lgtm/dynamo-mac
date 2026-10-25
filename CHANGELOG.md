@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.3] — 2026-10-25
+
+### Continuous Background Persistence & Stability Fixes
+- **Zero-Termination Background Operation**: Configured `NSSupportsAutomaticTermination = false`, `NSSupportsSuddenTermination = false`, and `NSAppSleepDisabled = true` across `Info.plist` and `project.pbxproj`.
+- **Latency-Critical Background Assertion**: Added persistent `ProcessInfo.processInfo.beginActivity` assertion and explicit `disableAutomaticTermination` / `disableSuddenTermination` in `AppDelegate` so macOS WindowServer and App Nap never terminate or freeze LiquidDynamo in the background.
+- **Fixed MTP libusb POSIX Key Exhaustion (SIGABRT Crash)**: Eliminated unconditional 5-second background MTP scanner loop that leaked POSIX thread keys (`pthread_key_create`). Device detection now relies on Darwin IOKit notifications via `DeviceMonitor`, completely preventing `usbi_io_init` assertion crashes after extended background runtime.
+- **Synchronized Bundle Framework Dylibs**: Ensured all compiled dylibs are synchronized into the application bundle during compilation and packaging.
+
+---
+
 ## [2.0.2] — 2026-10-24
 
 ### Dynamic Island Streamlining & UI Separation

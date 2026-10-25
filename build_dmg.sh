@@ -10,7 +10,7 @@
 set -euo pipefail
 
 APP_NAME="LiquidDynamo"
-VERSION="2.0.2"
+VERSION="2.0.3"
 CONFIG="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$HOME/Desktop}"
 INSTALL_APP="${INSTALL_APP:-true}"
