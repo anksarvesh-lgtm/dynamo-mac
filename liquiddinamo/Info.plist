@@ -23,6 +23,12 @@
 	<string>LiquidDynamo uses the camera for the optional quick mirror preview directly in the notch.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>LiquidDynamo controls Apple Music and Spotify playback from the Dynamic Island.</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+	<key>NSAppSleepDisabled</key>
+	<true/>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>

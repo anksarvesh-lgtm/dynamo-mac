@@ -187,12 +187,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var escKeyMonitor: Any?
     private var clickOutsideMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
+    private var backgroundActivityAssertion: NSObjectProtocol?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        if let token = backgroundActivityAssertion {
+            ProcessInfo.processInfo.endActivity(token)
+            backgroundActivityAssertion = nil
+        }
+        ProcessInfo.processInfo.enableAutomaticTermination("LiquidDynamo Dynamic Island and Notch background service")
+        ProcessInfo.processInfo.enableSuddenTermination()
+
         NotificationCenter.default.removeObserver(self)
         if let observer = screenLockedObserver {
             DistributedNotificationCenter.default().removeObserver(observer)
@@ -867,6 +875,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
+
+        // Proactively prevent macOS automatic termination and sudden background termination
+        ProcessInfo.processInfo.disableAutomaticTermination("LiquidDynamo Dynamic Island and Notch background service")
+        ProcessInfo.processInfo.disableSuddenTermination()
+
+        // Hold user-initiated latency-critical background activity to prevent App Nap from throttling or sleeping the app
+        backgroundActivityAssertion = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+            reason: "LiquidDynamo live notch monitor, telemetry wings, and system status"
+        )
+
         migrateWingMetricsIfNeeded()
         startClosedEventMonitors()
         if Defaults[.enableWatcherIntegration] {

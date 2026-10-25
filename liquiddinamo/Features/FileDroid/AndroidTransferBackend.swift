@@ -375,6 +375,15 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func scanDevices() async -> [AndroidDevice] {
+        return await scanDevices(force: false)
+    }
+
+    public func scanDevices(force: Bool) async -> [AndroidDevice] {
+        let hasAndroidUsb = await MainActor.run {
+            DeviceMonitor.shared.activeDevices.values.contains { $0.kind == .androidPhone }
+        }
+        guard hasAndroidUsb || force else { return [] }
+
         let bridge = KalamBridge.shared
         if !bridge.isLoaded {
             bridge.loadDylib()

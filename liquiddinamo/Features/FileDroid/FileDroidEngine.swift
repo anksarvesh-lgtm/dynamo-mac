@@ -127,7 +127,22 @@ public final class FileDroidEngine: ObservableObject {
                 guard let self = self else { return }
                 let hasAndroidUsb = devices.values.contains { $0.kind == .androidPhone }
                 if hasAndroidUsb && self.connectedDevices.isEmpty {
-                    self.scanDevices()
+                    self.scanDevices(forced: true)
+                } else if !hasAndroidUsb && !self.connectedDevices.isEmpty {
+                    // Check if any ADB wireless or remaining devices exist
+                    Task { [weak self] in
+                        guard let self = self else { return }
+                        let adbDevs = await self.adbBackend.scanDevices()
+                        await MainActor.run {
+                            if adbDevs.isEmpty {
+                                self.connectedDevices = []
+                                self.selectedDevice = nil
+                                self.stopPeriodicDeviceScanner()
+                            } else {
+                                self.connectedDevices = adbDevs
+                            }
+                        }
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -137,25 +152,44 @@ public final class FileDroidEngine: ObservableObject {
 
     public func startPeriodicDeviceScanner() {
         scanTimer?.invalidate()
-        scanDevices()
-        scanTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+        scanTimer = nil
+        // Only run periodic polling when a device is actually connected, avoiding waking CPU & libusb in background
+        guard !connectedDevices.isEmpty else { return }
+        scanTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.scanDevices()
+                self?.scanDevices(forced: false)
             }
         }
     }
 
-    public func scanDevices() {
+    public func stopPeriodicDeviceScanner() {
+        scanTimer?.invalidate()
+        scanTimer = nil
+    }
+
+    public func scanDevices(forced: Bool = false) {
         guard !isScanning else { return }
+        let hasAndroidUsb = DeviceMonitor.shared.activeDevices.values.contains { $0.kind == .androidPhone }
+        
+        // Skip background probe if no device is connected and not forced by user
+        if !hasAndroidUsb && !forced && connectedDevices.isEmpty {
+            return
+        }
+
         isScanning = true
         resolveAdbPath()
 
         Task { [weak self] in
             guard let self = self else { return }
 
-            // Probe both Kalam native MTP and FileDroid ADB
-            let mtpDevices = await self.mtpBackend.scanDevices()
+            // Probe ADB backend (always safe)
             let adbDevices = await self.adbBackend.scanDevices()
+
+            // Only probe Kalam native MTP if Android USB device is physically present or user forced
+            var mtpDevices: [AndroidDevice] = []
+            if (hasAndroidUsb || forced) && Defaults[.filedroidBackendType] != "adb" {
+                mtpDevices = await self.mtpBackend.scanDevices(force: forced)
+            }
 
             var discovered: [AndroidDevice] = mtpDevices
             for adbDev in adbDevices {
@@ -169,6 +203,12 @@ public final class FileDroidEngine: ObservableObject {
                 self.isScanning = false
                 let previousDevices = self.connectedDevices
                 self.connectedDevices = discovered
+
+                if !discovered.isEmpty {
+                    self.startPeriodicDeviceScanner()
+                } else {
+                    self.stopPeriodicDeviceScanner()
+                }
 
                 if self.selectedDevice == nil || !discovered.contains(where: { $0.serial == self.selectedDevice?.serial }) {
                     self.selectedDevice = discovered.first
