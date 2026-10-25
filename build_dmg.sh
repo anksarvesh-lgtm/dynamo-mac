@@ -1,28 +1,104 @@
 #!/usr/bin/env bash
-# Build LiquidDynamo and package it as a DMG on your Desktop.
-# Run this on your Mac, from the root of the repository:   bash build_dmg.sh
+# ==============================================================================
+# build_dmg.sh — Professional Signing, Notarization, and Packaging Pipeline
+# ==============================================================================
+# Builds LiquidDynamo, signs inside-out with Developer ID and Hardened Runtime,
+# submits for Apple Notarization, staples tickets to both .app and DMG, and
+# packages the final distributable disk image on your Desktop.
+#
+# Usage:
+#   Local test build (ad-hoc):
+#     bash build_dmg.sh
+#
+#   Official release build (Developer ID + Notarization):
+#     SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" \
+#     NOTARY_PROFILE="LIQUIDDYNAMO_NOTARY" \
+#     RELEASE=1 bash build_dmg.sh
 #
 # Optional environment variables:
-#   SCHEME            Xcode scheme (auto-detected if unset)
-#   SIGN_IDENTITY     e.g. "Developer ID Application: Your Name (TEAMID)". Default: ad-hoc ("-")
-#   NOTARY_PROFILE    name of a notarytool keychain profile (enables notarization)
-#   OUTPUT_DIR        where the DMG goes (default: ~/Desktop)
+#   RELEASE           Set to 1 or true for release distribution mode (or pass --release)
+#   SIGN_IDENTITY     e.g. "Developer ID Application: Your Name (TEAMID)". Default: "-"
+#   NOTARY_PROFILE    Keychain profile name created via `xcrun notarytool store-credentials`
+#   DEVELOPMENT_TEAM  Apple Team ID (auto-detected from SIGN_IDENTITY if not provided)
+#   SCHEME            Xcode scheme (default: LiquidDynamo)
+#   OUTPUT_DIR        Where the DMG goes (default: ~/Desktop)
+#   INSTALL_APP       Set to true to copy to /Applications (local test mode ONLY)
+# ==============================================================================
+
 set -euo pipefail
 
 APP_NAME="LiquidDynamo"
-VERSION="2.0.3"
 CONFIG="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$HOME/Desktop}"
-INSTALL_APP="${INSTALL_APP:-true}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 BUILD_DIR="$(pwd)/build"
-DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
 
 say() { printf "\n\033[1m==> %s\033[0m\n" "$*"; }
+warn() { printf "\033[33mWARNING: %s\033[0m\n" "$*"; }
 die() { printf "\033[31mERROR: %s\033[0m\n" "$*" >&2; exit 1; }
 
 command -v hdiutil >/dev/null || die "hdiutil not found (this script must run on macOS)"
 
+# ---- Parse Release Mode ----
+IS_RELEASE=false
+for arg in "$@"; do
+  if [ "$arg" = "--release" ] || [ "$arg" = "-r" ]; then
+    IS_RELEASE=true
+  fi
+done
+if [ "${RELEASE:-0}" = "1" ] || [ "${RELEASE:-}" = "true" ]; then
+  IS_RELEASE=true
+fi
+
+# ---- Extract Version from Project ----
+VERSION=""
+if [ -f "LiquidDynamo.xcodeproj/project.pbxproj" ]; then
+  VERSION="$(grep -m1 'MARKETING_VERSION' LiquidDynamo.xcodeproj/project.pbxproj | awk -F'=' '{print $2}' | tr -d ' ;\"' || true)"
+fi
+if [ -z "$VERSION" ] && [ -f "liquiddinamo/Info.plist" ]; then
+  VERSION="$(plutil -p liquiddinamo/Info.plist 2>/dev/null | grep CFBundleShortVersionString | awk '{print $NF}' | tr -d '\"' || true)"
+fi
+VERSION="${VERSION:-2.0.5}"
+DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
+
+# ---- Derive Team ID if possible ----
+if [ -z "${DEVELOPMENT_TEAM:-}" ] && [ "$SIGN_IDENTITY" != "-" ]; then
+  DEVELOPMENT_TEAM="$(echo "$SIGN_IDENTITY" | sed -n 's/.*(\([A-Z0-9]\{10\}\)).*/\1/p' || true)"
+fi
+
+# ---- Enforcement & Fail-Fast ----
+if [ "$IS_RELEASE" = "true" ]; then
+  say "Running in RELEASE DISTRIBUTION mode (version: $VERSION)"
+  if [ "$SIGN_IDENTITY" = "-" ] || [ -z "$SIGN_IDENTITY" ]; then
+    echo ""
+    printf "\033[31m=================================================================\n"
+    printf "❌ RELEASE REFUSED: Developer ID certificate is missing!\n"
+    printf "=================================================================\n"
+    printf "A release build for direct distribution CANNOT use ad-hoc signing ('-').\n"
+    printf "It will trigger macOS Gatekeeper malware alerts on every user's Mac.\n\n"
+    printf "Please provide your Apple Developer ID:\n"
+    printf "  SIGN_IDENTITY=\"Developer ID Application: Your Name (TEAMID)\" \\\n"
+    printf "  NOTARY_PROFILE=\"LIQUIDDYNAMO_NOTARY\" \\\n"
+    printf "  RELEASE=1 bash build_dmg.sh\n"
+    printf "=================================================================\033[0m\n\n"
+    die "Refusing to create an ad-hoc release build."
+  fi
+  # In release mode, NEVER overwrite /Applications or remove quarantine on local machine
+  INSTALL_APP="false"
+else
+  say "Running in LOCAL TEST mode (version: $VERSION)"
+  INSTALL_APP="${INSTALL_APP:-true}"
+  if [ "$SIGN_IDENTITY" = "-" ]; then
+    printf "\n\033[33m=================================================================\n"
+    printf "⚠️  WARNING: AD-HOC SIGNED BUILD (NOT FOR DISTRIBUTION)\n"
+    printf "This build uses ad-hoc signing ('-'). It will fail Gatekeeper\n"
+    printf "on any other Mac (\"Apple could not verify it is free of malware\").\n"
+    printf "For a public release, use: RELEASE=1 SIGN_IDENTITY=\"Developer ID Application: ...\" bash build_dmg.sh\n"
+    printf "=================================================================\033[0m\n\n"
+  fi
+fi
+
+# ---- Check Build Tools ----
 HAS_XCODE=false
 if command -v xcodebuild >/dev/null 2>&1; then
   if xcodebuild -version >/dev/null 2>&1; then
@@ -30,27 +106,29 @@ if command -v xcodebuild >/dev/null 2>&1; then
   fi
 fi
 
-# ---- build or stage ----
-say "Using scheme: ${SCHEME:-LiquidDynamo}   configuration: $CONFIG   version: $VERSION   signing: $SIGN_IDENTITY"
+# ---- Build / Stage Application ----
+say "Building $APP_NAME (version: $VERSION, signing identity: $SIGN_IDENTITY)"
 rm -rf "$BUILD_DIR"; mkdir -p "$BUILD_DIR"
 
 if [ "$HAS_XCODE" = true ]; then
-  # ---- find the project or workspace ----
   if ls ./*.xcworkspace >/dev/null 2>&1; then
     CONTAINER=(-workspace "$(ls -d ./*.xcworkspace | head -n1)")
   elif ls ./*.xcodeproj >/dev/null 2>&1; then
     CONTAINER=(-project "$(ls -d ./*.xcodeproj | head -n1)")
   else
-    die "No .xcodeproj or .xcworkspace in $(pwd). Run from the repository root."
+    die "No .xcodeproj or .xcworkspace found in $(pwd)."
   fi
 
   SCHEME="${SCHEME:-LiquidDynamo}"
-  say "Building with xcodebuild (log: $BUILD_DIR/build.log)"
+  say "Building with xcodebuild (log: $BUILD_DIR/build.log)..."
   set +e
   xcodebuild "${CONTAINER[@]}" -scheme "$SCHEME" -configuration "$CONFIG" \
     -derivedDataPath "$BUILD_DIR/derived" \
-    CODE_SIGN_IDENTITY="$SIGN_IDENTITY" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+    CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+    CODE_SIGN_STYLE=Manual \
+    DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-}" \
     ENABLE_HARDENED_RUNTIME=YES \
+    OTHER_CODE_SIGN_FLAGS="--timestamp" \
     build 2>&1 | tee "$BUILD_DIR/build.log" | tail -n 25
   STATUS=${PIPESTATUS[0]}
   set -e
@@ -62,74 +140,185 @@ if [ "$HAS_XCODE" = true ]; then
   APP_PATH="$(find "$BUILD_DIR/derived/Build/Products/$CONFIG" -maxdepth 1 -name '*.app' | head -n1)"
   [ -d "$APP_PATH" ] || die "Built .app not found under $BUILD_DIR/derived/Build/Products/$CONFIG"
 else
-  say "Active developer directory is CommandLineTools; compiling fresh binary with swiftc..."
+  say "Compiling fresh binary with swiftc via scripts/compile_dynamo.sh..."
   bash "$(pwd)/scripts/compile_dynamo.sh"
   APP_PATH="$BUILD_DIR/$APP_NAME.app"
   rm -rf "$APP_PATH"
-  cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
+  
+  if [ -d "/Applications/$APP_NAME.app" ]; then
+    cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
+  elif [ -d "$(pwd)/build/$APP_NAME.app" ]; then
+    cp -R "$(pwd)/build/$APP_NAME.app" "$APP_PATH"
+  else
+    die "Base app bundle template not found."
+  fi
+  
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
-  plutil -replace CFBundleVersion -string "15" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  plutil -replace CFBundleVersion -string "17" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  
   # Install fresh compiled binary
   cp /tmp/spm_deps/LiquidDynamo_test "$APP_PATH/Contents/MacOS/$APP_NAME"
   chmod +x "$APP_PATH/Contents/MacOS/$APP_NAME"
+  
   # Install dependency dylibs and frameworks
   mkdir -p "$APP_PATH/Contents/Frameworks"
-  cp -f /tmp/spm_deps/bundle_frameworks/* "$APP_PATH/Contents/Frameworks/"
+  cp -f /tmp/spm_deps/bundle_frameworks/* "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
   rm -rf "$APP_PATH/Contents/Frameworks/Sparkle.framework" "$APP_PATH/Contents/Frameworks/Lottie.framework"
   cp -R /tmp/spm_deps/frameworks_flat/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
   cp -R /tmp/spm_deps/frameworks_flat/Lottie.framework "$APP_PATH/Contents/Frameworks/"
-  cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/"
+  if [ -d "$(pwd)/Frameworks" ]; then
+    cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
+  fi
 fi
 
 say "Staged Application: $APP_PATH"
 
-# ---- sign + verify ----
-say "Signing"
+# ==============================================================================
+# INSIDE-OUT CODE SIGNING
+# ==============================================================================
+# Apple Notarization requires every embedded Mach-O binary (dylibs, helper
+# executables, XPCs, frameworks) to be signed with Developer ID, Hardened
+# Runtime (--options runtime), and a Secure Timestamp (--timestamp).
+# Signing MUST be done inside-out so outer SHA-1/SHA-256 code seals remain valid.
+# ==============================================================================
+say "Signing Application Bundle inside-out..."
 
-if [ -d "$APP_PATH/Contents/Frameworks" ]; then
-  for dylib in "$APP_PATH/Contents/Frameworks"/*.dylib; do
-    [ -f "$dylib" ] && codesign --force --sign "$SIGN_IDENTITY" "$dylib"
-  done
-  for fw in "$APP_PATH/Contents/Frameworks"/*.framework; do
-    [ -d "$fw" ] && codesign --force --sign "$SIGN_IDENTITY" "$fw"
+SIGN_FLAGS=(--force)
+if [ "$SIGN_IDENTITY" != "-" ]; then
+  SIGN_FLAGS+=(--timestamp)
+fi
+
+# 1. Sign standalone Mach-O executables in Resources (e.g. MediaRemoteAdapterTestClient)
+if [ -d "$APP_PATH/Contents/Resources" ]; then
+  find "$APP_PATH/Contents/Resources" -type f ! -name ".*" | while read -r res_file; do
+    if file -b "$res_file" | grep -q "Mach-O"; then
+      say "  Signing standalone binary in Resources: $(basename "$res_file")"
+      codesign "${SIGN_FLAGS[@]}" --options runtime --sign "$SIGN_IDENTITY" "$res_file"
+    fi
   done
 fi
+
+# 2. Sign all individual dylibs in Frameworks
+if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+  find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type f -name "*.dylib" | while read -r dylib; do
+    say "  Signing dynamic library: $(basename "$dylib")"
+    codesign "${SIGN_FLAGS[@]}" --options runtime --sign "$SIGN_IDENTITY" "$dylib"
+  done
+fi
+
+# 3. Sign nested XPC services inside frameworks (e.g. Sparkle Downloader & Installer)
+find "$APP_PATH/Contents/Frameworks" -type d -name "*.xpc" 2>/dev/null | sort -r | while read -r nested_xpc; do
+  say "  Signing nested framework XPC: $(basename "$nested_xpc")"
+  codesign "${SIGN_FLAGS[@]}" --options runtime --sign "$SIGN_IDENTITY" "$nested_xpc"
+done
+
+# 4. Sign nested helper applications inside frameworks (e.g. Sparkle Updater.app)
+find "$APP_PATH/Contents/Frameworks" -type d -name "*.app" 2>/dev/null | sort -r | while read -r nested_app; do
+  say "  Signing nested framework helper app: $(basename "$nested_app")"
+  codesign "${SIGN_FLAGS[@]}" --options runtime --sign "$SIGN_IDENTITY" "$nested_app"
+done
+
+# 5. Sign standalone helper executables in frameworks (e.g. Sparkle Autoupdate)
+find "$APP_PATH/Contents/Frameworks" -type f -name "Autoupdate" 2>/dev/null | while read -r autoupdate; do
+  say "  Signing framework helper tool: $(basename "$autoupdate")"
+  codesign "${SIGN_FLAGS[@]}" --options runtime --sign "$SIGN_IDENTITY" "$autoupdate"
+done
+
+# 6. Sign framework bundles deepest first
+find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type d -name "*.framework" | sort -r | while read -r fw; do
+  say "  Signing framework bundle: $(basename "$fw")"
+  codesign "${SIGN_FLAGS[@]}" --options runtime --sign "$SIGN_IDENTITY" "$fw"
+done
+
+# 7. Sign top-level XPCServices with helper entitlements
 if [ -d "$APP_PATH/Contents/XPCServices" ]; then
   for xpc in "$APP_PATH/Contents/XPCServices"/*.xpc; do
-    [ -d "$xpc" ] && codesign --force --entitlements "LiquidDynamoXPCHelper/LiquidDynamoXPCHelper.entitlements" --sign "$SIGN_IDENTITY" "$xpc"
+    if [ -d "$xpc" ]; then
+      say "  Signing XPC service: $(basename "$xpc") with LiquidDynamoXPCHelper.entitlements"
+      codesign "${SIGN_FLAGS[@]}" --options runtime \
+        --entitlements "LiquidDynamoXPCHelper/LiquidDynamoXPCHelper.entitlements" \
+        --sign "$SIGN_IDENTITY" "$xpc"
+    fi
   done
 fi
-codesign --force --entitlements "liquiddinamo/LiquidDynamo.entitlements" --options runtime --sign "$SIGN_IDENTITY" "$APP_PATH"
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-codesign -dvv "$APP_PATH" 2>&1 | grep -E "Identifier|Authority|TeamIdentifier|Signature" || true
 
-# ---- Install fresh build to /Applications (optional) ----
-if [ "${INSTALL_APP:-false}" = "true" ]; then
-  say "Installing fresh build to /Applications/$APP_NAME.app"
+# 8. Finally, sign the main application bundle with primary entitlements
+say "  Signing main application bundle with LiquidDynamo.entitlements..."
+codesign "${SIGN_FLAGS[@]}" --options runtime \
+  --entitlements "liquiddinamo/LiquidDynamo.entitlements" \
+  --sign "$SIGN_IDENTITY" "$APP_PATH"
+
+# ---- Deep Verification ----
+say "Verifying application code signature..."
+codesign --verify --strict --verbose=2 "$APP_PATH"
+codesign -dvv "$APP_PATH" 2>&1 | grep -E "Identifier|Authority|TeamIdentifier|Signature|flags|Timestamp" || true
+
+# ==============================================================================
+# STAGE 1: NOTARIZE AND STAPLE THE .APP BUNDLE
+# ==============================================================================
+# The .app bundle MUST be notarized and stapled before DMG packaging so that
+# users who drag the app out of the DMG have a valid staple ticket locally,
+# allowing offline launch without Gatekeeper network lookups.
+# ==============================================================================
+if [ -n "${NOTARY_PROFILE:-}" ] && [ "$SIGN_IDENTITY" != "-" ]; then
+  say "Stage 1: Submitting $APP_NAME.app to Apple Notary Service..."
+  APP_ZIP="$BUILD_DIR/$APP_NAME.zip"
+  rm -f "$APP_ZIP"
+  ditto -c -k --keepParent "$APP_PATH" "$APP_ZIP"
+
+  NOTARY_LOG="$BUILD_DIR/notary_app_submit.log"
+  set +e
+  xcrun notarytool submit "$APP_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee "$NOTARY_LOG"
+  NOTARY_STATUS=${PIPESTATUS[0]}
+  set -e
+
+  SUBMISSION_ID="$(grep -E "id: " "$NOTARY_LOG" | head -n1 | awk '{print $2}' || true)"
+
+  if [ "$NOTARY_STATUS" -ne 0 ] || grep -qi "status: Invalid" "$NOTARY_LOG"; then
+    echo ""
+    printf "\033[31m=================================================================\n"
+    printf "❌ NOTARIZATION REJECTED FOR APPLICATION BUNDLE\n"
+    printf "=================================================================\033[0m\n"
+    if [ -n "$SUBMISSION_ID" ]; then
+      say "Fetching Apple Notary error log for submission: $SUBMISSION_ID"
+      xcrun notarytool log "$SUBMISSION_ID" --keychain-profile "$NOTARY_PROFILE" || true
+    fi
+    die "Application notarization failed. Review issues above."
+  fi
+
+  say "Stage 1 Notarization Accepted! Stapling ticket to $APP_NAME.app..."
+  xcrun stapler staple "$APP_PATH"
+  xcrun stapler validate "$APP_PATH"
+  rm -f "$APP_ZIP"
+fi
+
+# ---- Local Install (local test builds only) ----
+if [ "${INSTALL_APP:-false}" = "true" ] && [ "$IS_RELEASE" = "false" ]; then
+  say "Installing local test build to /Applications/$APP_NAME.app..."
   pkill -9 -f "/Applications/$APP_NAME.app" 2>/dev/null || true
   sleep 1
   rm -rf "/Applications/$APP_NAME.app"
   cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
   xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
-else
-  say "Skipping /Applications install as requested (INSTALL_APP=false). App bundle saved in $BUILD_DIR and packaged into $DMG_PATH."
 fi
 
-# ---- package DMG with App Icon and Professional Layout ----
-say "Creating Professional DMG: $DMG_PATH"
+# ==============================================================================
+# STAGE 2: BUILD, SIGN, AND NOTARIZE THE DMG
+# ==============================================================================
+say "Packaging Professional DMG: $DMG_PATH"
 STAGE="$BUILD_DIR/dmg-stage"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 cp -R "$APP_PATH" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 
-# Copy AppIcon.icns for DMG volume icon branding
+# Copy AppIcon.icns for volume icon
 if [ -f "$APP_PATH/Contents/Resources/AppIcon.icns" ]; then
   cp "$APP_PATH/Contents/Resources/AppIcon.icns" "$STAGE/.VolumeIcon.icns"
   SetFile -c icnC "$STAGE/.VolumeIcon.icns" 2>/dev/null || true
   SetFile -a C "$STAGE" 2>/dev/null || true
 fi
 
-# Copy DMG background image if available
+# Copy background picture if available
 if [ -f "$(pwd)/Configuration/dmg/.background/background.tiff" ]; then
   mkdir -p "$STAGE/.background"
   cp "$(pwd)/Configuration/dmg/.background/background.tiff" "$STAGE/.background/"
@@ -138,7 +327,6 @@ fi
 mkdir -p "$OUTPUT_DIR"
 rm -f "$DMG_PATH"
 
-# Create read-write temporary disk image to position icons
 TEMP_DMG="$BUILD_DIR/temp.dmg"
 rm -f "$TEMP_DMG"
 hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDRW -fs HFS+ "$TEMP_DMG" >/dev/null
@@ -186,163 +374,49 @@ fi
 # Convert to final compressed DMG
 hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" >/dev/null
 rm -f "$TEMP_DMG"
+rm -rf "$STAGE"
 
-[ "$SIGN_IDENTITY" != "-" ] && codesign --force --sign "$SIGN_IDENTITY" "$DMG_PATH"
+# Sign the DMG
+if [ "$SIGN_IDENTITY" != "-" ]; then
+  say "Signing final DMG container..."
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+fi
 
-# ---- optional notarization ----
+# Notarize and staple the DMG
 if [ -n "${NOTARY_PROFILE:-}" ] && [ "$SIGN_IDENTITY" != "-" ]; then
-  say "Notarizing (this can take a few minutes)"
-  xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+  say "Stage 2: Submitting final DMG to Apple Notary Service..."
+  DMG_NOTARY_LOG="$BUILD_DIR/notary_dmg_submit.log"
+  set +e
+  xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1 | tee "$DMG_NOTARY_LOG"
+  DMG_NOTARY_STATUS=${PIPESTATUS[0]}
+  set -e
+
+  DMG_SUBMISSION_ID="$(grep -E "id: " "$DMG_NOTARY_LOG" | head -n1 | awk '{print $2}' || true)"
+
+  if [ "$DMG_NOTARY_STATUS" -ne 0 ] || grep -qi "status: Invalid" "$DMG_NOTARY_LOG"; then
+    echo ""
+    printf "\033[31m=================================================================\n"
+    printf "❌ NOTARIZATION REJECTED FOR DMG CONTAINER\n"
+    printf "=================================================================\033[0m\n"
+    if [ -n "$DMG_SUBMISSION_ID" ]; then
+      say "Fetching Apple Notary error log for DMG submission: $DMG_SUBMISSION_ID"
+      xcrun notarytool log "$DMG_SUBMISSION_ID" --keychain-profile "$NOTARY_PROFILE" || true
+    fi
+    die "DMG notarization failed. Review issues above."
+  fi
+
+  say "Stage 2 Notarization Accepted! Stapling ticket to DMG..."
   xcrun stapler staple "$DMG_PATH"
+  xcrun stapler validate "$DMG_PATH"
 fi
 
-# ---- generate Release Notes and Build Report ----
-say "Writing Release Notes and Build Report"
-
-cat <<'EOF' > "$OUTPUT_DIR/ReleaseNotes.txt"
-LiquidDynamo 1.9.8 — Production Release
-========================================
-Release Date: October 2026
-Version: 1.9.8 (Build 18)
-Build Type: Production Release
-
-LiquidDynamo transforms the MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
-
-Core Highlights in Version 1.9.8:
-1. Native Settings Window Redesign:
-   - Full dark frosted-glass visual overhaul matching the reference specification.
-   - 3D liquid droplet branding, solid blue navigation pill, and compact cards.
-   - Realistic notch and wing preview capsules.
-   - Independent Left & Right Wing Content selectors with dropdown pill pickers.
-   - 4x3 Available Wing Items interactive grid.
-2. Watcher — AI Agent Session Monitor:
-   - Native 3D Liquid Glass session monitoring for Claude Code, Antigravity, Cursor, Codex, Gemini CLI, Copilot CLI, etc.
-   - Real-time diff counters (+N -M) and step ticker directly in the notch.
-   - One-click Allow / Deny / Always tool authorizations from the notch.
-   - Zero-idle CPU Unix domain socket IPC listener.
-3. Compact Connected-Device Overlays:
-   - Notch-anchored 3D Liquid Glass capsule replacing oversized device overlays.
-EOF
-
-cat <<EOF > "$OUTPUT_DIR/BuildReport.txt"
-LiquidDynamo Production Build Report
-=====================================
-Application Name: $APP_NAME
-Marketing Version: $VERSION
-Current Project Version: 18
-Build Configuration: $CONFIG
-Build Type: Production Release
-Deployment Target: macOS 14.0+
-Architecture: arm64
-Signed: $SIGN_IDENTITY
-Codesign Verification: Passed (deep, strict)
-DMG Package: $DMG_PATH
-Volume Name: $APP_NAME
-Branding Assets: AppIcon.icns, .VolumeIcon.icns, .background/background.tiff
-Safe Area Engine: NotchSafeAreaEngine integrated
-Build Timestamp: $(date)
-Status: Succeeded & Validated
-EOF
-
-# Also create convenience copy/symlink
-cp -f "$DMG_PATH" "$OUTPUT_DIR/LiquidDynamo.dmg" 2>/dev/null || true
-
-say "Done: $DMG_PATH"
-say "Convenience: $OUTPUT_DIR/LiquidDynamo.dmg"
-say "Release Notes: $OUTPUT_DIR/ReleaseNotes.txt"
-say "Build Report: $OUTPUT_DIR/BuildReport.txt"
-
-# ---- install to /Applications if requested ----
-if [ "$INSTALL_APP" = "true" ]; then
-  say "Installing $APP_NAME to /Applications/$APP_NAME.app..."
-  killall "$APP_NAME" 2>/dev/null || true
-  sleep 1
-  rm -rf "/Applications/$APP_NAME.app"
-  cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
-  xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
-  say "Launching updated /Applications/$APP_NAME.app..."
-  open "/Applications/$APP_NAME.app"
-fi
-
-# ---- optional upload to GitHub tag [app] ----
-if [ "${UPLOAD_APP_RELEASE:-true}" = "true" ]; then
-  say "Syncing tag 'app' and uploading LiquidDynamo.dmg to GitHub Release..."
-  python3 -c "
-import subprocess, json, urllib.request, os, sys
-
-def get_token():
-    proc = subprocess.Popen(['git', 'credential', 'fill'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    out, _ = proc.communicate(input='protocol=https\nhost=github.com\n\n')
-    for line in out.splitlines():
-        if line.startswith('password='):
-            return line.split('=', 1)[1]
-    return None
-
-token = get_token()
-if not token:
-    print('==> Skipping remote release upload: no GitHub credentials in git.')
-    sys.exit(0)
-
-repo = 'anksarvesh-lgtm/dynamo-mac'
-dmg_path = os.path.expanduser('$OUTPUT_DIR/LiquidDynamo.dmg')
-if not os.path.exists(dmg_path):
-    sys.exit(0)
-
-# 1. Update tag 'app' and version tag locally and on remote
-subprocess.run(['git', 'tag', '-f', '-a', 'app', '-m', 'LiquidDynamo Latest Release'], check=False)
-subprocess.run(['git', 'tag', '-f', '-a', 'v$VERSION', '-m', 'LiquidDynamo v$VERSION Release'], check=False)
-subprocess.run(['git', 'push', 'origin', 'app', '--force'], check=False)
-subprocess.run(['git', 'push', 'origin', 'v$VERSION', '--force'], check=False)
-
-# 2. Get or create release for tag 'app'
-headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'User-Agent': 'LiquidDynamo-Release-Agent'}
-rel_url = f'https://api.github.com/repos/{repo}/releases/tags/app'
-req = urllib.request.Request(rel_url, headers=headers)
-release_id = None
-upload_url = None
-try:
-    with urllib.request.urlopen(req) as resp:
-        data = json.loads(resp.read().decode())
-        release_id = data['id']
-        upload_url = data['upload_url'].split('{')[0]
-except Exception:
-    pass
-
-if not release_id:
-    create_payload = json.dumps({'tag_name': 'app', 'name': 'LiquidDynamo (Latest)', 'draft': False, 'prerelease': False}).encode()
-    creq = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases', data=create_payload, headers={**headers, 'Content-Type': 'application/json'}, method='POST')
-    try:
-        with urllib.request.urlopen(creq) as resp:
-            data = json.loads(resp.read().decode())
-            release_id = data['id']
-            upload_url = data['upload_url'].split('{')[0]
-    except Exception as e:
-        print(f'==> Warning: Could not create release for tag app: {e}')
-        sys.exit(0)
-
-# Delete existing LiquidDynamo.dmg on tag app if present
-try:
-    areq = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases/{release_id}/assets', headers=headers)
-    with urllib.request.urlopen(areq) as resp:
-        assets = json.loads(resp.read().decode())
-        for a in assets:
-            if a['name'] == 'LiquidDynamo.dmg':
-                dreq = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases/assets/{a[\"id\"]}', headers=headers, method='DELETE')
-                with urllib.request.urlopen(dreq):
-                    pass
-except Exception:
-    pass
-
-# Upload new LiquidDynamo.dmg
-with open(dmg_path, 'rb') as f:
-    dmg_bytes = f.read()
-
-ureq = urllib.request.Request(f'{upload_url}?name=LiquidDynamo.dmg', data=dmg_bytes, headers={**headers, 'Content-Type': 'application/octet-stream'}, method='POST')
-try:
-    with urllib.request.urlopen(ureq) as resp:
-        ainfo = json.loads(resp.read().decode())
-        print(f'==> Uploaded LiquidDynamo.dmg to tag [app]: {ainfo.get(\"browser_download_url\")}')
-except Exception as e:
-    print(f'==> Asset upload notice: {e}')
-" || true
-fi
+# ==============================================================================
+# SUMMARY & VERIFICATION
+# ==============================================================================
+say "Build & Packaging Complete!"
+echo "  Artifact: $DMG_PATH"
+echo "  Size:     $(du -sh "$DMG_PATH" | awk '{print $1}')"
+echo "  Version:  $VERSION"
+echo ""
+echo "To verify this release artifact against Gatekeeper, run:"
+echo "  bash scripts/verify_release.sh \"$DMG_PATH\""
