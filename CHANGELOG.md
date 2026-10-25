@@ -2,6 +2,25 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.5] — 2026-10-25
+
+### Permanent Multi-Display Island & Ambient Wing Indicators
+- **Permanent "Show on all displays" Enforcement (Change A)**:
+  - "Show on all displays" is now permanently ON for all users, including existing installs with a stored `false`.
+  - Removed all 4 configuration UI surfaces: menu bar toggle, Settings System Features toggle & dependent pickers, Behavior Settings toggle & pickers, and Onboarding checkbox.
+  - Added leak-free `Defaults.observe(.showOnAllDisplays)` guard in `AppDelegate` to immediately restore `true` upon any external modification.
+- **Island Capsule Streamlining (Change B)**:
+  - Removed the CPU-temp + RAM status capsule (`systemMetricsBar`) from the open Dynamic Island in `LiquidOrganicNotchView.swift`.
+  - Island height now adapts naturally via content-height measurement without empty spacing or leftover vertical gaps.
+  - Eliminated redundant local `SystemStatsService` observer from `LiquidOrganicNotchView`.
+- **Ambient Wing Bottom Indicators (Change C)**:
+  - **LEFT Wing CPU-Temperature Glow (`CPUTempGlowEdge`)**: Edge-aligned 2pt rounded line with soft bloom and gradient fade. Features smooth interpolated gradient (<=45°C cyan/teal, 45-60°C green, 60-72°C yellow, 72-82°C orange, >=82°C red), fallback to macOS `ProcessInfo.ThermalState` when temperature sensors are unavailable, and slow urgency breathing at >=85°C (respecting `accessibilityReduceMotion`).
+  - **RIGHT Wing RAM Status Bar (`RAMBottomBar`)**: 2.5pt progress bar with 12% white track, filled from the hardware notch outward with subtle glow, dynamically colored by RAM percentage & memory pressure severity (<60% cyan/green, 60-80% yellow, 80-90% orange, >=90% red) and clamped to [0.0, 1.0].
+  - **Telemetry Lifecycle Management**: `SystemStatsService` starts whenever any wing with an indicator is visible and cleanly terminates when wings or side readouts are disabled (`.none`), keeping idle CPU at ~0%.
+  - Fully clipped to `LeftNotchDropShape`, `RightNotchDropShape`, and `Capsule` silhouettes without altering wing geometry or touch targets.
+
+---
+
 ## [2.0.4] — 2026-10-25
 
 ### Live Dynamic Wing Auto-Arrangement & Multi-Display Architecture
