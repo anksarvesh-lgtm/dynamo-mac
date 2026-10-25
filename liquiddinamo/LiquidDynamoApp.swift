@@ -748,7 +748,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             targetSize = CGSize(width: capsuleSize.width, height: popH)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            let neededW = max(geom.compactPillWidth, explicitSize?.width ?? IslandController.shared.targetSize.width)
+            let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+            let candidateW = explicitSize?.width ?? IslandController.shared.targetSize.width
+            let neededW = max(minBaseW, candidateW)
             targetSize = CGSize(width: neededW, height: geom.notchHeight)
             shouldIgnore = false
         }
@@ -854,7 +856,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             shouldIgnore = false
         case .idle, .compact, .minimal:
             let restingW = getClosedNotchSize(screenUUID: screen.displayUUID).width
-            targetSize = CGSize(width: max(restingW, IslandController.shared.targetSize.width), height: geom.notchHeight)
+            let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+            let candidateW = IslandController.shared.targetSize.width > 0 ? IslandController.shared.targetSize.width : restingW
+            targetSize = CGSize(width: max(minBaseW, candidateW), height: geom.notchHeight)
             shouldIgnore = false
         }
 

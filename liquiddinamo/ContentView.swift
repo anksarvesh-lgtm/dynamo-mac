@@ -1106,21 +1106,22 @@ struct LeftNotchDropShape: Shape {
     var cornerRadius: CGFloat = 10
 
     func path(in rect: CGRect) -> Path {
+        let cr = min(cornerRadius, min(rect.width / 2, rect.height / 2))
         var path = Path()
         // Top right: flush with notch wall
         path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
         // Down the notch wall to bottom right
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         // Leftward along bottom edge
-        path.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + cr, y: rect.maxY))
         // Rounded droplet tip on left
         path.addQuadCurve(
-            to: CGPoint(x: rect.minX, y: rect.maxY - cornerRadius),
+            to: CGPoint(x: rect.minX, y: rect.maxY - cr),
             control: CGPoint(x: rect.minX, y: rect.maxY)
         )
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cornerRadius))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cr))
         path.addQuadCurve(
-            to: CGPoint(x: rect.minX + cornerRadius, y: rect.minY),
+            to: CGPoint(x: rect.minX + cr, y: rect.minY),
             control: CGPoint(x: rect.minX, y: rect.minY)
         )
         // Top edge back to notch wall
@@ -1134,19 +1135,20 @@ struct RightNotchDropShape: Shape {
     var cornerRadius: CGFloat = 10
 
     func path(in rect: CGRect) -> Path {
+        let cr = min(cornerRadius, min(rect.width / 2, rect.height / 2))
         var path = Path()
         // Top left: flush with notch wall
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
         // Top edge outward to the right
-        path.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - cr, y: rect.minY))
         // Rounded droplet tip on right
         path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.minY + cornerRadius),
+            to: CGPoint(x: rect.maxX, y: rect.minY + cr),
             control: CGPoint(x: rect.maxX, y: rect.minY)
         )
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerRadius))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cr))
         path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
+            to: CGPoint(x: rect.maxX - cr, y: rect.maxY),
             control: CGPoint(x: rect.maxX, y: rect.maxY)
         )
         // Bottom edge back inward toward notch wall
@@ -1226,17 +1228,17 @@ struct CollapsedLiveInfoWingsView: View {
         }
     }
 
-    private func reportDynamicWidth(geom: NotchGeometry) {
-        let leftW = currentLeftWingWidth
-        let rightW = currentRightWingWidth
+    private func reportDynamicWidth(geom: NotchGeometry, overrideLeft: CGFloat? = nil, overrideRight: CGFloat? = nil) {
+        let leftW = overrideLeft ?? currentLeftWingWidth
+        let rightW = overrideRight ?? currentRightWingWidth
         let maxW = max(leftW, rightW)
         let totalW: CGFloat = {
             if geom.isNotched {
                 return geom.rawNotchWidth + 14.0 + (2.0 * maxW)
             } else {
-                let leftPart = (leftWingMetric != .none) ? (leftW + 8.0) : 0
-                let rightPart = (rightWingMetric != .none) ? (rightW + 8.0) : 0
-                return 160.0 + leftPart + rightPart
+                let showLeft = enableSideReadouts && leftWingMetric != .none
+                let showRight = enableSideReadouts && rightWingMetric != .none
+                return (showLeft || showRight) ? (160.0 + (2.0 * (maxW + 8.0))) : 160.0
             }
         }()
         IslandController.shared.adjustTargetWidthForWingsIfNeeded(totalW, wingWidth: maxW, leftWidth: leftW, rightWidth: rightW)
@@ -1327,100 +1329,122 @@ struct CollapsedLiveInfoWingsView: View {
                         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
                         .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
                             guard w > 0 else { return }
-                            if abs(self.measuredLeftWingWidth - w) >= 1.5 {
-                                self.measuredLeftWingWidth = w
-                                self.reportDynamicWidth(geom: geom)
+                            let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                            if abs(self.measuredLeftWingWidth - targetW) >= 1.0 {
+                                withAnimation(IslandMotion.shared.expandSpring) {
+                                    self.measuredLeftWingWidth = targetW
+                                }
+                                self.reportDynamicWidth(geom: geom, overrideLeft: targetW)
                             }
                         }
                         .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
                             guard w > 0 else { return }
-                            if abs(self.measuredRightWingWidth - w) >= 1.5 {
-                                self.measuredRightWingWidth = w
-                                self.reportDynamicWidth(geom: geom)
+                            let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                            if abs(self.measuredRightWingWidth - targetW) >= 1.0 {
+                                withAnimation(IslandMotion.shared.expandSpring) {
+                                    self.measuredRightWingWidth = targetW
+                                }
+                                self.reportDynamicWidth(geom: geom, overrideRight: targetW)
                             }
                         }
                     } else {
                         EmptyView()
                     }
                 } else {
-                    // Non-notched display: Always show central Dynamic Island capsule, flanked by wings if enabled
+                    // Non-notched display: Central Floating Dynamic Island Pill flanked by auto-arranging wings
                     HStack(spacing: 8) {
-                        if enableSideReadouts && leftWingMetric != .none {
-                            leftDropContent
-                                .padding(.leading, 8)
-                                .padding(.trailing, 9)
-                                .padding(.vertical, 3)
-                                .fixedSize(horizontal: true, vertical: false)
-                                .frame(minWidth: currentLeftWingWidth)
-                                .background(
-                                    GeometryReader { proxy in
-                                        Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width)
+                        // Left Wing Slot: Trailing-aligned inside symmetric slot
+                        HStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            if enableSideReadouts && leftWingMetric != .none {
+                                leftDropContent
+                                    .padding(.leading, 8)
+                                    .padding(.trailing, 9)
+                                    .padding(.vertical, 3)
+                                    .fixedSize(horizontal: true, vertical: false)
+                                    .background(
+                                        GeometryReader { proxy in
+                                            Color.clear.preference(key: LeftWingWidthPreferenceKey.self, value: proxy.size.width)
+                                        }
+                                    )
+                                    .frame(width: currentLeftWingWidth)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.black.opacity(0.75))
+                                            .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                                    )
+                                    .onHover { hovering in
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            isLeftHovering = hovering
+                                        }
                                     }
-                                )
-                                .background(
-                                    Capsule()
-                                        .fill(Color.black.opacity(0.75))
-                                        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
-                                )
-                                .onHover { hovering in
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        isLeftHovering = hovering
+                                    .onTapGesture {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                            isLeftDetailExpanded.toggle()
+                                        }
+                                        scheduleAutoCollapse()
                                     }
-                                }
-                                .onTapGesture {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        isLeftDetailExpanded.toggle()
-                                    }
-                                    scheduleAutoCollapse()
-                                }
+                            }
                         }
+                        .frame(width: maxW, alignment: .trailing)
 
                         // Central Floating Dynamic Island Pill
                         centralFloatingIslandPill(geom: geom)
 
-                        if enableSideReadouts && rightWingMetric != .none {
-                            rightDropContent
-                                .padding(.leading, 8)
-                                .padding(.trailing, 9)
-                                .padding(.vertical, 3)
-                                .fixedSize(horizontal: true, vertical: false)
-                                .frame(minWidth: currentRightWingWidth)
-                                .background(
-                                    GeometryReader { proxy in
-                                        Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width)
+                        // Right Wing Slot: Leading-aligned inside symmetric slot
+                        HStack(spacing: 0) {
+                            if enableSideReadouts && rightWingMetric != .none {
+                                rightDropContent
+                                    .padding(.leading, 8)
+                                    .padding(.trailing, 9)
+                                    .padding(.vertical, 3)
+                                    .fixedSize(horizontal: true, vertical: false)
+                                    .background(
+                                        GeometryReader { proxy in
+                                            Color.clear.preference(key: RightWingWidthPreferenceKey.self, value: proxy.size.width)
+                                        }
+                                    )
+                                    .frame(width: currentRightWingWidth)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.black.opacity(0.75))
+                                            .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                                    )
+                                    .onHover { hovering in
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            isRightHovering = hovering
+                                        }
                                     }
-                                )
-                                .background(
-                                    Capsule()
-                                        .fill(Color.black.opacity(0.75))
-                                        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
-                                )
-                                .onHover { hovering in
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        isRightHovering = hovering
+                                    .onTapGesture {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                            isRightDetailExpanded.toggle()
+                                        }
+                                        scheduleAutoCollapse()
                                     }
-                                }
-                                .onTapGesture {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        isRightDetailExpanded.toggle()
-                                    }
-                                    scheduleAutoCollapse()
-                                }
+                            }
+                            Spacer(minLength: 0)
                         }
+                        .frame(width: maxW, alignment: .leading)
                     }
                     .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
                     .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
                         guard w > 0 else { return }
-                        if abs(self.measuredLeftWingWidth - w) >= 1.5 {
-                            self.measuredLeftWingWidth = w
-                            self.reportDynamicWidth(geom: geom)
+                        let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                        if abs(self.measuredLeftWingWidth - targetW) >= 1.0 {
+                            withAnimation(IslandMotion.shared.expandSpring) {
+                                self.measuredLeftWingWidth = targetW
+                            }
+                            self.reportDynamicWidth(geom: geom, overrideLeft: targetW)
                         }
                     }
                     .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
                         guard w > 0 else { return }
-                        if abs(self.measuredRightWingWidth - w) >= 1.5 {
-                            self.measuredRightWingWidth = w
-                            self.reportDynamicWidth(geom: geom)
+                        let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                        if abs(self.measuredRightWingWidth - targetW) >= 1.0 {
+                            withAnimation(IslandMotion.shared.expandSpring) {
+                                self.measuredRightWingWidth = targetW
+                            }
+                            self.reportDynamicWidth(geom: geom, overrideRight: targetW)
                         }
                     }
                 }
@@ -1436,6 +1460,9 @@ struct CollapsedLiveInfoWingsView: View {
             self.reportDynamicWidth(geom: geom)
         }
         .onChange(of: wingWidth) { _ in
+            self.reportDynamicWidth(geom: geom)
+        }
+        .onChange(of: alwaysShowSideReadoutText) { _ in
             self.reportDynamicWidth(geom: geom)
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleSideReadoutDetails)) { notif in

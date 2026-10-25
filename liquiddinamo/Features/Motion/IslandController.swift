@@ -604,9 +604,9 @@ public final class IslandController: ObservableObject {
         case .idle, .compact:
             let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
             let showWings = hasWings || !registeredActivities.isEmpty
-            let wingW = max(geom.wingWidth, activeWingWidth)
+            let wingW = Defaults[.autoFitWings] ? activeWingWidth : max(geom.wingWidth, activeWingWidth)
             let baseW = geom.isNotched ? (geom.rawNotchWidth + 14.0 + (2.0 * wingW)) : (160.0 + (2.0 * (wingW + 8.0)))
-            let w = showWings ? max(geom.compactPillWidth, baseW) : (geom.isNotched ? restingWidth : 160.0)
+            let w = showWings ? (Defaults[.autoFitWings] ? baseW : max(geom.compactPillWidth, baseW)) : (geom.isNotched ? restingWidth : 160.0)
             return CGSize(width: w, height: restingHeight)
 
         case .minimal:
@@ -748,7 +748,7 @@ public final class IslandController: ObservableObject {
     public func adjustTargetWidthForWingsIfNeeded(_ measuredWidth: CGFloat, wingWidth: CGFloat, leftWidth: CGFloat? = nil, rightWidth: CGFloat? = nil) {
         guard state == .idle || state == .compact else { return }
         let geom = NotchSafeAreaEngine.shared.currentGeometry
-        let minW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 28.0) : 160.0
+        let minW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
         let neededW = max(minW, measuredWidth)
 
         if let lw = leftWidth, abs(activeLeftWingWidth - lw) >= 1.0 {
@@ -761,12 +761,12 @@ public final class IslandController: ObservableObject {
             activeWingWidth = wingWidth
         }
 
-        guard abs(targetSize.width - neededW) >= 2.0 else { return }
+        guard abs(targetSize.width - neededW) >= 1.5 else { return }
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self, self.state == .idle || self.state == .compact else { return }
             let finalW = max(minW, neededW)
-            if abs(self.targetSize.width - finalW) >= 2.0 {
+            if abs(self.targetSize.width - finalW) >= 1.5 {
                 withAnimation(IslandMotion.shared.expandSpring) {
                     self.targetSize.width = finalW
                 }

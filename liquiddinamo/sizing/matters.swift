@@ -41,6 +41,16 @@ enum MusicPlayerImageSizes {
     let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
     let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
     if hasWings {
+        if Defaults[.autoFitWings] {
+            let activeW = IslandController.shared.activeWingWidth
+            let minWing: CGFloat = 36.0
+            let wingW = max(minWing, activeW)
+            if geom.hasPhysicalNotch {
+                return CGSize(width: geom.rawNotchWidth + 14.0 + (2.0 * wingW), height: geom.notchHeight)
+            } else {
+                return CGSize(width: 160.0 + (2.0 * (wingW + 8.0)), height: geom.notchHeight)
+            }
+        }
         return CGSize(width: geom.compactPillWidth, height: geom.notchHeight)
     }
     if geom.hasPhysicalNotch {
