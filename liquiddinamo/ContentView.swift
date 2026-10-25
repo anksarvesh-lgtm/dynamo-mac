@@ -71,6 +71,7 @@ struct ContentView: View {
 
     @Default(.useMusicVisualizer) var useMusicVisualizer
 
+    @Default(.enableSideReadouts) var enableSideReadouts
     @Default(.leftWingMetric) var leftWingMetric
     @Default(.rightWingMetric) var rightWingMetric
 
@@ -226,6 +227,9 @@ struct ContentView: View {
             .onChange(of: rightWingMetric) { _, _ in
                 updateSystemStatsLifecycle()
                 updateNetworkLifecycle()
+            }
+            .onChange(of: enableSideReadouts) { _, _ in
+                updateSystemStatsLifecycle()
             }
             .onChange(of: vm.isBatteryPopoverActive) {
                 if !vm.isBatteryPopoverActive && !island.isHovering && island.state == .expanded && !SharingStateManager.shared.preventNotchClose {
@@ -1019,9 +1023,10 @@ struct ContentView: View {
 
     private func updateSystemStatsLifecycle() {
         let isExpanded = (island.state == .expanded || vm.notchState == .open)
+        let wingsVisible = Defaults[.enableSideReadouts] && (Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none)
         let wingNeedsStats = Defaults[.leftWingMetric] == .cpuUsage || Defaults[.leftWingMetric] == .cpuTemp || Defaults[.leftWingMetric] == .ramUsage || Defaults[.leftWingMetric] == .ramDetails || Defaults[.leftWingMetric] == .battery || Defaults[.leftWingMetric] == .clock
             || Defaults[.rightWingMetric] == .cpuUsage || Defaults[.rightWingMetric] == .cpuTemp || Defaults[.rightWingMetric] == .ramUsage || Defaults[.rightWingMetric] == .ramDetails || Defaults[.rightWingMetric] == .battery || Defaults[.rightWingMetric] == .clock
-        let shouldRun = isExpanded || wingNeedsStats
+        let shouldRun = isExpanded || wingNeedsStats || wingsVisible
         if shouldRun {
             SystemStatsService.shared.start()
         } else {
@@ -1373,6 +1378,11 @@ struct CollapsedLiveInfoWingsView: View {
                                             .fill(Color.black.opacity(0.75))
                                             .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
                                     )
+                                    .overlay(alignment: .bottom) {
+                                        CPUTempGlowEdge()
+                                            .allowsHitTesting(false)
+                                    }
+                                    .clipShape(Capsule())
                                     .onHover { hovering in
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                             isLeftHovering = hovering
@@ -1410,6 +1420,11 @@ struct CollapsedLiveInfoWingsView: View {
                                             .fill(Color.black.opacity(0.75))
                                             .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
                                     )
+                                    .overlay(alignment: .bottom) {
+                                        RAMBottomBar()
+                                            .allowsHitTesting(false)
+                                    }
+                                    .clipShape(Capsule())
                                     .onHover { hovering in
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                             isRightHovering = hovering
@@ -1452,9 +1467,15 @@ struct CollapsedLiveInfoWingsView: View {
         }
         .onChange(of: leftWingMetric) { _ in
             self.reportDynamicWidth(geom: geom)
+            startActiveServices()
         }
         .onChange(of: rightWingMetric) { _ in
             self.reportDynamicWidth(geom: geom)
+            startActiveServices()
+        }
+        .onChange(of: enableSideReadouts) { _, _ in
+            self.reportDynamicWidth(geom: geom)
+            startActiveServices()
         }
         .onChange(of: autoFitWings) { _ in
             self.reportDynamicWidth(geom: geom)
@@ -1523,7 +1544,8 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func startActiveServices() {
-        let needsStats = leftWingMetric == .cpuUsage || leftWingMetric == .cpuTemp || leftWingMetric == .ramUsage || leftWingMetric == .ramDetails || leftWingMetric == .battery || leftWingMetric == .clock
+        let wingsVisible = enableSideReadouts && (leftWingMetric != .none || rightWingMetric != .none)
+        let needsStats = wingsVisible || leftWingMetric == .cpuUsage || leftWingMetric == .cpuTemp || leftWingMetric == .ramUsage || leftWingMetric == .ramDetails || leftWingMetric == .battery || leftWingMetric == .clock
             || rightWingMetric == .cpuUsage || rightWingMetric == .cpuTemp || rightWingMetric == .ramUsage || rightWingMetric == .ramDetails || rightWingMetric == .battery || rightWingMetric == .clock
         if needsStats { statsService.start() }
 
@@ -1581,6 +1603,11 @@ struct CollapsedLiveInfoWingsView: View {
                         )
                 )
         )
+        .overlay(alignment: .bottom) {
+            CPUTempGlowEdge()
+                .allowsHitTesting(false)
+        }
+        .clipShape(LeftNotchDropShape())
         .contentShape(LeftNotchDropShape())
         .onHover { hovering in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -1641,6 +1668,11 @@ struct CollapsedLiveInfoWingsView: View {
                         )
                 )
         )
+        .overlay(alignment: .bottom) {
+            RAMBottomBar()
+                .allowsHitTesting(false)
+        }
+        .clipShape(RightNotchDropShape())
         .contentShape(RightNotchDropShape())
         .onHover { hovering in
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {

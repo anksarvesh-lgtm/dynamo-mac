@@ -213,6 +213,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         showOnAllDisplaysObserver = nil
     }
 
+    private func setupShowOnAllDisplaysGuard() {
+        showOnAllDisplaysObserver = Defaults.observe(.showOnAllDisplays, options: []) { change in
+            if !change.newValue {
+                NSLog("⚠️ [showOnAllDisplays] External modification to false detected; enforcing permanently true.")
+                Defaults[.showOnAllDisplays] = true
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name.showOnAllDisplaysChanged,
+                        object: nil
+                    )
+                }
+            }
+        }
+    }
+
     @MainActor
     func onScreenLocked(_ notification: Notification) {
         isScreenLocked = true
@@ -965,21 +980,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.setupDragDetectors()
             }
         }
-
-    private func setupShowOnAllDisplaysGuard() {
-        showOnAllDisplaysObserver = Defaults.observe(.showOnAllDisplays, options: []) { change in
-            if !change.newValue {
-                NSLog("⚠️ [showOnAllDisplays] External modification to false detected; enforcing permanently true.")
-                Defaults[.showOnAllDisplays] = true
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(
-                        name: Notification.Name.showOnAllDisplaysChanged,
-                        object: nil
-                    )
-                }
-            }
-        }
-    }
 
         NotificationCenter.default.addObserver(
             forName: Notification.Name.expandedDragDetectionChanged, object: nil, queue: nil

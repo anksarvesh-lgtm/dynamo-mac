@@ -142,19 +142,13 @@ public struct BehaviorSettingsView: View {
         }
         .formStyle(.grouped)
         .accentColor(.effectiveAccent)
-        .onAppear {
-            screens = NSScreen.screens.compactMap { s in
-                guard let u = s.displayUUID else { return nil }
-                return (u, s.localizedName)
-            }
-        }
     }
 
     public func resetSection() {
         Defaults[.openNotchOnHover] = true
         Defaults[.openNotchOnDrag] = true
         Defaults[.minimumHoverDuration] = 0.3
-        Defaults[.showOnAllDisplays] = false
+        Defaults[.showOnAllDisplays] = true
         Defaults[.automaticallySwitchDisplay] = true
         Defaults[.nonNotchHeightMode] = .matchMenuBar
         Defaults[.enableHaptics] = true
