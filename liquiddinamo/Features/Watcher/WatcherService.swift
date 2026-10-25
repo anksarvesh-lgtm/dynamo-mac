@@ -37,7 +37,9 @@ public final class WatcherService: ObservableObject {
     public let fallbackSocketPath: String = "/tmp/liquid_watcher.sock"
 
     private init() {
-        startServer()
+        if Defaults[.enableWatcherIntegration] {
+            startServer()
+        }
     }
 
     deinit {
@@ -47,6 +49,7 @@ public final class WatcherService: ObservableObject {
     // MARK: - Server Lifecycle
 
     public func startServer() {
+        guard Defaults[.enableWatcherIntegration] else { return }
         guard serverFD == -1 else { return }
 
         // Create socket

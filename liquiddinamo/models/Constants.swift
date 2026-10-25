@@ -456,7 +456,7 @@ extension Defaults.Keys {
     static let plexoTorrentAutoStart = powerloadTorrentAutoStart
 
     // MARK: Watcher AI Agent Monitor
-    static let enableWatcherIntegration = Key<Bool>("enableWatcherIntegration", default: true)
+    static let enableWatcherIntegration = Key<Bool>("enableWatcherIntegration", default: false)
     static let watcherAutoApproveReads = Key<Bool>("watcherAutoApproveReads", default: false)
     static let watcherNotificationOnFinished = Key<Bool>("watcherNotificationOnFinished", default: true)
 }
