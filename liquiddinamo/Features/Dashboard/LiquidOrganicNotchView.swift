@@ -39,7 +39,6 @@ public struct LiquidOrganicNotchView: View {
     @ObservedObject var memoryRegistry = DeviceMemoryRegistry.shared
     @ObservedObject var safeArea = NotchSafeAreaEngine.shared
     @ObservedObject var island = IslandController.shared
-    @ObservedObject var statsService = SystemStatsService.shared
     @ObservedObject var cleaner = StorageCleanupManager.shared
     @ObservedObject var colorDropper = ColorDropperTool.shared
     @ObservedObject var filedroidEngine = FileDroidEngine.shared
@@ -112,10 +111,6 @@ public struct LiquidOrganicNotchView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
 
-                // 4. Group 4: System Metrics Bar (CPU Temp & RAM Status)
-                systemMetricsBar
-                    .frame(maxWidth: .infinity, alignment: .center)
-
                 // Detail Expansion (Expands only for the clicked item, centered)
                 if activeExpandedItem != .none {
                     expandedDetailView
@@ -144,15 +139,11 @@ public struct LiquidOrganicNotchView: View {
             }
         }
         .onAppear {
-            statsService.start()
             clipboardService.checkPasteboard()
             deviceMonitor.refreshBluetoothDevices()
             for (_, device) in deviceMonitor.activeDevices {
                 memoryRegistry.remember(device: device)
             }
-        }
-        .onDisappear {
-            statsService.stop()
         }
     }
 
@@ -410,56 +401,6 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Android and Powerload")
         }
-    }
-
-    // MARK: - Group 4: System Metrics Bar (CPU Temp & RAM Status)
-    @ViewBuilder
-    private var systemMetricsBar: some View {
-        HStack(spacing: 12) {
-            // CPU Temperature
-            HStack(spacing: 5) {
-                Image(systemName: statsService.thermalStateIcon)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(statsService.isTemperatureAvailable ? statsService.thermalStateColor : .secondary)
-
-                Text("CPU:")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Text(statsService.formattedCPUTemperature)
-                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(statsService.isTemperatureAvailable ? .white : .secondary.opacity(0.8))
-            }
-
-            // Divider dot
-            Circle()
-                .fill(Color.white.opacity(0.20))
-                .frame(width: 3, height: 3)
-
-            // RAM Status
-            HStack(spacing: 5) {
-                Image(systemName: "memorychip")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(statsService.memoryPercentage > 85 ? Color.orange : Color.cyan)
-
-                Text("RAM:")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Text("\(statsService.formattedMemoryUsed) / \(statsService.formattedMemoryTotal) (\(Int(round(statsService.memoryPercentage)))%)")
-                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.45))
-                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("System status")
     }
 
     // MARK: - Device Icon Button
