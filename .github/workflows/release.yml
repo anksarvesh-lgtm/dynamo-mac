@@ -1,0 +1,140 @@
+name: Release LiquidDynamo
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v2.0.5)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build, Sign, Notarize, and Release
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode_15.3.app || sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Set up Build Keychain
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'build_temp_keychain_pwd_2026' }}
+        run: |
+          if [ -z "$CERTIFICATE_BASE64" ] || [ -z "$CERTIFICATE_PASSWORD" ]; then
+            echo "::error::Missing DEVELOPER_ID_CERTIFICATE_BASE64 or DEVELOPER_ID_CERTIFICATE_PASSWORD secrets."
+            exit 1
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import Certificate (.p12)
+          CERT_FILE="$RUNNER_TEMP/certificate.p12"
+          echo "$CERTIFICATE_BASE64" | base64 --decode > "$CERT_FILE"
+          security import "$CERT_FILE" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$CERT_FILE"
+
+          # Allow codesign tool access without GUI authorization prompt
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Append temporary keychain to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          echo "Keychain configured and unlocked successfully."
+
+      - name: Set up Apple Notary Profile
+        env:
+          NOTARY_API_KEY_BASE64: ${{ secrets.NOTARY_API_KEY_BASE64 }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          if [ -n "$NOTARY_API_KEY_BASE64" ] && [ -n "$NOTARY_API_KEY_ID" ] && [ -n "$NOTARY_API_ISSUER_ID" ]; then
+            echo "Configuring notarytool credentials using App Store Connect API Key..."
+            API_KEY_PATH="$RUNNER_TEMP/AuthKey_${NOTARY_API_KEY_ID}.p8"
+            echo "$NOTARY_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
+            xcrun notarytool store-credentials "LIQUIDDYNAMO_NOTARY" \
+              --key "$API_KEY_PATH" \
+              --key-id "$NOTARY_API_KEY_ID" \
+              --issuer "$NOTARY_API_ISSUER_ID"
+            rm -f "$API_KEY_PATH"
+          elif [ -n "$APPLE_ID" ] && [ -n "$TEAM_ID" ] && [ -n "$APP_SPECIFIC_PASSWORD" ]; then
+            echo "Configuring notarytool credentials using Apple ID and App-Specific Password..."
+            xcrun notarytool store-credentials "LIQUIDDYNAMO_NOTARY" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$TEAM_ID" \
+              --password "$APP_SPECIFIC_PASSWORD"
+          else
+            echo "::error::No notary credentials provided. Provide either App Store Connect API Key or Apple ID + App-Specific Password secrets."
+            exit 1
+          fi
+
+      - name: Build, Sign, and Notarize LiquidDynamo DMG
+        env:
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_SIGN_IDENTITY }}
+          NOTARY_PROFILE: "LIQUIDDYNAMO_NOTARY"
+          RELEASE: "1"
+          OUTPUT_DIR: ${{ runner.temp }}/artifacts
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
+
+          echo "Starting production build and two-stage notarization pipeline..."
+          bash build_dmg.sh
+
+      - name: Verify Release Artifacts with verify_release.sh
+        run: |
+          echo "Running Gatekeeper and Notarization verification on built DMG..."
+          bash scripts/verify_release.sh "$OUTPUT_DIR"/LiquidDynamo-*.dmg
+
+      - name: Create GitHub Release and Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          files: |
+            ${{ env.OUTPUT_DIR }}/LiquidDynamo-*.dmg
+            ${{ env.OUTPUT_DIR }}/LiquidDynamo-*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Clean Up Keychain and Credentials
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+          # Delete notary credential profile if created
+          security delete-generic-password -s "notarytool-password" -a "LIQUIDDYNAMO_NOTARY" 2>/dev/null || true
+          security delete-generic-password -s "notarytool-apiKey" -a "LIQUIDDYNAMO_NOTARY" 2>/dev/null || true
+          echo "Keychain cleanup completed."
