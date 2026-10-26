@@ -831,29 +831,64 @@ public final class GitHubUpdateChecker: ObservableObject {
 
         // Determine destination target application path
         let targetAppURL: URL
-        if Bundle.main.bundleURL.pathExtension == "app" {
+        let runningPath = Bundle.main.bundleURL.path
+        if runningPath.hasSuffix(".app") && !runningPath.hasPrefix("/Volumes/") && !runningPath.contains("/build/") && !runningPath.contains("/DerivedData/") {
             targetAppURL = Bundle.main.bundleURL
         } else {
             targetAppURL = URL(fileURLWithPath: "/Applications/LiquidDynamo.app")
         }
 
         let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("liquiddynamo_atomic_updater.sh")
+        let logURL = FileManager.default.temporaryDirectory.appendingPathComponent("liquiddynamo_updater.log")
         let scriptContent = """
         #!/bin/bash
-        set -e
+        trap '' HUP INT QUIT TERM
+        exec >> "\(logURL.path)" 2>&1
+        echo "======================================================="
+        echo "💧 LiquidDynamo Auto-Updater Started: $(date)"
+        echo "Target:  \(targetAppURL.path)"
+        echo "Staging: \(stagedAppURL.path)"
+        echo "Old PID: \(pid)"
+        echo "======================================================="
+
         TARGET="\(targetAppURL.path)"
         STAGING="\(stagedAppURL.path)"
         PID="\(pid)"
 
-        # 1. Wait up to 10 seconds for running process to cleanly exit
+        # 1. Wait up to 3 seconds for running process to cleanly exit
         COUNT=0
-        while kill -0 "$PID" 2>/dev/null && [ $COUNT -lt 100 ]; do
+        while kill -0 "$PID" 2>/dev/null && [ $COUNT -lt 30 ]; do
             sleep 0.1
             COUNT=$((COUNT+1))
         done
 
-        # 2. Stage new app beside TARGET in the same filesystem for atomic rename
+        # If old process is still alive after 3s, terminate it forcefully
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Old process $PID did not exit cleanly, sending SIGKILL..."
+            kill -9 "$PID" 2>/dev/null || true
+            sleep 0.2
+        fi
+
+        # 2. Release any locked file descriptors held by child helper processes
+        echo "Terminating any lingering child helpers..."
+        pkill -9 -f "mediaremote-adapter.pl" 2>/dev/null || true
+        pkill -9 -f "net-merge" 2>/dev/null || true
+        pkill -9 -f "LiquidDynamoXPCHelper" 2>/dev/null || true
+        sleep 0.2
+
+        # 3. Verify staging bundle integrity
+        if [ ! -d "$STAGING" ]; then
+            echo "ERROR: Staging directory not found: $STAGING"
+            exit 1
+        fi
+
+        # Clear Gatekeeper quarantine on staged files
+        echo "Clearing quarantine on staged application..."
+        xattr -cr "$STAGING" 2>/dev/null || true
+
+        # 4. Stage new app beside TARGET in the same filesystem for atomic rename
         TARGET_DIR="$(dirname "$TARGET")"
+        mkdir -p "$TARGET_DIR"
         RAND_SUFFIX="$$_\(UUID().uuidString.prefix(8))"
         TEMP_INSTALL="${TARGET_DIR}/.LiquidDynamo_Updating_${RAND_SUFFIX}.app"
         BACKUP="${TARGET_DIR}/.LiquidDynamo_Backup_${RAND_SUFFIX}.app"
@@ -861,33 +896,43 @@ public final class GitHubUpdateChecker: ObservableObject {
         rm -rf "$TEMP_INSTALL" "$BACKUP" 2>/dev/null || true
 
         # Copy verified staging to temporary install in target directory
+        echo "Copying staging to temporary target: $TEMP_INSTALL"
         if ! cp -R "$STAGING" "$TEMP_INSTALL"; then
-            echo "Failed to copy staged application to target directory"
+            echo "ERROR: Failed to copy staged application to target directory"
             rm -rf "$TEMP_INSTALL" 2>/dev/null || true
             exit 1
         fi
 
-        # Atomic rename: move current app to backup
+        # 5. Atomic rename: move current app to backup
         BACKUP_EXISTS=0
         if [ -d "$TARGET" ]; then
+            echo "Backing up existing installation..."
             if mv "$TARGET" "$BACKUP"; then
                 BACKUP_EXISTS=1
             else
-                echo "Failed to backup existing application"
+                echo "ERROR: Failed to backup existing application"
                 rm -rf "$TEMP_INSTALL" 2>/dev/null || true
                 exit 1
             fi
         fi
 
-        # Atomic rename: move temporary install into target position
+        # 6. Atomic rename: move temporary install into target position
+        echo "Installing new version into $TARGET..."
         if mv "$TEMP_INSTALL" "$TARGET"; then
+            echo "Clearing quarantine on target application..."
+            xattr -cr "$TARGET" 2>/dev/null || true
+            codesign --force --deep --sign - "$TARGET" 2>/dev/null || true
+
             # Success: clean up backup and staging
             rm -rf "$BACKUP" 2>/dev/null || true
             rm -rf "$(dirname "$STAGING")" 2>/dev/null || true
+
+            echo "Relaunching updated LiquidDynamo..."
             open "$TARGET"
+            echo "Update completed successfully at $(date)!"
             exit 0
         else
-            echo "Failed to install new application, rolling back..."
+            echo "ERROR: Failed to install new application, rolling back..."
             if [ $BACKUP_EXISTS -eq 1 ] && [ -d "$BACKUP" ]; then
                 mv "$BACKUP" "$TARGET" 2>/dev/null || true
             fi
@@ -899,14 +944,25 @@ public final class GitHubUpdateChecker: ObservableObject {
         try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
 
-        let relaunchProcess = Process()
-        relaunchProcess.executableURL = URL(fileURLWithPath: "/bin/bash")
-        relaunchProcess.arguments = [scriptURL.path]
-        try relaunchProcess.run()
+        // Launch updater script fully detached using nohup so parent exit cannot terminate it
+        let launcherURL = FileManager.default.temporaryDirectory.appendingPathComponent("liquiddynamo_detach_launcher.sh")
+        let launcherContent = """
+        #!/bin/bash
+        nohup "/bin/bash" "\(scriptURL.path)" </dev/null >/dev/null 2>&1 &
+        """
+        try launcherContent.write(to: launcherURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: launcherURL.path)
+
+        let detachProcess = Process()
+        detachProcess.executableURL = URL(fileURLWithPath: "/bin/bash")
+        detachProcess.arguments = [launcherURL.path]
+        try detachProcess.run()
+        detachProcess.waitUntilExit()
 
         // Terminate old app cleanly
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NSApplication.shared.terminate(nil)
+            exit(0)
         }
     }
 

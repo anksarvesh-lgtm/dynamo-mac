@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.3] — 2026-10-27
+
+### In-App Auto-Updater Relaunch & Atomic Replacement Engine Hardening
+- **Detached Updater Process**: Re-architected in-place auto-updater script execution using `nohup` launcher and explicit signal trapping (`trap '' HUP INT QUIT TERM`), preventing operating system termination of the updater subtask when the parent application exits.
+- **Child Helper Process Termination**: Automatically terminates lingering helper processes (`mediaremote-adapter.pl`, `net-merge`, `LiquidDynamoXPCHelper`) to release open file locks and ensure clean, atomic overwrites of the application bundle in `/Applications`.
+- **Target Location Safety**: Automatically detects execution from read-only DMG volumes and redirects target installation to `/Applications/LiquidDynamo.app`.
+- **Quarantine & Code Signature Cleansing**: Strips macOS quarantine flags (`xattr -cr`) on staged and installed applications and re-applies ad-hoc signatures for seamless launch without security warnings.
+- **Persistent Trace Logging**: Added complete execution logging to `$TMPDIR/liquiddynamo_updater.log` detailing each stage of atomic replacement and relaunch.
+- **Main Target Version Sync**: Synchronized `MARKETING_VERSION = 2.1.3` and `CURRENT_PROJECT_VERSION = 26` across all targets in Xcode project configuration, eliminating false out-of-date detection loops.
+
 ## [2.1.2] — 2026-10-27
 
 ### NetMerge Multi-Network Link Bonding & Phone Bridge Storage Optimizations
