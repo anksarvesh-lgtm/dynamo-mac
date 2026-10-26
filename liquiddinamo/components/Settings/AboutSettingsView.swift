@@ -229,7 +229,7 @@ public struct AboutSettingsView: View {
                     showLicenseSheet = true
                 } label: {
                     HStack {
-                        Label("Open Source Licenses", systemImage: "doc.plaintext")
+                        Label("License & Acknowledgements", systemImage: "doc.plaintext")
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption)
@@ -255,7 +255,7 @@ public struct AboutSettingsView: View {
                     Text("Copyright © 2026 Agrigence. All rights reserved.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Based on Boring Notch by TheBoredTeam under GPL-3.0")
+                    Text("LiquidDynamo Restricted-Use License • Third-Party Notices in Settings")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }

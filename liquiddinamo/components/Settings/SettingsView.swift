@@ -1275,7 +1275,7 @@ struct About: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
-                Text("Based on Boring Notch by TheBoredTeam under GPL-3.0")
+                Text("LiquidDynamo Restricted-Use License • Third-Party Notices in Settings")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .padding(.bottom, 8)

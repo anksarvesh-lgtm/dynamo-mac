@@ -3,15 +3,16 @@
 //  LiquidDynamo
 //
 //  Created for LiquidDynamo
+//  Copyright © 2026 Agrigence. All rights reserved.
 //
 
 import SwiftUI
 
 struct LicenseView: View {
-    @State private var selectedLicenseTab: LicenseCategory = .gpl
+    @State private var selectedLicenseTab: LicenseCategory = .restricted
 
     enum LicenseCategory: String, CaseIterable, Identifiable {
-        case gpl = "LiquidDynamo (GPL-3.0)"
+        case restricted = "LiquidDynamo License"
         case thirdParty = "Third-Party Notices"
 
         var id: String { rawValue }
@@ -20,7 +21,7 @@ struct LicenseView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Open Source Licenses")
+                Text("License & Acknowledgements")
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
@@ -30,7 +31,7 @@ struct LicenseView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 280)
+                .frame(width: 320)
             }
             .padding(.horizontal)
             .padding(.top, 16)
@@ -39,25 +40,25 @@ struct LicenseView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    if selectedLicenseTab == .gpl {
-                        Text("GNU GENERAL PUBLIC LICENSE")
+                    if selectedLicenseTab == .restricted {
+                        Text("LIQUIDDYNAMO SOFTWARE LICENSE AGREEMENT")
                             .font(.headline)
-                        Text("Version 3, 29 June 2007")
+                        Text("Restricted-Use Proprietary License")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("Copyright © 2026 Agrigence. Portions Copyright © TheBoredTeam.")
+                        Text("Copyright © 2026 Agrigence. All rights reserved.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         Divider()
 
-                        Text(gplLicenseText)
+                        Text(restrictedLicenseText)
                             .font(.system(.caption, design: .monospaced))
                             .textSelection(.enabled)
                     } else {
                         Text("Third-Party Software Acknowledgements")
                             .font(.headline)
-                        Text("LiquidDynamo makes use of the following open-source libraries:")
+                        Text("LiquidDynamo makes use of the following open-source libraries and components:")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -79,41 +80,64 @@ struct LicenseView: View {
         .frame(minWidth: 500, minHeight: 400)
     }
 
-    private var gplLicenseText: String {
+    private var restrictedLicenseText: String {
         """
-        GNU GENERAL PUBLIC LICENSE
-        Version 3, 29 June 2007
+        LIQUIDDYNAMO SOFTWARE LICENSE AGREEMENT
+        RESTRICTED-USE PROPRIETARY LICENSE
 
-        Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
-        Everyone is permitted to copy and distribute verbatim copies
-        of this license document, but changing it is not allowed.
+        Copyright (c) 2026 Agrigence. All rights reserved.
 
-        Preamble
+        IMPORTANT — PLEASE READ CAREFULLY BEFORE USING THIS SOFTWARE:
 
-        The GNU General Public License is a free, copyleft license for software and other kinds of works.
+        This Software License Agreement ("Agreement") is a legal agreement between you (an individual or a single entity, referred to as "User" or "You") and Agrigence ("Rights Holder"), governing your access to and use of the LiquidDynamo application, accompanying software binaries, source code, visual assets, documentation, and interface components (collectively, the "Software").
 
-        The licenses for most software and other practical works are designed to take away your freedom to share and change the works. By contrast, the GNU General Public License is intended to guarantee your freedom to share and change all versions of a program--to make sure it remains free software for all its users. We, the Free Software Foundation, use the GNU General Public License for most of our software; it applies also to any other work released this way by its authors. You can apply it to your programs, too.
+        1. OWNERSHIP
+        The Software, including its source code, architecture, compiled binaries, user interface designs, liquid glass shaders, 3D assets, icons, documentation, and product names, is the exclusive proprietary property of Agrigence.
 
-        When we speak of free software, we are referring to freedom, not price. Our General Public Licenses are designed to make sure that you have the freedom to distribute copies of free software (and charge for them if you wish), that you receive source code or can get it if you want it, that you can change the software or use pieces of it in new free programs, and that you know you can do these things.
+        2. PERMITTED USE
+        Subject to the terms and restrictions of this Agreement, Agrigence hereby grants you a limited, personal, non-exclusive, non-transferable, revocable license to:
+        (a) Download, install, and execute the Software on macOS devices that you own or control; and
+        (b) Use the Software solely for its documented, intended functionality as a personal macOS utility.
 
-        To protect your rights, we need to prevent others from denying you these rights or asking you to surrender the rights. Therefore, you have certain responsibilities if you distribute copies of the software, or if you modify it: responsibilities to respect the freedom of others.
+        3. PROHIBITED ACTIONS
+        Unless explicitly authorized in advance and in writing by an authorized representative of Agrigence, you shall not, directly or indirectly:
+        (a) Modify, adapt, translate, alter, or create derivative works of the Software or any portion thereof;
+        (b) Distribute, share, publish, lease, rent, loan, sublicense, sell, resell, or otherwise convey modified copies or derivative versions of the Software;
+        (c) Repackage, rebrand, or distribute the Software or its components under any other product name or publisher identity;
+        (d) Remove, alter, obscure, or delete any copyright, trademark, or proprietary attribution notices;
+        (e) Claim ownership, authorship, or exclusive rights in or to the Software.
 
-        For the complete terms and conditions, visit:
-        https://www.gnu.org/licenses/gpl-3.0.html
+        4. THIRD-PARTY COMPONENTS AND PREVIOUS RELEASES
+        (a) Third-party open-source components remain governed by their respective licenses as detailed in NOTICE.md.
+        (b) Rights exercised under previous open-source releases of this project are not retroactively eliminated.
+
+        5. STATUTORY RIGHTS
+        Applicable mandatory consumer and legal rights guaranteed by law remain unaffected.
+
+        6. DISCLAIMER & LIMITATION OF LIABILITY
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL AGRIGENCE BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
+
+        Contact: https://www.agrigence.in/
         """
     }
 
     private var thirdPartyLicenseText: String {
         """
-        LiquidDynamo relies on open-source packages:
+        LiquidDynamo incorporates or interfaces with the following open-source projects:
 
+        - Boring Notch (GPL-3.0) - Copyright (c) TheBoredTeam
+        - Purge (MIT License) - Copyright (c) 2026 Jithin Sabu
+        - Plexo (MIT License) - Copyright (c) 2026 Anmol Kapil
+        - Net-Merge (MIT License) - Copyright (c) Rohit
         - Defaults (MIT License) - Copyright (c) Sindre Sorhus
         - KeyboardShortcuts (MIT License) - Copyright (c) Sindre Sorhus
         - LaunchAtLogin-Modern (MIT License) - Copyright (c) Sindre Sorhus
-        - Lottie (Apache 2.0 License) - Copyright Airbnb, Inc.
+        - Lottie (Apache 2.0 License) - Copyright (c) Airbnb, Inc.
+        - Sparkle (MIT License) - Copyright (c) Andy Matuschak, Kornel Lesiński
         - SkyLightWindow (MIT License) - Copyright (c) Lakr Aream
         - AsyncXPCConnection (MIT License) - Copyright (c) ChimeHQ
         - Swift Collections (Apache 2.0 with Runtime Exception) - Copyright (c) Apple Inc.
+        - OpenMTP (MIT / LGPL-2.1) - Copyright (c) Ganesh Rathinavel
         """
     }
 }

@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-BF5AF2?style=for-the-badge&logo=apple&logoColor=white" alt="Universal Binary" />
     <img src="https://img.shields.io/badge/Engine-Swift%206%20%7C%20Metal%20%7C%20SceneKit-FF9F0A?style=for-the-badge&logo=swift&logoColor=white" alt="Swift 6.4 + Metal + SceneKit" />
     <a href="LICENSE">
-      <img src="https://img.shields.io/badge/License-GPL--3.0-64D2FF?style=for-the-badge" alt="License" />
+      <img src="https://img.shields.io/badge/License-Restricted--Use-64D2FF?style=for-the-badge" alt="Restricted-Use License" />
     </a>
     <img src="https://img.shields.io/badge/Privacy-Zero%20Telemetry%20%7C%20Opt--In%20Network-FF375F?style=for-the-badge" alt="Zero Telemetry" />
   </p>
@@ -245,11 +245,17 @@ bash scripts/verify_release.sh ~/Desktop/LiquidDynamo-2.0.5.dmg
 
 ---
 
-## 📜 License
+## 📜 License & Intellectual Property
 
-LiquidDynamo is free and open-source software developed by **Agrigence** and licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for details.
+**LiquidDynamo** is published and maintained by **[Agrigence](https://www.agrigence.in/)**.
 
-All custom architectures, liquid glass rendering shaders, Phone Bridge engine, Scopa storage optimizer, 3D USDZ SceneKit systems, interactive telemetry wings, and organic motion mechanics are Copyright © 2026 [Agrigence](https://www.agrigence.in/).
+Use of this software is governed by the **LiquidDynamo Restricted-Use Software License Agreement**. You may download, install, and use LiquidDynamo for its documented intended functionality as a personal macOS utility.
+
+**Modification, adaptation, creation of derivative works, and redistribution of modified copies are strictly prohibited without prior explicit written permission from Agrigence.**
+
+See the complete [LICENSE](LICENSE) file for detailed terms and conditions, and [NOTICE.md](NOTICE.md) for third-party open-source software acknowledgements and licenses.
+
+All custom architectures, liquid glass rendering shaders, Phone Bridge engine, Scopa storage optimizer, 3D USDZ SceneKit systems, interactive telemetry wings, and organic motion mechanics are Copyright © 2026 [Agrigence](https://www.agrigence.in/). All rights reserved.
 
 <br />
 
