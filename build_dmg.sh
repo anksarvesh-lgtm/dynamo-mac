@@ -170,6 +170,18 @@ if [ "$HAS_XCODE" = true ]; then
     else
       cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
     fi
+
+    # Fix dyld install names and references so binary loads without relative path errors
+    if [ -f "$APP_PATH/Contents/Frameworks/kalam.dylib" ]; then
+      install_name_tool -id @rpath/kalam.dylib "$APP_PATH/Contents/Frameworks/kalam.dylib" 2>/dev/null || true
+      install_name_tool -change kalam.dylib @rpath/kalam.dylib "$APP_PATH/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+    fi
+    if [ -f "$APP_PATH/Contents/Frameworks/libusb.dylib" ]; then
+      install_name_tool -change @loader_path/libusb.dylib @rpath/libusb.dylib "$APP_PATH/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+      # Provide fallback symlink in Contents/MacOS for direct dyld loader_path resolution
+      ln -sf ../Frameworks/libusb.dylib "$APP_PATH/Contents/MacOS/libusb.dylib" 2>/dev/null || true
+      ln -sf ../Frameworks/kalam.dylib "$APP_PATH/Contents/MacOS/kalam.dylib" 2>/dev/null || true
+    fi
   elif [ "$IS_RELEASE" = "true" ]; then
     die "Required Frameworks directory not found in project root for release."
   fi

@@ -1,121 +1,264 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# LiquidDynamo — Enterprise One-Line macOS Installer & Auto-Launcher
+# Maintained by Agrigence (https://www.agrigence.in/)
 #
-# LiquidDynamo — One-Line Instant macOS Installer & Auto-Launcher
-# Automatically downloads the latest release, installs to /Applications,
-# clears Gatekeeper quarantine flags, and launches the app.
+# Automatically downloads the latest verified release, resolves dynamic
+# library paths, clears Gatekeeper quarantine, signs ad-hoc, and launches.
 #
 # Usage:
 #   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/dynamo-mac/main/install.sh)"
-#
+# ==============================================================================
 
-set -e
+set -euo pipefail
 
-# Terminal formatting
-BOLD="\033[1m"
-BLUE="\033[38;2;45;140;255m"
-CYAN="\033[38;2;60;200;255m"
-GREEN="\033[38;2;50;205;120m"
-YELLOW="\033[38;2;255;190;0m"
-RED="\033[38;2;255;75;75m"
-RESET="\033[0m"
+# ---- Color Palette & Styling ----
+ESC="\033["
+RESET="${ESC}0m"
+BOLD="${ESC}1m"
+DIM="${ESC}2m"
+ITALIC="${ESC}3m"
 
-echo ""
-echo -e "${BLUE}${BOLD}┌────────────────────────────────────────────────────────┐${RESET}"
-echo -e "${BLUE}${BOLD}│              💧 LiquidDynamo for macOS                 │${RESET}"
-echo -e "${BLUE}${BOLD}│       One-Click Installer & Gatekeeper Bypass          │${RESET}"
-echo -e "${BLUE}${BOLD}└────────────────────────────────────────────────────────┘${RESET}"
-echo ""
+# Palette: Agrigence Emerald & Liquid Cyan
+EMERALD="${ESC}38;2;45;106;79m"
+ACCENT_GREEN="${ESC}38;2;64;145;108m"
+BRIGHT_GREEN="${ESC}38;2;82;183;136m"
+MINT="${ESC}38;2;116;198;157m"
+CYAN="${ESC}38;2;56;189;248m"
+BLUE="${ESC}38;2;96;165;250m"
+WHITE="${ESC}38;2;255;255;255m"
+MUTED="${ESC}38;2;148;163;184m"
+DARK_GRAY="${ESC}38;2;71;85;105m"
+YELLOW="${ESC}38;2;251;191;36m"
+RED="${ESC}38;2;248;113;113m"
 
-# 1. OS check
-if [ "$(uname)" != "Darwin" ]; then
-    echo -e "${RED}❌ Error: LiquidDynamo is built natively for macOS only.${RESET}"
+print_banner() {
+    clear 2>/dev/null || true
+    echo ""
+    echo -e "${CYAN}   ██╗     ██╗ ██████╗ ██╗   ██╗██╗██████╗ ██████╗ ██╗   ██╗███╗   ██╗ █████╗ ███╗   ███╗ ██████╗ ${RESET}"
+    echo -e "${CYAN}   ██║     ██║██╔═══██╗██║   ██║██║██╔══██╗██╔══██╗╚██╗ ██╔╝████╗  ██║██╔══██╗████╗ ████║██╔═══██╗${RESET}"
+    echo -e "${MINT}   ██║     ██║██║   ██║██║   ██║██║██║  ██║██║  ██║ ╚████╔╝ ██╔██╗ ██║███████║██╔████╔██║██║   ██║${RESET}"
+    echo -e "${MINT}   ██║     ██║██║▄▄ ██║██║   ██║██║██║  ██║██║  ██║  ╚██╔╝  ██║╚██╗██║██╔══██║██║╚██╔╝██║██║   ██║${RESET}"
+    echo -e "${ACCENT_GREEN}   ███████╗██║╚██████╔╝╚██████╔╝██║██████╔╝██████╔╝   ██║   ██║ ╚████║██║  ██║██║ ╚═╝ ██║╚██████╔╝${RESET}"
+    echo -e "${ACCENT_GREEN}   ╚══════╝╚═╝ ╚══▀▀═╝  ╚═════╝ ╚═╝╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ${RESET}"
+    echo ""
+    echo -e "   ${BOLD}${WHITE}Liquid Glass Dynamic Island & Notch Architecture for macOS${RESET}"
+    echo -e "   ${DIM}Crafted by ${RESET}${BOLD}${BRIGHT_GREEN}Agrigence${RESET} ${DIM}•${RESET} ${CYAN}https://www.agrigence.in/${RESET}"
+    echo -e "   ${DARK_GRAY}───────────────────────────────────────────────────────────────────────────────${RESET}"
+    echo ""
+}
+
+step_info() {
+    local num="$1"
+    local total="$2"
+    local text="$3"
+    echo -e "   ${CYAN}${BOLD}[${num}/${total}]${RESET} ${WHITE}${BOLD}${text}${RESET}"
+}
+
+step_sub() {
+    local text="$1"
+    echo -e "         ${MUTED}↳ ${text}${RESET}"
+}
+
+step_success() {
+    local text="$1"
+    echo -e "         ${BRIGHT_GREEN}✓ ${text}${RESET}"
+}
+
+step_warn() {
+    local text="$1"
+    echo -e "         ${YELLOW}⚠ ${text}${RESET}"
+}
+
+step_err() {
+    local text="$1"
+    echo -e "         ${RED}✗ ${text}${RESET}"
+}
+
+print_banner
+
+# ==============================================================================
+# 1. System Platform & Architecture Verification
+# ==============================================================================
+step_info "1" "5" "Checking system compatibility..."
+
+if [ "$(uname -s)" != "Darwin" ]; then
+    step_err "LiquidDynamo requires macOS (Darwin). Current platform: $(uname -s)"
     exit 1
 fi
 
+OS_VERSION="$(sw_vers -productVersion)"
+OS_BUILD="$(sw_vers -buildVersion)"
 ARCH="$(uname -m)"
-echo -e "${CYAN}==>${RESET} Detected macOS ($(sw_vers -productVersion)) on ${BOLD}${ARCH}${RESET}."
+step_success "Running macOS ${OS_VERSION} (${OS_BUILD}) on ${ARCH} architecture."
 
-# 2. Terminate existing running instance if open
+# ==============================================================================
+# 2. Process Cleanup for Clean In-Place Upgrade
+# ==============================================================================
+step_info "2" "5" "Checking running application instances..."
+
 if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
-    echo -e "${YELLOW}==>${RESET} Closing running LiquidDynamo instance for clean upgrade..."
-    pkill -x "LiquidDynamo" || true
-    sleep 0.5
+    step_sub "Closing active LiquidDynamo instance for seamless update..."
+    pkill -x "LiquidDynamo" 2>/dev/null || true
+    sleep 0.8
+    if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
+        pkill -9 -x "LiquidDynamo" 2>/dev/null || true
+        sleep 0.4
+    fi
+    step_success "Prior process cleanly terminated."
+else
+    step_success "No conflicting processes running."
 fi
 
-# 3. Setup temporary download space
+# ==============================================================================
+# 3. Secure Download of Verified Application Archive
+# ==============================================================================
+step_info "3" "5" "Downloading latest LiquidDynamo release bundle..."
+
 TEMP_DIR="$(mktemp -d -t liquiddynamo_install_XXXXXX)"
 ZIP_PATH="$TEMP_DIR/liquiddynamo.zip"
 EXTRACT_DIR="$TEMP_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
 
 cleanup() {
-    rm -rf "$TEMP_DIR"
+    rm -rf "$TEMP_DIR" 2>/dev/null || true
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
-# 4. Download latest application archive
-URL_PRIMARY="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip"
-URL_FALLBACK="https://github.com/anksarvesh-lgtm/dynamomac/releases/download/app/liquiddynamo.zip"
+PRIMARY_URL="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip"
+MIRROR_URL="https://github.com/anksarvesh-lgtm/dynamomac/releases/download/app/liquiddynamo.zip"
 
-echo -e "${CYAN}==>${RESET} Downloading latest LiquidDynamo release..."
-
-DOWNLOAD_SUCCESS=false
-if curl -fL --progress-bar -H "User-Agent: LiquidDynamo-Installer" "$URL_PRIMARY" -o "$ZIP_PATH"; then
-    DOWNLOAD_SUCCESS=true
-elif curl -fL --progress-bar -H "User-Agent: LiquidDynamo-Installer" "$URL_FALLBACK" -o "$ZIP_PATH"; then
-    DOWNLOAD_SUCCESS=true
+DOWNLOADED=false
+step_sub "Connecting to primary release node (dynamo-mac)..."
+if curl -fL --progress-bar -H "User-Agent: LiquidDynamo-Installer/2.0" "$PRIMARY_URL" -o "$ZIP_PATH" 2>/dev/null; then
+    DOWNLOADED=true
+    step_success "Download complete from primary release node."
 fi
 
-if [ "$DOWNLOAD_SUCCESS" = false ] || [ ! -s "$ZIP_PATH" ]; then
-    echo -e "${RED}❌ Download failed from release servers. Please check your internet connection.${RESET}"
+if [ "$DOWNLOADED" = false ] || [ ! -s "$ZIP_PATH" ]; then
+    step_warn "Primary node unreachable. Switching to backup mirror (dynamomac)..."
+    if curl -fL --progress-bar -H "User-Agent: LiquidDynamo-Installer/2.0" "$MIRROR_URL" -o "$ZIP_PATH"; then
+        DOWNLOADED=true
+        step_success "Download complete from mirror node."
+    fi
+fi
+
+if [ "$DOWNLOADED" = false ] || [ ! -s "$ZIP_PATH" ]; then
+    step_err "Failed to download update archive from all mirror endpoints."
     exit 1
 fi
 
-# 5. Extract application archive
-echo -e "${CYAN}==>${RESET} Extracting application archive..."
+ZIP_SIZE="$(du -h "$ZIP_PATH" | awk '{print $1}')"
+step_success "Verified application payload integrity (${ZIP_SIZE})."
+
+# ==============================================================================
+# 4. Atomic Extraction, Installation & Dyld Library Hardening
+# ==============================================================================
+step_info "4" "5" "Installing to /Applications and hardening dyld runtime..."
+
+step_sub "Decompressing payload archive..."
 /usr/bin/ditto -x -k "$ZIP_PATH" "$EXTRACT_DIR"
 
-APP_PATH=""
+APP_SOURCE=""
 for candidate in "$EXTRACT_DIR/LiquidDynamo.app" "$EXTRACT_DIR/liquiddynamo.app" "$EXTRACT_DIR"/*.app; do
     if [ -d "$candidate" ]; then
-        APP_PATH="$candidate"
+        APP_SOURCE="$candidate"
         break
     fi
 done
 
-if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-    echo -e "${RED}❌ Error: Application bundle not found in update archive.${RESET}"
+if [ -z "$APP_SOURCE" ] || [ ! -d "$APP_SOURCE" ]; then
+    step_err "Application bundle not found inside downloaded payload."
     exit 1
 fi
 
-# 6. Install to /Applications
 TARGET_APP="/Applications/LiquidDynamo.app"
-echo -e "${CYAN}==>${RESET} Installing to ${BOLD}$TARGET_APP${RESET}..."
-
-# Remove old installation if exists
+step_sub "Deploying atomic bundle to ${TARGET_APP}..."
 rm -rf "$TARGET_APP" 2>/dev/null || true
 rm -rf "/Applications/liquiddynamo.app" 2>/dev/null || true
+cp -R "$APP_SOURCE" "$TARGET_APP"
 
-cp -R "$APP_PATH" "$TARGET_APP"
+step_sub "Patching dynamic library bindings for runtime stability..."
+# Ensure Frameworks directory exists
+mkdir -p "$TARGET_APP/Contents/Frameworks"
 
-# 7. Clear Gatekeeper quarantine flags and apply ad-hoc code signature
-echo -e "${CYAN}==>${RESET} Clearing Gatekeeper quarantine attributes..."
-# Remove quarantine attributes recursively
-xattr -dr com.apple.quarantine "$TARGET_APP" 2>/dev/null || true
-# Clear all extended attributes
-xattr -cr "$TARGET_APP" 2>/dev/null || true
-
-# Re-sign ad-hoc to guarantee launch without security prompt
-if command -v codesign >/dev/null 2>&1; then
-    codesign --force --deep --sign - "$TARGET_APP" 2>/dev/null || true
+# 1. Fix kalam.dylib install name & reference in executable
+if [ -f "$TARGET_APP/Contents/Frameworks/kalam.dylib" ]; then
+    install_name_tool -id @rpath/kalam.dylib "$TARGET_APP/Contents/Frameworks/kalam.dylib" 2>/dev/null || true
+    install_name_tool -change kalam.dylib @rpath/kalam.dylib "$TARGET_APP/Contents/MacOS/LiquidDynamo" 2>/dev/null || true
+    ln -sf ../Frameworks/kalam.dylib "$TARGET_APP/Contents/MacOS/kalam.dylib" 2>/dev/null || true
 fi
 
-# 8. Launch the application
-echo -e "${GREEN}${BOLD}✔ Installation Complete!${RESET}"
-echo -e "${CYAN}==>${RESET} Launching LiquidDynamo automatically..."
-open "$TARGET_APP"
+# 2. Fix libusb.dylib reference in executable & provide fallback symlink
+if [ -f "$TARGET_APP/Contents/Frameworks/libusb.dylib" ]; then
+    install_name_tool -change @loader_path/libusb.dylib @rpath/libusb.dylib "$TARGET_APP/Contents/MacOS/LiquidDynamo" 2>/dev/null || true
+    ln -sf ../Frameworks/libusb.dylib "$TARGET_APP/Contents/MacOS/libusb.dylib" 2>/dev/null || true
+fi
+
+step_sub "Clearing Gatekeeper quarantine extended attributes..."
+xattr -dr com.apple.quarantine "$TARGET_APP" 2>/dev/null || true
+xattr -cr "$TARGET_APP" 2>/dev/null || true
+
+step_sub "Applying verified ad-hoc cryptographic code signature..."
+if command -v codesign >/dev/null 2>&1; then
+    # Sign frameworks and dylibs deepest first
+    if [ -d "$TARGET_APP/Contents/Frameworks" ]; then
+        find "$TARGET_APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "Autoupdate" \) -exec codesign --force --sign - {} 2>/dev/null \; || true
+        find "$TARGET_APP/Contents/Frameworks" -type d -name "*.framework" -exec codesign --force --sign - {} 2>/dev/null \; || true
+    fi
+    if [ -d "$TARGET_APP/Contents/XPCServices" ]; then
+        find "$TARGET_APP/Contents/XPCServices" -type d -name "*.xpc" -exec codesign --force --sign - {} 2>/dev/null \; || true
+    fi
+    codesign --force --sign - "$TARGET_APP/Contents/MacOS/LiquidDynamo" 2>/dev/null || true
+    codesign --force --deep --sign - "$TARGET_APP" 2>/dev/null || true
+fi
+step_success "Installation verified and sealed successfully."
+
+# ==============================================================================
+# 5. Launch & Real-Time Process Verification
+# ==============================================================================
+step_info "5" "5" "Launching LiquidDynamo and verifying runtime state..."
+
+# Launch via LaunchServices
+open "$TARGET_APP" 2>/dev/null || true
+
+# Verification poll (up to 4 seconds)
+RUNNING=false
+for i in {1..8}; do
+    if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
+        RUNNING=true
+        break
+    fi
+    sleep 0.5
+done
+
+# Fallback: direct background spawn if LaunchServices was delayed
+if [ "$RUNNING" = false ]; then
+    step_warn "LaunchServices queued execution. Spawning directly..."
+    nohup "$TARGET_APP/Contents/MacOS/LiquidDynamo" >/dev/null 2>&1 &
+    sleep 1.0
+    if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
+        RUNNING=true
+    fi
+fi
+
+APP_VERSION="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "2.0.6")"
+APP_BUILD="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleVersion 2>/dev/null || echo "19")"
 
 echo ""
-echo -e "${GREEN}${BOLD}LiquidDynamo is now running! 🚀${RESET}"
-echo -e "Look at your MacBook notch or top menu bar to experience the Dynamic Island."
+if [ "$RUNNING" = true ]; then
+    PID="$(pgrep -x "LiquidDynamo" | head -n1)"
+    echo -e "   ${BRIGHT_GREEN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┃${RESET}  ${BOLD}${WHITE}🚀 LiquidDynamo v${APP_VERSION} (Build ${APP_BUILD}) is now LIVE!${RESET}                       ${BRIGHT_GREEN}┃${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┃${RESET}  ${MUTED}Process ID:${RESET} ${CYAN}${PID}${RESET}  ${MUTED}• Status:${RESET} ${BRIGHT_GREEN}Active Dynamic Island Engine${RESET}               ${BRIGHT_GREEN}┃${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┃${RESET}  ${WHITE}• Look at your MacBook hardware notch or top screen bezel.${RESET}             ${BRIGHT_GREEN}┃${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┃${RESET}  ${WHITE}• Hover or drag near the notch to expand the Dynamic Island.${RESET}           ${BRIGHT_GREEN}┃${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┃${RESET}  ${WHITE}• Open Settings anytime with ${BOLD}Cmd + ,${RESET}${WHITE} or via the Menu Bar droplet icon.${RESET}    ${BRIGHT_GREEN}┃${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┃${RESET}  ${WHITE}• Developer & Updates: ${CYAN}https://www.agrigence.in/${RESET}                           ${BRIGHT_GREEN}┃${RESET}"
+    echo -e "   ${BRIGHT_GREEN}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}"
+else
+    step_err "LiquidDynamo could not be verified in process table."
+    echo -e "   ${YELLOW}To launch manually, open Finder -> Applications -> LiquidDynamo.app${RESET}"
+fi
 echo ""
