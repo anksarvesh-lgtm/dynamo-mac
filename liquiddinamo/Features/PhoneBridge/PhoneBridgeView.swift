@@ -161,18 +161,33 @@ public struct PhoneBridgeView: View {
                     .clipShape(Capsule())
                 }
 
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(dev.storageUsedPercentage > 0.9 ? Color.red : Color.cyan)
-                        .frame(width: 5, height: 5)
-                    Text(PhoneBridgeFormatting.formatBytes(dev.internalStorageFree) + " free")
-                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
+                Button {
+                    engine.syncStorage(forced: true)
+                } label: {
+                    HStack(spacing: 4) {
+                        if engine.isSyncingStorage {
+                            ProgressView()
+                                .controlSize(.mini)
+                        } else {
+                            Circle()
+                                .fill(dev.storageUsedPercentage > 0.9 ? Color.red : Color.cyan)
+                                .frame(width: 5, height: 5)
+                        }
+                        Text(PhoneBridgeFormatting.formatBytes(dev.internalStorageFree) + " free")
+                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(Capsule())
                 }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color.white.opacity(0.06))
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
+                .disabled(engine.isSyncingStorage)
+                .help("Click to sync Android storage status")
 
                 Button {
                     engine.openMountInFinder()

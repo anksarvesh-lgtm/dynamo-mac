@@ -833,24 +833,68 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
     }
 
     public func getStorageInfo(serial: String, path: String = "/sdcard") async throws -> (total: Int64, free: Int64) {
-        let escaped = ADBShellSecurity.escape(ADBShellSecurity.normalizeRemotePath(path))
-        let res = try await runAdbCommand(arguments: ["-s", serial, "shell", "df -k \(escaped)"], timeout: 10.0)
-        guard res.exitCode == 0 else {
-            return (0, 0)
+        let candidatePaths = [path, "/storage/emulated/0", "/sdcard", "/storage/self/primary", "/data"]
+
+        // Strategy 1: stat -f -c '%a %b %s'
+        for cand in candidatePaths {
+            let escaped = ADBShellSecurity.escape(ADBShellSecurity.normalizeRemotePath(cand))
+            if let statRes = try? await runAdbCommand(arguments: ["-s", serial, "shell", "stat -f -c '%a %b %s' \(escaped)"], timeout: 6.0),
+               statRes.exitCode == 0 {
+                let cleaned = statRes.stdout.replacingOccurrences(of: "'", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let tokens = cleaned.split(whereSeparator: { $0.isWhitespace })
+                if tokens.count >= 3,
+                   let freeBlocks = Int64(tokens[0]),
+                   let totalBlocks = Int64(tokens[1]),
+                   let blockSize = Int64(tokens[2]),
+                   totalBlocks > 0, blockSize > 0 {
+                    return (totalBlocks * blockSize, freeBlocks * blockSize)
+                }
+            }
         }
 
-        let lines = res.stdout.components(separatedBy: .newlines)
-        guard lines.count >= 2 else { return (0, 0) }
-
-        // Format: Filesystem 1K-blocks Used Available Use% Mounted on
-        let parts = lines[1].split(whereSeparator: { $0.isWhitespace })
-        if parts.count >= 4,
-           let totalKb = Int64(parts[1]),
-           let availKb = Int64(parts[3]) {
-            return (totalKb * 1024, availKb * 1024)
+        // Strategy 2: df -k -P / df -k
+        for cand in candidatePaths {
+            let escaped = ADBShellSecurity.escape(ADBShellSecurity.normalizeRemotePath(cand))
+            if let res = try? await runAdbCommand(arguments: ["-s", serial, "shell", "df -k -P \(escaped)"], timeout: 6.0),
+               res.exitCode == 0 {
+                if let parsed = parseDfStorage(res.stdout) {
+                    return parsed
+                }
+            }
+            if let res = try? await runAdbCommand(arguments: ["-s", serial, "shell", "df -k \(escaped)"], timeout: 6.0),
+               res.exitCode == 0 {
+                if let parsed = parseDfStorage(res.stdout) {
+                    return parsed
+                }
+            }
         }
 
         return (0, 0)
+    }
+
+    private func parseDfStorage(_ text: String) -> (total: Int64, free: Int64)? {
+        let lines = text.components(separatedBy: .newlines)
+        var dataTokens: [String] = []
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lower = trimmed.lowercased()
+            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("1024-blocks") || lower.contains("mounted on") {
+                continue
+            }
+            let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            dataTokens.append(contentsOf: tokens)
+        }
+        for i in 0..<dataTokens.count {
+            if i + 2 < dataTokens.count,
+               let totalK = Int64(dataTokens[i]),
+               let _ = Int64(dataTokens[i+1]),
+               let freeK = Int64(dataTokens[i+2]),
+               totalK > 0 {
+                return (totalK * 1024, freeK * 1024)
+            }
+        }
+        return nil
     }
 
     // MARK: - Pull & Push File Transfers with Progress Monitoring

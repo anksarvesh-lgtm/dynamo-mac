@@ -53,6 +53,7 @@ public final class PhoneBridgeEngine: ObservableObject {
     @Published public private(set) var activeTransfers: [PhoneBridgeTransferItem] = []
     @Published public private(set) var isScanning: Bool = false
     @Published public private(set) var isTransferring: Bool = false
+    @Published public private(set) var isSyncingStorage: Bool = false
     @Published public private(set) var adbPath: String? = nil
     @Published public private(set) var isAdbAvailable: Bool = false
     @Published public var autoMountInFinder: Bool = true
@@ -116,7 +117,75 @@ public final class PhoneBridgeEngine: ObservableObject {
                 self.currentRemotePath = "/"
             }
             fetchDirectoryContents(path: self.currentRemotePath)
+            syncStorage()
         }
+    }
+
+    // MARK: - Storage Synchronization
+
+    public func syncStorage(forced: Bool = false) {
+        guard let dev = selectedDevice, dev.status == .connected else { return }
+        guard !isSyncingStorage else { return }
+
+        isSyncingStorage = true
+        let serial = dev.serial
+        let backend = activeBackend
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            let storageInfo = await backend.queryStorageInfo(serial: serial)
+
+            await MainActor.run {
+                self.isSyncingStorage = false
+                guard let (total, used, free) = storageInfo, total > 0 else { return }
+
+                // Update selectedDevice
+                if self.selectedDevice?.serial == serial {
+                    self.selectedDevice?.internalStorageTotal = total
+                    self.selectedDevice?.internalStorageUsed = used
+                    self.selectedDevice?.internalStorageFree = free
+                }
+
+                // Update connectedDevices list
+                if let idx = self.connectedDevices.firstIndex(where: { $0.serial == serial }) {
+                    self.connectedDevices[idx].internalStorageTotal = total
+                    self.connectedDevices[idx].internalStorageUsed = used
+                    self.connectedDevices[idx].internalStorageFree = free
+
+                    if let mountPath = self.connectedDevices[idx].mountPath {
+                        self.updateMountDeviceInfo(device: self.connectedDevices[idx], mountPath: mountPath)
+                    }
+                }
+            }
+        }
+    }
+
+    public func updateMountDeviceInfo(device: AndroidDevice, mountPath: String) {
+        let mountURL = URL(fileURLWithPath: mountPath)
+        let infoURL = mountURL.appendingPathComponent("Device Info & Storage Specs.txt")
+        let infoContent = """
+        ========================================================================
+        Phone Bridge — Phone Storage Volume
+        ========================================================================
+        Device Name:       \(device.displayName)
+        Manufacturer:      \(device.manufacturer)
+        Model:             \(device.model)
+        Android OS:        \(device.androidVersion) (API Level \(device.apiLevel))
+        Serial Number:     \(device.serial)
+        Connection:        \(device.connectionType.rawValue)
+        Battery Level:     \(device.batteryLevel.map { "\($0)%" } ?? "Unknown") \(device.isCharging ? "(Charging)" : "")
+        Battery Health:    \(device.batteryHealth ?? "Normal") (\(device.batteryTemperature.map { String(format: "%.1f°C", $0) } ?? ""))
+        Internal Storage:  \(device.formattedInternalStorage)
+        Finder Mount:      \(mountPath)
+        Last Synced:       \(Date().formatted(date: .abbreviated, time: .standard))
+        ========================================================================
+        INSTRUCTIONS:
+        - Drag & drop files from your Mac into any 'Internal Storage' folder.
+        - Phone Bridge will automatically sync and upload them directly to your phone.
+        - To manage or browse all files, use Phone Bridge in the LiquidDynamo Island.
+        ========================================================================
+        """
+        try? infoContent.write(to: infoURL, atomically: true, encoding: .utf8)
     }
 
     // MARK: - Integration with DeviceMonitor
@@ -627,6 +696,7 @@ public final class PhoneBridgeEngine: ObservableObject {
                     self.isTransferring = self.activeTransfers.contains { $0.status == .inProgress }
                     self.updateLiveActivity()
                     self.fetchDirectoryContents(path: self.currentRemotePath)
+                    self.syncStorage()
 
                     if Defaults[.phonebridgeNotifications] {
                         DynamicIslandHub.shared.triggerCustomAlert(

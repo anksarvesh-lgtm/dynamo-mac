@@ -99,12 +99,31 @@ public struct SettingsPhoneBridgeView: View {
                             }
 
                             if dev.status == .connected {
-                                HStack(spacing: 16) {
+                                HStack(spacing: 12) {
                                     Text("Free Storage: \(PhoneBridgeFormatting.formatBytes(dev.internalStorageFree)) of \(PhoneBridgeFormatting.formatBytes(dev.internalStorageTotal))")
                                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                                         .foregroundStyle(.secondary)
 
                                     Spacer()
+
+                                    Button {
+                                        engine.syncStorage(forced: true)
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            if engine.isSyncingStorage {
+                                                ProgressView()
+                                                    .controlSize(.mini)
+                                            } else {
+                                                Image(systemName: "arrow.triangle.2.circlepath")
+                                                    .font(.system(size: 10))
+                                            }
+                                            Text(engine.isSyncingStorage ? "Syncing…" : "Sync Storage")
+                                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .disabled(engine.isSyncingStorage)
 
                                     Button("Reveal in Finder") {
                                         engine.openMountInFinder()

@@ -18,6 +18,7 @@ public protocol AndroidTransferBackend: AnyObject, Sendable {
     var availabilityHint: String? { get }
     
     func scanDevices() async -> [AndroidDevice]
+    func queryStorageInfo(serial: String) async -> (total: UInt64, used: UInt64, free: UInt64)?
     func fetchDirectoryContents(serial: String, path: String, showHidden: Bool) async throws -> [AndroidFileItem]
     func createFolder(serial: String, remotePath: String) async throws
     func renameItem(serial: String, remotePath: String, newName: String) async throws
@@ -176,11 +177,10 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
                     dev.batteryHealth = (healthCode == 2) ? "Good" : "Normal"
                 }
                 
-                let dfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", "/storage/emulated/0"])
-                if let (total, used, free) = Self.parseDfOutput(dfOut) {
-                    dev.internalStorageTotal = total
-                    dev.internalStorageUsed = used
-                    dev.internalStorageFree = free
+                if let storage = await queryStorageInfo(serial: serial) {
+                    dev.internalStorageTotal = storage.total
+                    dev.internalStorageUsed = storage.used
+                    dev.internalStorageFree = storage.free
                 }
             }
             
@@ -344,15 +344,68 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
         return nil
     }
     
-    private static func parseDfOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+    // MARK: - Storage Query
+    
+    public func queryStorageInfo(serial: String) async -> (total: UInt64, used: UInt64, free: UInt64)? {
+        guard let adb = effectiveAdbPath else { return nil }
+        
+        let candidatePaths = ["/storage/emulated/0", "/sdcard", "/storage/self/primary", "/data"]
+        
+        // Strategy 1: stat -f -c '%a %b %s' (standard toybox/coreutils stat)
+        for path in candidatePaths {
+            let statOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "stat", "-f", "-c", "'%a %b %s'", path])
+            let cleaned = statOut.replacingOccurrences(of: "'", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let parts = cleaned.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            if parts.count >= 3,
+               let freeBlocks = UInt64(parts[0]),
+               let totalBlocks = UInt64(parts[1]),
+               let blockSize = UInt64(parts[2]),
+               totalBlocks > 0, blockSize > 0 {
+                let total = totalBlocks * blockSize
+                let free = freeBlocks * blockSize
+                let used = total > free ? (total - free) : 0
+                return (total, used, free)
+            }
+        }
+        
+        // Strategy 2: df -k -P (POSIX 1-line format) and df -k
+        for path in candidatePaths {
+            let dfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", "-P", path])
+            if let res = Self.parseDfOutput(dfOut) {
+                return res
+            }
+            let dfOut2 = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", path])
+            if let res = Self.parseDfOutput(dfOut2) {
+                return res
+            }
+        }
+        
+        return nil
+    }
+    
+    public static func parseDfOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
         let lines = text.components(separatedBy: "\n")
-        guard lines.count >= 2 else { return nil }
-        let parts = lines[1].components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-        guard parts.count >= 4 else { return nil }
-        if let totalK = UInt64(parts[1]),
-           let usedK = UInt64(parts[2]),
-           let freeK = UInt64(parts[3]) {
-            return (totalK * 1024, usedK * 1024, freeK * 1024)
+        var dataTokens: [String] = []
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lower = trimmed.lowercased()
+            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("1024-blocks") || lower.contains("mounted on") {
+                continue
+            }
+            let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            dataTokens.append(contentsOf: tokens)
+        }
+        
+        // Locate 3 consecutive numeric columns (total 1K, used 1K, free 1K)
+        for i in 0..<dataTokens.count {
+            if i + 2 < dataTokens.count,
+               let totalK = UInt64(dataTokens[i]),
+               let usedK = UInt64(dataTokens[i+1]),
+               let freeK = UInt64(dataTokens[i+2]),
+               totalK > 0 {
+                return (totalK * 1024, usedK * 1024, freeK * 1024)
+            }
         }
         return nil
     }
@@ -454,6 +507,24 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
             await bridge.dispose()
             return []
         }
+    }
+
+    public func queryStorageInfo(serial: String) async -> (total: UInt64, used: UInt64, free: UInt64)? {
+        let bridge = MTPBridge.shared
+        let initRes = await bridge.initialize()
+        guard case .success = initRes else {
+            await bridge.dispose()
+            return nil
+        }
+        let storagesRes = await bridge.fetchStorages()
+        await bridge.dispose()
+        if case .success(let storages) = storagesRes, let first = storages.first {
+            let total = first.Info.MaxCapability
+            let free = first.Info.FreeSpaceInBytes
+            let used = total > free ? (total - free) : 0
+            return (total, used, free)
+        }
+        return nil
     }
 
     public func fetchDirectoryContents(serial: String, path: String, showHidden: Bool) async throws -> [AndroidFileItem] {
