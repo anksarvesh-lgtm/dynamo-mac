@@ -2,7 +2,7 @@
 
 ### LiquidDynamo
 Copyright © 2026 Agrigence. All rights reserved.
-Published by Agrigence (https://www.agrigence.in/).
+Published by Agrigence (https://www.agrigence.in/ • info@agrigence.in).
 
 The LiquidDynamo application and its custom components are licensed under the restricted-use proprietary license set forth in the [LICENSE](LICENSE) file. Users may install and use the software for its intended purpose, but may not modify, adapt, create derivative works, or redistribute modified copies without prior written authorization from Agrigence.
 

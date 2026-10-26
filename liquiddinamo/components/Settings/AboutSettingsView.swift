@@ -192,6 +192,19 @@ public struct AboutSettingsView: View {
                     }
                 }
 
+                Link(destination: URL(string: "mailto:info@agrigence.in")!) {
+                    HStack {
+                        Label("Contact & Support", systemImage: "envelope")
+                        Spacer()
+                        Text("info@agrigence.in")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Button {
                     showChangelogSheet = true
                 } label: {

@@ -117,7 +117,7 @@ struct LicenseView: View {
         6. DISCLAIMER & LIMITATION OF LIABILITY
         THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL AGRIGENCE BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
 
-        Contact: https://www.agrigence.in/
+        Contact: https://www.agrigence.in/ • info@agrigence.in
         """
     }
 

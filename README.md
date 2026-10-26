@@ -247,7 +247,7 @@ bash scripts/verify_release.sh ~/Desktop/LiquidDynamo-2.0.5.dmg
 
 ## 📜 License & Intellectual Property
 
-**LiquidDynamo** is published and maintained by **[Agrigence](https://www.agrigence.in/)**.
+**LiquidDynamo** is published and maintained by **[Agrigence](https://www.agrigence.in/)** (Contact: [info@agrigence.in](mailto:info@agrigence.in)).
 
 Use of this software is governed by the **LiquidDynamo Restricted-Use Software License Agreement**. You may download, install, and use LiquidDynamo for its documented intended functionality as a personal macOS utility.
 
