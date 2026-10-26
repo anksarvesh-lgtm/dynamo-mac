@@ -1117,26 +1117,94 @@ struct About: View {
                             Text("Fluid Liquid Notch Experience for macOS")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            Text("Developed by Agrigence")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Link(destination: URL(string: "https://www.agrigence.in/")!) {
+                                HStack(spacing: 5) {
+                                    Image("AgrigenceIcon")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 13, height: 13)
+                                    Text("Developed by Agrigence")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 8, weight: .bold))
+                                }
+                                .foregroundStyle(Color.accentColor)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.vertical, 4)
                 }
 
                 Section {
+                    Link(destination: URL(string: "https://www.agrigence.in/")!) {
+                        HStack(spacing: 14) {
+                            Image("AgrigenceLogo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1.5)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 6) {
+                                    Text("Agrigence")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.primary)
+
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(Color(red: 0.16, green: 0.62, blue: 0.42))
+                                }
+
+                                Text("Innovative Native Mac & Educational Technologies")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
+                                Text("https://www.agrigence.in/")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.accentColor)
+                            }
+
+                            Spacer()
+
+                            HStack(spacing: 4) {
+                                Text("Visit")
+                                    .font(.caption.weight(.medium))
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption2.weight(.bold))
+                            }
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.accentColor.opacity(0.1))
+                            .clipShape(Capsule())
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text("Developer")
+                } footer: {
+                    Text("LiquidDynamo is actively developed and maintained by Agrigence.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text(Bundle.main.releaseVersionNumber ?? "1.7.0")
+                        Text(Bundle.main.releaseVersionNumber ?? "2.0.6")
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
                     HStack {
                         Text("Build Number")
                         Spacer()
-                        Text(Bundle.main.buildVersionNumber ?? "8")
+                        Text(Bundle.main.buildVersionNumber ?? "19")
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
@@ -1149,7 +1217,7 @@ struct About: View {
                     HStack {
                         Text("Release")
                         Spacer()
-                        Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "1.7.0")")
+                        Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "2.0.6")")
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
@@ -1158,7 +1226,27 @@ struct About: View {
                 }
 
                 Section {
-                    Link(destination: URL(string: "https://github.com/anksarvesh-lgtm/Liquiddynamo")!) {
+                    Link(destination: URL(string: "https://www.agrigence.in/")!) {
+                        HStack {
+                            Label {
+                                Text("Agrigence Website")
+                            } icon: {
+                                Image("AgrigenceIcon")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 16, height: 16)
+                            }
+                            Spacer()
+                            Text("agrigence.in")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Link(destination: URL(string: "https://github.com/anksarvesh-lgtm/dynamo-mac")!) {
                         HStack {
                             Label("GitHub Repository", systemImage: "link")
                             Spacer()

@@ -62,12 +62,24 @@ struct WelcomeView: View {
                 .padding(.top)
             }
             
-            Text("LiquidDynamo by Agrigence")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .padding()
-                .padding(.bottom, 36)
+            Link(destination: URL(string: "https://www.agrigence.in/")!) {
+                HStack(spacing: 6) {
+                    Image("AgrigenceIcon")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+                    Text("LiquidDynamo by Agrigence")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding()
+            .padding(.bottom, 36)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea()

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="nibGradIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color: #1b4332; stop-opacity: 1" />
+      <stop offset="100%" style="stop-color: #2d6a4f; stop-opacity: 1" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(5, 5) scale(0.24)">
+    <path d="M225,50 L100,300 L225,450 L350,300 Z" fill="url(#nibGradIcon)" />
+    <path d="M225,50 L225,450" stroke="#ffffff" stroke-width="8" stroke-linecap="round" />
+    <circle cx="225" cy="250" r="15" fill="#ffffff" />
+    <path d="M225,320 Q120,320 100,220 Q150,200 225,280" fill="#40916c" />
+    <path d="M225,320 Q330,320 350,220 Q300,200 225,280" fill="#40916c" />
+    <path d="M225,450 L225,280" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+  </g>
+</svg>
