@@ -44,20 +44,20 @@ class LiquidStatusMenu: NSMenu, NSMenuDelegate {
         menu.addItem(titleItem)
         menu.addItem(NSMenuItem.separator())
         
-        // Storage Purge Summary
+        // Scopa Storage Clean Summary
         let cleaner = StorageCleanupManager.shared
         let reclaimableStr = cleaner.latestResult?.formattedTotalReclaimable ?? (cleaner.isScanning ? "Scanning…" : "0 B")
-        let storageTitle = "Cleanable Storage: \(reclaimableStr)"
+        let storageTitle = "Scopa Cleanable: \(reclaimableStr)"
         let stItem = NSMenuItem(title: storageTitle, action: #selector(openCleanerAction), keyEquivalent: "")
         stItem.target = self
         stItem.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
         menu.addItem(stItem)
         
         if (cleaner.latestResult?.totalReclaimableBytes ?? 0) > 0 {
-            let purgeItem = NSMenuItem(title: "Purge All Junk to Trash", action: #selector(purgeAllAction), keyEquivalent: "")
-            purgeItem.target = self
-            purgeItem.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
-            menu.addItem(purgeItem)
+            let scopaItem = NSMenuItem(title: "Scopa: Clean Junk to Trash", action: #selector(scopaAllAction), keyEquivalent: "")
+            scopaItem.target = self
+            scopaItem.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
+            menu.addItem(scopaItem)
         }
         
         let scanItem = NSMenuItem(title: "Rescan Storage", action: #selector(rescanStorageAction), keyEquivalent: "r")
@@ -85,7 +85,7 @@ class LiquidStatusMenu: NSMenu, NSMenuDelegate {
         }
     }
     
-    @objc func purgeAllAction() {
+    @objc func scopaAllAction() {
         Task {
             await StorageCleanupManager.shared.cleanAll()
         }

@@ -54,7 +54,7 @@ struct DashboardDockView: View {
         if showCalendarTab {
             list.append(DockTabItem(label: "Calendar", icon: "calendar", view: .calendar))
         }
-        list.append(DockTabItem(label: "Storage Purge", icon: "sparkles", view: .cleaner))
+        list.append(DockTabItem(label: "Scopa", icon: "sparkles", view: .cleaner))
         return list
     }
 

@@ -169,7 +169,7 @@ public struct PermissionsSettingsView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .help("Purges stale macOS TCC permission cache and re-prompts")
+                        .help("Cleans stale macOS TCC permission cache and re-prompts")
                     }
                 }
                 .transition(.opacity)

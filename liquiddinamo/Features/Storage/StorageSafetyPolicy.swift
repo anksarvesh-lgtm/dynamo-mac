@@ -2,8 +2,7 @@
 //  StorageSafetyPolicy.swift
 //  LiquidDynamo
 //
-//  Strict allow / deny safety policy gating all storage cleanup operations.
-//  Faithfully ported from Purge (https://github.com/jithin-sabu/purge-app).
+//  Strict allow / deny safety policy gating all storage cleanup operations (Scopa Engine).
 //  Protects macOS system directories, cloud sync daemons, identity keychain files,
 //  running application state, and uncommitted git repositories.
 //
@@ -361,7 +360,7 @@ public enum StorageSafetyPolicy {
         return evaluate(url) == .allow
     }
 
-    /// Determines the appropriate safety tier for an item, faithfully following Purge's SafetyTierList.
+    /// Determines the appropriate safety tier for an item, following Scopa's SafetyTierList.
     public static func safetyTier(for url: URL, category: StorageCleanupCategory) -> SafetyTier {
         // Defense-in-depth: If not allowed by deletion safety policy, never mark safeToClean
         guard evaluate(url) == .allow else {

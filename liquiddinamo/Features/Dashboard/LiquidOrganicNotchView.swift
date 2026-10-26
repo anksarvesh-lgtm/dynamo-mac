@@ -101,7 +101,7 @@ public struct LiquidOrganicNotchView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
 
-                // 2. Group 2: Quick Tools (Clipboard, Dropper, Purge side by side)
+                // 2. Group 2: Quick Tools (Clipboard, Dropper, Scopa side by side)
                 quickToolsRow
                     .frame(maxWidth: .infinity, alignment: .center)
 
@@ -381,7 +381,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         }
     }
 
-    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Storage Purge, Watcher)
+    // MARK: - Group 2: Quick Tools Row (Clipboard, Dropper, Scopa Cleaner, Watcher)
     @ViewBuilder
     private var quickToolsRow: some View {
         CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
@@ -641,7 +641,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         .help("Temporary Dropper Shelf")
     }
 
-    // MARK: - Storage Clean / Purge Status Button
+    // MARK: - Storage Clean / Scopa Status Button
     @ViewBuilder
     private var storageCleanStatusButton: some View {
         let isSelected = activeExpandedItem == .storageCleaner
@@ -652,7 +652,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             } else if cleaner.isCleaning {
                 return "Cleaning…"
             } else if reclaimable > 0 {
-                return "Purge: \(cleaner.latestResult?.formattedTotalReclaimable ?? "")"
+                return "Scopa: \(cleaner.latestResult?.formattedTotalReclaimable ?? "")"
             } else {
                 return "Clean"
             }
@@ -689,7 +689,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             )
         }
         .buttonStyle(.plain)
-        .help("Storage Purge — Click to inspect and clean storage")
+        .help("Scopa — Click to inspect and clean storage")
     }
 
     // MARK: - Color Dropper Status Button
@@ -1582,7 +1582,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         }
     }
 
-    // MARK: - Storage Clean Detail Card (Purge Dropdown)
+    // MARK: - Storage Clean Detail Card (Scopa Dropdown)
     @ViewBuilder
     private var storageCleanDetailCard: some View {
         let res = cleaner.latestResult
@@ -1663,7 +1663,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                                         .font(.system(size: 10, weight: .bold))
                                 }
 
-                                Text(cleaner.isCleaning ? "Cleaning…" : "Purge All")
+                                Text(cleaner.isCleaning ? "Cleaning…" : "Scopa Clean All")
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                             }
                             .foregroundStyle(.white)

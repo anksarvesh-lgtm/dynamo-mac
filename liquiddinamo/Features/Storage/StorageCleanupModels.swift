@@ -3,7 +3,7 @@
 //  LiquidDynamo
 //
 //  Models for storage scanning, breakdown categories, safety tiers, and item tracking.
-//  Faithfully ports Purge's categories, safety allowlist tiering, and breakdown models.
+//  Faithfully structures Scopa's categories, safety allowlist tiering, and breakdown models.
 //
 
 import AppKit
@@ -90,7 +90,7 @@ public enum StorageCleanupCategory: String, CaseIterable, Identifiable, Hashable
         }
     }
 
-    /// Primary Purge categories displayed in order
+    /// Primary Scopa categories displayed in order
     public static var primaryCases: [StorageCleanupCategory] {
         [.caches, .developer, .largeFiles, .appUninstaller, .logs, .downloads, .trash]
     }

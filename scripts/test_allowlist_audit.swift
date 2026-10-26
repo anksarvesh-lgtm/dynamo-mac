@@ -13,7 +13,7 @@ struct TestRunner {
             StorageSafetyPolicy.evaluate(testURL(relative))
         }
 
-        print("Running Purge Allowlist Safety Audit Tests...")
+        print("Running Scopa Allowlist Safety Audit Tests...")
 
         // 1. Never delete system locations
         assert(StorageSafetyPolicy.evaluate(URL(fileURLWithPath: "/System")) == .blockedNeverDelete)
@@ -82,6 +82,6 @@ struct TestRunner {
         assert(StorageSafetyPolicy.safetyTier(for: testURL("Projects/MyApp/dist"), category: .developer) == .safeToClean)
         assert(StorageSafetyPolicy.safetyTier(for: testURL("Projects/MyApp/build"), category: .developer) == .safeToClean)
 
-        print("✅ All Purge Allowlist Safety Audit Tests PASSED successfully!")
+        print("✅ All Scopa Allowlist Safety Audit Tests PASSED successfully!")
     }
 }

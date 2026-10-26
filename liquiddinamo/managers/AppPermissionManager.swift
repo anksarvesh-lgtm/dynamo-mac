@@ -417,7 +417,7 @@ public final class AppPermissionManager: ObservableObject {
     }
 
     /// Performs one-click repair of stale macOS TCC accessibility cache.
-    /// Purges stale TCC entries for com.agrigence.liquiddynamo, prompts native dialog,
+    /// Flushes stale TCC entries for com.agrigence.liquiddynamo, prompts native dialog,
     /// opens System Settings, and begins active 500ms polling.
     public func repairAccessibilityPermission() {
         log("Repairing Accessibility Permission: purging stale TCC cache...")

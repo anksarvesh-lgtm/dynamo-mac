@@ -2,8 +2,8 @@
 //  NotchStorageCleanerView.swift
 //  LiquidDynamo
 //
-//  Immersive full-width Storage Purge view for the expanded dynamic island / notch.
-//  Faithfully incorporates Purge's categories, safety labels (Safe to Clean / Check First),
+//  Immersive full-width Scopa storage cleaner view for the expanded dynamic island / notch.
+//  Faithfully incorporates Scopa's categories, safety labels (Safe to Clean / Check First),
 //  "where your space went" breakdown bar, Full Disk Access onboarding, and trash-only engine.
 //
 
@@ -29,7 +29,7 @@ public struct NotchStorageCleanerView: View {
         let categories = res?.categoriesWithReclaimableItems ?? []
 
         VStack(spacing: 11) {
-            // Top Header: Title, Metric, Scan & Purge Action
+            // Top Header: Title, Metric, Scan & Scopa Action
             HStack(alignment: .center) {
                 HStack(spacing: 10) {
                     ZStack {
@@ -47,7 +47,7 @@ public struct NotchStorageCleanerView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text("Storage Purge")
+                            Text("Scopa")
                                 .font(.system(size: 15, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
 

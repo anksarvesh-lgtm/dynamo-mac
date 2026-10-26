@@ -2,7 +2,7 @@
 //  StorageCleanupManager.swift
 //  LiquidDynamo
 //
-//  Central storage scanner and cleanup coordinator porting Purge (https://github.com/jithin-sabu/purge-app).
+//  Central storage scanner and cleanup coordinator (Scopa Engine).
 //  Features:
 //  - Allowlist-based safety policy (StorageSafetyPolicy)
 //  - SafetyTier labeling (Safe to Clean vs Check First)
@@ -238,7 +238,7 @@ public final class StorageCleanupManager: ObservableObject {
         }
     }
 
-    // MARK: - Internal Scanner Routine (Purge Engine)
+    // MARK: - Internal Scanner Routine (Scopa Engine)
 
     public nonisolated static func executeScan(hasFullDiskAccess: Bool) -> StorageCleanupResult {
         let fm = FileManager.default
