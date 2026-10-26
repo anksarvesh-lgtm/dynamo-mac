@@ -125,8 +125,8 @@ struct SemVer: Comparable {
     }
 }
 
-let candidateTargetVersion = "2.0.8"
-let olderVersionsToTest = ["1.9.2", "1.9.8", "2.0.0", "2.0.5", "2.0.6", "2.0.7"]
+let candidateTargetVersion = remoteVer
+let olderVersionsToTest = ["1.9.2", "1.9.8", "2.0.0", "2.0.5", "2.0.6", "2.0.7", "2.0.8", "2.0.9", "2.1.0"]
 
 print("\n--- Verifying Update Detection for All Older Installed Versions against \(candidateTargetVersion) ---")
 for oldVer in olderVersionsToTest {
@@ -138,5 +138,5 @@ for oldVer in olderVersionsToTest {
     assert(updateDetected == true, "Version \(oldVer) must detect \(candidateTargetVersion) as an available update")
 }
 
-print("\n🎉 SUCCESS: All older installed versions (1.9.2, 1.9.8, 2.0.0, 2.0.5, 2.0.6, 2.0.7) will reliably trigger the update flow for v\(candidateTargetVersion)!")
+print("\n🎉 SUCCESS: All older installed versions (1.9.2 through 2.1.0) will reliably trigger the update flow for v\(candidateTargetVersion)!")
 
