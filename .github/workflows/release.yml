@@ -176,6 +176,10 @@ jobs:
             bash build_dmg.sh
           fi
 
+          # Extract built version for release tagging if workflow_dispatch was used without an explicit tag
+          APP_VERSION="$(grep -m1 'MARKETING_VERSION' LiquidDynamo.xcodeproj/project.pbxproj | awk -F'=' '{print $2}' | tr -d ' ;\"' || true)"
+          echo "APP_VERSION=${APP_VERSION:-2.0.8}" >> $GITHUB_ENV
+
           # Ensure liquiddynamo.zip is present for GitHub in-place auto-updater
           if [ -d "build/LiquidDynamo.app" ]; then
             echo "Creating liquiddynamo.zip for in-place auto-updater..."
@@ -192,6 +196,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
+          tag_name: ${{ inputs.version != '' && inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', env.APP_VERSION)) }}
           files: |
             ${{ env.OUTPUT_DIR }}/LiquidDynamo-*.dmg
             ${{ env.OUTPUT_DIR }}/liquiddynamo.zip
