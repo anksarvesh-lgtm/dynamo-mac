@@ -2,6 +2,26 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.9] — 2026-10-26
+
+### Minimal macOS Settings UI & Contextual Notch Aesthetics
+- **Streamlined Settings Presentation**: Cleaned up the settings interface with refined spacing, typography, and controls while maintaining the premium dark Liquid Glass aesthetic.
+- **Removed Irrelevant Decorative Notch Graphics**: Removed decorative notch illustrations, fake preview cards, and notch background canvases from non-notch settings pages (`GeneralSettingsView`, `SettingsPrivacyView`). Live notch previews are retained strictly in `LookSettingsView` (Notch & Wings).
+- **Compact Island Notification Capsules**: Enforced small, content-aware capsule presentation anchored to the notch for all temporary notifications (volume, media, devices, network, charging, and system status), eliminating oversized 460pt banners.
+
+### Phone Bridge Android Storage Synchronization
+- **Multi-Mount & Stat Fallback Probing**: Replaced brittle single-line `df -k` execution with multi-mount probing (`/storage/emulated/0`, `/sdcard`, `/storage/self/primary`, `/data`) using POSIX `stat -f -c '%a %b %s'` block geometry and resilient multi-line token extraction.
+- **Dynamic On-Demand Storage Sync**: Added `syncStorage(forced:)` with interactive UI sync buttons in both `PhoneBridgeView` and `SettingsPhoneBridgeView`, updating storage metrics automatically on device connection, periodic polling, and file transfer completion.
+
+### Powerload Multi-Network Dynamic Flow Balancing (Net-Merge)
+- **NetMerge Dynamic Flow Balancing**: Incorporated weighted least-busy worker allocation (`(busyFlows + 1) / weight`) from net-merge, dynamically distributing download connection workers across active adapters (Wi-Fi, Ethernet, USB tethering, Thunderbolt) proportionally according to measured EWMA throughput.
+- **Throughput Telemetry**: Added real-time per-chunk throughput telemetry with fast-attack (tau=2s) and slow-decay (tau=30s) capacity estimation.
+
+### Agrigence Branding & Restricted-Use Proprietary Licensing
+- **Publisher & Copyright Attribution**: Fully established Agrigence as developer, publisher, and copyright holder across application metadata, About views, and documentation.
+- **Restricted-Use License**: Replaced permissive open-source license with a proprietary restricted-use license permitting intended personal macOS utility use while prohibiting unauthorized modification, adaptation, and redistribution of modified copies.
+- **Comprehensive Third-Party Acknowledgements**: Fully updated `NOTICE.md` and in-app `LicenseView` preserving notices for all incorporated open-source libraries.
+
 ## [2.0.8] — 2026-10-26
 
 ### Background Auto-Download & Install & Instant Boot Checks

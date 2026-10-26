@@ -9,7 +9,7 @@
 
   <p align="center">
     <a href="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/latest">
-      <img src="https://img.shields.io/badge/Release-v2.0.8-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Latest Release" />
+      <img src="https://img.shields.io/badge/Release-v2.0.9-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Latest Release" />
     </a>
     <img src="https://img.shields.io/badge/macOS-14.0%2B%20Sonoma%20%7C%2015.0%2B%20Sequoia-30D158?style=for-the-badge&logo=apple&logoColor=white" alt="macOS 14+" />
     <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-BF5AF2?style=for-the-badge&logo=apple&logoColor=white" alt="Universal Binary" />
@@ -206,7 +206,7 @@ curl -fsSL https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/l
 | Package | Download Link | Notes |
 | :--- | :--- | :--- |
 | **LiquidDynamo DMG (Latest)** | [**Download LiquidDynamo.dmg**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg) | Permanent link to latest release |
-| **Versioned Release (v2.0.8)** | [**LiquidDynamo-2.0.8.dmg**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.8/LiquidDynamo-2.0.8.dmg) | Standalone signed disk image |
+| **Versioned Release (v2.0.9)** | [**LiquidDynamo-2.0.9.dmg**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.9/LiquidDynamo-2.0.9.dmg) | Standalone signed disk image |
 | **App Bundle ZIP** | [**liquiddynamo.zip**](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip) | For fast in-place auto-updater |
 
 1. Open `LiquidDynamo.dmg` and drag **LiquidDynamo** to `/Applications`.
