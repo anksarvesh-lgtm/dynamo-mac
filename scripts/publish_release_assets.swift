@@ -29,18 +29,18 @@ guard let token = getGitToken(), !token.isEmpty else {
 
 let owner = "anksarvesh-lgtm"
 let repos = ["dynamo-mac", "dynamomac"]
-let tag = "v2.1.1"
-let releaseName = "LiquidDynamo 2.1.1 — Live In-Place Auto-Update Pipeline & Phone Bridge Storage Fixes"
+let tag = "v2.1.2"
+let releaseName = "LiquidDynamo 2.1.2 — High-Performance Multi-Network Bonding & Phone Bridge Optimizations"
 let releaseBody = """
-### Live In-Place Auto-Update Pipeline & Package Delivery
-- **Guaranteed Dual-Format Release Artifacts**: Updated build pipeline to simultaneously produce `LiquidDynamo-2.1.1.dmg`, unversioned `LiquidDynamo.dmg`, and `liquiddynamo.zip` for instant live updates.
-- **Older Version Compatibility**: Configured release workflow and asset staging ensuring existing installed clients querying `GitHubUpdateChecker` can seamlessly discover, download, and hot-swap to version 2.1.1.
-- **Phone Bridge Android Storage Fixes**: Integrated multi-tiered storage calculation with `dumpsys diskstats` and global mount parsing, removed premature MTP session disposal, and expanded device classification across 20+ Android vendors.
+### Release Highlights — LiquidDynamo 2.1.2
+- **NetMerge Multi-Network Link Bonding**: Standalone bonding engine uniting Wi-Fi, Ethernet, USB mobile tethering, and Thunderbolt into an aggregate high-throughput download pipe.
+- **Phone Bridge & Android Storage Pipeline**: Enhanced MTP and ADB dual-backend session handling with real-time storage discovery across all modern Android devices.
+- **Automated Update Delivery**: Dual-format release distribution including signed standalone `LiquidDynamo-2.1.2.dmg`, unversioned `LiquidDynamo.dmg`, and `liquiddynamo.zip` for instant live in-place updates.
 """
 
 let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.1.1.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.1.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.1.2.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.2.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip")
 ]

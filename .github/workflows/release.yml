@@ -178,7 +178,7 @@ jobs:
 
           # Extract built version for release tagging if workflow_dispatch was used without an explicit tag
           APP_VERSION="$(grep -m1 'MARKETING_VERSION' LiquidDynamo.xcodeproj/project.pbxproj | awk -F'=' '{print $2}' | tr -d ' ;\"' || true)"
-          echo "APP_VERSION=${APP_VERSION:-2.1.1}" >> $GITHUB_ENV
+          echo "APP_VERSION=${APP_VERSION:-2.1.2}" >> $GITHUB_ENV
 
           # Ensure liquiddynamo.zip is present for GitHub in-place auto-updater
           if [ ! -f "$OUTPUT_DIR/liquiddynamo.zip" ]; then

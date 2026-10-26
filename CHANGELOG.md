@@ -2,6 +2,13 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.2] — 2026-10-27
+
+### NetMerge Multi-Network Link Bonding & Phone Bridge Storage Optimizations
+- **NetMerge Multi-Network Engine**: Integrated standalone multi-network link bonding engine uniting Wi-Fi, Ethernet, USB mobile tethering, and Thunderbolt into an aggregate high-throughput download pipe with dynamic work-stealing chunk workers.
+- **Phone Bridge & Android Storage Pipeline**: Hardened ADB and MTP dual-backend session handling with real-time storage discovery across all modern Android devices.
+- **Automated Update Delivery**: Dual-format release distribution including signed standalone `LiquidDynamo-2.1.2.dmg`, unversioned `LiquidDynamo.dmg`, and `liquiddynamo.zip` for instant live in-place updates.
+
 ## [2.1.1] — 2026-10-26
 
 ### Live In-Place Auto-Update Pipeline & Package Delivery
