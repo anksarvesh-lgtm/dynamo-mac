@@ -53,7 +53,7 @@ public struct SettingsControlCenterSidebar: View {
         SettingsSidebarItem(id: "About", title: "About", symbolBackup: "info.circle"),
         SettingsSidebarItem(id: "Watcher", title: "Watcher (Agents)", symbolBackup: "sparkles", badgeText: "AI"),
         SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", symbolBackup: "trash.circle.fill", badgeText: "Clean"),
-        SettingsSidebarItem(id: "FileDroid", title: "FileDroid (ADB)", symbolBackup: "externaldrive.fill.badge.wifi"),
+        SettingsSidebarItem(id: "PhoneBridge", title: "Phone Bridge", symbolBackup: "externaldrive.fill.badge.wifi"),
         SettingsSidebarItem(id: "Powerload", title: "Powerload Turbo", symbolBackup: "bolt.horizontal.fill"),
         SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command")
     ]

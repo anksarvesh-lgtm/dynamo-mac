@@ -32,12 +32,12 @@
 		FE7511FB1A7FDBD61C04D669 /* PowerloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9D70699B2531ED1AE74E92 /* PowerloadView.swift */; };
 		FEEA6A968737D9F7C937C41D /* SettingsPowerloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6032368922365D87F68F65 /* SettingsPowerloadView.swift */; };
 		FE4FBDA914DB5306320C17CC /* AndroidTransferBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */; };
-		FE5EA3A9AB46FBDAF9A75A39 /* FileDroidEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9FC2F5F64CAF3A82B286B8 /* FileDroidEngine.swift */; };
-		FE52FDF22121BEE88AEEF396 /* FileDroidModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5943EEF4AB9534B1D59494 /* FileDroidModels.swift */; };
-		FE9D9E286C1273B48120ED68 /* FileDroidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED17142B45F2FAC4C13ABA8 /* FileDroidView.swift */; };
-		FE74F3056555472AEF19350B /* FileDroidWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA87D775909C09D1350D2EB /* FileDroidWindowController.swift */; };
-		FE17BE7201D14D5448764362 /* KalamBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED11E3B31FCE7A9D9F777C4 /* KalamBridge.swift */; };
-		FE321EFA7973163933DB4676 /* SettingsFileDroidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF86671D22D11033A9A92AA /* SettingsFileDroidView.swift */; };
+		FE5EA3A9AB46FBDAF9A75A39 /* PhoneBridgeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9FC2F5F64CAF3A82B286B8 /* PhoneBridgeEngine.swift */; };
+		FE52FDF22121BEE88AEEF396 /* PhoneBridgeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5943EEF4AB9534B1D59494 /* PhoneBridgeModels.swift */; };
+		FE9D9E286C1273B48120ED68 /* PhoneBridgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED17142B45F2FAC4C13ABA8 /* PhoneBridgeView.swift */; };
+		FE74F3056555472AEF19350B /* PhoneBridgeWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA87D775909C09D1350D2EB /* PhoneBridgeWindowController.swift */; };
+		FE17BE7201D14D5448764362 /* MTPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED11E3B31FCE7A9D9F777C4 /* MTPBridge.swift */; };
+		FE321EFA7973163933DB4676 /* SettingsPhoneBridgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF86671D22D11033A9A92AA /* SettingsPhoneBridgeView.swift */; };
 		FE5D29971925722764C6E2BB /* WingBottomIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF4CBBB8506BD790233C730 /* WingBottomIndicators.swift */; };
 		FE798F9427B4A385467C0B7A /* AppUpdateTopBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1E5D0EF7157805821242A1 /* AppUpdateTopBannerView.swift */; };
 		FEA161B2E65B345E6B780B4A /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5F3DB13E5FD3BF401CAD81 /* GeneralSettingsView.swift */; };
@@ -385,12 +385,12 @@
 		FE9D70699B2531ED1AE74E92 /* PowerloadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadView.swift"; sourceTree = "<group>"; };
 		FE6032368922365D87F68F65 /* SettingsPowerloadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsPowerloadView.swift"; sourceTree = "<group>"; };
 		FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AndroidTransferBackend.swift"; sourceTree = "<group>"; };
-		FE9FC2F5F64CAF3A82B286B8 /* FileDroidEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidEngine.swift"; sourceTree = "<group>"; };
-		FE5943EEF4AB9534B1D59494 /* FileDroidModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidModels.swift"; sourceTree = "<group>"; };
-		FED17142B45F2FAC4C13ABA8 /* FileDroidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidView.swift"; sourceTree = "<group>"; };
-		FEA87D775909C09D1350D2EB /* FileDroidWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidWindowController.swift"; sourceTree = "<group>"; };
-		FED11E3B31FCE7A9D9F777C4 /* KalamBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KalamBridge.swift"; sourceTree = "<group>"; };
-		FEF86671D22D11033A9A92AA /* SettingsFileDroidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsFileDroidView.swift"; sourceTree = "<group>"; };
+		FE9FC2F5F64CAF3A82B286B8 /* PhoneBridgeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhoneBridgeEngine.swift"; sourceTree = "<group>"; };
+		FE5943EEF4AB9534B1D59494 /* PhoneBridgeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhoneBridgeModels.swift"; sourceTree = "<group>"; };
+		FED17142B45F2FAC4C13ABA8 /* PhoneBridgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhoneBridgeView.swift"; sourceTree = "<group>"; };
+		FEA87D775909C09D1350D2EB /* PhoneBridgeWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhoneBridgeWindowController.swift"; sourceTree = "<group>"; };
+		FED11E3B31FCE7A9D9F777C4 /* MTPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MTPBridge.swift"; sourceTree = "<group>"; };
+		FEF86671D22D11033A9A92AA /* SettingsPhoneBridgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsPhoneBridgeView.swift"; sourceTree = "<group>"; };
 		FEF4CBBB8506BD790233C730 /* WingBottomIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WingBottomIndicators.swift"; sourceTree = "<group>"; };
 		FE1E5D0EF7157805821242A1 /* AppUpdateTopBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppUpdateTopBannerView.swift"; sourceTree = "<group>"; };
 		FE5F3DB13E5FD3BF401CAD81 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GeneralSettingsView.swift"; sourceTree = "<group>"; };
@@ -730,18 +730,18 @@
 			path = Powerload;
 			sourceTree = "<group>";
 		};
-		FEF8053A205B9C17C3A0659B /* FileDroid */ = {
+		FEF8053A205B9C17C3A0659B /* PhoneBridge */ = {
 			isa = PBXGroup;
 			children = (
 				FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */,
-				FE9FC2F5F64CAF3A82B286B8 /* FileDroidEngine.swift */,
-				FE5943EEF4AB9534B1D59494 /* FileDroidModels.swift */,
-				FED17142B45F2FAC4C13ABA8 /* FileDroidView.swift */,
-				FEA87D775909C09D1350D2EB /* FileDroidWindowController.swift */,
-				FED11E3B31FCE7A9D9F777C4 /* KalamBridge.swift */,
-				FEF86671D22D11033A9A92AA /* SettingsFileDroidView.swift */,
+				FE9FC2F5F64CAF3A82B286B8 /* PhoneBridgeEngine.swift */,
+				FE5943EEF4AB9534B1D59494 /* PhoneBridgeModels.swift */,
+				FED17142B45F2FAC4C13ABA8 /* PhoneBridgeView.swift */,
+				FEA87D775909C09D1350D2EB /* PhoneBridgeWindowController.swift */,
+				FED11E3B31FCE7A9D9F777C4 /* MTPBridge.swift */,
+				FEF86671D22D11033A9A92AA /* SettingsPhoneBridgeView.swift */,
 			);
-			path = FileDroid;
+			path = PhoneBridge;
 			sourceTree = "<group>";
 		};
 		FE5550481E5D3B8163A9B24C /* AndroidFiles */ = {
@@ -1243,7 +1243,7 @@
 			isa = PBXGroup;
 			children = (
 				FE213747DCCB43D664F183F2 /* Powerload */,
-				FEF8053A205B9C17C3A0659B /* FileDroid */,
+				FEF8053A205B9C17C3A0659B /* PhoneBridge */,
 				FE5550481E5D3B8163A9B24C /* AndroidFiles */,
 				FEC5E4E91877761E344D781B /* Watcher */,
 				FEC09E97B81D1522C3D5CB56 /* ColorDropper */,
@@ -1654,12 +1654,12 @@
 				FE7511FB1A7FDBD61C04D669 /* PowerloadView.swift in Sources */,
 				FEEA6A968737D9F7C937C41D /* SettingsPowerloadView.swift in Sources */,
 				FE4FBDA914DB5306320C17CC /* AndroidTransferBackend.swift in Sources */,
-				FE5EA3A9AB46FBDAF9A75A39 /* FileDroidEngine.swift in Sources */,
-				FE52FDF22121BEE88AEEF396 /* FileDroidModels.swift in Sources */,
-				FE9D9E286C1273B48120ED68 /* FileDroidView.swift in Sources */,
-				FE74F3056555472AEF19350B /* FileDroidWindowController.swift in Sources */,
-				FE17BE7201D14D5448764362 /* KalamBridge.swift in Sources */,
-				FE321EFA7973163933DB4676 /* SettingsFileDroidView.swift in Sources */,
+				FE5EA3A9AB46FBDAF9A75A39 /* PhoneBridgeEngine.swift in Sources */,
+				FE52FDF22121BEE88AEEF396 /* PhoneBridgeModels.swift in Sources */,
+				FE9D9E286C1273B48120ED68 /* PhoneBridgeView.swift in Sources */,
+				FE74F3056555472AEF19350B /* PhoneBridgeWindowController.swift in Sources */,
+				FE17BE7201D14D5448764362 /* MTPBridge.swift in Sources */,
+				FE321EFA7973163933DB4676 /* SettingsPhoneBridgeView.swift in Sources */,
 				FE5D29971925722764C6E2BB /* WingBottomIndicators.swift in Sources */,
 				FE798F9427B4A385467C0B7A /* AppUpdateTopBannerView.swift in Sources */,
 				FEA161B2E65B345E6B780B4A /* GeneralSettingsView.swift in Sources */,

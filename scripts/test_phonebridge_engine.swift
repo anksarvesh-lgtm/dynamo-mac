@@ -1,22 +1,22 @@
 //
-//  test_filedroid_engine.swift
-//  Unit tests for FileDroid & OpenMTP engine, models, and Finder mount logic.
+//  test_phonebridge_engine.swift
+//  Unit tests for Phone Bridge & OpenMTP engine, models, and Finder mount logic.
 //
 
 import Foundation
 
 @main
-struct FileDroidTestRunner {
+struct PhoneBridgeTestRunner {
     static func main() {
-        print("=== Running FileDroid & OpenMTP Unit Tests ===")
+        print("=== Running Phone Bridge & OpenMTP Unit Tests ===")
 
         // 1. Test Byte and Speed Formatting
-        assert(FileDroidFormatting.formatBytes(512) == "512 B")
-        assert(FileDroidFormatting.formatBytes(1024 * 1024 * 2) == "2.0 MB")
-        assert(FileDroidFormatting.formatBytes(1024 * 1024 * 1024 * 16) == "16.0 GB")
-        assert(FileDroidFormatting.formatSpeed(0) == "0 KB/s")
-        assert(FileDroidFormatting.formatSpeed(1024 * 512).contains("512.0 KB/s"))
-        assert(FileDroidFormatting.formatSpeed(1024 * 1024 * 42.5).contains("42.5 MB/s"))
+        assert(PhoneBridgeFormatting.formatBytes(512) == "512 B")
+        assert(PhoneBridgeFormatting.formatBytes(1024 * 1024 * 2) == "2.0 MB")
+        assert(PhoneBridgeFormatting.formatBytes(1024 * 1024 * 1024 * 16) == "16.0 GB")
+        assert(PhoneBridgeFormatting.formatSpeed(0) == "0 KB/s")
+        assert(PhoneBridgeFormatting.formatSpeed(1024 * 512).contains("512.0 KB/s"))
+        assert(PhoneBridgeFormatting.formatSpeed(1024 * 1024 * 42.5).contains("42.5 MB/s"))
         print("Test 1 (Byte & Speed Formatting): PASS")
 
         // 2. Test AndroidDevice Model & Storage Calculations
@@ -102,7 +102,7 @@ struct FileDroidTestRunner {
         print("Test 4 (Finder Virtual SSD Volume Hierarchy): PASS")
 
         // 5. Test Transfer Queue Accounting
-        var transfer = FileDroidTransferItem(
+        var transfer = PhoneBridgeTransferItem(
             fileName: "video.mp4",
             direction: .uploadToAndroid,
             localPath: "/tmp/video.mp4",
@@ -116,6 +116,6 @@ struct FileDroidTestRunner {
         assert(transfer.formattedSpeed.contains("25.0 MB/s"))
         print("Test 5 (Transfer Queue & Throughput Accounting): PASS")
 
-        print("\n✅ ALL 5 FILEDROID & OPENMTP TESTS PASSED!")
+        print("\n✅ ALL 5 PHONE BRIDGE & OPENMTP TESTS PASSED!")
     }
 }

@@ -13,7 +13,7 @@ import Foundation
 // MARK: - Backend Protocol
 
 public protocol AndroidTransferBackend: AnyObject, Sendable {
-    var backendType: FileDroidConnectionType { get }
+    var backendType: PhoneBridgeConnectionType { get }
     var isAvailable: Bool { get }
     var availabilityHint: String? { get }
     
@@ -29,7 +29,7 @@ public protocol AndroidTransferBackend: AnyObject, Sendable {
 // MARK: - ADB Transfer Backend
 
 public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
-    public let backendType: FileDroidConnectionType = .adb
+    public let backendType: PhoneBridgeConnectionType = .adb
     
     public var isAvailable: Bool {
         guard let path = effectiveAdbPath else { return false }
@@ -49,16 +49,19 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
         }
 
         // 1. User custom setting
-        let custom = UserDefaults.standard.string(forKey: "filedroid_custom_adb_path") ?? ""
+        let custom = UserDefaults.standard.string(forKey: "phonebridge_custom_adb_path")
+            ?? UserDefaults.standard.string(forKey: "filedroid_custom_adb_path") ?? ""
         if !custom.isEmpty && FileManager.default.isExecutableFile(atPath: custom) {
             Self.cachedResolvedAdbPath = custom
             return custom
         }
 
-        // 2. Check FileDroid app config if previously configured
+        // 2. Check PhoneBridge / FileDroid app config if previously configured
         let userHome = "/Users/\(NSUserName())"
+        let phonebridgeConfig = "\(userHome)/Library/Application Support/com.phonebridge/adb_path.txt"
         let filedroidConfig = "\(userHome)/Library/Application Support/com.filedroid/adb_path.txt"
-        if let saved = try? String(contentsOfFile: filedroidConfig, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+        let configPath = FileManager.default.fileExists(atPath: phonebridgeConfig) ? phonebridgeConfig : filedroidConfig
+        if let saved = try? String(contentsOfFile: configPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
            !saved.isEmpty, FileManager.default.isExecutableFile(atPath: saved) {
             Self.cachedResolvedAdbPath = saved
             return saved
@@ -123,7 +126,7 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
             let serial = parts[0]
             let stateStr = parts[1]
             
-            var status: FileDroidDeviceStatus = .connected
+            var status: PhoneBridgeDeviceStatus = .connected
             if stateStr == "unauthorized" {
                 status = .unauthorized
             } else if stateStr == "offline" {
@@ -355,26 +358,26 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 }
 
-// MARK: - MTP Transfer Backend (Native Kalam & OpenMTP Engine)
+// MARK: - MTP Transfer Backend (Native MTPBridge & OpenMTP Engine)
 
 public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
-    public let backendType: FileDroidConnectionType = .mtp
+    public let backendType: PhoneBridgeConnectionType = .mtp
     private var cachedStorageId: UInt32 = 65537
 
     public var isAvailable: Bool {
-        return KalamBridge.isSupportedArchitecture && KalamBridge.shared.isLoaded
+        return MTPBridge.isSupportedArchitecture && MTPBridge.shared.isLoaded
     }
 
     public var availabilityHint: String? {
-        if !KalamBridge.isSupportedArchitecture {
+        if !MTPBridge.isSupportedArchitecture {
             return "Native MTP bridge is unavailable on Intel Macs (Apple Silicon required)."
         }
         if isAvailable { return nil }
-        return "Native OpenMTP Kalam engine dylib is initializing or missing from Frameworks."
+        return "Native OpenMTP engine dylib is initializing or missing from Frameworks."
     }
 
     public init() {
-        KalamBridge.shared.loadDylib()
+        MTPBridge.shared.loadDylib()
     }
 
     public func scanDevices() async -> [AndroidDevice] {
@@ -387,7 +390,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
         }
         guard hasAndroidUsb || force else { return [] }
 
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         if !bridge.isLoaded {
             bridge.loadDylib()
         }
@@ -454,7 +457,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func fetchDirectoryContents(serial: String, path: String, showHidden: Bool) async throws -> [AndroidFileItem] {
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         let initRes = await bridge.initialize()
         guard case .success = initRes else {
             await bridge.dispose()
@@ -496,7 +499,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func createFolder(serial: String, remotePath: String) async throws {
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         _ = await bridge.initialize()
         let res = await bridge.makeDirectory(storageId: self.cachedStorageId, fullPath: remotePath)
         await bridge.dispose()
@@ -506,7 +509,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func renameItem(serial: String, remotePath: String, newName: String) async throws {
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         _ = await bridge.initialize()
         let res = await bridge.renameFile(storageId: self.cachedStorageId, fullPath: remotePath, newFileName: newName)
         await bridge.dispose()
@@ -516,7 +519,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func deleteItems(serial: String, remotePaths: [String]) async throws {
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         _ = await bridge.initialize()
         let res = await bridge.deleteFiles(storageId: self.cachedStorageId, files: remotePaths)
         await bridge.dispose()
@@ -526,7 +529,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func pushFile(serial: String, localPath: String, remotePath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         _ = await bridge.initialize()
         let res = await bridge.uploadFiles(storageId: self.cachedStorageId, sources: [localPath], destination: remotePath, onProgress: onProgress)
         await bridge.dispose()
@@ -536,7 +539,7 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     }
 
     public func pullFile(serial: String, remotePath: String, localPath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
-        let bridge = KalamBridge.shared
+        let bridge = MTPBridge.shared
         _ = await bridge.initialize()
         let localDir = (localPath as NSString).deletingLastPathComponent
         try? FileManager.default.createDirectory(atPath: localDir, withIntermediateDirectories: true)

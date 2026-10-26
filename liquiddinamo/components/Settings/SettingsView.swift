@@ -76,8 +76,8 @@ struct SettingsView: View {
                         SettingsWatcherView()
                     case "StorageCleaner":
                         SettingsStorageCleanerView()
-                    case "FileDroid":
-                        SettingsFileDroidView()
+                    case "PhoneBridge", "FileDroid":
+                        SettingsPhoneBridgeView()
                     case "Powerload", "Plexo":
                         SettingsPowerloadView()
                     case "Shortcuts":

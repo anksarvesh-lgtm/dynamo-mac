@@ -46,7 +46,7 @@ let requiredDestinations = [
     "Battery & Devices",
     "Clipboard",
     "Storage Cleaner",
-    "FileDroid (ADB)",
+    "Phone Bridge",
     "Plexo Turbo",
     "Hydration",
     "Permissions",

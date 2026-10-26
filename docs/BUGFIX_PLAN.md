@@ -89,18 +89,18 @@ This document establishes the audit evidence, root causes, targeted minimal chan
   - `scripts/test_clipboard_milestone3.swift`: 23/23 unit tests passed across SHA-256 deduplication, Codable backward compatibility, screen recording hysteresis debouncing, lazy promise retry with 2.0s timeout, and type priority text preservation.
   - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
-### Milestone 4: KalamBridge & FileDroid Thread Safety
+### Milestone 4: MTPBridge & Phone Bridge Thread Safety
 - **Status**: **CONFIRMED & FIXED (VERIFIED WITH 14/14 PASSING UNIT TESTS & XCODEBUILD DEBUG BUILD)**
 - **Cause**: NSLock locked on caller thread and unlocked inside C callback thread; static singletons overwrite concurrent calls; loose substring error check; hardcoded developer dylib paths; missing Xcode project references; arm64-only without Intel UI notice; missing third-party licenses.
 - **Change**:
   1. Replaced NSLock with a serial FIFO `AsyncStream<Operation>` request queue that executes operations strictly one by one and guarantees thread-safe completion without lock thread mismatch.
-  2. Added per-call 15-second timeout and automatic cancellation/recovery with typed `KalamError.timeout`.
-  3. Replaced fragile substring checks (`json.contains("\"error\":\"\"") || !json.contains("errorType")`) with strict typed `Codable` envelope parsing (`KalamResponse<T>`), strictly rejecting any non-empty error field or decoding failure.
+  2. Added per-call 15-second timeout and automatic cancellation/recovery with typed `MTPError.timeout`.
+  3. Replaced fragile substring checks with strict typed `Codable` envelope parsing (`MTPResponse<T>`), strictly rejecting any non-empty error field or decoding failure.
   4. Removed hardcoded developer paths (`/Users/sarvesh/...`), CWD search path, and `/Applications`; restricted dylib loading exclusively to `Bundle.main.privateFrameworksURL` with fallback to `@rpath`.
   5. Added runtime architecture detection (`isSupportedArchitecture`): on Intel x86_64, gracefully reports false and surfaces an actionable notice in UI (`availabilityHint`: "Native MTP bridge is unavailable on Intel Macs (Apple Silicon required)").
   6. Added comprehensive third-party license notices to `THIRD_PARTY_LICENSES` for libusb (LGPL-2.1 with dynamic linking & user relinking notice), OpenMTP, and Kalam (Ganesh Rathinavel).
 - **Test Evidence**:
-  - `scripts/test_kalam_bridge_milestone4.swift`: All 14/14 unit tests passed across Actor Request Serialization, Timeout & Recovery, Strict Codable Response Parsing & Error Rejection, Architecture Detection & Intel Fallback, and Third-Party Licenses Verification.
+  - `scripts/test_mtp_bridge_milestone4.swift`: All 14/14 unit tests passed across Actor Request Serialization, Timeout & Recovery, Strict Codable Response Parsing & Error Rejection, Architecture Detection & Intel Fallback, and Third-Party Licenses Verification.
   - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 5: ADBClient Concurrency & Process Safety

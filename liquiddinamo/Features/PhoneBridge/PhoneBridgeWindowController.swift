@@ -1,8 +1,8 @@
 //
-//  FileDroidWindowController.swift
+//  PhoneBridgeWindowController.swift
 //  LiquidDynamo
 //
-//  Dedicated App Window Controller for FileDroid & OpenMTP.
+//  Dedicated App Window Controller for Phone Bridge & OpenMTP.
 //  Presents the full dual-pane / folder manager UI directly in an AppKit window,
 //  bypassing Finder and providing full desktop file management.
 //
@@ -10,8 +10,8 @@
 import AppKit
 import SwiftUI
 
-public final class FileDroidWindowController: NSWindowController {
-    public static let shared = FileDroidWindowController()
+public final class PhoneBridgeWindowController: NSWindowController {
+    public static let shared = PhoneBridgeWindowController()
 
     private init() {
         let window = NSWindow(
@@ -30,14 +30,14 @@ public final class FileDroidWindowController: NSWindowController {
 
     private func setupWindow() {
         guard let window = self.window else { return }
-        window.title = "Android Storage Bridge"
+        window.title = "Phone Bridge"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 650, height: 480)
 
-        let rootView = FileDroidStandaloneWindowView()
+        let rootView = PhoneBridgeStandaloneWindowView()
         window.contentView = NSHostingView(rootView: rootView)
     }
 
@@ -46,12 +46,12 @@ public final class FileDroidWindowController: NSWindowController {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        FileDroidEngine.shared.scanDevices()
+        PhoneBridgeEngine.shared.scanDevices()
     }
 }
 
-public struct FileDroidStandaloneWindowView: View {
-    @ObservedObject private var engine = FileDroidEngine.shared
+public struct PhoneBridgeStandaloneWindowView: View {
+    @ObservedObject private var engine = PhoneBridgeEngine.shared
 
     public init() {}
 
@@ -67,7 +67,7 @@ public struct FileDroidStandaloneWindowView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Color(red: 0.24, green: 0.86, blue: 0.52))
 
-                    Text("Android Storage Bridge")
+                    Text("Phone Bridge")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
 
@@ -80,7 +80,7 @@ public struct FileDroidStandaloneWindowView: View {
                     Spacer()
 
                     Button {
-                        FileDroidWindowController.shared.window?.close()
+                        PhoneBridgeWindowController.shared.window?.close()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 14))
@@ -96,10 +96,14 @@ public struct FileDroidStandaloneWindowView: View {
                     .background(Color.white.opacity(0.12))
 
                 // Full File Manager UI
-                FileDroidView()
+                PhoneBridgeView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(minWidth: 650, minHeight: 480)
     }
 }
+
+// MARK: - Backward Compatibility Aliases
+public typealias FileDroidWindowController = PhoneBridgeWindowController
+public typealias FileDroidStandaloneWindowView = PhoneBridgeStandaloneWindowView

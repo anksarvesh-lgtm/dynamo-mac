@@ -1,8 +1,8 @@
 //
-//  FileDroidView.swift
+//  PhoneBridgeView.swift
 //  LiquidDynamo
 //
-//  Native Liquid Glass interface for FileDroid & OpenMTP.
+//  Native Liquid Glass interface for Phone Bridge & OpenMTP.
 //  Provides dual-pane file browsing, drag & drop push/pull,
 //  Finder external SSD mount reveal, and live device telemetry.
 //
@@ -12,8 +12,8 @@ import Defaults
 import SwiftUI
 import UniformTypeIdentifiers
 
-public struct FileDroidView: View {
-    @ObservedObject private var engine = FileDroidEngine.shared
+public struct PhoneBridgeView: View {
+    @ObservedObject private var engine = PhoneBridgeEngine.shared
     @State private var selectedFileIDs: Set<String> = []
     @State private var isShowingNewFolderDialog: Bool = false
     @State private var newFolderName: String = ""
@@ -127,7 +127,7 @@ public struct FileDroidView: View {
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                     } else {
-                        Text("FileDroid & OpenMTP")
+                        Text("Phone Bridge")
                             .font(.system(size: 12.5, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
                     }
@@ -165,7 +165,7 @@ public struct FileDroidView: View {
                     Circle()
                         .fill(dev.storageUsedPercentage > 0.9 ? Color.red : Color.cyan)
                         .frame(width: 5, height: 5)
-                    Text(FileDroidFormatting.formatBytes(dev.internalStorageFree) + " free")
+                    Text(PhoneBridgeFormatting.formatBytes(dev.internalStorageFree) + " free")
                         .font(.system(size: 9.5, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
                 }
@@ -800,8 +800,8 @@ public struct FileDroidView: View {
 
                 Button {
                     let alert = NSAlert()
-                    alert.messageText = "FileDroid & OpenMTP Finder Mount"
-                    alert.informativeText = "When any Android device connects, FileDroid automatically creates an External Storage volume right on your Desktop and in Finder!\n\nYou can browse DCIM photos, Downloads, and drag files into your phone just like a normal external SSD."
+                    alert.messageText = "Phone Bridge Finder Mount"
+                    alert.informativeText = "When any Android device connects, Phone Bridge automatically creates an External Storage volume right on your Desktop and in Finder!\n\nYou can browse DCIM photos, Downloads, and drag files into your phone just like a normal external SSD."
                     alert.runModal()
                 } label: {
                     HStack(spacing: 4) {
@@ -919,3 +919,6 @@ public struct FileDroidView: View {
         return true
     }
 }
+
+// MARK: - Backward Compatibility Aliases
+public typealias FileDroidView = PhoneBridgeView

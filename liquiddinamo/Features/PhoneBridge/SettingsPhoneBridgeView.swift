@@ -1,8 +1,8 @@
 //
-//  SettingsFileDroidView.swift
+//  SettingsPhoneBridgeView.swift
 //  LiquidDynamo
 //
-//  Preferences and configuration tab for FileDroid & OpenMTP
+//  Preferences and configuration tab for Phone Bridge & OpenMTP
 //  Finder storage mounting, ADB path resolution, and USB options.
 //
 
@@ -10,17 +10,17 @@ import AppKit
 import Defaults
 import SwiftUI
 
-public struct SettingsFileDroidView: View {
-    @ObservedObject private var engine = FileDroidEngine.shared
-    @Default(.filedroidAdbPath) var adbPathSetting
-    @Default(.filedroidAutoDetectAdb) var autoDetectAdb
-    @Default(.filedroidAutoMountOnConnect) var autoMountOnConnect
-    @Default(.filedroidAutoRevealInFinder) var autoRevealInFinder
-    @Default(.filedroidDefaultMacFolder) var defaultMacFolder
-    @Default(.filedroidTransferConcurrency) var transferConcurrency
-    @Default(.filedroidShowHiddenFiles) var showHiddenFiles
-    @Default(.filedroidNotifications) var filedroidNotifications
-    @Default(.filedroidBackendType) var backendType
+public struct SettingsPhoneBridgeView: View {
+    @ObservedObject private var engine = PhoneBridgeEngine.shared
+    @Default(.phonebridgeAdbPath) var adbPathSetting
+    @Default(.phonebridgeAutoDetectAdb) var autoDetectAdb
+    @Default(.phonebridgeAutoMountOnConnect) var autoMountOnConnect
+    @Default(.phonebridgeAutoRevealInFinder) var autoRevealInFinder
+    @Default(.phonebridgeDefaultMacFolder) var defaultMacFolder
+    @Default(.phonebridgeTransferConcurrency) var transferConcurrency
+    @Default(.phonebridgeShowHiddenFiles) var showHiddenFiles
+    @Default(.phonebridgeNotifications) var phonebridgeNotifications
+    @Default(.phonebridgeBackendType) var backendType
 
     @Default(.androidFilesAdbPath) var androidFilesAdbPath
     @Default(.androidFilesDefaultDownloadFolder) var androidFilesDefaultDownloadFolder
@@ -47,9 +47,9 @@ public struct SettingsFileDroidView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("FileDroid & OpenMTP")
+                        Text("Phone Bridge")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
-                        Text("Android file management, Finder external SSD emulation, and ADB/MTP protocols")
+                        Text("Android phone file management, Finder external storage emulation, and ADB/MTP protocols")
                             .font(.system(size: 11.5, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
@@ -100,7 +100,7 @@ public struct SettingsFileDroidView: View {
 
                             if dev.status == .connected {
                                 HStack(spacing: 16) {
-                                    Text("Free Storage: \(FileDroidFormatting.formatBytes(dev.internalStorageFree)) of \(FileDroidFormatting.formatBytes(dev.internalStorageTotal))")
+                                    Text("Free Storage: \(PhoneBridgeFormatting.formatBytes(dev.internalStorageFree)) of \(PhoneBridgeFormatting.formatBytes(dev.internalStorageTotal))")
                                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                                         .foregroundStyle(.secondary)
 
@@ -259,7 +259,7 @@ public struct SettingsFileDroidView: View {
                                 engine.fetchDirectoryContents(path: engine.currentRemotePath)
                             }
 
-                        Toggle("Show notifications on transfer complete", isOn: $filedroidNotifications)
+                        Toggle("Show notifications on transfer complete", isOn: $phonebridgeNotifications)
                             .tint(.accentColor)
                     }
                     .padding(8)
@@ -314,3 +314,6 @@ public struct SettingsFileDroidView: View {
         }
     }
 }
+
+// MARK: - Backward Compatibility Aliases
+public typealias SettingsFileDroidView = SettingsPhoneBridgeView

@@ -1,8 +1,8 @@
 //
-//  FileDroidModels.swift
+//  PhoneBridgeModels.swift
 //  LiquidDynamo
 //
-//  Data models for FileDroid & OpenMTP unified Android file management,
+//  Data models for Phone Bridge & OpenMTP unified Android file management,
 //  Finder external SSD mount emulation, and hardware telemetry.
 //
 
@@ -10,7 +10,7 @@ import AppKit
 import Foundation
 import SwiftUI
 
-public enum FileDroidConnectionType: String, Codable, CaseIterable {
+public enum PhoneBridgeConnectionType: String, Codable, CaseIterable {
     case adb = "ADB High-Speed"
     case mtp = "MTP Protocol"
     case wireless = "Wireless ADB"
@@ -24,7 +24,7 @@ public enum FileDroidConnectionType: String, Codable, CaseIterable {
     }
 }
 
-public enum FileDroidDeviceStatus: String, Codable, CaseIterable {
+public enum PhoneBridgeDeviceStatus: String, Codable, CaseIterable {
     case connected = "Connected"
     case unauthorized = "Device Locked / Allow USB Debugging"
     case offline = "Offline"
@@ -58,8 +58,8 @@ public struct AndroidDevice: Identifiable, Equatable, Hashable {
     public var sdCardTotal: UInt64?
     public var sdCardUsed: UInt64?
     public var sdCardFree: UInt64?
-    public var connectionType: FileDroidConnectionType
-    public var status: FileDroidDeviceStatus
+    public var connectionType: PhoneBridgeConnectionType
+    public var status: PhoneBridgeDeviceStatus
     public var mountPath: String?
 
     public init(
@@ -79,8 +79,8 @@ public struct AndroidDevice: Identifiable, Equatable, Hashable {
         sdCardTotal: UInt64? = nil,
         sdCardUsed: UInt64? = nil,
         sdCardFree: UInt64? = nil,
-        connectionType: FileDroidConnectionType = .adb,
-        status: FileDroidDeviceStatus = .connected,
+        connectionType: PhoneBridgeConnectionType = .adb,
+        status: PhoneBridgeDeviceStatus = .connected,
         mountPath: String? = nil
     ) {
         self.serial = serial
@@ -129,9 +129,9 @@ public struct AndroidDevice: Identifiable, Equatable, Hashable {
     }
 
     public var formattedInternalStorage: String {
-        let used = FileDroidFormatting.formatBytes(internalStorageUsed)
-        let total = FileDroidFormatting.formatBytes(internalStorageTotal)
-        let free = FileDroidFormatting.formatBytes(internalStorageFree)
+        let used = PhoneBridgeFormatting.formatBytes(internalStorageUsed)
+        let total = PhoneBridgeFormatting.formatBytes(internalStorageTotal)
+        let free = PhoneBridgeFormatting.formatBytes(internalStorageFree)
         return "\(free) free of \(total) (\(used) used)"
     }
 
@@ -142,7 +142,7 @@ public struct AndroidDevice: Identifiable, Equatable, Hashable {
             return "phone.fill"
         } else if m.contains("samsung") || mod.contains("galaxy") {
             return "phone.fill"
-        } else if m.contains("xiaomi") || m.contains("redmi") {
+        } else if m.contains("xiaomi") || mod.contains("redmi") {
             return "phone.fill"
         } else if m.contains("oneplus") || m.contains("oppo") || m.contains("vivo") {
             return "phone.fill"
@@ -238,7 +238,7 @@ public struct AndroidFileItem: Identifiable, Equatable, Hashable {
 
     public var formattedSize: String {
         if isDirectory { return "--" }
-        return FileDroidFormatting.formatBytes(sizeBytes)
+        return PhoneBridgeFormatting.formatBytes(sizeBytes)
     }
 
     public var formattedDate: String {
@@ -249,12 +249,12 @@ public struct AndroidFileItem: Identifiable, Equatable, Hashable {
     }
 }
 
-public enum FileDroidTransferDirection: String, Codable {
+public enum PhoneBridgeTransferDirection: String, Codable {
     case uploadToAndroid = "Upload to Phone"
     case downloadToMac = "Download to Mac"
 }
 
-public enum FileDroidTransferStatus: String, Codable {
+public enum PhoneBridgeTransferStatus: String, Codable {
     case queued = "Queued"
     case inProgress = "Transferring"
     case completed = "Completed"
@@ -262,28 +262,28 @@ public enum FileDroidTransferStatus: String, Codable {
     case cancelled = "Cancelled"
 }
 
-public struct FileDroidTransferItem: Identifiable, Equatable {
+public struct PhoneBridgeTransferItem: Identifiable, Equatable {
     public let id: UUID
     public let fileName: String
-    public let direction: FileDroidTransferDirection
+    public let direction: PhoneBridgeTransferDirection
     public let localPath: String
     public let remotePath: String
     public var totalBytes: UInt64
     public var transferredBytes: UInt64
     public var speedBytesPerSec: Double
-    public var status: FileDroidTransferStatus
+    public var status: PhoneBridgeTransferStatus
     public var errorMessage: String?
 
     public init(
         id: UUID = UUID(),
         fileName: String,
-        direction: FileDroidTransferDirection,
+        direction: PhoneBridgeTransferDirection,
         localPath: String,
         remotePath: String,
         totalBytes: UInt64 = 0,
         transferredBytes: UInt64 = 0,
         speedBytesPerSec: Double = 0,
-        status: FileDroidTransferStatus = .queued,
+        status: PhoneBridgeTransferStatus = .queued,
         errorMessage: String? = nil
     ) {
         self.id = id
@@ -304,17 +304,17 @@ public struct FileDroidTransferItem: Identifiable, Equatable {
     }
 
     public var formattedSpeed: String {
-        FileDroidFormatting.formatSpeed(speedBytesPerSec)
+        PhoneBridgeFormatting.formatSpeed(speedBytesPerSec)
     }
 
     public var formattedProgress: String {
-        let cur = FileDroidFormatting.formatBytes(transferredBytes)
-        let tot = FileDroidFormatting.formatBytes(totalBytes)
+        let cur = PhoneBridgeFormatting.formatBytes(transferredBytes)
+        let tot = PhoneBridgeFormatting.formatBytes(totalBytes)
         return "\(cur) of \(tot) (\(Int(progressFraction * 100))%)"
     }
 }
 
-public enum FileDroidFormatting {
+public enum PhoneBridgeFormatting {
     public static func formatBytes(_ bytes: UInt64) -> String {
         let b = Double(bytes)
         if b < 1024 { return "\(bytes) B" }
@@ -339,3 +339,10 @@ public enum FileConflictResolution: String, CaseIterable, Identifiable {
     public var id: String { rawValue }
 }
 
+// MARK: - Backward Compatibility Typealiases
+public typealias FileDroidConnectionType = PhoneBridgeConnectionType
+public typealias FileDroidDeviceStatus = PhoneBridgeDeviceStatus
+public typealias FileDroidTransferDirection = PhoneBridgeTransferDirection
+public typealias FileDroidTransferStatus = PhoneBridgeTransferStatus
+public typealias FileDroidTransferItem = PhoneBridgeTransferItem
+public typealias FileDroidFormatting = PhoneBridgeFormatting

@@ -1,13 +1,13 @@
 //
-//  test_kalam_bridge_milestone4.swift
-//  LiquidDynamo Tests - Milestone 4 (KalamBridge & FileDroid Thread Safety)
+//  test_mtp_bridge_milestone4.swift
+//  LiquidDynamo Tests - Milestone 4 (MTPBridge & Phone Bridge Thread Safety)
 //
 
 import Foundation
 
 // MARK: - Test Models & Queue (Replicated for Isolated Swift Script Testing)
 
-public struct KalamResponse<T: Codable>: Codable {
+public struct MTPResponse<T: Codable>: Codable {
     public let errorType: String?
     public let error: String?
     public let data: T?
@@ -25,9 +25,9 @@ public struct KalamResponse<T: Codable>: Codable {
     }
 }
 
-public struct KalamEmptyData: Codable {}
+public struct MTPEmptyData: Codable {}
 
-public enum KalamError: LocalizedError, Equatable {
+public enum MTPError: LocalizedError, Equatable {
     case dylibNotLoaded
     case unsupportedArchitecture
     case timeout
@@ -55,7 +55,7 @@ actor OrderTracker {
     func getOrder() -> [Int] { order }
 }
 
-public final class TestKalamRequestQueue: @unchecked Sendable {
+public final class TestMTPRequestQueue: @unchecked Sendable {
     private struct Operation: Sendable {
         let id: Int
         let timeoutSeconds: TimeInterval
@@ -110,7 +110,7 @@ public final class TestKalamRequestQueue: @unchecked Sendable {
             timeoutTask = Task {
                 try? await Task.sleep(nanoseconds: UInt64(op.timeoutSeconds * 1_000_000_000))
                 if !Task.isCancelled {
-                    finishOnce(.failure(KalamError.timeout))
+                    finishOnce(.failure(MTPError.timeout))
                 }
             }
 
@@ -164,7 +164,7 @@ func assertTest(_ condition: Bool, _ message: String) {
 }
 
 print("==================================================================")
-print("🚀 RUNNING MILESTONE 4 TEST SUITE: KALAMBRIDGE & FILEDROID")
+print("🚀 RUNNING MILESTONE 4 TEST SUITE: MTPBRIDGE & PHONE BRIDGE")
 print("==================================================================")
 
 // Test Suite 1: Request Actor Queue, Timeout & Concurrency Serialization
@@ -172,7 +172,7 @@ print("\n[Suite 1: Actor Request Serialization & Timeout Recovery]")
 let sema = DispatchSemaphore(value: 0)
 
 Task {
-    let queue = TestKalamRequestQueue()
+    let queue = TestMTPRequestQueue()
 
     // 1. Successful callback resolution
     let t1 = Task {
@@ -202,7 +202,7 @@ Task {
     case .success:
         assertTest(false, "Dropped callback must time out")
     case .failure(let err):
-        assertTest((err as? KalamError) == KalamError.timeout, "Dropped callback recovers cleanly with KalamError.timeout")
+        assertTest((err as? MTPError) == MTPError.timeout, "Dropped callback recovers cleanly with MTPError.timeout")
     }
 
     // 3. Immediate recovery after timeout: next request succeeds
@@ -255,22 +255,22 @@ print("\n[Suite 2: Strict Codable Response Parsing & Error Rejection]")
 do {
     // 1. Success response
     let validSuccessJSON = "{\"error\":\"\",\"errorType\":\"\",\"data\":null}".data(using: .utf8)!
-    let decodedSuccess = try? JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: validSuccessJSON)
+    let decodedSuccess = try? JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: validSuccessJSON)
     assertTest(decodedSuccess?.hasError == false, "Clean empty error strings parsed as success")
 
     // 2. Explicit error rejection
     let explicitErrorJSON = "{\"error\":\"Storage full\",\"errorType\":\"MtpError\",\"data\":null}".data(using: .utf8)!
-    let decodedError = try? JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: explicitErrorJSON)
+    let decodedError = try? JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: explicitErrorJSON)
     assertTest(decodedError?.hasError == true && decodedError?.resolvedErrorMessage == "Storage full", "Explicit error properly detected and extracted")
 
     // 3. Error without errorType (Legacy bug: json.contains(\"errorType\") would treat this as success!)
     let noErrorTypeJSON = "{\"error\":\"Device disconnected\",\"data\":null}".data(using: .utf8)!
-    let decodedNoErrorType = try? JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: noErrorTypeJSON)
+    let decodedNoErrorType = try? JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: noErrorTypeJSON)
     assertTest(decodedNoErrorType?.hasError == true && decodedNoErrorType?.resolvedErrorMessage == "Device disconnected", "Error without errorType is strictly rejected (fixing legacy bug)")
 
     // 4. Malformed JSON rejection
     let malformedJSON = "{ bad json }".data(using: .utf8)!
-    let decodeMalformed = try? JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: malformedJSON)
+    let decodeMalformed = try? JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: malformedJSON)
     assertTest(decodeMalformed == nil, "Malformed JSON is cleanly rejected as decoding failure")
 }
 

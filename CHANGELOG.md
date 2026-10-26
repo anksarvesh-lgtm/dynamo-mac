@@ -4,6 +4,14 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ## [2.0.6] — 2026-10-26
 
+### Phone Bridge & MTPBridge Architecture
+- **Renamed FileDroid / Kalam Bridge to Phone Bridge and MTPBridge (settings keys migrated automatically)**:
+  - Renamed user-facing feature name to **Phone Bridge** across UI surfaces, Dynamic Island expanded views, Settings sidebar (`PhoneBridge`), and documentation.
+  - Renamed Swift types to `PhoneBridgeEngine`, `PhoneBridgeModels`, `PhoneBridgeView`, `PhoneBridgeWindowController`, `SettingsPhoneBridgeView`, and `MTPBridge`.
+  - Preserved backward-compatible typealiases (`FileDroidEngine`, `FileDroidView`, `FileDroidWindowController`, `SettingsFileDroidView`, `KalamBridge`, etc.).
+  - Migrated persisted `Defaults` keys from `filedroid*` to `phonebridge*` with automatic one-time startup migration preserving existing settings and downgrade compatibility.
+  - Upstream project names, licenses, and bundled binary dynamic libraries (`kalam.dylib`, `libusb.dylib`) remain strictly preserved.
+
 ### Milestone 1: Powerload Multi-Interface Network Engine
 - **Documented Network.framework Binding (`PowerloadHTTPClient.swift`)**:
   - Replaced private, undocumented KVC key `kCFStreamPropertyBoundInterfaceIdentifier` / `_socketStreamProperties` with official Network.framework `NWConnection` binding using `NWParameters.requiredInterface` matched against active `NWInterface` instances.

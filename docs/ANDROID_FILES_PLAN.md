@@ -17,11 +17,11 @@ The goal of this task is to:
 - **File & Line**: `liquiddinamo/Features/Dashboard/LiquidOrganicNotchView.swift:882-944` (`deviceDetailCard`), specifically lines `1064-1123` (`androidInfoRow`).
 - **Rendering**:
   - `deviceDetailCard` checks `device.kind == .androidPhone` and routes to `androidInfoRow(device:)`.
-  - Subtitle is derived from `fdDev?.androidVersion ?? device.connectionType.rawValue`, which resolves to `"MTP Media Bridge"` when connected via Kalam MTP bridge (`liquiddinamo/Features/FileDroid/AndroidTransferBackend.swift:421`).
+  - Subtitle is derived from `pbDev?.androidVersion ?? device.connectionType.rawValue`, which resolves to `"MTP Media Bridge"` when connected via MTPBridge (`liquiddinamo/Features/PhoneBridge/AndroidTransferBackend.swift:433`).
   - The button currently renders inside `androidInfoRow`:
     ```swift
     Button {
-        FileDroidWindowController.shared.showWindow()
+        PhoneBridgeWindowController.shared.showWindow()
     } label: {
         HStack(spacing: 4) {
             Image(systemName: "folder.fill")
@@ -31,18 +31,18 @@ The goal of this task is to:
     ```
     While for storage devices (`.ssdDrive`, `.usbStick`), `storageInfoRow(device:)` (line 1152) renders `Text("Open in Finder")`.
 - **What "MTP Media Bridge" is**:
-  - An in-process C-FFI wrapper (`KalamBridge.swift`) linking against `kalam.dylib` (derived from OpenMTP's libmtp engine). It interfaces directly with USB endpoints using MTP protocol without ADB daemon, setting `androidVersion: "MTP Media Bridge"`.
+  - An in-process C-FFI wrapper (`MTPBridge.swift`) linking against `kalam.dylib` (derived from OpenMTP's libmtp engine). It interfaces directly with USB endpoints using MTP protocol without ADB daemon, setting `androidVersion: "MTP Media Bridge"`.
   - It does NOT mount a virtual FUSE filesystem in Finder; it only provides raw byte read/write calls across MTP endpoints.
 
 ### 2.2 Android Device Detection & ADB Resolution
 - **Detection Architecture**:
   - `liquiddinamo/Features/DeviceShowcase/DeviceMonitor.swift`: Uses IOKit USB matching (`kIOUSBDeviceClassName`). Matches against vendor IDs for Android manufacturers (e.g., `0x22B8` Motorola, `0x18D1` Google, `0x04E8` Samsung, `0x2717` Xiaomi, `0x2A70` Nothing) or product string containing "android", "pixel", "galaxy", "motorola", etc. Classifies the device as `DeviceKind.androidPhone`.
-  - `FileDroidEngine.swift` listens to `DeviceMonitor.shared.$activeDevices` and scans via `AndroidTransferBackend` (both MTP and ADB).
+  - `PhoneBridgeEngine.swift` listens to `DeviceMonitor.shared.$activeDevices` and scans via `AndroidTransferBackend` (both MTP and ADB).
 - **Existing ADB Client**:
-  - `AdbBackend` in `liquiddinamo/Features/FileDroid/AndroidTransferBackend.swift:31-375` provides synchronous/asynchronous `Process` execution.
+  - `AdbBackend` in `liquiddinamo/Features/PhoneBridge/AndroidTransferBackend.swift` provides synchronous/asynchronous `Process` execution.
 - **ADB Binary Resolution**:
   - Candidate paths:
-    1. Custom path set in Settings (`Defaults[.filedroidAdbPath]` / `Defaults[.androidFilesAdbPath]`).
+    1. Custom path set in Settings (`Defaults[.phonebridgeAdbPath]` / `Defaults[.androidFilesAdbPath]`).
     2. Local user binary: `~/.local/bin/adb` (verified present on this machine).
     3. Standard Android SDK: `~/Library/Android/sdk/platform-tools/adb`.
     4. Homebrew paths: `/opt/homebrew/bin/adb`, `/usr/local/bin/adb`.
@@ -57,8 +57,8 @@ The goal of this task is to:
   - Rendered in Group 3 (`androidRow`) in `LiquidOrganicNotchView.swift` via `plexoStatusButton`.
   - Fed by `PlexoDownloadEngine.shared` and `PlexoNetworkManager.shared`.
 - **"motorola edge 50" Chip**:
-  - Rendered in Group 3 via `filedroidStatusButton` (fed by `FileDroidEngine.shared.selectedDevice`), or `androidDevicesFromMonitor` in `androidRow` rendering `deviceIconButton(device: device)` with phone icon and green connection badge.
-  - Sourced from `DeviceMonitor.shared.activeDevices` and `FileDroidEngine.shared.selectedDevice`.
+  - Rendered in Group 3 via `phoneBridgeStatusButton` (fed by `PhoneBridgeEngine.shared.selectedDevice`), or `androidDevicesFromMonitor` in `androidRow` rendering `deviceIconButton(device: device)` with phone icon and green connection badge.
+  - Sourced from `DeviceMonitor.shared.activeDevices` and `PhoneBridgeEngine.shared.selectedDevice`.
 
 ### 2.4 App Sandbox & Entitlements
 - **Entitlements file**: `liquiddinamo/LiquidDynamo.entitlements`.
@@ -67,7 +67,7 @@ The goal of this task is to:
 - Hardened runtime: requires valid ad-hoc or Developer ID code signing.
 
 ### 2.5 Reusable Architectural Components
-1. **Window Management**: `SettingsWindowController.swift` and `FileDroidWindowController.swift` provide the canonical AppKit `NSWindowController` + `NSHostingView` pattern with `.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView`, transparent titlebar, and smooth window positioning.
+1. **Window Management**: `SettingsWindowController.swift` and `PhoneBridgeWindowController.swift` provide the canonical AppKit `NSWindowController` + `NSHostingView` pattern with `.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView`, transparent titlebar, and smooth window positioning.
 2. **Design System**: `LiquidGlassSystem.swift` provides `.liquidGlassCard()`, `.liquidGlassCapsule()`, `LiquidGlassSurface`, and vibrant frosted glass backdrops.
 3. **Quick Look & File Icons**: `NSWorkspace.shared.icon(forFileType:)`, QuickLook preview panel (`QLPreviewPanel`).
 
@@ -78,7 +78,7 @@ The goal of this task is to:
 - **D1. Presentation**:
   A dedicated resizable `NSWindow` (SwiftUI `AndroidFileManagerView`) titled `"<device name> Files"` managed by `AndroidFileManagerWindowManager.shared`. Opening or focusing this window does NOT collapse, unpin, or resize the island overlay.
 - **D2. Transport**:
-  ADB over USB (`adb -s <serial> ...`). ADB provides robust scoped storage support, streaming stdout/stderr, reliable file pulls/pushes with byte counts, and shell execution. Device identity from `DeviceMonitor` / `FileDroid` (serial number / model) is reused.
+  ADB over USB (`adb -s <serial> ...`). ADB provides robust scoped storage support, streaming stdout/stderr, reliable file pulls/pushes with byte counts, and shell execution. Device identity from `DeviceMonitor` / `PhoneBridge` (serial number / model) is reused.
 - **D3. adb Resolution Order**:
   1. Bundled adb (if packaged)
   2. Setting override (`Defaults[.androidFilesAdbPath]`)

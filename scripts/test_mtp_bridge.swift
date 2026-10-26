@@ -3,8 +3,8 @@ import Darwin
 
 typealias CallbackFn = @convention(c) (UnsafePointer<CChar>?) -> Void
 
-final class KalamBridgeTest: @unchecked Sendable {
-    static let shared = KalamBridgeTest()
+final class MTPBridgeTest: @unchecked Sendable {
+    static let shared = MTPBridgeTest()
     private let lock = NSLock()
     
     private var initFn: (@convention(c) (UnsafeRawPointer) -> Void)?
@@ -70,7 +70,7 @@ final class KalamBridgeTest: @unchecked Sendable {
 }
 
 Task {
-    let bridge = KalamBridgeTest.shared
+    let bridge = MTPBridgeTest.shared
     print("Testing async initialize...")
     let initRes = await bridge.initialize()
     print("Init result len: \(initRes.count)")

@@ -73,7 +73,7 @@ LiquidDynamo features a native **SceneKit zero-gravity 3D rendering engine** tha
 
 | 🎧 AirPods & Spatial Audio | 📱 Android & Storage Drives | 🎮 Peripherals & Accessories |
 | :---: | :---: | :---: |
-| <img src="docs/assets/preview_3d_airpods.png" width="190" /><br />**SceneKit 3D AirPods Space**<br />• Dynamic orbital battery rings<br />• CoreMotion spatial head tracking<br />• ANC, Transparency & Adaptive toggle | <img src="docs/assets/preview_3d_android.png" width="190" /><br />**FileDroid 3D Phone Bridge**<br />• Finder external volume emulation<br />• Live battery temperature & storage<br />• Dual ADB + MTP streaming engine | <img src="docs/assets/preview_3d_headphones.png" width="190" /><br />**Dynamic Device Showcase**<br />• Studio headphones, keyboards, mice<br />• Gamepads, SSDs, external displays<br />• Zero-battery warning indicators |
+| <img src="docs/assets/preview_3d_airpods.png" width="190" /><br />**SceneKit 3D AirPods Space**<br />• Dynamic orbital battery rings<br />• CoreMotion spatial head tracking<br />• ANC, Transparency & Adaptive toggle | <img src="docs/assets/preview_3d_android.png" width="190" /><br />**Phone Bridge 3D Showcase**<br />• Finder external volume emulation<br />• Live battery temperature & storage<br />• Dual ADB + MTP streaming engine | <img src="docs/assets/preview_3d_headphones.png" width="190" /><br />**Dynamic Device Showcase**<br />• Studio headphones, keyboards, mice<br />• Gamepads, SSDs, external displays<br />• Zero-battery warning indicators |
 
 ---
 
@@ -95,7 +95,7 @@ LiquidDynamo features a native **SceneKit zero-gravity 3D rendering engine** tha
 
 ---
 
-### 📱 FileDroid & OpenMTP — Android Storage Bridge
+### 📱 Phone Bridge — Phone Storage Bridge (ADB & MTP)
 - **Finder External Drive Emulation**: Mounts any connected Android smartphone directly into macOS Finder as a virtual SSD volume (`DCIM`, `Download`, `Documents`, `Music`, `Movies`).
 - **High-Throughput Dual Backend**: Combines asynchronous ADB client streaming with native MTP fallback for driverless compatibility with Samsung, Pixel, Motorola, Xiaomi, OnePlus, and more.
 - **Live Device Diagnostics**: Displays manufacturer, model, Android OS version, battery level, battery temperature, and internal/microSD storage meters.
@@ -248,7 +248,7 @@ LiquidDynamo is open-source software licensed under the **GNU General Public Lic
 - Storage cleaner safety allowlists ported from [Purge](https://github.com/jithin-sabu/purge-app) by Jithin Sabu (MIT License).
 - AI agent IPC socket architecture adapted from [Coucou](https://github.com/Louis-CFM/coucou) by Louis Raillé (MIT License), redesigned in Swift as **Watcher**.
 - Multi-network socket bonding algorithms adapted from [Plexo](https://github.com/anmolkapil/plexo) by Anmol Kapil, ported and natively integrated in Swift as **Powerload Turbo**.
-- All custom architectures, FileDroid & OpenMTP engine, 3D USDZ device rendering, interactive telemetry wings, and liquid motion systems are Copyright © 2026 Agrigence.
+- All custom architectures, Phone Bridge & OpenMTP engine, 3D USDZ device rendering, interactive telemetry wings, and liquid motion systems are Copyright © 2026 Agrigence.
 
 <br />
 

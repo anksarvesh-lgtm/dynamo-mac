@@ -32,7 +32,7 @@ def sync():
     # Define groups to add if missing
     new_groups = {
         "Powerload": ("Powerload", "E1A000042E60000100000001"), # Under Features
-        "FileDroid": ("FileDroid", "E1A000042E60000100000001"),
+        "PhoneBridge": ("PhoneBridge", "E1A000042E60000100000001"),
         "AndroidFiles": ("AndroidFiles", "E1A000042E60000100000001"),
         "Watcher": ("Watcher", "E1A000042E60000100000001"),
         "ColorDropper": ("ColorDropper", "E1A000042E60000100000001"),
@@ -70,8 +70,8 @@ def sync():
         child_entry = f"\t\t\t\t{file_id} /* {filename} */,"
         if rel.startswith("Features/Powerload/"):
             group_children["Powerload"].append(child_entry)
-        elif rel.startswith("Features/FileDroid/"):
-            group_children["FileDroid"].append(child_entry)
+        elif rel.startswith("Features/PhoneBridge/"):
+            group_children["PhoneBridge"].append(child_entry)
         elif rel.startswith("Features/AndroidFiles/"):
             group_children["AndroidFiles"].append(child_entry)
         elif rel.startswith("Features/Watcher/"):

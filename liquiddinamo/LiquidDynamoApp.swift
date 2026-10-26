@@ -902,6 +902,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupDragDetectors()
 
         migrateWingMetricsIfNeeded()
+        migratePhoneBridgeKeysIfNeeded()
         startClosedEventMonitors()
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared

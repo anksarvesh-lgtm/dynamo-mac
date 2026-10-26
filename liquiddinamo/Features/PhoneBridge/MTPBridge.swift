@@ -1,5 +1,5 @@
 //
-//  KalamBridge.swift
+//  MTPBridge.swift
 //  LiquidDynamo
 //
 //  Native Swift C-FFI bridge to OpenMTP's high-performance Kalam MTP engine.
@@ -12,11 +12,11 @@ import AppKit
 import Darwin
 import Foundation
 
-public typealias KalamCallbackFn = @convention(c) (UnsafePointer<CChar>?) -> Void
+public typealias MTPCallbackFn = @convention(c) (UnsafePointer<CChar>?) -> Void
 
-// MARK: - Kalam Data Transfer Models & Envelopes
+// MARK: - MTP Data Transfer Models & Envelopes
 
-public struct KalamResponse<T: Codable>: Codable {
+public struct MTPResponse<T: Codable>: Codable {
     public let errorType: String?
     public let error: String?
     public let data: T?
@@ -34,21 +34,21 @@ public struct KalamResponse<T: Codable>: Codable {
     }
 }
 
-public struct KalamEmptyData: Codable {}
+public struct MTPEmptyData: Codable {}
 
-public struct KalamDeviceInfoData: Codable {
-    public let mtpDeviceInfo: KalamMtpDeviceInfo?
-    public let usbDeviceInfo: KalamUsbDeviceInfo?
+public struct MTPDeviceInfoData: Codable {
+    public let mtpDeviceInfo: MTPMtpDeviceInfo?
+    public let usbDeviceInfo: MTPUsbDeviceInfo?
 }
 
-public struct KalamMtpDeviceInfo: Codable {
+public struct MTPMtpDeviceInfo: Codable {
     public let Manufacturer: String?
     public let Model: String?
     public let SerialNumber: String?
     public let DeviceVersion: String?
 }
 
-public struct KalamUsbDeviceInfo: Codable {
+public struct MTPUsbDeviceInfo: Codable {
     public let IdVendor: UInt32?
     public let IdProduct: UInt32?
     public let Manufacturer: String?
@@ -56,12 +56,12 @@ public struct KalamUsbDeviceInfo: Codable {
     public let SerialNumber: String?
 }
 
-public struct KalamStorageItem: Codable {
+public struct MTPStorageItem: Codable {
     public let Sid: UInt32
-    public let Info: KalamStorageDetail
+    public let Info: MTPStorageDetail
 }
 
-public struct KalamStorageDetail: Codable {
+public struct MTPStorageDetail: Codable {
     public let StorageType: UInt16
     public let FilesystemType: UInt16
     public let AccessCapability: UInt16
@@ -71,7 +71,7 @@ public struct KalamStorageDetail: Codable {
     public let VolumeLabel: String
 }
 
-public struct KalamWalkItem: Codable {
+public struct MTPWalkItem: Codable {
     public let size: Int64
     public let isFolder: Bool
     public let dateAdded: String
@@ -83,7 +83,7 @@ public struct KalamWalkItem: Codable {
     public let objectId: UInt32
 }
 
-public struct KalamProgressPayload: Codable {
+public struct MTPProgressPayload: Codable {
     public let percentage: Double?
     public let speed: Int64?
     public let activeFile: String?
@@ -94,7 +94,7 @@ public struct KalamProgressPayload: Codable {
     public let bulkTransferred: Int64?
 }
 
-public enum KalamError: LocalizedError, Equatable {
+public enum MTPError: LocalizedError, Equatable {
     case dylibNotLoaded
     case unsupportedArchitecture
     case timeout
@@ -122,7 +122,7 @@ public enum KalamError: LocalizedError, Equatable {
 
 // MARK: - Serial AsyncStream FIFO Request Queue
 
-public final class KalamRequestQueue: @unchecked Sendable {
+public final class MTPRequestQueue: @unchecked Sendable {
     private struct Operation: Sendable {
         let timeoutSeconds: TimeInterval
         let invoking: @Sendable () -> Void
@@ -180,7 +180,7 @@ public final class KalamRequestQueue: @unchecked Sendable {
             timeoutTask = Task {
                 try? await Task.sleep(nanoseconds: UInt64(op.timeoutSeconds * 1_000_000_000))
                 if !Task.isCancelled {
-                    finishOnce(.failure(KalamError.timeout))
+                    finishOnce(.failure(MTPError.timeout))
                 }
             }
 
@@ -212,10 +212,10 @@ public final class KalamRequestQueue: @unchecked Sendable {
     }
 }
 
-// MARK: - Kalam Bridge Engine
+// MARK: - MTP Bridge Engine
 
-public final class KalamBridge: @unchecked Sendable {
-    public static let shared = KalamBridge()
+public final class MTPBridge: @unchecked Sendable {
+    public static let shared = MTPBridge()
 
     #if arch(x86_64)
     public static let isSupportedArchitecture = false
@@ -223,7 +223,7 @@ public final class KalamBridge: @unchecked Sendable {
     public static let isSupportedArchitecture = true
     #endif
 
-    public let queue = KalamRequestQueue()
+    public let queue = MTPRequestQueue()
     private var dylibHandle: UnsafeMutableRawPointer?
 
     private var initFn: (@convention(c) (UnsafeRawPointer) -> Void)?
@@ -241,19 +241,19 @@ public final class KalamBridge: @unchecked Sendable {
     private static var activeProgressHandler: (@Sendable (Int64, Int64) -> Void)?
     private static let progressLock = NSLock()
 
-    private static let cDoneCallback: KalamCallbackFn = { jsonPtr in
+    private static let cDoneCallback: MTPCallbackFn = { jsonPtr in
         guard let jsonPtr = jsonPtr else {
-            KalamRequestQueue.handleCCallback(json: "{\"error\":\"Null pointer from Kalam C engine\"}")
+            MTPRequestQueue.handleCCallback(json: "{\"error\":\"Null pointer from Kalam C engine\"}")
             return
         }
         let str = String(cString: jsonPtr)
-        KalamRequestQueue.handleCCallback(json: str)
+        MTPRequestQueue.handleCCallback(json: str)
     }
 
-    private static let cProgressCallback: KalamCallbackFn = { jsonPtr in
+    private static let cProgressCallback: MTPCallbackFn = { jsonPtr in
         guard let jsonPtr = jsonPtr else { return }
         let str = String(cString: jsonPtr)
-        if let data = try? JSONDecoder().decode(KalamResponse<KalamProgressPayload>.self, from: Data(str.utf8)),
+        if let data = try? JSONDecoder().decode(MTPResponse<MTPProgressPayload>.self, from: Data(str.utf8)),
            let payload = data.data {
             let total = payload.bulkTotal ?? payload.activeFileSize ?? 0
             let current = payload.bulkTransferred ?? (Int64((payload.percentage ?? 0) / 100.0 * Double(total)))
@@ -264,7 +264,7 @@ public final class KalamBridge: @unchecked Sendable {
         }
     }
 
-    private static let cPreprocessCallback: KalamCallbackFn = { _ in }
+    private static let cPreprocessCallback: MTPCallbackFn = { _ in }
 
     public var isLoaded: Bool {
         return dylibHandle != nil
@@ -277,7 +277,7 @@ public final class KalamBridge: @unchecked Sendable {
     public func loadDylib() {
         if dylibHandle != nil { return }
         guard Self.isSupportedArchitecture else {
-            print("[KalamBridge] Native MTP engine is unsupported on Intel x86_64.")
+            print("[MTPBridge] Native MTP engine is unsupported on Intel x86_64.")
             return
         }
 
@@ -293,7 +293,7 @@ public final class KalamBridge: @unchecked Sendable {
                 if let handle = dlopen(path, RTLD_NOW) {
                     self.dylibHandle = handle
                     bindSymbols(handle)
-                    print("[KalamBridge] Successfully loaded kalam.dylib from bundle: \(path)")
+                    print("[MTPBridge] Successfully loaded kalam.dylib from bundle: \(path)")
                     return
                 }
             }
@@ -303,11 +303,11 @@ public final class KalamBridge: @unchecked Sendable {
         if let handle = dlopen("@rpath/kalam.dylib", RTLD_NOW) {
             self.dylibHandle = handle
             bindSymbols(handle)
-            print("[KalamBridge] Successfully loaded kalam.dylib via @rpath")
+            print("[MTPBridge] Successfully loaded kalam.dylib via @rpath")
             return
         }
 
-        print("[KalamBridge] Notice: kalam.dylib not found in Frameworks bundle.")
+        print("[MTPBridge] Notice: kalam.dylib not found in Frameworks bundle.")
     }
 
     private func bindSymbols(_ handle: UnsafeMutableRawPointer) {
@@ -348,12 +348,12 @@ public final class KalamBridge: @unchecked Sendable {
 
     // MARK: - Synchronized Operations via FIFO Stream Queue
 
-    public func initialize() async -> Result<KalamDeviceInfoData, Error> {
+    public func initialize() async -> Result<MTPDeviceInfoData, Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let initFn = initFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let rawResult = await queue.execute(timeoutSeconds: 15.0) {
@@ -364,28 +364,28 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<KalamDeviceInfoData>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<MTPDeviceInfoData>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 } else if let data = decoded.data {
                     return .success(data)
                 } else {
-                    return .failure(KalamError.bridgeError("Empty device info payload from MTP engine."))
+                    return .failure(MTPError.bridgeError("Empty device info payload from MTP engine."))
                 }
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
         }
     }
 
-    public func fetchStorages() async -> Result<[KalamStorageItem], Error> {
+    public func fetchStorages() async -> Result<[MTPStorageItem], Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let fetchStoragesFn = fetchStoragesFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let rawResult = await queue.execute(timeoutSeconds: 15.0) {
@@ -396,28 +396,28 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<[KalamStorageItem]>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<[MTPStorageItem]>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 } else if let data = decoded.data {
                     return .success(data)
                 } else {
                     return .success([])
                 }
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
         }
     }
 
-    public func walk(storageId: UInt32, fullPath: String, recursive: Bool = false, skipHidden: Bool = false) async -> Result<[KalamWalkItem], Error> {
+    public func walk(storageId: UInt32, fullPath: String, recursive: Bool = false, skipHidden: Bool = false) async -> Result<[MTPWalkItem], Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let walkFn = walkFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let inputDict: [String: Any] = [
@@ -429,7 +429,7 @@ public final class KalamBridge: @unchecked Sendable {
         ]
         guard let inputData = try? JSONSerialization.data(withJSONObject: inputDict),
               let jsonString = String(data: inputData, encoding: .utf8) else {
-            return .failure(KalamError.invalidArguments)
+            return .failure(MTPError.invalidArguments)
         }
 
         let rawResult = await queue.execute(timeoutSeconds: 15.0) {
@@ -442,16 +442,16 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<[KalamWalkItem]>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<[MTPWalkItem]>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 } else if let data = decoded.data {
                     return .success(data)
                 } else {
                     return .success([])
                 }
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
@@ -460,10 +460,10 @@ public final class KalamBridge: @unchecked Sendable {
 
     public func makeDirectory(storageId: UInt32, fullPath: String) async -> Result<Bool, Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let makeDirectoryFn = makeDirectoryFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let inputDict: [String: Any] = [
@@ -472,7 +472,7 @@ public final class KalamBridge: @unchecked Sendable {
         ]
         guard let inputData = try? JSONSerialization.data(withJSONObject: inputDict),
               let jsonString = String(data: inputData, encoding: .utf8) else {
-            return .failure(KalamError.invalidArguments)
+            return .failure(MTPError.invalidArguments)
         }
 
         let rawResult = await queue.execute(timeoutSeconds: 15.0) {
@@ -485,13 +485,13 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 }
                 return .success(true)
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
@@ -500,10 +500,10 @@ public final class KalamBridge: @unchecked Sendable {
 
     public func renameFile(storageId: UInt32, fullPath: String, newFileName: String) async -> Result<Bool, Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let renameFileFn = renameFileFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let inputDict: [String: Any] = [
@@ -513,7 +513,7 @@ public final class KalamBridge: @unchecked Sendable {
         ]
         guard let inputData = try? JSONSerialization.data(withJSONObject: inputDict),
               let jsonString = String(data: inputData, encoding: .utf8) else {
-            return .failure(KalamError.invalidArguments)
+            return .failure(MTPError.invalidArguments)
         }
 
         let rawResult = await queue.execute(timeoutSeconds: 15.0) {
@@ -526,13 +526,13 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 }
                 return .success(true)
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
@@ -541,10 +541,10 @@ public final class KalamBridge: @unchecked Sendable {
 
     public func deleteFiles(storageId: UInt32, files: [String]) async -> Result<Bool, Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let deleteFileFn = deleteFileFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let inputDict: [String: Any] = [
@@ -553,7 +553,7 @@ public final class KalamBridge: @unchecked Sendable {
         ]
         guard let inputData = try? JSONSerialization.data(withJSONObject: inputDict),
               let jsonString = String(data: inputData, encoding: .utf8) else {
-            return .failure(KalamError.invalidArguments)
+            return .failure(MTPError.invalidArguments)
         }
 
         let rawResult = await queue.execute(timeoutSeconds: 15.0) {
@@ -566,13 +566,13 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 }
                 return .success(true)
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
@@ -586,10 +586,10 @@ public final class KalamBridge: @unchecked Sendable {
         onProgress: (@Sendable (Int64, Int64) -> Void)? = nil
     ) async -> Result<Bool, Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let downloadFilesFn = downloadFilesFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let inputDict: [String: Any] = [
@@ -600,7 +600,7 @@ public final class KalamBridge: @unchecked Sendable {
         ]
         guard let inputData = try? JSONSerialization.data(withJSONObject: inputDict),
               let jsonString = String(data: inputData, encoding: .utf8) else {
-            return .failure(KalamError.invalidArguments)
+            return .failure(MTPError.invalidArguments)
         }
 
         Self.progressLock.lock()
@@ -623,13 +623,13 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 }
                 return .success(true)
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
@@ -643,10 +643,10 @@ public final class KalamBridge: @unchecked Sendable {
         onProgress: (@Sendable (Int64, Int64) -> Void)? = nil
     ) async -> Result<Bool, Error> {
         guard Self.isSupportedArchitecture else {
-            return .failure(KalamError.unsupportedArchitecture)
+            return .failure(MTPError.unsupportedArchitecture)
         }
         guard let uploadFilesFn = uploadFilesFn else {
-            return .failure(KalamError.dylibNotLoaded)
+            return .failure(MTPError.dylibNotLoaded)
         }
 
         let inputDict: [String: Any] = [
@@ -657,7 +657,7 @@ public final class KalamBridge: @unchecked Sendable {
         ]
         guard let inputData = try? JSONSerialization.data(withJSONObject: inputDict),
               let jsonString = String(data: inputData, encoding: .utf8) else {
-            return .failure(KalamError.invalidArguments)
+            return .failure(MTPError.invalidArguments)
         }
 
         Self.progressLock.lock()
@@ -680,13 +680,13 @@ public final class KalamBridge: @unchecked Sendable {
         switch rawResult {
         case .success(let json):
             do {
-                let decoded = try JSONDecoder().decode(KalamResponse<KalamEmptyData>.self, from: Data(json.utf8))
+                let decoded = try JSONDecoder().decode(MTPResponse<MTPEmptyData>.self, from: Data(json.utf8))
                 if decoded.hasError {
-                    return .failure(KalamError.bridgeError(decoded.resolvedErrorMessage))
+                    return .failure(MTPError.bridgeError(decoded.resolvedErrorMessage))
                 }
                 return .success(true)
             } catch {
-                return .failure(KalamError.decodingFailed(error.localizedDescription))
+                return .failure(MTPError.decodingFailed(error.localizedDescription))
             }
         case .failure(let err):
             return .failure(err)
@@ -702,3 +702,18 @@ public final class KalamBridge: @unchecked Sendable {
         }
     }
 }
+
+// MARK: - Backward Compatibility Typealiases
+public typealias KalamBridge = MTPBridge
+public typealias KalamCallbackFn = MTPCallbackFn
+public typealias KalamResponse<T: Codable> = MTPResponse<T>
+public typealias KalamEmptyData = MTPEmptyData
+public typealias KalamDeviceInfoData = MTPDeviceInfoData
+public typealias KalamMtpDeviceInfo = MTPMtpDeviceInfo
+public typealias KalamUsbDeviceInfo = MTPUsbDeviceInfo
+public typealias KalamStorageItem = MTPStorageItem
+public typealias KalamStorageDetail = MTPStorageDetail
+public typealias KalamWalkItem = MTPWalkItem
+public typealias KalamProgressPayload = MTPProgressPayload
+public typealias KalamError = MTPError
+public typealias KalamRequestQueue = MTPRequestQueue

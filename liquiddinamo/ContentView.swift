@@ -707,8 +707,8 @@ struct ContentView: View {
                     case .plexo, .powerload:
                         PowerloadView()
                             .frame(maxWidth: .infinity, alignment: .center)
-                    case .filedroid:
-                        FileDroidView()
+                    case .phoneBridge:
+                        PhoneBridgeView()
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }

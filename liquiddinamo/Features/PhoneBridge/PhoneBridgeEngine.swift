@@ -1,10 +1,10 @@
 //
-//  FileDroidEngine.swift
+//  PhoneBridgeEngine.swift
 //  LiquidDynamo
 //
 //  Complete native Android ADB & MTP file transfer engine, Finder external
 //  SSD storage volume mount emulation, and hardware telemetry service.
-//  Merges FileDroid & OpenMTP architectures into high-performance Darwin engine.
+//  Merges Phone Bridge & OpenMTP architectures into high-performance Darwin engine.
 //
 
 import AppKit
@@ -14,15 +14,15 @@ import Foundation
 import SwiftUI
 
 @MainActor
-public final class FileDroidEngine: ObservableObject {
-    public static let shared = FileDroidEngine()
+public final class PhoneBridgeEngine: ObservableObject {
+    public static let shared = PhoneBridgeEngine()
 
-    // MARK: - Backends (Option B: Kalam Native MTP & FileDroid ADB)
+    // MARK: - Backends (Option B: MTP Native & PhoneBridge ADB)
 
     public let adbBackend = AdbBackend()
     public let mtpBackend = MtpBackend()
 
-    public func backend(for connectionType: FileDroidConnectionType) -> AndroidTransferBackend {
+    public func backend(for connectionType: PhoneBridgeConnectionType) -> AndroidTransferBackend {
         switch connectionType {
         case .mtp:
             return mtpBackend
@@ -35,7 +35,7 @@ public final class FileDroidEngine: ObservableObject {
         if let dev = selectedDevice {
             return backend(for: dev.connectionType)
         }
-        if Defaults[.filedroidBackendType] == "mtp" && mtpBackend.isAvailable {
+        if Defaults[.phonebridgeBackendType] == "mtp" && mtpBackend.isAvailable {
             return mtpBackend
         }
         if mtpBackend.isAvailable {
@@ -50,7 +50,7 @@ public final class FileDroidEngine: ObservableObject {
     @Published public private(set) var selectedDevice: AndroidDevice? = nil
     @Published public private(set) var currentRemotePath: String = "/sdcard"
     @Published public private(set) var currentFiles: [AndroidFileItem] = []
-    @Published public private(set) var activeTransfers: [FileDroidTransferItem] = []
+    @Published public private(set) var activeTransfers: [PhoneBridgeTransferItem] = []
     @Published public private(set) var isScanning: Bool = false
     @Published public private(set) var isTransferring: Bool = false
     @Published public private(set) var adbPath: String? = nil
@@ -73,8 +73,8 @@ public final class FileDroidEngine: ObservableObject {
     }()
 
     private init() {
-        self.autoMountInFinder = Defaults[.filedroidAutoMountOnConnect]
-        self.autoRevealInFinder = Defaults[.filedroidAutoRevealInFinder]
+        self.autoMountInFinder = Defaults[.phonebridgeAutoMountOnConnect]
+        self.autoRevealInFinder = Defaults[.phonebridgeAutoRevealInFinder]
         resolveAdbPath()
         startPeriodicDeviceScanner()
         setupDeviceMonitorIntegration()
@@ -93,13 +93,14 @@ public final class FileDroidEngine: ObservableObject {
         adbBackend.effectiveAdbPath.map { _ in () }
         self.adbPath = adbBackend.effectiveAdbPath
         self.isAdbAvailable = adbBackend.isAvailable
-        Defaults[.filedroidAdbPath] = self.adbPath ?? ""
+        Defaults[.phonebridgeAdbPath] = self.adbPath ?? ""
     }
 
     public func setCustomAdbPath(_ path: String) -> Bool {
         guard FileManager.default.isExecutableFile(atPath: path) else { return false }
+        UserDefaults.standard.set(path, forKey: "phonebridge_custom_adb_path")
         UserDefaults.standard.set(path, forKey: "filedroid_custom_adb_path")
-        Defaults[.filedroidAdbPath] = path
+        Defaults[.phonebridgeAdbPath] = path
         self.adbPath = path
         self.isAdbAvailable = true
         scanDevices()
@@ -185,9 +186,9 @@ public final class FileDroidEngine: ObservableObject {
             // Probe ADB backend (always safe)
             let adbDevices = await self.adbBackend.scanDevices()
 
-            // Only probe Kalam native MTP if Android USB device is physically present or user forced
+            // Only probe MTP native if Android USB device is physically present or user forced
             var mtpDevices: [AndroidDevice] = []
-            if (hasAndroidUsb || forced) && Defaults[.filedroidBackendType] != "adb" {
+            if (hasAndroidUsb || forced) && Defaults[.phonebridgeBackendType] != "adb" {
                 mtpDevices = await self.mtpBackend.scanDevices(force: forced)
             }
 
@@ -222,7 +223,7 @@ public final class FileDroidEngine: ObservableObject {
 
                 // If newly connected device detected, trigger island alert
                 for dev in discovered where !previousDevices.contains(where: { $0.serial == dev.serial }) {
-                    if Defaults[.filedroidNotifications] {
+                    if Defaults[.phonebridgeNotifications] {
                         DynamicIslandHub.shared.triggerCustomAlert(
                             title: "Android Connected",
                             subtitle: "\(dev.displayName) Ready",
@@ -233,7 +234,7 @@ public final class FileDroidEngine: ObservableObject {
                 }
 
                 // Auto-mount in Finder if enabled
-                if self.autoMountInFinder || Defaults[.filedroidAutoMountOnConnect] {
+                if self.autoMountInFinder || Defaults[.phonebridgeAutoMountOnConnect] {
                     for dev in discovered where dev.status == .connected {
                         self.mountDeviceInFinder(device: dev)
                     }
@@ -261,7 +262,7 @@ public final class FileDroidEngine: ObservableObject {
             let infoURL = mountURL.appendingPathComponent("Device Info & Storage Specs.txt")
             let infoContent = """
             ========================================================================
-            FileDroid & OpenMTP — Android Storage Volume
+            Phone Bridge — Phone Storage Volume
             ========================================================================
             Device Name:       \(device.displayName)
             Manufacturer:      \(device.manufacturer)
@@ -277,8 +278,8 @@ public final class FileDroidEngine: ObservableObject {
             ========================================================================
             INSTRUCTIONS:
             - Drag & drop files from your Mac into any 'Internal Storage' folder.
-            - FileDroid will automatically sync and upload them directly to your phone.
-            - To manage or browse all files, use FileDroid in the LiquidDynamo Island.
+            - Phone Bridge will automatically sync and upload them directly to your phone.
+            - To manage or browse all files, use Phone Bridge in the LiquidDynamo Island.
             ========================================================================
             """
             try infoContent.write(to: infoURL, atomically: true, encoding: .utf8)
@@ -316,11 +317,11 @@ public final class FileDroidEngine: ObservableObject {
 
             setupFinderDropWatcher(for: device, mountURL: internalStorageURL)
 
-            if autoRevealInFinder || Defaults[.filedroidAutoRevealInFinder] {
+            if autoRevealInFinder || Defaults[.phonebridgeAutoRevealInFinder] {
                 openMountInFinder(device: device)
             }
         } catch {
-            print("[FileDroid] Error creating Finder mount: \(error)")
+            print("[PhoneBridge] Error creating Finder mount: \(error)")
         }
     }
 
@@ -362,7 +363,7 @@ public final class FileDroidEngine: ObservableObject {
     }
 
     public static var defaultDownloadFolder: String {
-        let saved = Defaults[.filedroidDefaultMacFolder]
+        let saved = Defaults[.phonebridgeDefaultMacFolder]
         let baseDownloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads")
         let androidFolder = (baseDownloads as NSString).appendingPathComponent("Android")
 
@@ -414,7 +415,7 @@ public final class FileDroidEngine: ObservableObject {
         }
 
         let backend = activeBackend
-        let showHidden = Defaults[.filedroidShowHiddenFiles]
+        let showHidden = Defaults[.phonebridgeShowHiddenFiles]
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -515,7 +516,7 @@ public final class FileDroidEngine: ObservableObject {
                 continue
             }
 
-            let item = FileDroidTransferItem(
+            let item = PhoneBridgeTransferItem(
                 fileName: fileName,
                 direction: .uploadToAndroid,
                 localPath: url.path,
@@ -540,7 +541,7 @@ public final class FileDroidEngine: ObservableObject {
            let freeSpace = attrs[.systemFreeSize] as? UInt64 {
             let totalNeeded = remoteFiles.reduce(0) { $0 + $1.sizeBytes }
             if totalNeeded > freeSpace {
-                self.lastErrorMessage = "Not enough disk space on Mac (\(FileDroidFormatting.formatBytes(totalNeeded)) required, \(FileDroidFormatting.formatBytes(freeSpace)) free)"
+                self.lastErrorMessage = "Not enough disk space on Mac (\(PhoneBridgeFormatting.formatBytes(totalNeeded)) required, \(PhoneBridgeFormatting.formatBytes(freeSpace)) free)"
                 return
             }
         }
@@ -559,7 +560,7 @@ public final class FileDroidEngine: ObservableObject {
                 }
             }
 
-            let item = FileDroidTransferItem(
+            let item = PhoneBridgeTransferItem(
                 fileName: file.name,
                 direction: .downloadToMac,
                 localPath: targetLocal,
@@ -572,7 +573,7 @@ public final class FileDroidEngine: ObservableObject {
         }
     }
 
-    private func dispatchTransfer(item: FileDroidTransferItem, serial: String) {
+    private func dispatchTransfer(item: PhoneBridgeTransferItem, serial: String) {
         self.isTransferring = true
         let itemId = item.id
         let backend = activeBackend
@@ -627,10 +628,10 @@ public final class FileDroidEngine: ObservableObject {
                     self.updateLiveActivity()
                     self.fetchDirectoryContents(path: self.currentRemotePath)
 
-                    if Defaults[.filedroidNotifications] {
+                    if Defaults[.phonebridgeNotifications] {
                         DynamicIslandHub.shared.triggerCustomAlert(
                             title: item.direction == .uploadToAndroid ? "Upload Completed" : "Download Completed",
-                            subtitle: "\(item.fileName) (\(FileDroidFormatting.formatBytes(item.totalBytes)))",
+                            subtitle: "\(item.fileName) (\(PhoneBridgeFormatting.formatBytes(item.totalBytes)))",
                             iconName: "checkmark.circle.fill",
                             tint: Color.green
                         )
@@ -680,7 +681,7 @@ public final class FileDroidEngine: ObservableObject {
     private func updateLiveActivity() {
         if let active = activeTransfers.first(where: { $0.status == .inProgress }) {
             IslandController.shared.registerActivity(IslandActivity(
-                id: "filedroid_transfer",
+                id: "phonebridge_transfer",
                 kind: .fileTransfer,
                 priority: 85,
                 leadingIcon: active.direction == .uploadToAndroid ? "arrow.up.circle.fill" : "arrow.down.circle.fill",
@@ -689,7 +690,11 @@ public final class FileDroidEngine: ObservableObject {
                 trailingText: "\(Int(active.progressFraction * 100))% • \(active.formattedSpeed)"
             ))
         } else {
+            IslandController.shared.removeActivity(id: "phonebridge_transfer")
             IslandController.shared.removeActivity(id: "filedroid_transfer")
         }
     }
 }
+
+// MARK: - Backward Compatibility Aliases
+public typealias FileDroidEngine = PhoneBridgeEngine

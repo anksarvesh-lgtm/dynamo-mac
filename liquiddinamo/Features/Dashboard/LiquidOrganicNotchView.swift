@@ -24,7 +24,7 @@ public enum OrganicNotchExpandedItem: Equatable {
     case colorDropper
     case plexo
     case powerload
-    case filedroid
+    case phoneBridge
     case watcher
 }
 
@@ -41,7 +41,7 @@ public struct LiquidOrganicNotchView: View {
     @ObservedObject var island = IslandController.shared
     @ObservedObject var cleaner = StorageCleanupManager.shared
     @ObservedObject var colorDropper = ColorDropperTool.shared
-    @ObservedObject var filedroidEngine = FileDroidEngine.shared
+    @ObservedObject var phoneBridgeEngine = PhoneBridgeEngine.shared
     @ObservedObject var watcherService = WatcherService.shared
 
     private var activeExpandedItem: OrganicNotchExpandedItem {
@@ -332,7 +332,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
 
     private var androidDevicesFromMonitor: [DeviceIdentity] {
         let allAndroid = deviceMonitor.sortedActiveDevices.filter { $0.kind == .androidPhone }
-        if let connectedDev = filedroidEngine.selectedDevice, connectedDev.status == .connected {
+        if let connectedDev = phoneBridgeEngine.selectedDevice, connectedDev.status == .connected {
             return allAndroid.filter { dev in
                 !dev.displayName.localizedCaseInsensitiveContains(connectedDev.displayName) &&
                 !connectedDev.displayName.localizedCaseInsensitiveContains(dev.displayName)
@@ -393,7 +393,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         if hasAndroidOrPlexoItems {
             CenteredFlowLayout(horizontalSpacing: 8, verticalSpacing: 6) {
                 powerloadStatusButton
-                filedroidStatusButton
+                phoneBridgeStatusButton
                 ForEach(androidDevicesFromMonitor) { device in
                     deviceIconButton(device: device)
                 }
@@ -409,7 +409,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         let isSelected = activeExpandedItem == .device(device.stableKey)
         Button {
             if device.kind == .androidPhone {
-                FileDroidWindowController.shared.showWindow()
+                PhoneBridgeWindowController.shared.showWindow()
             }
             toggleExpandedItem(.device(device.stableKey))
         } label: {
@@ -801,15 +801,15 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         powerloadStatusButton
     }
 
-    // MARK: - FileDroid & OpenMTP Status Button
+    // MARK: - Phone Bridge Status Button
     @ViewBuilder
-    private var filedroidStatusButton: some View {
-        let isSelected = activeExpandedItem == .filedroid
-        let connectedDev = filedroidEngine.selectedDevice
+    private var phoneBridgeStatusButton: some View {
+        let isSelected = activeExpandedItem == .phoneBridge
+        let connectedDev = phoneBridgeEngine.selectedDevice
         let hasDevice = (connectedDev?.status == .connected)
 
         Button {
-            FileDroidWindowController.shared.showWindow()
+            PhoneBridgeWindowController.shared.showWindow()
         } label: {
             HStack(spacing: 6) {
                 ZStack {
@@ -827,12 +827,12 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                         .foregroundStyle(Color.green)
                         .lineLimit(1)
                     if dev.internalStorageFree > 0 {
-                        Text(FileDroidFormatting.formatBytes(dev.internalStorageFree) + " free")
+                        Text(PhoneBridgeFormatting.formatBytes(dev.internalStorageFree) + " free")
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(.white)
                     }
                 } else {
-                    Text("FileDroid")
+                    Text("Phone Bridge")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.9))
                 }
@@ -846,7 +846,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             )
         }
         .buttonStyle(.plain)
-        .help(hasDevice ? "FileDroid — \(connectedDev?.displayName ?? "") mounted in Finder" : "FileDroid & OpenMTP Android Storage Bridge")
+        .help(hasDevice ? "Phone Bridge — \(connectedDev?.displayName ?? "") mounted in Finder" : "Phone Bridge Android Storage Bridge")
     }
 
     // MARK: - Expanded Detail View
@@ -880,8 +880,8 @@ typealias WrappingFlowLayout = CenteredFlowLayout
         case .plexo, .powerload:
             PowerloadView()
 
-        case .filedroid:
-            FileDroidView()
+        case .phoneBridge:
+            PhoneBridgeView()
 
         case .watcher:
             WatcherDetailCard()
@@ -1109,12 +1109,12 @@ typealias WrappingFlowLayout = CenteredFlowLayout
     // MARK: - Android Info Row
     @ViewBuilder
     private func androidInfoRow(device: DeviceIdentity) -> some View {
-        let fdDev = filedroidEngine.selectedDevice
+        let pbDev = phoneBridgeEngine.selectedDevice
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
-                if let battery = fdDev?.batteryLevel ?? device.batteryPercentage {
+                if let battery = pbDev?.batteryLevel ?? device.batteryPercentage {
                     HStack(spacing: 4) {
-                        Image(systemName: (fdDev?.isCharging == true) ? "bolt.fill" : "battery.100")
+                        Image(systemName: (pbDev?.isCharging == true) ? "bolt.fill" : "battery.100")
                             .font(.system(size: 10))
                         Text("\(battery)%")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -1122,7 +1122,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                     .foregroundStyle(battery <= 20 ? Color.red : Color.green)
                 }
 
-                Text(fdDev?.androidVersion ?? device.connectionType.rawValue)
+                Text(pbDev?.androidVersion ?? device.connectionType.rawValue)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
 
@@ -1131,14 +1131,14 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                 let adbClient = LiveADBClient.shared
                 let adbPath = adbClient.adbPath
                 let hasAdb = adbPath != nil && !adbPath!.isEmpty
-                let targetSerial = fdDev?.serial ?? device.stableKey
+                let targetSerial = pbDev?.serial ?? device.stableKey
 
                 Button {
                     if hasAdb {
                         AndroidFileManagerWindowManager.shared.openWindow(
                             for: targetSerial,
                             deviceName: device.displayName,
-                            deviceModel: fdDev?.model ?? device.model,
+                            deviceModel: pbDev?.model ?? device.model,
                             client: adbClient
                         )
                     } else {
@@ -1161,8 +1161,8 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                 .help(hasAdb ? "Open in-app Android File Manager for \(device.displayName)" : "ADB binary not found. Click to configure ADB path in Settings.")
             }
 
-            if let total = fdDev?.internalStorageTotal, total > 0, let free = fdDev?.internalStorageFree {
-                let used = fdDev?.internalStorageUsed ?? (total > free ? total - free : 0)
+            if let total = pbDev?.internalStorageTotal, total > 0, let free = pbDev?.internalStorageFree {
+                let used = pbDev?.internalStorageUsed ?? (total > free ? total - free : 0)
                 let pct = Double(used) / Double(total)
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -1174,7 +1174,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                 .frame(height: 4)
 
                 HStack {
-                    Text("\(FileDroidFormatting.formatBytes(free)) free of \(FileDroidFormatting.formatBytes(total))")
+                    Text("\(PhoneBridgeFormatting.formatBytes(free)) free of \(PhoneBridgeFormatting.formatBytes(total))")
                         .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.85))
                 }

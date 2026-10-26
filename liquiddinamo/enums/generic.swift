@@ -36,7 +36,7 @@ public enum NotchViews {
     case cleaner
     case plexo
     case powerload
-    case filedroid
+    case phoneBridge
 }
 
 enum SettingsEnum {

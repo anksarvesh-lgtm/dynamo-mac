@@ -180,6 +180,33 @@ public func migrateWingMetricsIfNeeded() {
     Defaults[.wingMetricsMigrated] = true
 }
 
+@MainActor
+public func migratePhoneBridgeKeysIfNeeded() {
+    guard !Defaults[.migratedPhoneBridgeKeys_v1] else { return }
+    let ud = UserDefaults.standard
+    let keyMappings = [
+        ("filedroidAdbPath", "phonebridgeAdbPath"),
+        ("filedroidAutoDetectAdb", "phonebridgeAutoDetectAdb"),
+        ("filedroidAutoMountOnConnect", "phonebridgeAutoMountOnConnect"),
+        ("filedroidAutoRevealInFinder", "phonebridgeAutoRevealInFinder"),
+        ("filedroidDefaultMacFolder", "phonebridgeDefaultMacFolder"),
+        ("filedroidTransferConcurrency", "phonebridgeTransferConcurrency"),
+        ("filedroidShowHiddenFiles", "phonebridgeShowHiddenFiles"),
+        ("filedroidNotifications", "phonebridgeNotifications"),
+        ("filedroidBackendType", "phonebridgeBackendType"),
+        ("filedroid_custom_adb_path", "phonebridge_custom_adb_path")
+    ]
+    for (oldKey, newKey) in keyMappings {
+        if ud.object(forKey: newKey) == nil, let oldVal = ud.object(forKey: oldKey) {
+            ud.set(oldVal, forKey: newKey)
+        }
+    }
+    if let selectedTab = ud.string(forKey: "selectedSettingsSidebarItem"), selectedTab == "FileDroid" {
+        ud.set("PhoneBridge", forKey: "selectedSettingsSidebarItem")
+    }
+    Defaults[.migratedPhoneBridgeKeys_v1] = true
+}
+
 extension Defaults.Keys {
     // MARK: General
     static let animationStyle = Key<AnimationStyle>("animationStyle", default: .liquidGlassDrop)
@@ -418,16 +445,28 @@ extension Defaults.Keys {
     static let enableStorageCleanerModule = Key<Bool>("enableStorageCleanerModule", default: true)
     static let storageCleanerStartupScan = Key<Bool>("storageCleanerStartupScan", default: true)
 
-    // MARK: FileDroid & OpenMTP
-    static let filedroidAdbPath = Key<String>("filedroidAdbPath", default: "")
-    static let filedroidAutoDetectAdb = Key<Bool>("filedroidAutoDetectAdb", default: true)
-    static let filedroidAutoMountOnConnect = Key<Bool>("filedroidAutoMountOnConnect", default: true)
-    static let filedroidAutoRevealInFinder = Key<Bool>("filedroidAutoRevealInFinder", default: false)
-    static let filedroidDefaultMacFolder = Key<String>("filedroidDefaultMacFolder", default: (FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads")) + "/Android")
-    static let filedroidTransferConcurrency = Key<Int>("filedroidTransferConcurrency", default: 2)
-    static let filedroidShowHiddenFiles = Key<Bool>("filedroidShowHiddenFiles", default: false)
-    static let filedroidNotifications = Key<Bool>("filedroidNotifications", default: true)
-    static let filedroidBackendType = Key<String>("filedroidBackendType", default: "adb")
+    // MARK: Phone Bridge (ADB & MTP)
+    static let phonebridgeAdbPath = Key<String>("phonebridgeAdbPath", default: "")
+    static let phonebridgeAutoDetectAdb = Key<Bool>("phonebridgeAutoDetectAdb", default: true)
+    static let phonebridgeAutoMountOnConnect = Key<Bool>("phonebridgeAutoMountOnConnect", default: true)
+    static let phonebridgeAutoRevealInFinder = Key<Bool>("phonebridgeAutoRevealInFinder", default: false)
+    static let phonebridgeDefaultMacFolder = Key<String>("phonebridgeDefaultMacFolder", default: (FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? (NSHomeDirectory() + "/Downloads")) + "/Android")
+    static let phonebridgeTransferConcurrency = Key<Int>("phonebridgeTransferConcurrency", default: 2)
+    static let phonebridgeShowHiddenFiles = Key<Bool>("phonebridgeShowHiddenFiles", default: false)
+    static let phonebridgeNotifications = Key<Bool>("phonebridgeNotifications", default: true)
+    static let phonebridgeBackendType = Key<String>("phonebridgeBackendType", default: "adb")
+    static let migratedPhoneBridgeKeys_v1 = Key<Bool>("migratedPhoneBridgeKeys_v1", default: false)
+
+    // Backward-compatibility aliases for filedroid*
+    static var filedroidAdbPath: Key<String> { phonebridgeAdbPath }
+    static var filedroidAutoDetectAdb: Key<Bool> { phonebridgeAutoDetectAdb }
+    static var filedroidAutoMountOnConnect: Key<Bool> { phonebridgeAutoMountOnConnect }
+    static var filedroidAutoRevealInFinder: Key<Bool> { phonebridgeAutoRevealInFinder }
+    static var filedroidDefaultMacFolder: Key<String> { phonebridgeDefaultMacFolder }
+    static var filedroidTransferConcurrency: Key<Int> { phonebridgeTransferConcurrency }
+    static var filedroidShowHiddenFiles: Key<Bool> { phonebridgeShowHiddenFiles }
+    static var filedroidNotifications: Key<Bool> { phonebridgeNotifications }
+    static var filedroidBackendType: Key<String> { phonebridgeBackendType }
 
     // MARK: Android File Manager
     static let androidFilesAdbPath = Key<String>("android_files_custom_adb_path", default: "")

@@ -638,7 +638,7 @@ public final class IslandController: ObservableObject {
                 return CGSize(width: 480, height: min(geom.notchHeight + 220, screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .plexo || LiquidViewCoordinator.shared.currentView == .powerload {
                 return CGSize(width: 560, height: min(max(480, geom.notchHeight + 450), screenMaxH))
-            } else if LiquidViewCoordinator.shared.currentView == .filedroid {
+            } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
                 return CGSize(width: 580, height: min(max(480, geom.notchHeight + 450), screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .home {
                 let homeWidth = max(openNotchSize.width, 740)
@@ -657,7 +657,7 @@ public final class IslandController: ObservableObject {
                     return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 320), screenMaxH))
                 case .plexo, .powerload:
                     return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
-                case .filedroid:
+                case .phoneBridge:
                     return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
                 case .watcher:
                     return CGSize(width: homeWidth, height: min(max(440, geom.notchHeight + 410), screenMaxH))
@@ -704,7 +704,7 @@ public final class IslandController: ObservableObject {
             return max(340, geom.notchHeight + 320)
         case .plexo, .powerload:
             return max(480, geom.notchHeight + 450)
-        case .filedroid:
+        case .phoneBridge:
             return max(480, geom.notchHeight + 450)
         case .watcher:
             return max(440, geom.notchHeight + 410)

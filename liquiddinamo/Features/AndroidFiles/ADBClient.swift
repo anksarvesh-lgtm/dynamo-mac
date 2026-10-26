@@ -447,11 +447,12 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
             return custom
         }
 
-        // 2. Setting from FileDroid if configured
-        let filedroidPath = UserDefaults.standard.string(forKey: "filedroid_custom_adb_path") ?? ""
-        if !filedroidPath.isEmpty && FileManager.default.isExecutableFile(atPath: filedroidPath) {
-            _adbPath = filedroidPath
-            return filedroidPath
+        // 2. Setting from Phone Bridge / FileDroid if configured
+        let bridgePath = UserDefaults.standard.string(forKey: "phonebridge_custom_adb_path")
+            ?? UserDefaults.standard.string(forKey: "filedroid_custom_adb_path") ?? ""
+        if !bridgePath.isEmpty && FileManager.default.isExecutableFile(atPath: bridgePath) {
+            _adbPath = bridgePath
+            return bridgePath
         }
 
         // 3. Bundled binary inside App bundle
