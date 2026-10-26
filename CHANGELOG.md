@@ -4,6 +4,18 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 
 ## [2.0.6] — 2026-10-26
 
+### Live 3D Half-Filled Water Capsule Notification
+- **Procedural 3D Liquid Simulation (`LiquidWaterCapsuleView.swift`)**:
+  - Implemented real-time procedural 50% water volume inside a transparent Liquid Glass capsule.
+  - Continuous downward pouring stream with laminar-to-turbulent wave sway, animated stream core, and moving droplet beadlets.
+  - Luminous specular air-liquid meniscus line with diffuse ambient glow and subsurface caustics.
+  - Dynamic surface waves with radial impact crown flare, micro-splashes, and expanding concentric elliptical ripples with perspective compression.
+  - Contained strictly within the capsule's rounded geometry with zero overflow or boundary oscillation.
+  - Clean lifecycle integration across `IslandAlertView`, `DeviceShowcasePopupView`, `BluetoothBatteryAlertPopupView`, and `WatcherPillView`.
+- **Global Fix for Clipped Notification Capsules**:
+  - Resolved capsule clipping across all notification and event types.
+  - Ensured dynamic content-aware width expansion so left and right rounded edges remain fully visible.
+
 ### Phone Bridge & MTPBridge Architecture
 - **Renamed FileDroid / Kalam Bridge to Phone Bridge and MTPBridge (settings keys migrated automatically)**:
   - Renamed user-facing feature name to **Phone Bridge** across UI surfaces, Dynamic Island expanded views, Settings sidebar (`PhoneBridge`), and documentation.
