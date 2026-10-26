@@ -362,10 +362,13 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     private var cachedStorageId: UInt32 = 65537
 
     public var isAvailable: Bool {
-        return KalamBridge.shared.isLoaded
+        return KalamBridge.isSupportedArchitecture && KalamBridge.shared.isLoaded
     }
 
     public var availabilityHint: String? {
+        if !KalamBridge.isSupportedArchitecture {
+            return "Native MTP bridge is unavailable on Intel Macs (Apple Silicon required)."
+        }
         if isAvailable { return nil }
         return "Native OpenMTP Kalam engine dylib is initializing or missing from Frameworks."
     }
