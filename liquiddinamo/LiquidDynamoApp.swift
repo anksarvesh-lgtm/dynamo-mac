@@ -908,7 +908,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Auto-check for updates from GitHub releases
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-            GitHubUpdateChecker.shared.checkForUpdates(silent: true)
+            if Defaults[.autoCheckUpdates] {
+                GitHubUpdateChecker.shared.checkForUpdates(silent: true)
+            }
         }
         #if DEBUG
         if CommandLine.arguments.contains("--run-notch-safety-tests") {

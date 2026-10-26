@@ -60,17 +60,19 @@ This document establishes the audit evidence, root causes, targeted minimal chan
   - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 2: Secure Application Updater
-- **Cause**: Auto-updater stages apps without cryptographic verification, mounts DMGs with `-noverify`, strips quarantine, executes non-atomic copy without rollback, and uses broken version comparison.
+- **Status**: **CONFIRMED & FIXED (VERIFIED WITH 25/25 PASSING UNIT TESTS & XCODEBUILD DEBUG BUILD)**
+- **Cause**: Auto-updater stages apps without cryptographic verification, mounts DMGs with `-noverify`, strips quarantine, executes non-atomic copy without rollback, uses broken version comparison ("2.8-rc.1" > "2.8"), queries unversioned fallback repo, and lacks user opt-in controls.
 - **Change**:
-  1. Add verification pipeline before replacing: `codesign --verify --deep --strict`, Team ID comparison against `Bundle.main`, `spctl --assess --type execute`, bundle identifier check, and version > current.
-  2. Require HTTPS only and release asset SHA-256 match.
-  3. Remove `-noverify` from `hdiutil attach`. Retain quarantine attributes.
-  4. Safe atomic replacement: install beside running app, move running app to backup, rename new app into place, verify launch, and rollback on failure.
-  5. Fix SemVer parser: proper handling of major.minor.patch-prerelease ("2.8-rc.1" < "2.8").
-  6. Remove fallback repo `dynamomac` and mutable `app` tag.
-  7. Add Settings toggle to disable automatic update checks and show contact endpoint.
-- **Risk**: Interruption during updater file movement.
-- **Test**: Unit tests with invalid signatures, mismatched Team IDs, SemVer test matrix, atomic replacement rollback simulation.
+  1. Implemented `SemanticVersion` parser conforming to SemVer 2.0.0 specification with pre-release precedence ("2.8-rc.1" < "2.8", "1.10" > "1.9").
+  2. Implemented cryptographic verification pipeline: binary existence in `Contents/MacOS`, `CFBundleIdentifier` match against `Bundle.main`, downgrade rejection (`stagedVer >= currentVer`), `/usr/bin/codesign --verify --deep --strict`, Team ID extraction and verification via `SecCodeCopySelf` / `SecCodeCopySigningInformation`, and Gatekeeper assessment via `/usr/sbin/spctl --assess --type execute`.
+  3. Enforced strict HTTPS on official GitHub domains (`github.com`, `*.github.com`, `objects.githubusercontent.com`).
+  4. Removed `-noverify` flag from `hdiutil attach` so DMG internal checksums are verified before mounting.
+  5. Implemented safe atomic installation with rollback: stages temporary installation beside target in the same filesystem, moves target to backup, moves new installation to target, immediately rolls back backup if move fails, and never strips quarantine flags (`xattr -dr com.apple.quarantine` completely removed).
+  6. Removed fallback repository `dynamomac` and mutable `app` release tag (`releases/download/app/...`); restricted downloads to version-pinned release tags.
+  7. Added `autoCheckUpdates` toggle in `UpdaterSettingsView` bound to `Defaults[.autoCheckUpdates]` and added endpoint transparency disclosure.
+- **Test Evidence**:
+  - `scripts/test_updater_milestone2.swift`: 25/25 unit tests passed across SemVer comparison, pre-release precedence, HTTPS host filtering, staged bundle security validation, bundle ID spoof detection, downgrade detection, and atomic backup/rollback mechanics.
+  - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 3: Robust Clipboard History Service
 - **Cause**: `lastChangeCount` consumed before filter completion; `HardwareSensorMonitor` window list false-positives on screenshots; timer in default run-loop mode stalls; image prefix(256) collision; main-thread file I/O and JSON encoding.

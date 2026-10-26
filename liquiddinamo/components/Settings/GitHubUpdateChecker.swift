@@ -3,14 +3,173 @@
 //  LiquidDynamo
 //
 //  Direct GitHub Releases update checker and in-place auto-updater.
-//  Pulls liquiddynamo.zip / liquiddynamo.app or DMG, installs to /Applications,
-//  triggers Dynamic Island notifications, and displays section update banners.
+//  Cryptographically verifies application signatures, validates Team IDs,
+//  checks strict Semantic Versions, and performs safe atomic replacements with rollback.
 //
 
 import AppKit
 import Combine
+import Defaults
 import Foundation
+import Security
 import SwiftUI
+
+// MARK: - Semantic Version 2.0 Parser & Comparator
+
+public struct SemanticVersion: Comparable, CustomStringConvertible, Equatable, Hashable {
+    public let major: Int
+    public let minor: Int
+    public let patch: Int
+    public let prerelease: [String]
+    public let buildMetadata: String?
+
+    public init?(_ string: String) {
+        var str = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if str.hasPrefix("v") || str.hasPrefix("V") {
+            str.removeFirst()
+        }
+        str = str.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !str.isEmpty else { return nil }
+
+        // 1. Separate build metadata (+...)
+        let buildParts = str.components(separatedBy: "+")
+        let versionAndPrerelease = buildParts[0]
+        self.buildMetadata = buildParts.count > 1 ? buildParts.dropFirst().joined(separator: "+") : nil
+
+        // 2. Separate pre-release (-...)
+        let preParts = versionAndPrerelease.components(separatedBy: "-")
+        let numericPart = preParts[0]
+        if preParts.count > 1 {
+            let preString = preParts.dropFirst().joined(separator: "-")
+            self.prerelease = preString.components(separatedBy: ".").filter { !$0.isEmpty }
+        } else {
+            self.prerelease = []
+        }
+
+        // 3. Separate major.minor.patch
+        let coreNums = numericPart.components(separatedBy: ".")
+        guard let majorInt = Int(coreNums[0]), majorInt >= 0 else { return nil }
+        self.major = majorInt
+
+        if coreNums.count > 1 {
+            guard let minorInt = Int(coreNums[1]), minorInt >= 0 else { return nil }
+            self.minor = minorInt
+        } else {
+            self.minor = 0
+        }
+
+        if coreNums.count > 2 {
+            guard let patchInt = Int(coreNums[2]), patchInt >= 0 else { return nil }
+            self.patch = patchInt
+        } else {
+            self.patch = 0
+        }
+    }
+
+    public var description: String {
+        var res = "\(major).\(minor).\(patch)"
+        if !prerelease.isEmpty {
+            res += "-" + prerelease.joined(separator: ".")
+        }
+        if let b = buildMetadata {
+            res += "+" + b
+        }
+        return res
+    }
+
+    public static func < (lhs: SemanticVersion, rhs: SemanticVersion) -> Bool {
+        if lhs.major != rhs.major {
+            return lhs.major < rhs.major
+        }
+        if lhs.minor != rhs.minor {
+            return lhs.minor < rhs.minor
+        }
+        if lhs.patch != rhs.patch {
+            return lhs.patch < rhs.patch
+        }
+
+        // SemVer 2.0.0 Precedence rule:
+        // When major, minor, and patch are equal, a normal version has higher precedence than a pre-release version:
+        // Example: 1.0.0-alpha < 1.0.0, 2.8-rc.1 < 2.8
+        if lhs.prerelease.isEmpty && !rhs.prerelease.isEmpty {
+            return false // lhs normal (higher), rhs pre-release (lower)
+        }
+        if !lhs.prerelease.isEmpty && rhs.prerelease.isEmpty {
+            return true  // lhs pre-release (lower), rhs normal (higher)
+        }
+        if lhs.prerelease.isEmpty && rhs.prerelease.isEmpty {
+            return false // both equal normal versions
+        }
+
+        // Compare pre-release identifiers dot-by-dot
+        let minCount = min(lhs.prerelease.count, rhs.prerelease.count)
+        for i in 0..<minCount {
+            let leftId = lhs.prerelease[i]
+            let rightId = rhs.prerelease[i]
+            if leftId == rightId { continue }
+
+            let leftNum = Int(leftId)
+            let rightNum = Int(rightId)
+
+            switch (leftNum, rightNum) {
+            case let (.some(l), .some(r)):
+                return l < r
+            case (.some, .none):
+                // Numeric identifier has lower precedence than non-numeric
+                return true
+            case (.none, .some):
+                // Non-numeric identifier has higher precedence than numeric
+                return false
+            case (.none, .none):
+                // Lexical ASCII comparison
+                return leftId < rightId
+            }
+        }
+
+        // Larger set of pre-release fields has higher precedence than a smaller set
+        return lhs.prerelease.count < rhs.prerelease.count
+    }
+
+    public static func == (lhs: SemanticVersion, rhs: SemanticVersion) -> Bool {
+        return lhs.major == rhs.major &&
+               lhs.minor == rhs.minor &&
+               lhs.patch == rhs.patch &&
+               lhs.prerelease == rhs.prerelease
+    }
+}
+
+// MARK: - Update Security Verification Errors
+
+public enum UpdateSecurityError: LocalizedError {
+    case invalidURL(String)
+    case missingBinary
+    case bundleIdentifierMismatch(found: String, expected: String)
+    case codeSignatureVerificationFailed(String)
+    case teamIDMismatch(found: String, expected: String)
+    case gatekeeperRejected(String)
+    case versionNotNewer(found: String, current: String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidURL(let msg):
+            return "Invalid update URL: \(msg)"
+        case .missingBinary:
+            return "The downloaded update bundle has no executable binary in Contents/MacOS."
+        case .bundleIdentifierMismatch(let found, let expected):
+            return "Security violation: update bundle ID (\(found)) does not match app bundle ID (\(expected))."
+        case .codeSignatureVerificationFailed(let msg):
+            return "Cryptographic code signature verification failed: \(msg)"
+        case .teamIDMismatch(let found, let expected):
+            return "Security violation: update is signed by Team ID '\(found)', expected '\(expected)'."
+        case .gatekeeperRejected(let msg):
+            return "Gatekeeper assessment rejected update: \(msg)"
+        case .versionNotNewer(let found, let current):
+            return "Update version \(found) is not newer than current installed version \(current)."
+        }
+    }
+}
+
+// MARK: - GitHubUpdateChecker
 
 @MainActor
 public final class GitHubUpdateChecker: ObservableObject {
@@ -18,17 +177,8 @@ public final class GitHubUpdateChecker: ObservableObject {
 
     public static let repoOwner = "anksarvesh-lgtm"
     public static let repoName = "dynamo-mac"
-    public static let fallbackRepoName = "dynamomac"
     public static let releasesURL = URL(string: "https://github.com/\(repoOwner)/\(repoName)/releases")!
-
-    /// Permanent direct zip download link containing liquiddynamo.app
-    public static let permanentZipURL = URL(string: "https://github.com/\(repoOwner)/\(repoName)/releases/download/app/liquiddynamo.zip")!
-
-    /// Permanent fallback DMG download link
-    public static let permanentDMGURL = URL(string: "https://github.com/\(repoOwner)/\(repoName)/releases/download/app/LiquidDynamo.dmg")!
-
     public static let apiLatestURL = URL(string: "https://api.github.com/repos/\(repoOwner)/\(repoName)/releases/latest")!
-    public static let apiFallbackLatestURL = URL(string: "https://api.github.com/repos/\(repoOwner)/\(fallbackRepoName)/releases/latest")!
 
     public enum UpdateStatus: Equatable {
         case idle
@@ -61,6 +211,11 @@ public final class GitHubUpdateChecker: ObservableObject {
     // MARK: - 1. Check for Updates
 
     public func checkForUpdates(silent: Bool = false, autoInstall: Bool = false) {
+        // Enforce user privacy preference: skip background checks when disabled
+        if silent && !Defaults[.autoCheckUpdates] {
+            return
+        }
+
         status = .checking
         if !silent {
             isBannerDismissed = false
@@ -75,7 +230,9 @@ public final class GitHubUpdateChecker: ObservableObject {
                 let latestVersion = releaseInfo.version
 
                 if Self.isVersion(latestVersion, greaterThan: currentVersion) {
-                    let targetURL = releaseInfo.downloadURL ?? Self.permanentZipURL
+                    guard let targetURL = releaseInfo.downloadURL else {
+                        throw NSError(domain: "GitHubUpdateChecker", code: 404, userInfo: [NSLocalizedDescriptionKey: "Release has no download assets."])
+                    }
                     self.isUpdateAvailable = true
                     self.latestVersionString = latestVersion
                     self.releaseNotesString = releaseInfo.body
@@ -111,57 +268,55 @@ public final class GitHubUpdateChecker: ObservableObject {
     }
 
     private func fetchLatestRelease() async throws -> ReleasePayload {
-        // Try primary repository first, then fallback repository
-        let urls = [Self.apiLatestURL, Self.apiFallbackLatestURL]
+        var request = URLRequest(url: Self.apiLatestURL)
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "2.0.0")", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 12
 
-        var lastError: Error? = nil
-        for url in urls {
-            do {
-                var request = URLRequest(url: url)
-                request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-                request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "2.0.0")", forHTTPHeaderField: "User-Agent")
-                request.timeoutInterval = 12
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw NSError(domain: "GitHubUpdateChecker", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to connect to GitHub Releases API."])
+        }
 
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    continue
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tagName = json["tag_name"] as? String else {
+            throw NSError(domain: "GitHubUpdateChecker", code: 404, userInfo: [NSLocalizedDescriptionKey: "Invalid release response from GitHub."])
+        }
+
+        let cleanVersion = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
+        let body = (json["body"] as? String) ?? "A new version of LiquidDynamo is available."
+
+        var chosenURL: URL? = nil
+        if let assets = json["assets"] as? [[String: Any]] {
+            // Prioritize liquiddynamo.zip (contains application bundle)
+            if let zipAsset = assets.first(where: {
+                let name = ($0["name"] as? String)?.lowercased() ?? ""
+                return name == "liquiddynamo.zip" || name.hasSuffix(".zip")
+            }), let downloadStr = zipAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
+                if (try? Self.validateDownloadURL(url)) != nil {
+                    chosenURL = url
                 }
-
-                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let tagName = json["tag_name"] as? String else {
-                    continue
+            } else if let dmgAsset = assets.first(where: {
+                let name = ($0["name"] as? String)?.lowercased() ?? ""
+                return name.hasSuffix(".dmg")
+            }), let downloadStr = dmgAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
+                if (try? Self.validateDownloadURL(url)) != nil {
+                    chosenURL = url
                 }
-
-                let cleanVersion = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
-                let body = (json["body"] as? String) ?? "A new version of LiquidDynamo is available."
-
-                var chosenURL: URL? = nil
-                if let assets = json["assets"] as? [[String: Any]] {
-                    // Prioritize liquiddynamo.zip (contains liquiddynamo.app bundle)
-                    if let zipAsset = assets.first(where: {
-                        let name = ($0["name"] as? String)?.lowercased() ?? ""
-                        return name == "liquiddynamo.zip" || name.hasSuffix(".zip")
-                    }), let downloadStr = zipAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
-                        chosenURL = url
-                    } else if let dmgAsset = assets.first(where: {
-                        let name = ($0["name"] as? String)?.lowercased() ?? ""
-                        return name.hasSuffix(".dmg")
-                    }), let downloadStr = dmgAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
-                        chosenURL = url
-                    }
-                }
-
-                return ReleasePayload(
-                    version: cleanVersion,
-                    body: body,
-                    downloadURL: chosenURL ?? Self.permanentZipURL
-                )
-            } catch {
-                lastError = error
             }
         }
 
-        throw lastError ?? NSError(domain: "GitHubUpdateChecker", code: 404, userInfo: [NSLocalizedDescriptionKey: "Could not find latest release on GitHub."])
+        // If no assets matched in payload, construct version-pinned official download URL
+        if chosenURL == nil && !cleanVersion.isEmpty {
+            let fallbackVersioned = URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(cleanVersion)/liquiddynamo.zip")
+            chosenURL = fallbackVersioned
+        }
+
+        return ReleasePayload(
+            version: cleanVersion,
+            body: body,
+            downloadURL: chosenURL
+        )
     }
 
     // MARK: - 2. Dynamic Island Alert Notification
@@ -183,14 +338,16 @@ public final class GitHubUpdateChecker: ObservableObject {
         IslandController.shared.showAlert(payload: payload)
     }
 
-    // MARK: - 3. Auto-Download and In-Place Replace in /Applications
+    // MARK: - 3. Download Candidates & Strict HTTPS Verification
 
-    private func sanitizeDownloadURL(_ url: URL) -> URL {
-        var str = url.absoluteString
-        if str.contains("banksarvesh-lgtm/dynamomac") {
-            str = str.replacingOccurrences(of: "banksarvesh-lgtm/dynamomac", with: "\(Self.repoOwner)/\(Self.repoName)")
+    public static func validateDownloadURL(_ url: URL) throws {
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" else {
+            throw UpdateSecurityError.invalidURL("Insecure protocol: '\(url.scheme ?? "none")'. Strict HTTPS is required.")
         }
-        return URL(string: str) ?? url
+        guard let host = url.host?.lowercased(),
+              host == "github.com" || host.hasSuffix(".github.com") || host == "objects.githubusercontent.com" else {
+            throw UpdateSecurityError.invalidURL("Untrusted download host '\(url.host ?? "unknown")'. Only official GitHub hosts are permitted.")
+        }
     }
 
     private func buildDownloadCandidates(targetURL: URL?) -> [URL] {
@@ -199,42 +356,27 @@ public final class GitHubUpdateChecker: ObservableObject {
 
         func add(_ url: URL?) {
             guard let url = url else { return }
-            let sanitized = sanitizeDownloadURL(url)
-            let key = sanitized.absoluteString.lowercased()
+            guard (try? Self.validateDownloadURL(url)) != nil else { return }
+            let key = url.absoluteString.lowercased()
             if !seen.contains(key) {
                 seen.insert(key)
-                candidates.append(sanitized)
+                candidates.append(url)
             }
         }
 
-        // 1. Explicit target URL passed in
+        // 1. Explicit target URL passed in (must be HTTPS from official release)
         add(targetURL)
 
         // 2. Previously resolved URL from GitHub API
         add(resolvedDownloadURL)
 
-        // 3. Tag-specific ZIP releases across primary and fallback repos
+        // 3. Strict version-pinned release assets from official repository
         let version = latestVersionString.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
         if !version.isEmpty {
             add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(version)/liquiddynamo.zip"))
-            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/v\(version)/liquiddynamo.zip"))
-        }
-
-        // 4. Permanent ZIP download link (releases/download/app/liquiddynamo.zip)
-        add(Self.permanentZipURL)
-        add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/app/liquiddynamo.zip"))
-
-        // 5. Tag-specific DMG releases
-        if !version.isEmpty {
             add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(version)/LiquidDynamo-\(version).dmg"))
             add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(version)/LiquidDynamo.dmg"))
-            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/v\(version)/LiquidDynamo-\(version).dmg"))
-            add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/v\(version)/LiquidDynamo.dmg"))
         }
-
-        // 6. Permanent DMG fallback
-        add(Self.permanentDMGURL)
-        add(URL(string: "https://github.com/\(Self.repoOwner)/\(Self.fallbackRepoName)/releases/download/app/LiquidDynamo.dmg"))
 
         return candidates
     }
@@ -248,7 +390,6 @@ public final class GitHubUpdateChecker: ObservableObject {
         status = .downloading(progress: 0.0, downloadedFormatted: "0 B", totalFormatted: "Connecting…")
 
         activeDownloadTask = Task {
-            // If we don't have the latest version string or resolved download URL yet, fetch release info first
             if self.latestVersionString.isEmpty || self.resolvedDownloadURL == nil {
                 if let release = try? await self.fetchLatestRelease() {
                     self.latestVersionString = release.version
@@ -261,7 +402,7 @@ public final class GitHubUpdateChecker: ObservableObject {
             let candidates = self.buildDownloadCandidates(targetURL: url)
             guard !candidates.isEmpty else {
                 self.isDownloading = false
-                self.status = .error(message: "No valid download URLs found.")
+                self.status = .error(message: "No valid secure download URLs found.")
                 return
             }
 
@@ -272,7 +413,7 @@ public final class GitHubUpdateChecker: ObservableObject {
                 if Task.isCancelled { break }
 
                 let isZip = candidateURL.lastPathComponent.lowercased().hasSuffix(".zip") || candidateURL.absoluteString.contains(".zip")
-                let tempDownloadURL = FileManager.default.temporaryDirectory.appendingPathComponent(isZip ? "liquiddynamo_update.zip" : "liquiddynamo_update.dmg")
+                let tempDownloadURL = FileManager.default.temporaryDirectory.appendingPathComponent(isZip ? "liquiddynamo_update_\(UUID().uuidString).zip" : "liquiddynamo_update_\(UUID().uuidString).dmg")
 
                 do {
                     if index > 0 {
@@ -290,7 +431,6 @@ public final class GitHubUpdateChecker: ObservableObject {
                         throw NSError(domain: "AutoUpdater", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid server response."])
                     }
 
-                    // If non-2xx (e.g. 404, 403, 500), throw to fall back to the next candidate
                     guard (200...299).contains(httpResponse.statusCode) else {
                         throw NSError(domain: "AutoUpdater", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Download server returned HTTP \(httpResponse.statusCode)."])
                     }
@@ -346,17 +486,15 @@ public final class GitHubUpdateChecker: ObservableObject {
                     }
                     try? fileHandle.close()
 
-                    // Verify file size is non-empty (> 1MB)
                     let downloadedFileSize = (try? FileManager.default.attributesOfItem(atPath: tempDownloadURL.path)[.size] as? Int64) ?? 0
                     guard downloadedFileSize > 1024 * 1024 else {
                         try? FileManager.default.removeItem(at: tempDownloadURL)
-                        throw NSError(domain: "AutoUpdater", code: 8, userInfo: [NSLocalizedDescriptionKey: "Incomplete download file."])
+                        throw NSError(domain: "AutoUpdater", code: 8, userInfo: [NSLocalizedDescriptionKey: "Downloaded file is incomplete (less than 1 MB)."])
                     }
 
-                    // Download completed successfully
                     succeeded = true
                     self.status = .extracting
-                    self.downloadStatusFormatted = "Extracting application…"
+                    self.downloadStatusFormatted = "Verifying and staging application…"
 
                     if isZip {
                         try await self.extractAndReplaceFromZip(zipURL: tempDownloadURL)
@@ -364,7 +502,7 @@ public final class GitHubUpdateChecker: ObservableObject {
                         try await self.extractAndReplaceFromDMG(dmgURL: tempDownloadURL)
                     }
 
-                    break // Successful download and trigger, exit loop
+                    break
 
                 } catch {
                     lastError = error
@@ -373,7 +511,7 @@ public final class GitHubUpdateChecker: ObservableObject {
                         self.isDownloading = false
                         return
                     }
-                    print("⚠️ AutoUpdater download candidate \(candidateURL.absoluteString) failed: \(error.localizedDescription). Trying next candidate...")
+                    print("⚠️ AutoUpdater candidate failed: \(error.localizedDescription)")
                 }
             }
 
@@ -402,7 +540,6 @@ public final class GitHubUpdateChecker: ObservableObject {
         try? FileManager.default.removeItem(at: stagingDir)
         try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
 
-        // Unpack zip using ditto to preserve symlinks, attributes, and signatures
         let dittoProcess = Process()
         dittoProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
         dittoProcess.arguments = ["-x", "-k", zipURL.path, stagingDir.path]
@@ -419,7 +556,6 @@ public final class GitHubUpdateChecker: ObservableObject {
             throw NSError(domain: "AutoUpdater", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to extract update zip: \(err)"])
         }
 
-        // Find .app bundle inside staging directory
         let items = (try? FileManager.default.contentsOfDirectory(atPath: stagingDir.path)) ?? []
         guard let appFolder = items.first(where: { $0.hasSuffix(".app") }) else {
             throw NSError(domain: "AutoUpdater", code: 4, userInfo: [NSLocalizedDescriptionKey: "No application bundle found inside update archive."])
@@ -432,7 +568,8 @@ public final class GitHubUpdateChecker: ObservableObject {
     private func extractAndReplaceFromDMG(dmgURL: URL) async throws {
         let attachProcess = Process()
         attachProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-        attachProcess.arguments = ["attach", "-nobrowse", "-readonly", "-noverify", "-noautoopen", dmgURL.path]
+        // Checksum verification is strictly preserved by omitting '-noverify'
+        attachProcess.arguments = ["attach", "-nobrowse", "-readonly", "-noautoopen", dmgURL.path]
 
         let pipe = Pipe()
         attachProcess.standardOutput = pipe
@@ -451,13 +588,13 @@ public final class GitHubUpdateChecker: ObservableObject {
         }
 
         guard let volume = mountPoint, FileManager.default.fileExists(atPath: volume) else {
-            throw NSError(domain: "AutoUpdater", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to mount downloaded DMG."])
+            throw NSError(domain: "AutoUpdater", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to mount downloaded DMG with verification."])
         }
 
         let enumerator = try? FileManager.default.contentsOfDirectory(atPath: volume)
         guard let appFolder = enumerator?.first(where: { $0.hasSuffix(".app") }) else {
             Self.detachVolume(volume)
-            throw NSError(domain: "AutoUpdater", code: 6, userInfo: [NSLocalizedDescriptionKey: "LiquidDynamo application not found inside DMG."])
+            throw NSError(domain: "AutoUpdater", code: 6, userInfo: [NSLocalizedDescriptionKey: "LiquidDynamo application bundle not found inside DMG volume."])
         }
 
         let sourceAppURL = URL(fileURLWithPath: volume).appendingPathComponent(appFolder)
@@ -474,16 +611,127 @@ public final class GitHubUpdateChecker: ObservableObject {
         try self.validateAndRelaunch(stagedAppURL: stagedAppURL)
     }
 
-    private func validateAndRelaunch(stagedAppURL: URL) throws {
-        // Validate staged application binary exists
+    // MARK: - 5. Cryptographic Security & Integrity Verification
+
+    public static func verifyCodeSignature(at appURL: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        process.arguments = ["--verify", "--deep", "--strict", appURL.path]
+
+        let pipe = Pipe()
+        process.standardError = pipe
+        process.standardOutput = pipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            let errData = pipe.fileHandleForReading.readDataToEndOfFile()
+            let errMsg = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "exit code \(process.terminationStatus)"
+            throw UpdateSecurityError.codeSignatureVerificationFailed(errMsg)
+        }
+    }
+
+    public static func extractTeamID(from appURL: URL) -> String? {
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(appURL as CFURL, [], &staticCode) == errSecSuccess,
+              let staticCode = staticCode else {
+            return nil
+        }
+        var infoCF: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &infoCF) == errSecSuccess,
+              let info = infoCF as? [String: Any] else {
+            return nil
+        }
+        return info[kSecCodeInfoTeamIdentifier as String] as? String
+    }
+
+    public static func currentTeamID() -> String? {
+        var code: SecCode?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code = code else {
+            return nil
+        }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode = staticCode else {
+            return nil
+        }
+        var infoCF: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &infoCF) == errSecSuccess,
+              let info = infoCF as? [String: Any] else {
+            return nil
+        }
+        return info[kSecCodeInfoTeamIdentifier as String] as? String
+    }
+
+    public static func verifyGatekeeperAssessment(at appURL: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/spctl")
+        process.arguments = ["--assess", "--type", "execute", appURL.path]
+
+        let pipe = Pipe()
+        process.standardError = pipe
+        process.standardOutput = pipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            let errData = pipe.fileHandleForReading.readDataToEndOfFile()
+            let errMsg = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "exit code \(process.terminationStatus)"
+            throw UpdateSecurityError.gatekeeperRejected(errMsg)
+        }
+    }
+
+    public func validateStagedApp(stagedAppURL: URL) throws {
+        // 1. Validate executable binary exists inside MacOS directory
         let macosDir = stagedAppURL.appendingPathComponent("Contents/MacOS")
         let execs = (try? FileManager.default.contentsOfDirectory(atPath: macosDir.path)) ?? []
         guard !execs.isEmpty else {
-            throw NSError(domain: "AutoUpdater", code: 7, userInfo: [NSLocalizedDescriptionKey: "Corrupted application binary in update bundle."])
+            throw UpdateSecurityError.missingBinary
         }
 
+        // 2. Validate Bundle Identifier matches running application
+        let expectedBundleID = Bundle.main.bundleIdentifier ?? "com.sarvesh.LiquidDynamo"
+        let stagedInfoURL = stagedAppURL.appendingPathComponent("Contents/Info.plist")
+        guard let stagedDict = NSDictionary(contentsOf: stagedInfoURL) as? [String: Any],
+              let stagedBundleID = stagedDict["CFBundleIdentifier"] as? String else {
+            throw UpdateSecurityError.bundleIdentifierMismatch(found: "unknown", expected: expectedBundleID)
+        }
+        guard stagedBundleID == expectedBundleID else {
+            throw UpdateSecurityError.bundleIdentifierMismatch(found: stagedBundleID, expected: expectedBundleID)
+        }
+
+        // 3. Validate Version is greater than or equal to current installed version
+        let stagedVersionStr = (stagedDict["CFBundleShortVersionString"] as? String) ?? ""
+        let currentVersionStr = Bundle.main.releaseVersionNumber ?? "2.0.0"
+        if let stagedVer = SemanticVersion(stagedVersionStr),
+           let currentVer = SemanticVersion(currentVersionStr) {
+            if stagedVer < currentVer {
+                throw UpdateSecurityError.versionNotNewer(found: stagedVersionStr, current: currentVersionStr)
+            }
+        }
+
+        // 4. Verify cryptographic code signature
+        try Self.verifyCodeSignature(at: stagedAppURL)
+
+        // 5. Team ID Verification & Gatekeeper Assessment
+        let runningTeam = Self.currentTeamID()
+        let stagedTeam = Self.extractTeamID(from: stagedAppURL)
+
+        if let expectedTeam = runningTeam {
+            guard let foundTeam = stagedTeam, foundTeam == expectedTeam else {
+                throw UpdateSecurityError.teamIDMismatch(found: stagedTeam ?? "none", expected: expectedTeam)
+            }
+            // Enforce Gatekeeper when signed with developer Team ID
+            try Self.verifyGatekeeperAssessment(at: stagedAppURL)
+        }
+    }
+
+    private func validateAndRelaunch(stagedAppURL: URL) throws {
+        try validateStagedApp(stagedAppURL: stagedAppURL)
+
         self.status = .replacingAndRelaunching
-        self.downloadStatusFormatted = "Installing update to /Applications…"
+        self.downloadStatusFormatted = "Installing verified update to /Applications…"
         try self.spawnRelaunchScript(stagedAppURL: stagedAppURL)
     }
 
@@ -495,41 +743,75 @@ public final class GitHubUpdateChecker: ObservableObject {
         detach.waitUntilExit()
     }
 
+    // MARK: - 6. Safe Atomic Replacement with Rollback
+
     private func spawnRelaunchScript(stagedAppURL: URL) throws {
         let pid = ProcessInfo.processInfo.processIdentifier
 
-        let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("liquiddynamo_inplace_updater.sh")
+        // Determine destination target application path
+        let targetAppURL: URL
+        if Bundle.main.bundleURL.pathExtension == "app" {
+            targetAppURL = Bundle.main.bundleURL
+        } else {
+            targetAppURL = URL(fileURLWithPath: "/Applications/LiquidDynamo.app")
+        }
+
+        let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("liquiddynamo_atomic_updater.sh")
         let scriptContent = """
         #!/bin/bash
-        TARGET_PRIMARY="/Applications/liquiddynamo.app"
-        TARGET_SECONDARY="/Applications/LiquidDynamo.app"
+        set -e
+        TARGET="\(targetAppURL.path)"
         STAGING="\(stagedAppURL.path)"
         PID="\(pid)"
 
-        # 1. Wait up to 10 seconds for current process to cleanly exit
+        # 1. Wait up to 10 seconds for running process to cleanly exit
         COUNT=0
         while kill -0 "$PID" 2>/dev/null && [ $COUNT -lt 100 ]; do
             sleep 0.1
             COUNT=$((COUNT+1))
         done
 
-        # 2. In-place replace both /Applications/liquiddynamo.app and /Applications/LiquidDynamo.app
-        rm -rf "$TARGET_PRIMARY"
-        cp -R "$STAGING" "$TARGET_PRIMARY"
-        xattr -dr com.apple.quarantine "$TARGET_PRIMARY" 2>/dev/null || true
+        # 2. Stage new app beside TARGET in the same filesystem for atomic rename
+        TARGET_DIR="$(dirname "$TARGET")"
+        RAND_SUFFIX="$$_\(UUID().uuidString.prefix(8))"
+        TEMP_INSTALL="${TARGET_DIR}/.LiquidDynamo_Updating_${RAND_SUFFIX}.app"
+        BACKUP="${TARGET_DIR}/.LiquidDynamo_Backup_${RAND_SUFFIX}.app"
 
-        rm -rf "$TARGET_SECONDARY"
-        cp -R "$STAGING" "$TARGET_SECONDARY"
-        xattr -dr com.apple.quarantine "$TARGET_SECONDARY" 2>/dev/null || true
+        rm -rf "$TEMP_INSTALL" "$BACKUP" 2>/dev/null || true
 
-        # Clean staging
-        rm -rf "$(dirname "$STAGING")" 2>/dev/null || true
+        # Copy verified staging to temporary install in target directory
+        if ! cp -R "$STAGING" "$TEMP_INSTALL"; then
+            echo "Failed to copy staged application to target directory"
+            rm -rf "$TEMP_INSTALL" 2>/dev/null || true
+            exit 1
+        fi
 
-        # 3. Relaunch newly updated application
-        if [ -d "$TARGET_PRIMARY" ]; then
-            open "$TARGET_PRIMARY"
+        # Atomic rename: move current app to backup
+        BACKUP_EXISTS=0
+        if [ -d "$TARGET" ]; then
+            if mv "$TARGET" "$BACKUP"; then
+                BACKUP_EXISTS=1
+            else
+                echo "Failed to backup existing application"
+                rm -rf "$TEMP_INSTALL" 2>/dev/null || true
+                exit 1
+            fi
+        fi
+
+        # Atomic rename: move temporary install into target position
+        if mv "$TEMP_INSTALL" "$TARGET"; then
+            # Success: clean up backup and staging
+            rm -rf "$BACKUP" 2>/dev/null || true
+            rm -rf "$(dirname "$STAGING")" 2>/dev/null || true
+            open "$TARGET"
+            exit 0
         else
-            open "$TARGET_SECONDARY"
+            echo "Failed to install new application, rolling back..."
+            if [ $BACKUP_EXISTS -eq 1 ] && [ -d "$BACKUP" ]; then
+                mv "$BACKUP" "$TARGET" 2>/dev/null || true
+            fi
+            rm -rf "$TEMP_INSTALL" 2>/dev/null || true
+            exit 1
         fi
         """
 
@@ -547,10 +829,10 @@ public final class GitHubUpdateChecker: ObservableObject {
         }
     }
 
-    // MARK: - 5. Utilities
+    // MARK: - 7. Utilities
 
     public func downloadLatestDMG(url: URL? = nil) {
-        let targetURL = url ?? Self.permanentDMGURL
+        let targetURL = url ?? Self.releasesURL
         NSWorkspace.shared.open(targetURL)
     }
 
@@ -566,6 +848,9 @@ public final class GitHubUpdateChecker: ObservableObject {
     }
 
     public static func isVersion(_ v1: String, greaterThan v2: String) -> Bool {
+        if let sem1 = SemanticVersion(v1), let sem2 = SemanticVersion(v2) {
+            return sem1 > sem2
+        }
         let clean1 = v1.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
         let clean2 = v2.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
         return clean1.compare(clean2, options: .numeric) == .orderedDescending

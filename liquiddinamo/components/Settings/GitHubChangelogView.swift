@@ -51,8 +51,7 @@ public final class GitHubChangelogViewModel: ObservableObject {
         errorMessage = nil
 
         let endpoints = [
-            "https://api.github.com/repos/anksarvesh-lgtm/dynamo-mac/releases",
-            "https://api.github.com/repos/anksarvesh-lgtm/dynamomac/releases"
+            "https://api.github.com/repos/anksarvesh-lgtm/dynamo-mac/releases"
         ]
 
         for endpoint in endpoints {

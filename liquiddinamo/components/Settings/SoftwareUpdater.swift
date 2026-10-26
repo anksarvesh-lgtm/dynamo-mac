@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Sparkle
+import Defaults
 
 final class CheckForUpdatesViewModel: ObservableObject {
     @Published var canCheckForUpdates = false
@@ -77,7 +78,7 @@ struct CheckForUpdatesView: View {
                 EmptyView()
 
             case .checking:
-                Text("Checking GitHub Releases (app tag)…")
+                Text("Checking GitHub Releases…")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -165,25 +166,27 @@ struct CheckForUpdatesView: View {
 
 struct UpdaterSettingsView: View {
     private let updater: SPUUpdater
-    
+
+    @Default(.autoCheckUpdates) private var autoCheckUpdates
     @State private var automaticallyChecksForUpdates: Bool
     @State private var automaticallyDownloadsUpdates: Bool
-    
+
     init(updater: SPUUpdater) {
         self.updater = updater
         self.automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
         self.automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
     }
-    
+
     var body: some View {
         Section {
-            Toggle("Automatically check for updates", isOn: $automaticallyChecksForUpdates)
-                .onChange(of: automaticallyChecksForUpdates) { _, newValue in
+            Toggle("Automatically check for updates", isOn: $autoCheckUpdates)
+                .onChange(of: autoCheckUpdates) { _, newValue in
+                    automaticallyChecksForUpdates = newValue
                     updater.automaticallyChecksForUpdates = newValue
                 }
-            
+
             Toggle("Automatically download and replace app", isOn: $automaticallyDownloadsUpdates)
-                .disabled(!automaticallyChecksForUpdates)
+                .disabled(!autoCheckUpdates)
                 .onChange(of: automaticallyDownloadsUpdates) { _, newValue in
                     updater.automaticallyDownloadsUpdates = newValue
                 }
@@ -191,6 +194,10 @@ struct UpdaterSettingsView: View {
             HStack {
                 Text("Software updates")
             }
+        } footer: {
+            Text("Updates are cryptographically verified and checked via https://api.github.com/repos/\(GitHubUpdateChecker.repoOwner)/\(GitHubUpdateChecker.repoName)/releases/latest.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 }
