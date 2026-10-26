@@ -120,6 +120,13 @@ public struct DeviceShowcasePopupView: View {
                         scrimFloor: 0.55
                     )
 
+                    // Static 35-45% Translucent Water Fill with Live Surface Waves
+                    LiquidWaterCapsuleView(
+                        fillLevel: 0.38,
+                        tintColor: deviceAccentColor,
+                        phaseOffset: 0.2
+                    )
+
                     // 3D Glass Specular Sheen Highlight
                     Capsule()
                         .strokeBorder(

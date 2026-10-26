@@ -79,6 +79,9 @@ public struct WatcherPillView: View {
                             scrimFloor: 0.55
                         )
 
+                        // Static 3D Water Volume with gentle live surface waves
+                        LiquidWaterCapsuleView(fillLevel: 0.38, tintColor: accentColor, phaseOffset: 0.3)
+
                         // 3D Glass Specular Sheen Highlight
                         Capsule()
                             .strokeBorder(

@@ -91,6 +91,9 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
                         scrimFloor: 0.55
                     )
 
+                    // Static 3D Water Volume with gentle live surface waves
+                    LiquidWaterCapsuleView(fillLevel: 0.38, tintColor: tintColor, phaseOffset: 0.15)
+
                     // 3D Glass Specular Sheen Highlight
                     Capsule()
                         .strokeBorder(

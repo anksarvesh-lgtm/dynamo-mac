@@ -2,16 +2,17 @@
 //  LiquidWaterCapsuleView.swift
 //  LiquidDynamo
 //
-//  3D Smoked-Glass Capsule Surface & Background Renderer.
-//  Provides dark charcoal/obsidian glass depth, subtle upper-edge specular gloss,
-//  and clear foreground separation for optimal text and icon readability.
+//  Static Water Fill with Live Surface Waves & 3D Glass Capsule Renderer.
+//  Provides fixed 35-45% translucent deep-blue water volume with calm, continuous
+//  procedural surface waves, glowing specular meniscus, and 3D smoked glass depth.
+//  Strictly zero pouring streams, zero droplet particles, and zero progressive fills.
 //
 
 import AppKit
 import Foundation
 import SwiftUI
 
-// MARK: - 3D Glass Capsule Depth Layer
+// MARK: - Static Water Fill with Live Procedural Surface Waves
 
 public struct LiquidWaterCapsuleView: View {
     public var fillLevel: CGFloat
@@ -20,34 +21,133 @@ public struct LiquidWaterCapsuleView: View {
     public var phaseOffset: Double
 
     public init(
-        fillLevel: CGFloat = 0.50,
+        fillLevel: CGFloat = 0.38,
         tintColor: Color? = nil,
         streamXRatio: CGFloat = 0.28,
         phaseOffset: Double = 0.0
     ) {
-        self.fillLevel = fillLevel
+        // Enforce calm, static interior volume (~35-45% of capsule height)
+        self.fillLevel = min(max(fillLevel, 0.25), 0.50)
         self.tintColor = tintColor
         self.streamXRatio = streamXRatio
         self.phaseOffset = phaseOffset
     }
 
     public var body: some View {
-        // High-performance static depth layer — water simulation, loops, and particle effects removed
-        ZStack {
-            // Subtle dark inner vignette
-            LinearGradient(
-                stops: [
-                    .init(color: Color.black.opacity(0.15), location: 0.0),
-                    .init(color: Color.clear, location: 0.50),
-                    .init(color: Color.black.opacity(0.25), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                let width = size.width
+                let height = size.height
+                guard width > 4, height > 4 else { return }
 
-            // Optional ambient accent tint
-            if let tint = tintColor {
-                tint.opacity(0.06)
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                let baseWaterY = height * (1.0 - fillLevel)
+
+                // 1. Compute multi-harmonic gentle surface wave points
+                let step: CGFloat = 2.5
+                var points: [CGPoint] = []
+                points.reserveCapacity(Int(width / step) + 2)
+
+                var x: CGFloat = 0.0
+                while x <= width {
+                    let normX = x / width
+                    // Gentle dual-frequency sinusoidal wave: amplitude ~1.6pt + 0.7pt (total ±2.3pt)
+                    let wave = sin(normX * 3.6 * .pi + time * 1.5 + phaseOffset) * 1.5
+                             + cos(normX * 5.4 * .pi - time * 1.1 + phaseOffset * 0.7) * 0.7
+                    let y = baseWaterY + wave
+                    points.append(CGPoint(x: x, y: y))
+                    x += step
+                }
+                if let last = points.last, last.x < width {
+                    let normX: CGFloat = 1.0
+                    let wave = sin(normX * 3.6 * .pi + time * 1.5 + phaseOffset) * 1.5
+                             + cos(normX * 5.4 * .pi - time * 1.1 + phaseOffset * 0.7) * 0.7
+                    points.append(CGPoint(x: width, y: baseWaterY + wave))
+                }
+
+                guard points.count >= 2 else { return }
+
+                // 2. Build Water Volume Fill Path
+                var waterFillPath = Path()
+                waterFillPath.move(to: CGPoint(x: 0, y: height))
+                waterFillPath.addLine(to: points[0])
+
+                for i in 1..<points.count {
+                    waterFillPath.addLine(to: points[i])
+                }
+                waterFillPath.addLine(to: CGPoint(x: width, y: height))
+                waterFillPath.closeSubpath()
+
+                // Vibrant translucent deep-blue / aqua ocean gradient
+                let primaryAqua = tintColor ?? Color(red: 0.06, green: 0.52, blue: 0.92)
+                let deepNavy = Color(red: 0.02, green: 0.14, blue: 0.38)
+                let baseAbyss = Color(red: 0.01, green: 0.07, blue: 0.22)
+
+                let waterGradient = Gradient(stops: [
+                    .init(color: primaryAqua.opacity(0.45), location: 0.0),
+                    .init(color: deepNavy.opacity(0.68), location: 0.50),
+                    .init(color: baseAbyss.opacity(0.85), location: 1.0)
+                ])
+
+                context.fill(
+                    waterFillPath,
+                    with: .linearGradient(
+                        waterGradient,
+                        startPoint: CGPoint(x: width * 0.5, y: baseWaterY - 3),
+                        endPoint: CGPoint(x: width * 0.5, y: height)
+                    )
+                )
+
+                // 3. Subsurface Caustic Ribbon (realistic 3D refraction depth)
+                var causticPath = Path()
+                causticPath.move(to: CGPoint(x: points[0].x, y: points[0].y + 2.4))
+                for pt in points.dropFirst() {
+                    causticPath.addLine(to: CGPoint(x: pt.x, y: pt.y + 2.4))
+                }
+                context.stroke(
+                    causticPath,
+                    with: .linearGradient(
+                        Gradient(stops: [
+                            .init(color: Color.white.opacity(0.20), location: 0.1),
+                            .init(color: primaryAqua.opacity(0.35), location: 0.5),
+                            .init(color: Color.white.opacity(0.15), location: 0.9)
+                        ]),
+                        startPoint: CGPoint(x: 0, y: baseWaterY),
+                        endPoint: CGPoint(x: width, y: baseWaterY)
+                    ),
+                    lineWidth: 1.4
+                )
+
+                // 4. Luminous Specular Meniscus Line (Air-Liquid Boundary)
+                var meniscusPath = Path()
+                meniscusPath.move(to: points[0])
+                for pt in points.dropFirst() {
+                    meniscusPath.addLine(to: pt)
+                }
+
+                // Diffuse meniscus glow
+                context.stroke(
+                    meniscusPath,
+                    with: .color(primaryAqua.opacity(0.40)),
+                    lineWidth: 2.6
+                )
+
+                // Sharp specular core highlight
+                let specularGradient = Gradient(stops: [
+                    .init(color: Color(red: 0.55, green: 0.88, blue: 1.0).opacity(0.90), location: 0.0),
+                    .init(color: Color.white.opacity(0.95), location: 0.45),
+                    .init(color: Color(red: 0.45, green: 0.82, blue: 1.0).opacity(0.85), location: 1.0)
+                ])
+
+                context.stroke(
+                    meniscusPath,
+                    with: .linearGradient(
+                        specularGradient,
+                        startPoint: CGPoint(x: 0, y: baseWaterY),
+                        endPoint: CGPoint(x: width, y: baseWaterY)
+                    ),
+                    lineWidth: 1.1
+                )
             }
         }
         .clipShape(Capsule())
@@ -67,7 +167,7 @@ public struct LiquidGlassWaterCapsuleBackground: View {
     public init(
         isSelected: Bool = false,
         accentColor: Color = Color.cyan,
-        fillLevel: CGFloat = 0.50,
+        fillLevel: CGFloat = 0.38,
         streamXRatio: CGFloat = 0.28,
         phaseOffset: Double = 0.0
     ) {
@@ -81,7 +181,7 @@ public struct LiquidGlassWaterCapsuleBackground: View {
     public var body: some View {
         ZStack {
             // 1. Deep charcoal / obsidian solid dark smoked glass base
-            // High solid opacity (0.92-0.96) prevents bright/colorful wallpaper bleed-through
+            // Solid dark backdrop ensures high-contrast readability of white text, icons, and badges
             LinearGradient(
                 stops: [
                     .init(color: Color(red: 0.12, green: 0.13, blue: 0.16).opacity(0.92), location: 0.0),
@@ -92,7 +192,15 @@ public struct LiquidGlassWaterCapsuleBackground: View {
                 endPoint: .bottom
             )
 
-            // 2. Subtle upper-edge 3D curved glass gloss sheen (curved horizon reflection)
+            // 2. Static 35-45% Translucent Water Fill with Live Surface Waves
+            LiquidWaterCapsuleView(
+                fillLevel: fillLevel,
+                tintColor: accentColor,
+                streamXRatio: streamXRatio,
+                phaseOffset: phaseOffset
+            )
+
+            // 3. Subtle upper-edge 3D curved glass gloss sheen (curved horizon reflection above water line)
             LinearGradient(
                 stops: [
                     .init(color: Color.white.opacity(0.18), location: 0.0),
@@ -103,13 +211,13 @@ public struct LiquidGlassWaterCapsuleBackground: View {
                 endPoint: .bottom
             )
 
-            // 3. Selection or accent glow
+            // 4. Selection or accent glow
             if isSelected {
                 Capsule()
                     .fill(accentColor.opacity(0.20))
             }
 
-            // 4. Outer 3D glass specular rim border
+            // 5. Outer 3D glass specular rim border
             Capsule()
                 .strokeBorder(
                     LinearGradient(

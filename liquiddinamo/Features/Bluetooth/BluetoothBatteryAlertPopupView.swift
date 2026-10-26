@@ -76,6 +76,13 @@ public struct BluetoothBatteryAlertPopupView: View {
                         scrimFloor: 0.55
                     )
 
+                    // Static 35-45% Translucent Water Fill with Live Surface Waves
+                    LiquidWaterCapsuleView(
+                        fillLevel: 0.38,
+                        tintColor: self.alert.batteryColor,
+                        phaseOffset: 0.4
+                    )
+
                     // 3D Glass Specular Sheen Highlight
                     Capsule()
                         .strokeBorder(
