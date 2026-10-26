@@ -24,6 +24,7 @@ public struct SettingsPowerloadView: View {
     @Default(.powerloadClipboardAutoDetect) var clipboardAutoDetect
     @Default(.powerloadCompletionAlert) var completionAlert
     @Default(.powerloadTorrentAutoStart) var torrentAutoStart
+    @Default(.powerloadUseMeteredConnections) var useMeteredConnections
 
     @State private var isShowingClearConfirm: Bool = false
 
@@ -202,16 +203,24 @@ public struct SettingsPowerloadView: View {
                                             .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                                             .foregroundStyle(iface.isOnline ? .primary : .secondary)
                                         if !iface.isOnline {
-                                            Text("Not Connected")
+                                            Text(iface.health.reasonText)
                                                 .font(.system(size: 9, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(Color.orange)
                                                 .padding(.horizontal, 4)
                                                 .padding(.vertical, 1)
-                                                .background(Color.white.opacity(0.05))
+                                                .background(Color.orange.opacity(0.1))
+                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        } else if iface.isMetered {
+                                            Text("Metered")
+                                                .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                                                .foregroundStyle(Color.yellow)
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 1)
+                                                .background(Color.yellow.opacity(0.12))
                                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                     }
-                                    Text("\(iface.displayName) (\(iface.bsdName)) • \(iface.statusDescription)\(iface.macAddress != nil ? " • MAC: \(iface.macAddress!)" : "")")
+                                    Text("\(iface.displayName) (\(iface.bsdName)) • \(iface.statusDescription)\(iface.gatewayIP != nil ? " • GW: \(iface.gatewayIP!)" : "")")
                                         .font(.system(size: 9.5, design: .monospaced))
                                         .foregroundStyle(.secondary)
                                 }
@@ -232,6 +241,18 @@ public struct SettingsPowerloadView: View {
                                 Divider()
                             }
                         }
+
+                        // Wi-Fi hotspot limitation note
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 1)
+                            Text("Note: Single Mac Wi-Fi cards cannot bond a Wi-Fi network and a personal hotspot at the same time. Connect additional networks via iPhone USB cable, Ethernet adapter, or Thunderbolt.")
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 4)
                     }
                     .padding(8)
                 }
@@ -253,6 +274,14 @@ public struct SettingsPowerloadView: View {
                             set: { _ in bandwidth.toggleSlowMode() }
                         ))
                         .tint(.orange)
+
+                        Divider().padding(.vertical, 2)
+
+                        Toggle("Allow metered / cellular tethering connections", isOn: $useMeteredConnections)
+                            .tint(.accentColor)
+                        Text("When off, mobile hotspots and cellular tethering are excluded from multi-interface bonding to protect data caps.")
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundStyle(.secondary)
 
                         Divider().padding(.vertical, 2)
 

@@ -20,44 +20,6 @@ import Foundation
 import Network
 import SwiftUI
 
-public actor PowerloadDownloadWorkerPool {
-    private var pendingChunkIndices: [Int] = []
-    private var completedChunkIndices: Set<Int> = []
-    private var inFlightChunkIndices: [Int: String] = [:]
-
-    public init(chunks: [PowerloadChunk]) {
-        self.pendingChunkIndices = chunks.filter { !$0.isCompleted }.map { $0.id }
-        self.completedChunkIndices = Set(chunks.filter { $0.isCompleted }.map { $0.id })
-    }
-
-    public func claimNextChunk(interfaceId: String) -> Int? {
-        guard !pendingChunkIndices.isEmpty else { return nil }
-        let next = pendingChunkIndices.removeFirst()
-        inFlightChunkIndices[next] = interfaceId
-        return next
-    }
-
-    public func markCompleted(chunkIndex: Int) {
-        inFlightChunkIndices.removeValue(forKey: chunkIndex)
-        completedChunkIndices.insert(chunkIndex)
-    }
-
-    public func returnChunk(chunkIndex: Int) {
-        inFlightChunkIndices.removeValue(forKey: chunkIndex)
-        if !completedChunkIndices.contains(chunkIndex) && !pendingChunkIndices.contains(chunkIndex) {
-            pendingChunkIndices.insert(chunkIndex, at: 0)
-        }
-    }
-
-    public var isAllCompleted: Bool {
-        pendingChunkIndices.isEmpty && inFlightChunkIndices.isEmpty
-    }
-
-    public var progressCount: (completed: Int, inFlight: Int, remaining: Int) {
-        (completedChunkIndices.count, inFlightChunkIndices.count, pendingChunkIndices.count)
-    }
-}
-
 @MainActor
 public final class PowerloadDownloadEngine: ObservableObject {
     public static let shared = PowerloadDownloadEngine()
@@ -362,6 +324,12 @@ public final class PowerloadDownloadEngine: ObservableObject {
         }
     }
 
+    private enum ChunkResult {
+        case success(bytesCount: Int64, durationSeconds: Double)
+        case rangeNotSupported
+        case failure(Error)
+    }
+
     private func workerLoop(
         taskID: UUID,
         url: URL,
@@ -372,7 +340,14 @@ public final class PowerloadDownloadEngine: ObservableObject {
         let fileHandle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filePath))
         defer { try? fileHandle?.close() }
 
+        var consecutiveFailures = 0
         while !Task.isCancelled {
+            if consecutiveFailures >= 3 {
+                // Circuit breaker: back off interface for 30s
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                consecutiveFailures = 0
+            }
+
             guard let chunkIndex = await pool.claimNextChunk(interfaceId: adapter.id) else {
                 break
             }
@@ -389,7 +364,7 @@ public final class PowerloadDownloadEngine: ObservableObject {
                 continue
             }
 
-            let success = await downloadChunkRange(
+            let result = await downloadChunkRange(
                 taskID: taskID,
                 chunkIndex: chunkIndex,
                 url: url,
@@ -399,13 +374,34 @@ public final class PowerloadDownloadEngine: ObservableObject {
                 fileHandle: fileHandle
             )
 
-            if success {
+            switch result {
+            case .success:
+                consecutiveFailures = 0
                 await pool.markCompleted(chunkIndex: chunkIndex)
-            } else {
+            case .rangeNotSupported:
+                // Server returned 200 OK or does not support byte ranges; fallback to single stream
+                await pool.returnChunk(chunkIndex: chunkIndex)
+                await triggerRangeNotSupportedFallback(taskID: taskID, url: url, filePath: filePath)
+                return
+            case .failure:
+                consecutiveFailures += 1
                 await pool.returnChunk(chunkIndex: chunkIndex)
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
+    }
+
+    private func triggerRangeNotSupportedFallback(taskID: UUID, url: URL, filePath: String) async {
+        updateTask(id: taskID) { task in
+            task.supportsRange = false
+            task.downloadedBytes = 0
+            task.chunks = [PowerloadChunk(id: 0, rangeStart: 0, rangeEnd: max(0, task.totalBytes - 1))]
+        }
+        if let fh = try? FileHandle(forWritingTo: URL(fileURLWithPath: filePath)) {
+            try? fh.truncate(atOffset: 0)
+            try? fh.close()
+        }
+        await runSingleStreamDownload(taskID: taskID, url: url, filePath: filePath)
     }
 
     private func downloadChunkRange(
@@ -416,62 +412,38 @@ public final class PowerloadDownloadEngine: ObservableObject {
         rangeEnd: Int64,
         adapter: PowerloadInterface,
         fileHandle: FileHandle?
-    ) async -> Bool {
-        var request = URLRequest(url: url)
-        request.setValue("bytes=\(rangeStart)-\(rangeEnd)", forHTTPHeaderField: "Range")
-        request.timeoutInterval = 20
-
-        let config = URLSessionConfiguration.ephemeral
-        config.waitsForConnectivity = false
-        config.allowsCellularAccess = true
-        config.allowsExpensiveNetworkAccess = true
-        config.allowsConstrainedNetworkAccess = true
-
-        if adapter.bsdName != "default" {
-            config.setValue(["kCFStreamPropertyBoundInterfaceIdentifier": adapter.bsdName], forKey: "_socketStreamProperties")
-        }
-
-        let session = URLSession(configuration: config)
-        defer { session.finishTasksAndInvalidate() }
-
+    ) async -> ChunkResult {
+        let startTime = Date()
         do {
-            let (asyncBytes, response) = try await session.bytes(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 206 || httpResponse.statusCode == 200 else {
-                return false
+            let response = try await PowerloadHTTPClient.shared.downloadChunk(
+                url: url,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd,
+                bsdName: adapter.bsdName,
+                timeout: 20.0
+            )
+
+            guard response.statusCode == 206 else {
+                return .failure(PowerloadHTTPError.invalidStatus(response.statusCode))
             }
 
-            var currentOffset = rangeStart
-            var buffer = Data()
-            buffer.reserveCapacity(64 * 1024)
-
-            for try await byte in asyncBytes {
-                guard !Task.isCancelled else { return false }
-                buffer.append(byte)
-
-                if buffer.count >= 64 * 1024 {
-                    try fileHandle?.seek(toOffset: UInt64(currentOffset))
-                    try fileHandle?.write(contentsOf: buffer)
-                    let count = Int64(buffer.count)
-                    currentOffset += count
-                    buffer.removeAll(keepingCapacity: true)
-
-                    await updateProgress(taskID: taskID, chunkIndex: chunkIndex, addedBytes: count, interfaceId: adapter.id)
-                }
+            guard let fh = fileHandle else {
+                return .failure(PowerloadHTTPError.writeFailed("File handle not open"))
             }
 
-            if !buffer.isEmpty {
-                try fileHandle?.seek(toOffset: UInt64(currentOffset))
-                try fileHandle?.write(contentsOf: buffer)
-                let count = Int64(buffer.count)
-                buffer.removeAll(keepingCapacity: false)
-                await updateProgress(taskID: taskID, chunkIndex: chunkIndex, addedBytes: count, interfaceId: adapter.id)
-            }
+            try fh.seek(toOffset: UInt64(rangeStart))
+            try fh.write(contentsOf: response.data)
 
+            let count = Int64(response.data.count)
+            await updateProgress(taskID: taskID, chunkIndex: chunkIndex, addedBytes: count, interfaceId: adapter.id)
             await markChunkFinished(taskID: taskID, chunkIndex: chunkIndex)
-            return true
+
+            let duration = max(0.001, Date().timeIntervalSince(startTime))
+            return .success(bytesCount: count, durationSeconds: duration)
+        } catch PowerloadHTTPError.rangeNotSupported {
+            return .rangeNotSupported
         } catch {
-            return false
+            return .failure(error)
         }
     }
 
@@ -517,12 +489,33 @@ public final class PowerloadDownloadEngine: ObservableObject {
     }
 
     private func probeServer(url: URL) async -> ProbeResult {
-        var headReq = URLRequest(url: url)
-        headReq.httpMethod = "HEAD"
-        headReq.timeoutInterval = 10
+        // 1. Probe with Range: bytes=0-1 to authoritatively test range support
+        var rangeReq = URLRequest(url: url)
+        rangeReq.setValue("bytes=0-1", forHTTPHeaderField: "Range")
+        rangeReq.timeoutInterval = 10
 
         let session = URLSession(configuration: .ephemeral)
         defer { session.finishTasksAndInvalidate() }
+
+        if let (_, response) = try? await session.data(for: rangeReq),
+           let http = response as? HTTPURLResponse {
+            let supportsRange = (http.statusCode == 206)
+            var total: Int64? = nil
+            if let cr = http.value(forHTTPHeaderField: "Content-Range"),
+               let totalStr = cr.components(separatedBy: "/").last,
+               let parsedTotal = Int64(totalStr) {
+                total = parsedTotal
+            } else if http.expectedContentLength > 0 {
+                total = http.expectedContentLength
+            }
+            let name = http.value(forHTTPHeaderField: "Content-Disposition").flatMap { Self.extractFileNameFromDisposition($0) }
+            return ProbeResult(contentLength: total, supportsRange: supportsRange, fileName: name)
+        }
+
+        // 2. Fallback: try HEAD request
+        var headReq = URLRequest(url: url)
+        headReq.httpMethod = "HEAD"
+        headReq.timeoutInterval = 10
 
         if let (_, response) = try? await session.data(for: headReq),
            let http = response as? HTTPURLResponse {
@@ -530,22 +523,7 @@ public final class PowerloadDownloadEngine: ObservableObject {
             let ranges = http.value(forHTTPHeaderField: "Accept-Ranges")?.lowercased().contains("bytes") ?? false
             let disposition = http.value(forHTTPHeaderField: "Content-Disposition")
             let name = disposition.flatMap { Self.extractFileNameFromDisposition($0) }
-            return ProbeResult(contentLength: len, supportsRange: ranges || len != nil, fileName: name)
-        }
-
-        var rangeReq = URLRequest(url: url)
-        rangeReq.setValue("bytes=0-1", forHTTPHeaderField: "Range")
-        rangeReq.timeoutInterval = 10
-
-        if let (_, response) = try? await session.data(for: rangeReq),
-           let http = response as? HTTPURLResponse {
-            let supportsRange = http.statusCode == 206
-            var total: Int64? = nil
-            if let cr = http.value(forHTTPHeaderField: "Content-Range"), let totalStr = cr.components(separatedBy: "/").last {
-                total = Int64(totalStr)
-            }
-            let name = http.value(forHTTPHeaderField: "Content-Disposition").flatMap { Self.extractFileNameFromDisposition($0) }
-            return ProbeResult(contentLength: total, supportsRange: supportsRange, fileName: name)
+            return ProbeResult(contentLength: len, supportsRange: ranges, fileName: name)
         }
 
         return ProbeResult(contentLength: nil, supportsRange: false, fileName: nil)

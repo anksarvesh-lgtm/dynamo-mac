@@ -7,6 +7,48 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FEAE4E7E96ABC1DE5F1971F8 /* visualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = FE52BE63B3EB26FA32B9DBD4 /* visualizer.metal */; };
+		FE7BE14240B8BE47B29DAD64 /* SettingsWatcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1FFC9D375C7D7559956DC9 /* SettingsWatcherView.swift */; };
+		FED05CBC47A7BE35095E8271 /* WatcherDetailCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE2CFF3047CEA1908C289BC /* WatcherDetailCard.swift */; };
+		FEF233011831D19BDFFC0686 /* WatcherPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1E8E7A8F4751573ADE9E7C /* WatcherPillView.swift */; };
+		FED8A8AB78E859C03C052201 /* WatcherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9F96EA455BB258C10D642A /* WatcherService.swift */; };
+		FEC6E24689A54AA48037A2DE /* WatcherSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE9524F13FF058AD3E4827C /* WatcherSessionModel.swift */; };
+		FE9FEB643C3B3F7EA14853B7 /* NetworkSpeedProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2940DF90940F2E9CA6543D /* NetworkSpeedProvider.swift */; };
+		FEAD2A7374669E0E5CBA7884 /* ADBClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBF232A145E5016B8507063 /* ADBClient.swift */; };
+		FE4A4A21CF8B78F2BE8A7127 /* ADBClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED24FAF76C29C8211B11D39 /* ADBClientTests.swift */; };
+		FE613E269C57EA3A272A0A19 /* AndroidFileManagerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8341B2132D47C5CC08C1DF /* AndroidFileManagerModel.swift */; };
+		FED23E0C6919B52919379434 /* AndroidFileManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBF357745D1F8934DC75A9C /* AndroidFileManagerView.swift */; };
+		FEDE20707272848313AF33EB /* AndroidFileManagerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE42638157202F79BD1D347C /* AndroidFileManagerWindowController.swift */; };
+		FE6E058418946201E36FEE3C /* AndroidThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE630480F28A63B076E2F40F /* AndroidThumbnailCache.swift */; };
+		FEF75CC93FF4AB024C726167 /* ColorDropperTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE806D8E083E2FA9ED1BB864 /* ColorDropperTool.swift */; };
+		FE44BDC48A51B5915C687CB6 /* PowerloadBandwidthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2FBE97CE81796DD3D8A43F /* PowerloadBandwidthManager.swift */; };
+		FE066896E659288776CC7F2A /* PowerloadDownloadEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF82F6F42981E4B6108D164 /* PowerloadDownloadEngine.swift */; };
+		FE712D534EE0868FFFAA0BAA /* PowerloadHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE342F3226D9DEA3E962CB57 /* PowerloadHTTPClient.swift */; };
+		FE698884FFD775D22D4A4264 /* PowerloadModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0F38EC0C99316EAEEABC2E /* PowerloadModels.swift */; };
+		FED21CF9CED1D807247151CB /* PowerloadNetworkCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE767393AC02A13213AF86F6 /* PowerloadNetworkCardView.swift */; };
+		FECE20341558B1A7789AEAB5 /* PowerloadNetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEFD76853D0BBAFDAD6B2257 /* PowerloadNetworkManager.swift */; };
+		FE028C60122E34CA4B816E70 /* PowerloadTorrentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE06C9CCAE2CFCC5FA056477 /* PowerloadTorrentEngine.swift */; };
+		FE4B39436190CBCF16151EDD /* PowerloadUnderNotchProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE45F2DDA9F841C6E16A60B9 /* PowerloadUnderNotchProgressBar.swift */; };
+		FE7511FB1A7FDBD61C04D669 /* PowerloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9D70699B2531ED1AE74E92 /* PowerloadView.swift */; };
+		FEEA6A968737D9F7C937C41D /* SettingsPowerloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6032368922365D87F68F65 /* SettingsPowerloadView.swift */; };
+		FE4FBDA914DB5306320C17CC /* AndroidTransferBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */; };
+		FE5EA3A9AB46FBDAF9A75A39 /* FileDroidEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9FC2F5F64CAF3A82B286B8 /* FileDroidEngine.swift */; };
+		FE52FDF22121BEE88AEEF396 /* FileDroidModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5943EEF4AB9534B1D59494 /* FileDroidModels.swift */; };
+		FE9D9E286C1273B48120ED68 /* FileDroidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED17142B45F2FAC4C13ABA8 /* FileDroidView.swift */; };
+		FE74F3056555472AEF19350B /* FileDroidWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA87D775909C09D1350D2EB /* FileDroidWindowController.swift */; };
+		FE17BE7201D14D5448764362 /* KalamBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED11E3B31FCE7A9D9F777C4 /* KalamBridge.swift */; };
+		FE321EFA7973163933DB4676 /* SettingsFileDroidView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF86671D22D11033A9A92AA /* SettingsFileDroidView.swift */; };
+		FE5D29971925722764C6E2BB /* WingBottomIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF4CBBB8506BD790233C730 /* WingBottomIndicators.swift */; };
+		FE798F9427B4A385467C0B7A /* AppUpdateTopBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1E5D0EF7157805821242A1 /* AppUpdateTopBannerView.swift */; };
+		FEA161B2E65B345E6B780B4A /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5F3DB13E5FD3BF401CAD81 /* GeneralSettingsView.swift */; };
+		FE55323513FB3E162636AF2E /* GitHubChangelogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE00E4DF5F2306CCBBD7262F /* GitHubChangelogView.swift */; };
+		FEC272ED730B6C1DC663489F /* NativeSettingsTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2ECE4F0A8195EF68F0FF58 /* NativeSettingsTheme.swift */; };
+		FE9EB28D03211F01BCB3ECF5 /* StatusBarMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC7169EA7EAFDD6C182F3CD /* StatusBarMenu.swift */; };
+		FE68B87B682474C4D7926AF1 /* Clipboard+Content.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE64093C3256D740595B0F7D /* Clipboard+Content.swift */; };
+		FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE02DCB34EA3B127A9143791 /* kalam.dylib */; };
+		FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE02DCB34EA3B127A9143791 /* kalam.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; };
+		FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		E6A000012E60000100000001 /* StorageCleanupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000012E60000100000002 /* StorageCleanupManager.swift */; };
 		E6A000022E60000100000001 /* StorageSafetyPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000022E60000100000002 /* StorageSafetyPolicy.swift */; };
 		E6A000032E60000100000001 /* StorageCleanupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000032E60000100000002 /* StorageCleanupModels.swift */; };
@@ -308,6 +350,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */,
+				FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */,
 				117AB5172E30E09C00558921 /* MediaRemoteAdapter.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
@@ -316,6 +360,46 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FE52BE63B3EB26FA32B9DBD4 /* visualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "visualizer.metal"; sourceTree = "<group>"; };
+		FE1FFC9D375C7D7559956DC9 /* SettingsWatcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsWatcherView.swift"; sourceTree = "<group>"; };
+		FEE2CFF3047CEA1908C289BC /* WatcherDetailCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WatcherDetailCard.swift"; sourceTree = "<group>"; };
+		FE1E8E7A8F4751573ADE9E7C /* WatcherPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WatcherPillView.swift"; sourceTree = "<group>"; };
+		FE9F96EA455BB258C10D642A /* WatcherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WatcherService.swift"; sourceTree = "<group>"; };
+		FEE9524F13FF058AD3E4827C /* WatcherSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WatcherSessionModel.swift"; sourceTree = "<group>"; };
+		FE2940DF90940F2E9CA6543D /* NetworkSpeedProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NetworkSpeedProvider.swift"; sourceTree = "<group>"; };
+		FEBF232A145E5016B8507063 /* ADBClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ADBClient.swift"; sourceTree = "<group>"; };
+		FED24FAF76C29C8211B11D39 /* ADBClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ADBClientTests.swift"; sourceTree = "<group>"; };
+		FE8341B2132D47C5CC08C1DF /* AndroidFileManagerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AndroidFileManagerModel.swift"; sourceTree = "<group>"; };
+		FEBF357745D1F8934DC75A9C /* AndroidFileManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AndroidFileManagerView.swift"; sourceTree = "<group>"; };
+		FE42638157202F79BD1D347C /* AndroidFileManagerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AndroidFileManagerWindowController.swift"; sourceTree = "<group>"; };
+		FE630480F28A63B076E2F40F /* AndroidThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AndroidThumbnailCache.swift"; sourceTree = "<group>"; };
+		FE806D8E083E2FA9ED1BB864 /* ColorDropperTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ColorDropperTool.swift"; sourceTree = "<group>"; };
+		FE2FBE97CE81796DD3D8A43F /* PowerloadBandwidthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadBandwidthManager.swift"; sourceTree = "<group>"; };
+		FEF82F6F42981E4B6108D164 /* PowerloadDownloadEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadDownloadEngine.swift"; sourceTree = "<group>"; };
+		FE342F3226D9DEA3E962CB57 /* PowerloadHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadHTTPClient.swift"; sourceTree = "<group>"; };
+		FE0F38EC0C99316EAEEABC2E /* PowerloadModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadModels.swift"; sourceTree = "<group>"; };
+		FE767393AC02A13213AF86F6 /* PowerloadNetworkCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadNetworkCardView.swift"; sourceTree = "<group>"; };
+		FEFD76853D0BBAFDAD6B2257 /* PowerloadNetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadNetworkManager.swift"; sourceTree = "<group>"; };
+		FE06C9CCAE2CFCC5FA056477 /* PowerloadTorrentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadTorrentEngine.swift"; sourceTree = "<group>"; };
+		FE45F2DDA9F841C6E16A60B9 /* PowerloadUnderNotchProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadUnderNotchProgressBar.swift"; sourceTree = "<group>"; };
+		FE9D70699B2531ED1AE74E92 /* PowerloadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerloadView.swift"; sourceTree = "<group>"; };
+		FE6032368922365D87F68F65 /* SettingsPowerloadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsPowerloadView.swift"; sourceTree = "<group>"; };
+		FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AndroidTransferBackend.swift"; sourceTree = "<group>"; };
+		FE9FC2F5F64CAF3A82B286B8 /* FileDroidEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidEngine.swift"; sourceTree = "<group>"; };
+		FE5943EEF4AB9534B1D59494 /* FileDroidModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidModels.swift"; sourceTree = "<group>"; };
+		FED17142B45F2FAC4C13ABA8 /* FileDroidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidView.swift"; sourceTree = "<group>"; };
+		FEA87D775909C09D1350D2EB /* FileDroidWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileDroidWindowController.swift"; sourceTree = "<group>"; };
+		FED11E3B31FCE7A9D9F777C4 /* KalamBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KalamBridge.swift"; sourceTree = "<group>"; };
+		FEF86671D22D11033A9A92AA /* SettingsFileDroidView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsFileDroidView.swift"; sourceTree = "<group>"; };
+		FEF4CBBB8506BD790233C730 /* WingBottomIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WingBottomIndicators.swift"; sourceTree = "<group>"; };
+		FE1E5D0EF7157805821242A1 /* AppUpdateTopBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppUpdateTopBannerView.swift"; sourceTree = "<group>"; };
+		FE5F3DB13E5FD3BF401CAD81 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GeneralSettingsView.swift"; sourceTree = "<group>"; };
+		FE00E4DF5F2306CCBBD7262F /* GitHubChangelogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GitHubChangelogView.swift"; sourceTree = "<group>"; };
+		FE2ECE4F0A8195EF68F0FF58 /* NativeSettingsTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NativeSettingsTheme.swift"; sourceTree = "<group>"; };
+		FEC7169EA7EAFDD6C182F3CD /* StatusBarMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StatusBarMenu.swift"; sourceTree = "<group>"; };
+		FE64093C3256D740595B0F7D /* Clipboard+Content.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Clipboard+Content.swift"; sourceTree = "<group>"; };
+		FE02DCB34EA3B127A9143791 /* kalam.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = kalam.dylib; path = Frameworks/kalam.dylib; sourceTree = SOURCE_ROOT; };
+		FE3064FB0E9BC6606F26E2EE /* libusb.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libusb.dylib; path = Frameworks/libusb.dylib; sourceTree = SOURCE_ROOT; };
 		E6A000012E60000100000002 /* StorageCleanupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageCleanupManager.swift; sourceTree = "<group>"; };
 		E6A000022E60000100000002 /* StorageSafetyPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageSafetyPolicy.swift; sourceTree = "<group>"; };
 		E6A000032E60000100000002 /* StorageCleanupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageCleanupModels.swift; sourceTree = "<group>"; };
@@ -608,6 +692,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */,
+				FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */,
 				111BEA5F2ED07A340079DD4E /* MacroVisionKit in Frameworks */,
 				9A987A102C73CA8D005CA465 /* Collections in Frameworks */,
 				1194E8852EA57D23009C82D6 /* SkyLightWindow in Frameworks */,
@@ -627,6 +713,78 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FE213747DCCB43D664F183F2 /* Powerload */ = {
+			isa = PBXGroup;
+			children = (
+				FE2FBE97CE81796DD3D8A43F /* PowerloadBandwidthManager.swift */,
+				FEF82F6F42981E4B6108D164 /* PowerloadDownloadEngine.swift */,
+				FE342F3226D9DEA3E962CB57 /* PowerloadHTTPClient.swift */,
+				FE0F38EC0C99316EAEEABC2E /* PowerloadModels.swift */,
+				FE767393AC02A13213AF86F6 /* PowerloadNetworkCardView.swift */,
+				FEFD76853D0BBAFDAD6B2257 /* PowerloadNetworkManager.swift */,
+				FE06C9CCAE2CFCC5FA056477 /* PowerloadTorrentEngine.swift */,
+				FE45F2DDA9F841C6E16A60B9 /* PowerloadUnderNotchProgressBar.swift */,
+				FE9D70699B2531ED1AE74E92 /* PowerloadView.swift */,
+				FE6032368922365D87F68F65 /* SettingsPowerloadView.swift */,
+			);
+			path = Powerload;
+			sourceTree = "<group>";
+		};
+		FEF8053A205B9C17C3A0659B /* FileDroid */ = {
+			isa = PBXGroup;
+			children = (
+				FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */,
+				FE9FC2F5F64CAF3A82B286B8 /* FileDroidEngine.swift */,
+				FE5943EEF4AB9534B1D59494 /* FileDroidModels.swift */,
+				FED17142B45F2FAC4C13ABA8 /* FileDroidView.swift */,
+				FEA87D775909C09D1350D2EB /* FileDroidWindowController.swift */,
+				FED11E3B31FCE7A9D9F777C4 /* KalamBridge.swift */,
+				FEF86671D22D11033A9A92AA /* SettingsFileDroidView.swift */,
+			);
+			path = FileDroid;
+			sourceTree = "<group>";
+		};
+		FE5550481E5D3B8163A9B24C /* AndroidFiles */ = {
+			isa = PBXGroup;
+			children = (
+				FEBF232A145E5016B8507063 /* ADBClient.swift */,
+				FED24FAF76C29C8211B11D39 /* ADBClientTests.swift */,
+				FE8341B2132D47C5CC08C1DF /* AndroidFileManagerModel.swift */,
+				FEBF357745D1F8934DC75A9C /* AndroidFileManagerView.swift */,
+				FE42638157202F79BD1D347C /* AndroidFileManagerWindowController.swift */,
+				FE630480F28A63B076E2F40F /* AndroidThumbnailCache.swift */,
+			);
+			path = AndroidFiles;
+			sourceTree = "<group>";
+		};
+		FEC5E4E91877761E344D781B /* Watcher */ = {
+			isa = PBXGroup;
+			children = (
+				FE1FFC9D375C7D7559956DC9 /* SettingsWatcherView.swift */,
+				FEE2CFF3047CEA1908C289BC /* WatcherDetailCard.swift */,
+				FE1E8E7A8F4751573ADE9E7C /* WatcherPillView.swift */,
+				FE9F96EA455BB258C10D642A /* WatcherService.swift */,
+				FEE9524F13FF058AD3E4827C /* WatcherSessionModel.swift */,
+			);
+			path = Watcher;
+			sourceTree = "<group>";
+		};
+		FEC09E97B81D1522C3D5CB56 /* ColorDropper */ = {
+			isa = PBXGroup;
+			children = (
+				FE806D8E083E2FA9ED1BB864 /* ColorDropperTool.swift */,
+			);
+			path = ColorDropper;
+			sourceTree = "<group>";
+		};
+		FE07B760265B708E1860CA2F /* menu */ = {
+			isa = PBXGroup;
+			children = (
+				FEC7169EA7EAFDD6C182F3CD /* StatusBarMenu.swift */,
+			);
+			path = menu;
+			sourceTree = "<group>";
+		};
 		E1A000912E60000100000001 /* utils */ = {
 			isa = PBXGroup;
 			children = (
@@ -734,6 +892,7 @@
 		14288DD92C6E015000B9F80C /* helpers */ = {
 			isa = PBXGroup;
 			children = (
+				FE64093C3256D740595B0F7D /* Clipboard+Content.swift */,
 				118EBE242E92DCCB00D54B5A /* AssociatedObject.swift */,
 				11A45C782E34E63100CEB175 /* MediaChecker.swift */,
 				1153BD972D9881F900979FB0 /* AppleScriptHelper.swift */,
@@ -766,6 +925,7 @@
 		1471639B2C5D362F0068B555 /* components */ = {
 			isa = PBXGroup;
 			children = (
+				FEF4CBBB8506BD790233C730 /* WingBottomIndicators.swift */,
 				B141C23B2CA5F50900AC8CC8 /* Onboarding */,
 				B1C448992C97375A001F0858 /* Tips */,
 				14C08BB72C8DE49E000F8AA0 /* Calendar */,
@@ -843,6 +1003,7 @@
 		14CEF4142C5CAED300855D72 /* LiquidDynamo */ = {
 			isa = PBXGroup;
 			children = (
+				FE07B760265B708E1860CA2F /* menu */,
 				E1A000912E60000100000001 /* utils */,
 				E1A000042E60000100000001 /* Features */,
 				11F748672EC9AC9600F841DB /* XPCHelperClient */,
@@ -885,6 +1046,8 @@
 		14D031EC2C689DB70096E6A1 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FE02DCB34EA3B127A9143791 /* kalam.dylib */,
+				FE3064FB0E9BC6606F26E2EE /* libusb.dylib */,
 				14D031EF2C689DC00096E6A1 /* ApplicationServices.framework */,
 				14D031ED2C689DB70096E6A1 /* IOKit.framework */,
 				112B0EBA2E30DD5000562D6C /* MediaRemoteAdapter.framework */,
@@ -1002,6 +1165,10 @@
 		B18654302C6F4590000B926A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				FE1E5D0EF7157805821242A1 /* AppUpdateTopBannerView.swift */,
+				FE5F3DB13E5FD3BF401CAD81 /* GeneralSettingsView.swift */,
+				FE00E4DF5F2306CCBBD7262F /* GitHubChangelogView.swift */,
+				FE2ECE4F0A8195EF68F0FF58 /* NativeSettingsTheme.swift */,
 				E6A000042E60000100000002 /* SettingsControlCenterSidebar.swift */,
 				E6A000052E60000100000002 /* SettingsTopBarView.swift */,
 				E6A000062E60000100000002 /* SettingsDashboardView.swift */,
@@ -1075,6 +1242,11 @@
 		E1A000042E60000100000001 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				FE213747DCCB43D664F183F2 /* Powerload */,
+				FEF8053A205B9C17C3A0659B /* FileDroid */,
+				FE5550481E5D3B8163A9B24C /* AndroidFiles */,
+				FEC5E4E91877761E344D781B /* Watcher */,
+				FEC09E97B81D1522C3D5CB56 /* ColorDropper */,
 				E6A000992E60000100000001 /* Storage */,
 				E1A000032E60000100000001 /* SystemStats */,
 				E1A000062E60000100000001 /* VolumeControl */,
@@ -1198,6 +1370,7 @@
 		E1A000502E60000100000001 /* Network */ = {
 			isa = PBXGroup;
 			children = (
+				FE2940DF90940F2E9CA6543D /* NetworkSpeedProvider.swift */,
 				E1A000512E60000100000002 /* WiFiInfoService.swift */,
 				E1A000522E60000100000002 /* ConnectionStatusService.swift */,
 				E1A000532E60000100000002 /* NetworkThroughputService.swift */,
@@ -1250,6 +1423,7 @@
 		E2A000002E60000100000001 /* metal */ = {
 			isa = PBXGroup;
 			children = (
+				FE52BE63B3EB26FA32B9DBD4 /* visualizer.metal */,
 				E2A000012E60000100000002 /* LiquidIslandShader.metal */,
 			);
 			path = metal;
@@ -1455,6 +1629,44 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEAE4E7E96ABC1DE5F1971F8 /* visualizer.metal in Sources */,
+				FE7BE14240B8BE47B29DAD64 /* SettingsWatcherView.swift in Sources */,
+				FED05CBC47A7BE35095E8271 /* WatcherDetailCard.swift in Sources */,
+				FEF233011831D19BDFFC0686 /* WatcherPillView.swift in Sources */,
+				FED8A8AB78E859C03C052201 /* WatcherService.swift in Sources */,
+				FEC6E24689A54AA48037A2DE /* WatcherSessionModel.swift in Sources */,
+				FE9FEB643C3B3F7EA14853B7 /* NetworkSpeedProvider.swift in Sources */,
+				FEAD2A7374669E0E5CBA7884 /* ADBClient.swift in Sources */,
+				FE4A4A21CF8B78F2BE8A7127 /* ADBClientTests.swift in Sources */,
+				FE613E269C57EA3A272A0A19 /* AndroidFileManagerModel.swift in Sources */,
+				FED23E0C6919B52919379434 /* AndroidFileManagerView.swift in Sources */,
+				FEDE20707272848313AF33EB /* AndroidFileManagerWindowController.swift in Sources */,
+				FE6E058418946201E36FEE3C /* AndroidThumbnailCache.swift in Sources */,
+				FEF75CC93FF4AB024C726167 /* ColorDropperTool.swift in Sources */,
+				FE44BDC48A51B5915C687CB6 /* PowerloadBandwidthManager.swift in Sources */,
+				FE066896E659288776CC7F2A /* PowerloadDownloadEngine.swift in Sources */,
+				FE712D534EE0868FFFAA0BAA /* PowerloadHTTPClient.swift in Sources */,
+				FE698884FFD775D22D4A4264 /* PowerloadModels.swift in Sources */,
+				FED21CF9CED1D807247151CB /* PowerloadNetworkCardView.swift in Sources */,
+				FECE20341558B1A7789AEAB5 /* PowerloadNetworkManager.swift in Sources */,
+				FE028C60122E34CA4B816E70 /* PowerloadTorrentEngine.swift in Sources */,
+				FE4B39436190CBCF16151EDD /* PowerloadUnderNotchProgressBar.swift in Sources */,
+				FE7511FB1A7FDBD61C04D669 /* PowerloadView.swift in Sources */,
+				FEEA6A968737D9F7C937C41D /* SettingsPowerloadView.swift in Sources */,
+				FE4FBDA914DB5306320C17CC /* AndroidTransferBackend.swift in Sources */,
+				FE5EA3A9AB46FBDAF9A75A39 /* FileDroidEngine.swift in Sources */,
+				FE52FDF22121BEE88AEEF396 /* FileDroidModels.swift in Sources */,
+				FE9D9E286C1273B48120ED68 /* FileDroidView.swift in Sources */,
+				FE74F3056555472AEF19350B /* FileDroidWindowController.swift in Sources */,
+				FE17BE7201D14D5448764362 /* KalamBridge.swift in Sources */,
+				FE321EFA7973163933DB4676 /* SettingsFileDroidView.swift in Sources */,
+				FE5D29971925722764C6E2BB /* WingBottomIndicators.swift in Sources */,
+				FE798F9427B4A385467C0B7A /* AppUpdateTopBannerView.swift in Sources */,
+				FEA161B2E65B345E6B780B4A /* GeneralSettingsView.swift in Sources */,
+				FE55323513FB3E162636AF2E /* GitHubChangelogView.swift in Sources */,
+				FEC272ED730B6C1DC663489F /* NativeSettingsTheme.swift in Sources */,
+				FE9EB28D03211F01BCB3ECF5 /* StatusBarMenu.swift in Sources */,
+				FE68B87B682474C4D7926AF1 /* Clipboard+Content.swift in Sources */,
 				E6A000012E60000100000001 /* StorageCleanupManager.swift in Sources */,
 				E6A000022E60000100000001 /* StorageSafetyPolicy.swift in Sources */,
 				E6A000032E60000100000001 /* StorageCleanupModels.swift in Sources */,
@@ -1911,6 +2123,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+								LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/mediaremote-adapter",
@@ -1967,6 +2183,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+								LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/mediaremote-adapter",

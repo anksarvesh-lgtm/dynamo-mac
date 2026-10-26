@@ -445,6 +445,12 @@ extension Defaults.Keys {
     static let powerloadCompletionAlert = Key<Bool>("powerloadCompletionAlert", default: true)
     static let powerloadTorrentAutoStart = Key<Bool>("powerloadTorrentAutoStart", default: true)
 
+    // MARK: Privacy & Security Network Opt-Ins
+    static let clipboardShieldDuringScreenRecording = Key<Bool>("clipboardShieldDuringScreenRecording", default: true)
+    static let autoCheckUpdates = Key<Bool>("autoCheckUpdates", default: true)
+    static let privacyPublicIPLookup = Key<Bool>("privacyPublicIPLookup", default: false)
+    static let privacyMeshyUploadEnabled = Key<Bool>("privacyMeshyUploadEnabled", default: false)
+
     // MARK: Plexo Turbo Downloader (Backward Compatibility)
     static let plexoDefaultFolder = powerloadDefaultFolder
     static let plexoChunkSizeMB = powerloadChunkSizeMB

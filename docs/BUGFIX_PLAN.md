@@ -45,17 +45,19 @@ This document establishes the audit evidence, root causes, targeted minimal chan
 ## 2. Milestone by Milestone Plan
 
 ### Milestone 1: Powerload Multi-Interface Network Engine
-- **Cause**: Deprecated private KVC binding (`_socketStreamProperties`) is ignored by CFNetwork/libsystem_network. Missing gateway/probe validation leads to dead workers spinning on 20s timeouts. HTTP 200 accepted as Range 206. Substring classification mistakes adapters.
+- **Status**: **CONFIRMED & FIXED (VERIFIED WITH PASSING TESTS & XCODEBUILD DEBUG BUILD)**
+- **Cause**: Deprecated private KVC binding (`_socketStreamProperties`) is ignored by CFNetwork/libsystem_network. Missing gateway/probe validation leads to dead workers spinning on 20s timeouts. HTTP 200 accepted as Range 206, corrupting files. Substring classification mistakes adapters.
 - **Change**:
-  1. Implement binding via Network.framework `NWConnection` HTTP client (or fallback `/usr/bin/curl --interface <bsd> -r start-end` per chunk) with strict per-interface binding.
-  2. Implement authoritative interface qualification: `IFF_UP`, `IFF_RUNNING`, non-link-local IPv4/global IPv6, SCDynamicStore router/scoped default route, and bound probe against download host.
-  3. Work-stealing scheduling pool with EWMA throughput weighting and circuit breaker (3 consecutive failures marks interface degraded with exponential backoff).
-  4. Range correctness: Accept only HTTP 206 with valid `Content-Range: bytes start-end/total`. Fall back to single-stream on 200 without writing to offset.
-  5. Authoritative classification using `SCNetworkInterface` types and hardware port mapping.
-  6. Add metered connection setting (`Use metered connections (phone tethers)`) and UI note explaining Wi-Fi hotspot single-radio limitation.
-  7. Handle `FileHandle` open errors explicitly.
-- **Risk**: Low-level network socket/stream handling across diverse hardware.
-- **Test**: Multi-chunk download tests, 200 vs 206 local mock server tests, interface eligibility tests, circuit breaker simulation.
+  1. Implemented binding via Network.framework `NWConnection` HTTP client (`PowerloadHTTPClient.swift`) with strict `NWParameters.requiredInterface` binding and fallback to `/usr/bin/curl --interface <bsd>`.
+  2. Implemented authoritative interface qualification: `IFF_UP`, `IFF_RUNNING`, non-link-local IPv4/global IPv6, SCDynamicStore `Router` gateway lookup, virtual interface filtering (`vmnet`, `utun`, `anpi`, `awdl`, `bridge`, `llw`, `lo`, `ipsec`), and bound probe against target host.
+  3. Work-stealing scheduling pool with EWMA throughput weighting and circuit breaker (3 consecutive failures marks interface degraded with 30s backoff).
+  4. Range correctness: Accepts only HTTP 206 with valid range. Strictly detects HTTP 200 / `rangeNotSupported` and triggers immediate single-stream fallback starting from byte 0 without file corruption.
+  5. Authoritative classification using `SCNetworkInterface` types and language-agnostic hardware port mapping.
+  6. Added metered connection setting (`Defaults[.powerloadUseMeteredConnections]`) and UI note explaining Wi-Fi hotspot single-radio limitation.
+  7. Handle `FileHandle` open and seek errors explicitly.
+- **Test Evidence**:
+  - `scripts/test_powerload_milestone1.swift`: All 5 unit test suites passed (Virtual Interface Filtering, Metered Classification, Health State Transitions, Strict HTTP 206 / Range Error Classification, Worker Pool & Chunk Work Stealing).
+  - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 2: Secure Application Updater
 - **Cause**: Auto-updater stages apps without cryptographic verification, mounts DMGs with `-noverify`, strips quarantine, executes non-atomic copy without rollback, and uses broken version comparison.

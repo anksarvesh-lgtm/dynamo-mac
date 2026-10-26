@@ -9,8 +9,51 @@
 //
 
 import AppKit
+import Defaults
 import Foundation
 import SwiftUI
+
+extension Defaults.Keys {
+    public static let powerloadUseMeteredConnections = Key<Bool>("powerloadUseMeteredConnections", default: true)
+}
+
+public actor PowerloadDownloadWorkerPool {
+    private var pendingChunkIndices: [Int] = []
+    private var completedChunkIndices: Set<Int> = []
+    private var inFlightChunkIndices: [Int: String] = [:]
+
+    public init(chunks: [PowerloadChunk]) {
+        self.pendingChunkIndices = chunks.filter { !$0.isCompleted }.map { $0.id }
+        self.completedChunkIndices = Set(chunks.filter { $0.isCompleted }.map { $0.id })
+    }
+
+    public func claimNextChunk(interfaceId: String) -> Int? {
+        guard !pendingChunkIndices.isEmpty else { return nil }
+        let next = pendingChunkIndices.removeFirst()
+        inFlightChunkIndices[next] = interfaceId
+        return next
+    }
+
+    public func markCompleted(chunkIndex: Int) {
+        inFlightChunkIndices.removeValue(forKey: chunkIndex)
+        completedChunkIndices.insert(chunkIndex)
+    }
+
+    public func returnChunk(chunkIndex: Int) {
+        inFlightChunkIndices.removeValue(forKey: chunkIndex)
+        if !completedChunkIndices.contains(chunkIndex) && !pendingChunkIndices.contains(chunkIndex) {
+            pendingChunkIndices.insert(chunkIndex, at: 0)
+        }
+    }
+
+    public var isAllCompleted: Bool {
+        pendingChunkIndices.isEmpty && inFlightChunkIndices.isEmpty
+    }
+
+    public var progressCount: (completed: Int, inFlight: Int, remaining: Int) {
+        (completedChunkIndices.count, inFlightChunkIndices.count, pendingChunkIndices.count)
+    }
+}
 
 public enum PowerloadInterfaceKind: String, Codable, CaseIterable, Sendable {
     case wifi
@@ -50,6 +93,33 @@ public enum PowerloadInterfaceKind: String, Codable, CaseIterable, Sendable {
     }
 }
 
+public enum PowerloadHealthState: Codable, Equatable, Sendable {
+    case usable
+    case degraded(reason: String)
+    case unusable(reason: String)
+
+    public var isUsable: Bool {
+        if case .usable = self { return true }
+        return false
+    }
+
+    public var reasonText: String {
+        switch self {
+        case .usable: return "Ready"
+        case .degraded(let reason): return reason
+        case .unusable(let reason): return reason
+        }
+    }
+
+    public var statusText: String {
+        switch self {
+        case .usable: return "Usable"
+        case .degraded(let reason): return "Degraded: \(reason)"
+        case .unusable(let reason): return "Unusable: \(reason)"
+        }
+    }
+}
+
 public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
     public let id: String // e.g. "en0"
     public var bsdName: String // "en0"
@@ -60,8 +130,14 @@ public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
     public var ipv6Address: String?
     public var macAddress: String?
     public var netmask: String?
+    public var gatewayIP: String?
     public var isLinkActive: Bool // Physical carrier link active (cable plugged in / connected)
     public var isEnabled: Bool
+    public var isMetered: Bool
+    public var health: PowerloadHealthState
+    public var consecutiveFailures: Int
+    public var ewmaThroughput: Double // Exponentially Weighted Moving Average in bytes/sec
+    public var linkSpeedMbps: Int?
     public var colorHex: String
     public var downloadSpeed: Double // bytes/sec
     public var uploadSpeed: Double // bytes/sec
@@ -79,8 +155,14 @@ public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
         ipv6Address: String? = nil,
         macAddress: String? = nil,
         netmask: String? = nil,
+        gatewayIP: String? = nil,
         isLinkActive: Bool = false,
         isEnabled: Bool = true,
+        isMetered: Bool = false,
+        health: PowerloadHealthState = .unusable(reason: "Initializing"),
+        consecutiveFailures: Int = 0,
+        ewmaThroughput: Double = 0,
+        linkSpeedMbps: Int? = nil,
         colorHex: String? = nil,
         downloadSpeed: Double = 0,
         uploadSpeed: Double = 0,
@@ -97,8 +179,14 @@ public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
         self.ipv6Address = ipv6Address
         self.macAddress = macAddress
         self.netmask = netmask
+        self.gatewayIP = gatewayIP
         self.isLinkActive = isLinkActive
         self.isEnabled = isEnabled
+        self.isMetered = isMetered
+        self.health = health
+        self.consecutiveFailures = consecutiveFailures
+        self.ewmaThroughput = ewmaThroughput
+        self.linkSpeedMbps = linkSpeedMbps
         self.colorHex = colorHex ?? kind.defaultColorHex
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
@@ -112,20 +200,23 @@ public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
     }
 
     public var isOnline: Bool {
-        hasIP || isLinkActive
+        health.isUsable
     }
 
     public var statusDescription: String {
-        if let ip = ipAddress, !ip.isEmpty {
-            return ip
-        } else if let ip6 = ipv6Address, !ip6.isEmpty {
-            return ip6
-        } else if isLinkActive {
-            return "Link Active (DHCP...)"
-        } else if isEnabled {
-            return "Ready / Disconnected"
-        } else {
+        if !isEnabled {
             return "Disabled"
+        }
+        switch health {
+        case .usable:
+            if let ip = ipAddress, !ip.isEmpty {
+                return "\(ip) • Usable"
+            }
+            return "Usable"
+        case .degraded(let reason):
+            return "Degraded: \(reason)"
+        case .unusable(let reason):
+            return reason
         }
     }
 
@@ -142,7 +233,13 @@ public struct PowerloadInterface: Identifiable, Codable, Equatable, Sendable {
     }
 
     public var speedMbps: Int {
-        kind == .wifi ? 866 : 1000
+        if let link = linkSpeedMbps, link > 0 {
+            return link
+        }
+        if downloadSpeed > 1024 {
+            return Int((downloadSpeed * 8) / (1024 * 1024))
+        }
+        return kind == .wifi ? 866 : 1000
     }
 
     public var isDefaultRoute: Bool {
@@ -325,7 +422,6 @@ public struct PowerloadDownloadTask: Identifiable, Codable, Equatable, Sendable 
     public var timeRemainingString: String {
         guard speed > 1024, totalBytes > downloadedBytes else { return "—" }
         let remainingBytes = totalBytes - downloadedBytes
-        let seconds = Double(remainingBytes) / speed
         return PowerloadFormatting.formatTimeRemaining(bytesLeft: remainingBytes, speedBytesPerSec: speed)
     }
 }

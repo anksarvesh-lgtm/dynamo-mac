@@ -14,6 +14,7 @@
 //
 
 import Combine
+import Defaults
 import Foundation
 import Network
 import SystemConfiguration
@@ -64,17 +65,23 @@ public final class PowerloadNetworkManager: ObservableObject {
         let ifaddrsMap = Self.queryIfaddrsInfo()
         // 4. Live SCDynamicStore link state map
         let linkStateMap = Self.queryDynamicStoreLinkStates(store: dynamicStore)
+        // 5. Authoritative gateway IP map from SCDynamicStore
+        let gatewayMap = Self.queryGatewayIPs(store: dynamicStore)
 
         var discoveredMap: [String: PowerloadInterface] = [:]
         let savedCustomizations = loadCustomizations()
 
-        // First pass: add all physical and virtual adapters known to macOS SystemConfiguration
+        // First pass: add all physical adapters known to macOS SystemConfiguration
         for sc in scAdapters {
             let bsd = sc.bsdName
+            guard !Self.isVirtualInterface(bsdName: bsd) else { continue }
             let ifInfo = ifaddrsMap[bsd]
             let custom = savedCustomizations[bsd]
             let mac = sc.macAddress ?? ifInfo?.macAddress
             let isLinkActive = linkStateMap[bsd] ?? (ifInfo?.isUp == true && ifInfo?.isRunning == true)
+            let gatewayIP = gatewayMap[bsd]
+            let isMetered = Self.isInterfaceMetered(kind: sc.kind, portName: sc.displayName, bsdName: bsd)
+            let health = Self.initialHealth(hasIPv4: ifInfo?.ipv4 != nil, isLinkActive: isLinkActive, gatewayIP: gatewayIP)
 
             let iface = PowerloadInterface(
                 id: bsd,
@@ -86,8 +93,11 @@ public final class PowerloadNetworkManager: ObservableObject {
                 ipv6Address: ifInfo?.ipv6,
                 macAddress: mac,
                 netmask: ifInfo?.netmask,
+                gatewayIP: gatewayIP,
                 isLinkActive: isLinkActive,
                 isEnabled: custom?.isEnabled ?? true,
+                isMetered: isMetered,
+                health: health,
                 colorHex: custom?.colorHex ?? sc.kind.defaultColorHex,
                 downloadSpeed: 0,
                 uploadSpeed: 0,
@@ -101,11 +111,14 @@ public final class PowerloadNetworkManager: ObservableObject {
         // Second pass: any ports from networksetup not in SC
         for (bsd, portName) in hardwarePorts {
             guard discoveredMap[bsd] == nil else { continue }
-            guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec") else { continue }
+            guard !Self.isVirtualInterface(bsdName: bsd) else { continue }
             let ifInfo = ifaddrsMap[bsd]
             let custom = savedCustomizations[bsd]
             let kind = Self.classifyInterface(hardwarePortName: portName, bsdName: bsd)
             let isLinkActive = linkStateMap[bsd] ?? (ifInfo?.isUp == true && ifInfo?.isRunning == true)
+            let gatewayIP = gatewayMap[bsd]
+            let isMetered = Self.isInterfaceMetered(kind: kind, portName: portName, bsdName: bsd)
+            let health = Self.initialHealth(hasIPv4: ifInfo?.ipv4 != nil, isLinkActive: isLinkActive, gatewayIP: gatewayIP)
 
             let iface = PowerloadInterface(
                 id: bsd,
@@ -117,8 +130,11 @@ public final class PowerloadNetworkManager: ObservableObject {
                 ipv6Address: ifInfo?.ipv6,
                 macAddress: ifInfo?.macAddress,
                 netmask: ifInfo?.netmask,
+                gatewayIP: gatewayIP,
                 isLinkActive: isLinkActive,
                 isEnabled: custom?.isEnabled ?? true,
+                isMetered: isMetered,
+                health: health,
                 colorHex: custom?.colorHex ?? kind.defaultColorHex,
                 downloadSpeed: 0,
                 uploadSpeed: 0,
@@ -132,11 +148,14 @@ public final class PowerloadNetworkManager: ObservableObject {
         // Third pass: any active network devices from getifaddrs (e.g. USB tethering, mobile hotspots, Thunderbolt)
         for (bsd, ifInfo) in ifaddrsMap {
             guard discoveredMap[bsd] == nil else { continue }
-            guard !bsd.hasPrefix("lo"), !bsd.hasPrefix("utun"), !bsd.hasPrefix("llw"), !bsd.hasPrefix("awdl"), !bsd.hasPrefix("ipsec"), !bsd.hasPrefix("anpi") else { continue }
+            guard !Self.isVirtualInterface(bsdName: bsd) else { continue }
             let custom = savedCustomizations[bsd]
             let fallbackName = hardwarePorts[bsd] ?? bsd
             let kind = Self.classifyInterface(hardwarePortName: fallbackName, bsdName: bsd)
             let isLinkActive = linkStateMap[bsd] ?? (ifInfo.isUp && ifInfo.isRunning)
+            let gatewayIP = gatewayMap[bsd]
+            let isMetered = Self.isInterfaceMetered(kind: kind, portName: fallbackName, bsdName: bsd)
+            let health = Self.initialHealth(hasIPv4: ifInfo.ipv4 != nil, isLinkActive: isLinkActive, gatewayIP: gatewayIP)
 
             let iface = PowerloadInterface(
                 id: bsd,
@@ -148,8 +167,11 @@ public final class PowerloadNetworkManager: ObservableObject {
                 ipv6Address: ifInfo.ipv6,
                 macAddress: ifInfo.macAddress,
                 netmask: ifInfo.netmask,
+                gatewayIP: gatewayIP,
                 isLinkActive: isLinkActive,
                 isEnabled: custom?.isEnabled ?? true,
+                isMetered: isMetered,
+                health: health,
                 colorHex: custom?.colorHex ?? kind.defaultColorHex,
                 downloadSpeed: 0,
                 uploadSpeed: 0,
@@ -226,8 +248,43 @@ public final class PowerloadNetworkManager: ObservableObject {
     }
 
     public var activeConnectedInterfaces: [PowerloadInterface] {
-        let active = interfaces.filter { $0.isEnabled && $0.isOnline }
-        return active.isEmpty ? interfaces.filter { $0.isEnabled } : active
+        let allowMetered = Defaults[.powerloadUseMeteredConnections]
+        let usable = interfaces.filter { iface in
+            guard iface.isEnabled && iface.isOnline else { return false }
+            if iface.isMetered && !allowMetered {
+                return false
+            }
+            return true
+        }
+        return usable
+    }
+
+    public func evaluateInterfaceHealth(_ bsdName: String) async -> PowerloadHealthState {
+        guard let idx = interfaces.firstIndex(where: { $0.bsdName == bsdName }) else {
+            return .unusable(reason: "Interface not found")
+        }
+        let iface = interfaces[idx]
+        guard iface.isLinkActive else {
+            let state = PowerloadHealthState.unusable(reason: "Physical link down")
+            interfaces[idx].health = state
+            return state
+        }
+        guard iface.ipAddress != nil else {
+            let state = PowerloadHealthState.unusable(reason: "No IPv4 address assigned")
+            interfaces[idx].health = state
+            return state
+        }
+        guard iface.gatewayIP != nil else {
+            let state = PowerloadHealthState.degraded(reason: "No default gateway")
+            interfaces[idx].health = state
+            return state
+        }
+
+        let probeURL = URL(string: "https://captive.apple.com/hotspot-detect.html")!
+        let isReachable = await PowerloadHTTPClient.shared.probeInterface(bsdName: bsdName, url: probeURL, timeout: 3.0)
+        let state: PowerloadHealthState = isReachable ? .usable : .degraded(reason: "Gateway unreachable")
+        interfaces[idx].health = state
+        return state
     }
 
     // MARK: - Live Throughput Sampling & Periodic Interface Verification
@@ -383,6 +440,67 @@ public final class PowerloadNetworkManager: ObservableObject {
                 }
             }
         }
+        return result
+    }
+
+    public static func isVirtualInterface(bsdName: String) -> Bool {
+        let lower = bsdName.lowercased()
+        let virtualPrefixes = ["lo", "utun", "llw", "awdl", "ipsec", "anpi", "vmnet", "gif", "stf", "bridge"]
+        for prefix in virtualPrefixes {
+            if lower.hasPrefix(prefix) { return true }
+        }
+        return false
+    }
+
+    public static func isInterfaceMetered(kind: PowerloadInterfaceKind, portName: String, bsdName: String) -> Bool {
+        if kind == .usb { return true }
+        let lower = portName.lowercased()
+        if lower.contains("iphone") || lower.contains("ipad") || lower.contains("cellular") || lower.contains("tether") || lower.contains("hotspot") || lower.contains("rndis") {
+            return true
+        }
+        return false
+    }
+
+    public static func initialHealth(hasIPv4: Bool, isLinkActive: Bool, gatewayIP: String?) -> PowerloadHealthState {
+        if !isLinkActive {
+            return .unusable(reason: "Physical link down")
+        }
+        if !hasIPv4 {
+            return .unusable(reason: "No IPv4 address assigned")
+        }
+        if gatewayIP == nil {
+            return .degraded(reason: "No default gateway (link-local)")
+        }
+        return .usable
+    }
+
+    private static func queryGatewayIPs(store: SCDynamicStore?) -> [String: String] {
+        guard let store = store else { return [:] }
+        var result: [String: String] = [:]
+
+        // 1. Check State:/Network/Service/.*/IPv4 for per-interface routers
+        if let keys = SCDynamicStoreCopyKeyList(store, "State:/Network/Service/.*/IPv4" as CFString) as? [String] {
+            for key in keys {
+                if let dict = SCDynamicStoreCopyValue(store, key as CFString) as? [String: Any] {
+                    let ifName = (dict["InterfaceName"] as? String) ?? (dict["ConfirmedInterfaceName"] as? String)
+                    let router = dict["Router"] as? String
+                    if let ifName = ifName, let router = router, !router.isEmpty {
+                        result[ifName] = router
+                    }
+                }
+            }
+        }
+
+        // 2. Check State:/Network/Global/IPv4 for the primary interface default router
+        if let globalDict = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
+           let primaryIf = globalDict["PrimaryInterface"] as? String,
+           let router = globalDict["Router"] as? String,
+           !router.isEmpty {
+            if result[primaryIf] == nil {
+                result[primaryIf] = router
+            }
+        }
+
         return result
     }
 

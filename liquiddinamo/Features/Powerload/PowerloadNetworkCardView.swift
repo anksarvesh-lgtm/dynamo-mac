@@ -91,7 +91,7 @@ public struct PowerloadNetworkCardView: View {
                     ForEach(netManager.interfaces) { iface in
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(iface.hasIP ? iface.color : (iface.isLinkActive ? Color.orange : Color.gray.opacity(0.45)))
+                                .fill(iface.isOnline ? iface.color : (iface.isLinkActive ? Color.orange : Color.gray.opacity(0.45)))
                                 .frame(width: 6, height: 6)
 
                             Image(systemName: iface.kind.iconName)
@@ -106,6 +106,10 @@ public struct PowerloadNetworkCardView: View {
                                 Text(PowerloadFormatting.formatSpeed(iface.downloadSpeed))
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                                     .foregroundStyle(iface.color)
+                            } else if !iface.health.isUsable {
+                                Text(iface.health.reasonText)
+                                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(Color.orange)
                             } else if iface.hasIP {
                                 Text(iface.ipAddress ?? "Active")
                                     .font(.system(size: 8.5, design: .monospaced))
