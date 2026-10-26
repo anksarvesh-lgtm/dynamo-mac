@@ -75,7 +75,8 @@ print(" - Current Installed Version: \(installedVersion)")
 print(" - Remote GitHub Latest Version: \(latestVer)")
 print(" - Is Update Available: \(isUpdateAvailable ? "YES 🟢 (Update banner & Island notification triggered)" : "NO 🔴")")
 
-assert(isUpdateAvailable == true, "Installed version 1.9.8 must detect available update 1.9.9")
+assert(isUpdateAvailable == true, "Installed version \(installedVersion) must detect available update \(latestVer)")
 assert(chosenDownloadURL?.lastPathComponent == "liquiddynamo.zip", "Must select liquiddynamo.zip")
 
-print("\n🎉 SUCCESS: Older installed version (1.9.8) successfully fetched and detected v\(latestVer) update!")
+print("\n🎉 SUCCESS: Older installed version (\(installedVersion)) successfully fetched and detected v\(latestVer) update!")
+

@@ -19,29 +19,28 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.5"
+version = "2.0.6"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Permanent Multi-Display Island & Ambient Wing Indicators"
-release_body = """## LiquidDynamo 2.0.5 — Permanent Multi-Display Island & Ambient Wing Indicators
+release_title = f"LiquidDynamo {version} — Live 3D Water Glass Capsules & Global Clipping Refinements"
+release_body = """## LiquidDynamo 2.0.6 — Live 3D Water Glass Capsules & Global Clipping Refinements
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.5:
-1. **Permanent "Show on all displays" Enforcement**:
-   - The Dynamic Island is now permanently enabled across all connected displays and external monitors.
-   - Removed obsolete manual display toggles from Settings, menu bar, and onboarding for a frictionless multi-monitor experience.
-2. **Ambient Wing Bottom Indicators**:
-   - **LEFT Wing CPU-Temperature Glow**: Edge-aligned smooth gradient glow dynamically visualizing thermal status (<=45°C cyan, 45-60°C green, 60-72°C yellow, 72-82°C orange, >=82°C red).
-   - **RIGHT Wing RAM Bar**: Real-time memory pressure and usage bar with hardware notch drop contour alignment.
-3. **Streamlined Open Island Capsule**:
-   - Removed redundant CPU/RAM capsule from open notch drop; island dimensions now adapt naturally via organic liquid springs.
-4. **Developer ID Signing & Notarization Pipeline**:
-   - Hardened runtime enabled, inside-out signing hierarchy, and automated verification.
+### Core Highlights in Version 2.0.6:
+1. **Unified Live 3D Water Effect Across All Capsules**:
+   - Implemented realistic half-filled (50%) liquid volume with dual-layered sine waves, animated fluid pouring streams, surface ripples, and dynamic specular caustics.
+   - Applied consistently across all connected device capsules (MagSafe Charger, Devices, Sarvesh/iPhone, RTL9201 external SSD) and dashboard quick tool status capsules.
+2. **Deterministic Spatial & Phase Staggering**:
+   - Seeded per-device phase offsets and stream X coordinates prevent artificial synchronized movement across multiple connected device capsules.
+3. **Specular Glass Containment**:
+   - Exact capsule boundary clipping preserving existing Liquid Glass materials, drop shadows, and responsive layout spring physics.
+4. **CI/CD & Update Engine Compatibility**:
+   - Runner updated to support Xcode 16 project schemas and verified direct update delivery.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.5/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.6/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.5.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.5/LiquidDynamo-2.0.5.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.6.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.6/LiquidDynamo-2.0.6.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 
