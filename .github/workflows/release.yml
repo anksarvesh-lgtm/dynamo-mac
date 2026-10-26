@@ -21,7 +21,7 @@ permissions:
 jobs:
   build-and-release:
     name: Build, Package, and Release
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
 
     steps:
@@ -32,20 +32,51 @@ jobs:
           fetch-depth: 0
 
       - name: Select Xcode Version
+        shell: bash
         run: |
-          for xcode_path in \
-            /Applications/Xcode_16.2.app \
-            /Applications/Xcode_16.1.app \
-            /Applications/Xcode_16.0.app \
-            /Applications/Xcode_16.app \
-            /Applications/Xcode.app; do
-            if [ -d "$xcode_path" ]; then
-              echo "Selecting $xcode_path..."
-              sudo xcode-select -s "$xcode_path"
-              break
+          set -euo pipefail
+          SELECTED_XCODE=""
+          for XCODE_PATH in \
+            /Applications/Xcode_16.4.app \
+            /Applications/Xcode_16.3.app \
+            /Applications/Xcode.app
+          do
+            if [ -d "$XCODE_PATH" ]; then
+              SWIFT_OUTPUT="$(
+                DEVELOPER_DIR="$XCODE_PATH/Contents/Developer" \
+                xcrun swift --version 2>&1
+              )" || continue
+
+              if echo "$SWIFT_OUTPUT" | grep -Eq \
+                'Swift version 6\.(1|[2-9]|[1-9][0-9])([ .]|$)'
+              then
+                SELECTED_XCODE="$XCODE_PATH"
+                break
+              fi
             fi
           done
+
+          if [ -z "$SELECTED_XCODE" ]; then
+            echo "::error::No installed Xcode with Swift 6.1 or newer was found."
+            echo "Available Xcode installations:"
+            ls -d /Applications/Xcode*.app 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Selecting $SELECTED_XCODE"
+          sudo xcode-select -s "$SELECTED_XCODE"
+          echo "Selected Xcode:"
           xcodebuild -version
+          echo "Selected Swift compiler:"
+          swift --version
+
+          SWIFT_OUTPUT="$(swift --version)"
+          if ! echo "$SWIFT_OUTPUT" | grep -Eq \
+            'Swift version 6\.(1|[2-9]|[1-9][0-9])([ .]|$)'
+          then
+            echo "::error::Selected Swift toolchain does not satisfy Swift 6.1 minimum."
+            exit 1
+          fi
 
       - name: Set up Build Keychain (if Developer ID certificate secret exists)
         env:
