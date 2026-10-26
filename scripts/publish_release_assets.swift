@@ -29,14 +29,35 @@ guard let token = getGitToken(), !token.isEmpty else {
 
 let owner = "anksarvesh-lgtm"
 let repos = ["dynamo-mac", "dynamomac"]
-let tag = "v2.1.2"
-let releaseName = "LiquidDynamo 2.1.2 — High-Performance Multi-Network Bonding & Phone Bridge Optimizations"
+
+struct TargetRelease {
+    let tag: String
+    let name: String
+    let body: String
+    let makeLatest: Bool
+}
+
 let releaseBody = """
 ### Release Highlights — LiquidDynamo 2.1.2
 - **NetMerge Multi-Network Link Bonding**: Standalone bonding engine uniting Wi-Fi, Ethernet, USB mobile tethering, and Thunderbolt into an aggregate high-throughput download pipe.
 - **Phone Bridge & Android Storage Pipeline**: Enhanced MTP and ADB dual-backend session handling with real-time storage discovery across all modern Android devices.
 - **Automated Update Delivery**: Dual-format release distribution including signed standalone `LiquidDynamo-2.1.2.dmg`, unversioned `LiquidDynamo.dmg`, and `liquiddynamo.zip` for instant live in-place updates.
 """
+
+let targetReleases: [TargetRelease] = [
+    TargetRelease(
+        tag: "v2.1.2",
+        name: "LiquidDynamo 2.1.2 — High-Performance Multi-Network Bonding & Phone Bridge Optimizations",
+        body: releaseBody,
+        makeLatest: true
+    ),
+    TargetRelease(
+        tag: "app",
+        name: "LiquidDynamo Distribution Release",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.2 (build 25)",
+        makeLatest: false
+    )
+]
 
 let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
@@ -46,134 +67,179 @@ let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
 ]
 
 for repo in repos {
-    print("\n=======================================================")
-    print("🚀 Publishing Release \(tag) to \(owner)/\(repo)...")
-    print("=======================================================")
-    
-    var releaseId: Int?
-    var uploadUrlTemplate: String?
-    
-    // Check if release already exists
-    let getURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/tags/\(tag)")!
-    var getReq = URLRequest(url: getURL)
-    getReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    getReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-    getReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
-    
-    let getSema = DispatchSemaphore(value: 0)
-    URLSession.shared.dataTask(with: getReq) { data, res, err in
-        defer { getSema.signal() }
-        if let data = data,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let id = json["id"] as? Int {
-            releaseId = id
-            uploadUrlTemplate = json["upload_url"] as? String
-            print("Found existing release ID: \(id)")
-        }
-    }.resume()
-    getSema.wait()
-    
-    if releaseId == nil {
-        print("Creating release \(tag) for \(owner)/\(repo)...")
-        let createURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases")!
-        var createReq = URLRequest(url: createURL)
-        createReq.httpMethod = "POST"
-        createReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        createReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-        createReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
-        createReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    for target in targetReleases {
+        print("\n=======================================================")
+        print("🚀 Publishing Release \(target.tag) to \(owner)/\(repo)...")
+        print("=======================================================")
         
-        let payload: [String: Any] = [
-            "tag_name": tag,
-            "name": releaseName,
-            "body": releaseBody,
-            "draft": false,
-            "prerelease": false,
-            "make_latest": "true"
-        ]
-        createReq.httpBody = try! JSONSerialization.data(withJSONObject: payload)
+        var releaseId: Int?
+        var uploadUrlTemplate: String?
         
-        let createSema = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: createReq) { data, res, err in
-            defer { createSema.signal() }
-            if let http = res as? HTTPURLResponse {
-                print("Create Release Response: HTTP \(http.statusCode)")
-            }
+        // 1. Check if release already exists
+        let getURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/tags/\(target.tag)")!
+        var getReq = URLRequest(url: getURL)
+        getReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        getReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        getReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
+        
+        let getSema = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: getReq) { data, res, err in
+            defer { getSema.signal() }
             if let data = data,
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                if let id = json["id"] as? Int {
-                    releaseId = id
-                    uploadUrlTemplate = json["upload_url"] as? String
-                    print("✅ Release created successfully with ID: \(id)")
-                } else if let msg = json["message"] as? String {
-                    print("API error: \(msg)")
-                }
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let id = json["id"] as? Int {
+                releaseId = id
+                uploadUrlTemplate = json["upload_url"] as? String
+                print("Found existing release ID: \(id)")
             }
         }.resume()
-        createSema.wait()
-    }
-    
-    guard let id = releaseId, let uploadTemplate = uploadUrlTemplate else {
-        print("❌ Could not get release ID or upload template for \(repo). Skipping.")
-        continue
-    }
-    
-    // Ensure release is marked latest
-    let patchURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/\(id)")!
-    var patchReq = URLRequest(url: patchURL)
-    patchReq.httpMethod = "PATCH"
-    patchReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    patchReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-    patchReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
-    patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    patchReq.httpBody = try! JSONSerialization.data(withJSONObject: ["make_latest": "true"])
-    let patchSema = DispatchSemaphore(value: 0)
-    URLSession.shared.dataTask(with: patchReq) { _, res, _ in
-        if let http = res as? HTTPURLResponse {
-            print("Set make_latest: true on \(repo) -> HTTP \(http.statusCode)")
+        getSema.wait()
+        
+        // 2. Create release if it does not exist
+        if releaseId == nil {
+            print("Creating release \(target.tag) for \(owner)/\(repo)...")
+            let createURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases")!
+            var createReq = URLRequest(url: createURL)
+            createReq.httpMethod = "POST"
+            createReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            createReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            createReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
+            createReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let payload: [String: Any] = [
+                "tag_name": target.tag,
+                "name": target.name,
+                "body": target.body,
+                "draft": false,
+                "prerelease": false,
+                "make_latest": target.makeLatest ? "true" : "false"
+            ]
+            createReq.httpBody = try! JSONSerialization.data(withJSONObject: payload)
+            
+            let createSema = DispatchSemaphore(value: 0)
+            URLSession.shared.dataTask(with: createReq) { data, res, err in
+                defer { createSema.signal() }
+                if let http = res as? HTTPURLResponse {
+                    print("Create Release Response: HTTP \(http.statusCode)")
+                }
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let id = json["id"] as? Int {
+                        releaseId = id
+                        uploadUrlTemplate = json["upload_url"] as? String
+                        print("✅ Release created successfully with ID: \(id)")
+                    } else if let msg = json["message"] as? String {
+                        print("API error: \(msg)")
+                    }
+                }
+            }.resume()
+            createSema.wait()
         }
-        patchSema.signal()
-    }.resume()
-    patchSema.wait()
-    
-    // Upload assets
-    let baseUploadUrl = uploadTemplate.replacingOccurrences(of: "{?name,label}", with: "")
-    
-    for asset in assetsToUpload {
-        guard FileManager.default.fileExists(atPath: asset.path.path),
-              let fileData = try? Data(contentsOf: asset.path) else {
-            print("⚠️ Missing or unreadable asset: \(asset.path.path)")
+        
+        guard let id = releaseId, let uploadTemplate = uploadUrlTemplate else {
+            print("❌ Could not get release ID or upload template for \(repo) tag \(target.tag). Skipping.")
             continue
         }
         
-        print("Uploading \(asset.name) (\(fileData.count / 1_000_000) MB) to \(repo)...")
-        let uploadURL = URL(string: "\(baseUploadUrl)?name=\(asset.name)")!
-        var uploadReq = URLRequest(url: uploadURL)
-        uploadReq.httpMethod = "POST"
-        uploadReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        uploadReq.setValue(asset.contentType, forHTTPHeaderField: "Content-Type")
-        uploadReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-        uploadReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
-        uploadReq.setValue("\(fileData.count)", forHTTPHeaderField: "Content-Length")
-        uploadReq.httpBody = fileData
-        uploadReq.timeoutInterval = 300
-        
-        let uploadSema = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: uploadReq) { data, res, err in
-            defer { uploadSema.signal() }
+        // 3. Update release metadata if needed
+        let patchURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/\(id)")!
+        var patchReq = URLRequest(url: patchURL)
+        patchReq.httpMethod = "PATCH"
+        patchReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        patchReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        patchReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
+        patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var patchPayload: [String: Any] = [
+            "name": target.name,
+            "body": target.body
+        ]
+        if target.makeLatest {
+            patchPayload["make_latest"] = "true"
+        }
+        patchReq.httpBody = try! JSONSerialization.data(withJSONObject: patchPayload)
+        let patchSema = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: patchReq) { _, res, _ in
             if let http = res as? HTTPURLResponse {
-                if http.statusCode == 201 {
-                    print("  ✅ Uploaded \(asset.name) (HTTP 201)")
-                } else if http.statusCode == 422 {
-                    print("  ℹ️ \(asset.name) already exists on \(repo) (HTTP 422)")
-                } else {
-                    print("  ⚠️ Upload HTTP \(http.statusCode)")
+                print("Patched release metadata on \(repo) -> HTTP \(http.statusCode)")
+            }
+            patchSema.signal()
+        }.resume()
+        patchSema.wait()
+        
+        // 4. Fetch existing assets and delete any conflicting asset
+        var existingAssets: [(name: String, id: Int)] = []
+        let assetsListURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/\(id)/assets")!
+        var listReq = URLRequest(url: assetsListURL)
+        listReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        listReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        listReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
+        let listSema = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: listReq) { data, _, _ in
+            defer { listSema.signal() }
+            if let data = data,
+               let jsonArr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                for item in jsonArr {
+                    if let aName = item["name"] as? String, let aId = item["id"] as? Int {
+                        existingAssets.append((name: aName, id: aId))
+                    }
                 }
-            } else if let err = err {
-                print("  ❌ Error: \(err.localizedDescription)")
             }
         }.resume()
-        uploadSema.wait()
+        listSema.wait()
+        
+        // 5. Upload assets
+        let baseUploadUrl = uploadTemplate.replacingOccurrences(of: "{?name,label}", with: "")
+        
+        for asset in assetsToUpload {
+            guard FileManager.default.fileExists(atPath: asset.path.path),
+                  let fileData = try? Data(contentsOf: asset.path) else {
+                print("⚠️ Missing or unreadable asset: \(asset.path.path)")
+                continue
+            }
+            
+            // Delete existing asset if it exists
+            if let existing = existingAssets.first(where: { $0.name == asset.name }) {
+                print("Deleting existing asset '\(asset.name)' (ID: \(existing.id)) on \(repo)...")
+                let delURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/assets/\(existing.id)")!
+                var delReq = URLRequest(url: delURL)
+                delReq.httpMethod = "DELETE"
+                delReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                delReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+                delReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
+                let delSema = DispatchSemaphore(value: 0)
+                URLSession.shared.dataTask(with: delReq) { _, _, _ in
+                    delSema.signal()
+                }.resume()
+                delSema.wait()
+            }
+            
+            print("Uploading \(asset.name) (\(fileData.count / 1_000_000) MB) to \(repo) [\(target.tag)]...")
+            let uploadURL = URL(string: "\(baseUploadUrl)?name=\(asset.name)")!
+            var uploadReq = URLRequest(url: uploadURL)
+            uploadReq.httpMethod = "POST"
+            uploadReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            uploadReq.setValue(asset.contentType, forHTTPHeaderField: "Content-Type")
+            uploadReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            uploadReq.setValue("LiquidDynamo-ReleasePublisher", forHTTPHeaderField: "User-Agent")
+            uploadReq.setValue("\(fileData.count)", forHTTPHeaderField: "Content-Length")
+            uploadReq.httpBody = fileData
+            uploadReq.timeoutInterval = 300
+            
+            let uploadSema = DispatchSemaphore(value: 0)
+            URLSession.shared.dataTask(with: uploadReq) { data, res, err in
+                defer { uploadSema.signal() }
+                if let http = res as? HTTPURLResponse {
+                    if http.statusCode == 201 {
+                        print("  ✅ Uploaded \(asset.name) (HTTP 201)")
+                    } else {
+                        print("  ⚠️ Upload HTTP \(http.statusCode)")
+                    }
+                } else if let err = err {
+                    print("  ❌ Error: \(err.localizedDescription)")
+                }
+            }.resume()
+            uploadSema.wait()
+        }
     }
 }
 
