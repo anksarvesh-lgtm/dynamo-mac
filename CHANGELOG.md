@@ -13,9 +13,11 @@ All notable changes, bug fixes, and feature enhancements in LiquidDynamo are doc
 - **Multi-Mount & Stat Fallback Probing**: Replaced brittle single-line `df -k` execution with multi-mount probing (`/storage/emulated/0`, `/sdcard`, `/storage/self/primary`, `/data`) using POSIX `stat -f -c '%a %b %s'` block geometry and resilient multi-line token extraction.
 - **Dynamic On-Demand Storage Sync**: Added `syncStorage(forced:)` with interactive UI sync buttons in both `PhoneBridgeView` and `SettingsPhoneBridgeView`, updating storage metrics automatically on device connection, periodic polling, and file transfer completion.
 
-### Powerload Multi-Network Dynamic Flow Balancing (Net-Merge)
-- **NetMerge Dynamic Flow Balancing**: Incorporated weighted least-busy worker allocation (`(busyFlows + 1) / weight`) from net-merge, dynamically distributing download connection workers across active adapters (Wi-Fi, Ethernet, USB tethering, Thunderbolt) proportionally according to measured EWMA throughput.
-- **Throughput Telemetry**: Added real-time per-chunk throughput telemetry with fast-attack (tau=2s) and slow-decay (tau=30s) capacity estimation.
+### NetMerge Multi-Network Link Bonding Engine (Standalone & Powerload)
+- **Universal Mach-O Engine**: Bundled pre-compiled universal binary (`arm64` & `x86_64`) of the NetMerge connection bonding engine directly into application Resources with full inside-out runtime code-signing.
+- **Standalone Bonding Module**: Added dedicated NetMerge service controller (`NetMergeEngine.swift`) managing the local zero-admin SOCKS5 bonding proxy on port 10888, real-time log and throughput stream parsing, and system-wide virtual TUN mode.
+- **Dynamic Notch HUD & Settings UI**: Added `NetMergeTelemetryWing` displaying live bonded bandwidth in the dynamic notch, plus a dedicated `SettingsNetMergeView` with live throughput hero, adapter weights, and one-click terminal export commands.
+- **Powerload Engine Integration**: Integrated Powerload chunk downloading with NetMerge's SOCKS5 proxy (`performNetMergeSocksChunk`), dynamically balancing file chunks across all active network adapters (Wi-Fi, Ethernet, USB tether, hotspot) with capacity-weighted worker allocation.
 
 ### Agrigence Branding & Restricted-Use Proprietary Licensing
 - **Publisher & Copyright Attribution**: Fully established Agrigence as developer, publisher, and copyright holder across application metadata, About views, and documentation.

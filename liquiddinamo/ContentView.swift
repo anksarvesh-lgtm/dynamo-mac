@@ -707,6 +707,9 @@ struct ContentView: View {
                     case .phoneBridge:
                         PhoneBridgeView()
                             .frame(maxWidth: .infinity, alignment: .center)
+                    case .netMerge:
+                        NetMergeTelemetryWing()
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)

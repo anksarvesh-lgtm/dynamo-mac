@@ -25,6 +25,9 @@ public struct SettingsPowerloadView: View {
     @Default(.powerloadCompletionAlert) var completionAlert
     @Default(.powerloadTorrentAutoStart) var torrentAutoStart
     @Default(.powerloadUseMeteredConnections) var useMeteredConnections
+    @Default(.powerloadUseNetMergeEngine) var useNetMergeEngine
+
+    @ObservedObject private var netMergeEngine = NetMergeEngine.shared
 
     @State private var isShowingClearConfirm: Bool = false
 
@@ -179,6 +182,39 @@ public struct SettingsPowerloadView: View {
                         Text("Powerload breaks files into dynamic chunks and downloads them across all enabled network interfaces concurrently.")
                             .font(.system(size: 10.5, design: .rounded))
                             .foregroundStyle(.secondary)
+                    }
+                    .padding(8)
+                }
+
+                // 3b. NetMerge Engine Integration
+                GroupBox(label: Label("NetMerge Engine Bonding", systemImage: "bolt.horizontal.fill")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(isOn: $useNetMergeEngine) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Route Powerload Downloads Through NetMerge Engine")
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                Text("Uses NetMerge's dynamic weighted scheduler to automatically balance download streams across all physical connections.")
+                                    .font(.system(size: 10, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(netMergeEngine.isRunning ? Color.green : Color.secondary)
+                                .frame(width: 8, height: 8)
+
+                            Text(netMergeEngine.isRunning ? "NetMerge SOCKS5 active on \(netMergeEngine.socksListenAddress):\(netMergeEngine.socksListenPort)" : "NetMerge Engine is currently stopped")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.secondary)
+
+                            Spacer()
+
+                            Button(netMergeEngine.isRunning ? "Stop NetMerge" : "Start NetMerge") {
+                                netMergeEngine.toggle()
+                            }
+                            .controlSize(.small)
+                        }
                     }
                     .padding(8)
                 }

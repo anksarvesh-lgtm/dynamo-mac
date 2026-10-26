@@ -7,6 +7,7 @@
 //  Replaces undocumented private KVC _socketStreamProperties with documented Apple APIs.
 //
 
+import Defaults
 import Foundation
 import Network
 
@@ -203,6 +204,21 @@ public final class PowerloadHTTPClient: @unchecked Sendable {
         let isHTTPS = url.scheme?.lowercased() == "https"
         let portNumber = UInt16(url.port ?? (isHTTPS ? 443 : 80))
         let expectedBytes = rangeEnd - rangeStart + 1
+
+        // Method 0: Route via NetMerge bonding SOCKS5 proxy if active
+        if Defaults[.powerloadUseNetMergeEngine] && NetMergeEngine.shared.isRunning {
+            do {
+                return try await performNetMergeSocksChunk(
+                    url: url,
+                    rangeStart: rangeStart,
+                    rangeEnd: rangeEnd,
+                    expectedBytes: expectedBytes,
+                    timeout: timeout
+                )
+            } catch {
+                // If NetMerge proxy fails, fall back to direct interface binding
+            }
+        }
 
         let nwInterface = getNWInterface(bsdName: bsdName)
 
@@ -492,5 +508,72 @@ public final class PowerloadHTTPClient: @unchecked Sendable {
             }
         }
         return (statusCode, headers)
+    }
+
+    // MARK: - Method 0: NetMerge SOCKS5 Bonding Proxy
+    private func performNetMergeSocksChunk(
+        url: URL,
+        rangeStart: Int64,
+        rangeEnd: Int64,
+        expectedBytes: Int64,
+        timeout: TimeInterval
+    ) async throws -> PowerloadHTTPResponse {
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let tempOut = FileManager.default.temporaryDirectory.appendingPathComponent("nm_chunk_\(UUID().uuidString).bin")
+                let tempHead = FileManager.default.temporaryDirectory.appendingPathComponent("nm_head_\(UUID().uuidString).txt")
+                defer {
+                    try? FileManager.default.removeItem(at: tempOut)
+                    try? FileManager.default.removeItem(at: tempHead)
+                }
+
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
+                let socksAddr = "socks5h://127.0.0.1:\(NetMergeEngine.shared.socksListenPort)"
+                proc.arguments = [
+                    "-x", socksAddr,
+                    "-s", "-S",
+                    "-r", "\(rangeStart)-\(rangeEnd)",
+                    "--dump-header", tempHead.path,
+                    "--max-time", "\(Int(timeout))",
+                    "-o", tempOut.path,
+                    url.absoluteString
+                ]
+
+                do {
+                    try proc.run()
+                    proc.waitUntilExit()
+
+                    let headStr = (try? String(contentsOf: tempHead, encoding: .utf8)) ?? ""
+                    let (statusCode, headers) = Self.parseHeaders(headStr)
+
+                    if statusCode == 200 {
+                        continuation.resume(throwing: PowerloadHTTPError.rangeNotSupported(statusCode: 200))
+                        return
+                    }
+
+                    guard statusCode == 206 else {
+                        continuation.resume(throwing: PowerloadHTTPError.invalidStatus(statusCode))
+                        return
+                    }
+
+                    let data = (try? Data(contentsOf: tempOut)) ?? Data()
+                    guard Int64(data.count) == expectedBytes else {
+                        continuation.resume(throwing: PowerloadHTTPError.byteCountMismatch(expected: expectedBytes, received: Int64(data.count)))
+                        return
+                    }
+
+                    let contentRange = headers["content-range"] ?? headers["Content-Range"]
+                    continuation.resume(returning: PowerloadHTTPResponse(
+                        statusCode: statusCode,
+                        headers: headers,
+                        contentRange: contentRange,
+                        data: data
+                    ))
+                } catch {
+                    continuation.resume(throwing: PowerloadHTTPError.connectionFailed(error.localizedDescription))
+                }
+            }
+        }
     }
 }

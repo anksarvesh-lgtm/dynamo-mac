@@ -80,6 +80,8 @@ struct SettingsView: View {
                         SettingsPhoneBridgeView()
                     case "Powerload", "Plexo":
                         SettingsPowerloadView()
+                    case "NetMerge":
+                        SettingsNetMergeView()
                     case "Shortcuts":
                         SettingsShortcutsView()
                     case "Privacy":

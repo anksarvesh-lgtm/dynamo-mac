@@ -37,6 +37,7 @@ public enum NotchViews {
     case plexo
     case powerload
     case phoneBridge
+    case netMerge
 }
 
 enum SettingsEnum {

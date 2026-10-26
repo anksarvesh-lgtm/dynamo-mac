@@ -55,6 +55,7 @@ public struct SettingsControlCenterSidebar: View {
         SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", symbolBackup: "trash.circle.fill", badgeText: "Clean"),
         SettingsSidebarItem(id: "PhoneBridge", title: "Phone Bridge", symbolBackup: "externaldrive.fill.badge.wifi"),
         SettingsSidebarItem(id: "Powerload", title: "Powerload Turbo", symbolBackup: "bolt.horizontal.fill"),
+        SettingsSidebarItem(id: "NetMerge", title: "NetMerge Bonding", symbolBackup: "point.3.filled.connected.trianglepath.dotted", badgeText: "Bond"),
         SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command")
     ]
 

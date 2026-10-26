@@ -505,6 +505,14 @@ extension Defaults.Keys {
     static let enableWatcherIntegration = Key<Bool>("enableWatcherIntegration", default: false)
     static let watcherAutoApproveReads = Key<Bool>("watcherAutoApproveReads", default: false)
     static let watcherNotificationOnFinished = Key<Bool>("watcherNotificationOnFinished", default: true)
+
+    // MARK: NetMerge Multi-Network Bonding
+    static let netMergeEnabled = Key<Bool>("netMergeEnabled", default: false)
+    static let netMergeAutoStart = Key<Bool>("netMergeAutoStart", default: false)
+    static let netMergeSocksPort = Key<Int>("netMergeSocksPort", default: 10888)
+    static let netMergeIPv6Mode = Key<String>("netMergeIPv6Mode", default: "auto")
+    static let netMergeShowNotchWidget = Key<Bool>("netMergeShowNotchWidget", default: true)
+    static let powerloadUseNetMergeEngine = Key<Bool>("powerloadUseNetMergeEngine", default: true)
 }
 
 public enum LiquidTheme: String, CaseIterable, Defaults.Serializable {
