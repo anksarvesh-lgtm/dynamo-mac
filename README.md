@@ -9,7 +9,7 @@
 
   <p align="center">
     <a href="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/latest">
-      <img src="https://img.shields.io/badge/Release-v2.0.5-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Latest Release" />
+      <img src="https://img.shields.io/badge/Release-v2.0.6-0A84FF?style=for-the-badge&logo=apple&logoColor=white" alt="Latest Release" />
     </a>
     <img src="https://img.shields.io/badge/macOS-14.0%2B%20Sonoma%20%7C%2015.0%2B%20Sequoia-30D158?style=for-the-badge&logo=apple&logoColor=white" alt="macOS 14+" />
     <img src="https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-BF5AF2?style=for-the-badge&logo=apple&logoColor=white" alt="Universal Binary" />
@@ -146,7 +146,13 @@ LiquidDynamo features a native **SceneKit zero-gravity 3D rendering engine** tha
 - **Notch Agent HUD**: Follow your AI coding sessions in real-time from the notch—supporting **Claude Code**, **Antigravity (`agy`)**, **Cursor**, **Codex**, **Gemini CLI**, **GitHub Copilot CLI**, **OpenCode**, and **Hermes**.
 - **Live Step Ticker & Diff Counter**: Shows live agent thinking state, active tools, files touched, and line deltas (`+N -M`).
 - **One-Click Tool Authorization**: Approve or deny terminal commands and file edits directly from the notch (**Allow**, **Deny**, **Always Allow**) without interrupting your CLI flow.
-- **Zero-Idle-CPU Socket Server**: Event-driven Unix domain socket server (`/tmp/liquid_watcher.sock`) with non-blocking GCD execution.
+---
+
+### 🧹 Scopa — High-Speed macOS Storage Optimizer
+- **Intelligent Storage Triage**: Safely scans and reclaims gigabytes of redundant developer artifacts (Xcode `DerivedData`, iOS Simulator caches, CocoaPods, SPM, Gradle, Cargo caches), application support caches, temporary files, system logs, and old downloads.
+- **Fail-Safe Trash-Only Architecture**: Never performs permanent unrecoverable deletion (`rm -rf`). All cleanups route safely through macOS native `FileManager.trashItem` so you can inspect or restore items from Trash at any time.
+- **Safety Allowlist Tiering**: Real-time classification (**Safe to Clean** vs **Check First**) with strict protections for active cloud sync daemons (iCloud, Dropbox, OneDrive), source repositories, personal documents, and photo/music libraries.
+- **Live Notch Breakdown**: Interactive storage consumption graph rendered natively in the expanded notch with category breakdown and 1-tap cleaning.
 
 ---
 
@@ -239,16 +245,11 @@ bash scripts/verify_release.sh ~/Desktop/LiquidDynamo-2.0.5.dmg
 
 ---
 
-## 📜 License & Acknowledgments
+## 📜 License
 
-LiquidDynamo is open-source software licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for details.
+LiquidDynamo is free and open-source software developed by **Agrigence** and licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [LICENSE](LICENSE) for details.
 
-### Upstream Inspirations & Attributions
-- Base notch concept inspired by [Boring Notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam.
-- Storage cleaner safety allowlists ported from [Purge](https://github.com/jithin-sabu/purge-app) by Jithin Sabu (MIT License).
-- AI agent IPC socket architecture adapted from [Coucou](https://github.com/Louis-CFM/coucou) by Louis Raillé (MIT License), redesigned in Swift as **Watcher**.
-- Multi-network socket bonding algorithms adapted from [Plexo](https://github.com/anmolkapil/plexo) by Anmol Kapil, ported and natively integrated in Swift as **Powerload Turbo**.
-- All custom architectures, Phone Bridge & OpenMTP engine, 3D USDZ device rendering, interactive telemetry wings, and liquid motion systems are Copyright © 2026 Agrigence.
+All custom architectures, liquid glass rendering shaders, Phone Bridge engine, Scopa storage optimizer, 3D USDZ SceneKit systems, interactive telemetry wings, and organic motion mechanics are Copyright © 2026 [Agrigence](https://www.agrigence.in/).
 
 <br />
 
