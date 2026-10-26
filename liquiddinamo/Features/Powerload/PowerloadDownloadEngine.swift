@@ -218,11 +218,11 @@ public final class PowerloadDownloadEngine: ObservableObject {
                 : connected
             let maxConns = max(1, Defaults[.powerloadMaxConnectionsPerFile])
 
-            // Distribute parallel connections across active interfaces (work stealing pool)
-            var workerAdapters: [PowerloadInterface] = []
-            for i in 0..<maxConns {
-                workerAdapters.append(baseAdapters[i % baseAdapters.count])
-            }
+            // NetMerge dynamic flow balancing: distribute connection workers according to weighted link capacity
+            let workerAdapters = PowerloadNetworkManager.shared.calculateBalancedWorkerAdapters(
+                totalWorkers: maxConns,
+                candidateAdapters: baseAdapters
+            )
 
             let workerPool = PowerloadDownloadWorkerPool(chunks: task.chunks)
 
@@ -439,6 +439,9 @@ public final class PowerloadDownloadEngine: ObservableObject {
             await markChunkFinished(taskID: taskID, chunkIndex: chunkIndex)
 
             let duration = max(0.001, Date().timeIntervalSince(startTime))
+            await MainActor.run {
+                PowerloadNetworkManager.shared.reportThroughput(bsdName: adapter.bsdName, bytes: count, duration: duration)
+            }
             return .success(bytesCount: count, durationSeconds: duration)
         } catch PowerloadHTTPError.rangeNotSupported {
             return .rangeNotSupported

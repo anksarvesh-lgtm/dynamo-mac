@@ -287,6 +287,78 @@ public final class PowerloadNetworkManager: ObservableObject {
         return state
     }
 
+    // MARK: - NetMerge Flow Balancing & Dynamic Scheduling
+
+    /// Reports measured chunk transfer throughput from download workers to update adapter peak capacity
+    public func reportThroughput(bsdName: String, bytes: Int64, duration: Double) {
+        guard duration > 0.05, bytes > 0 else { return }
+        let observedSpeed = Double(bytes) / duration
+        if let idx = interfaces.firstIndex(where: { $0.bsdName == bsdName }) {
+            if interfaces[idx].ewmaThroughput == 0 {
+                interfaces[idx].ewmaThroughput = observedSpeed
+            } else {
+                let tau = observedSpeed < interfaces[idx].ewmaThroughput ? 30.0 : 2.0
+                let alpha = 1.0 - exp(-duration / tau)
+                interfaces[idx].ewmaThroughput += (observedSpeed - interfaces[idx].ewmaThroughput) * alpha
+            }
+        }
+    }
+
+    /// Derives NetMerge normalized link weights based on observed smoothed peak throughput (floored at 0.05)
+    public func calculateInterfaceWeights(candidateAdapters: [PowerloadInterface]) -> [String: Double] {
+        guard !candidateAdapters.isEmpty else { return [:] }
+        let maxPeak = candidateAdapters.map { max($0.ewmaThroughput, Double($0.downloadSpeed)) }.max() ?? 0
+        var weights: [String: Double] = [:]
+
+        for iface in candidateAdapters {
+            let peak = max(iface.ewmaThroughput, Double(iface.downloadSpeed))
+            if maxPeak > 50_000 && peak >= 50_000 {
+                weights[iface.id] = max(0.05, peak / maxPeak)
+            } else {
+                // When links are not yet measured under load, distribute weights equally
+                weights[iface.id] = 1.0
+            }
+        }
+        return weights
+    }
+
+    /// Allocates worker streams across active network adapters using NetMerge's (busyFlows + 1) / weight algorithm
+    public func calculateBalancedWorkerAdapters(
+        totalWorkers: Int,
+        candidateAdapters: [PowerloadInterface]
+    ) -> [PowerloadInterface] {
+        guard !candidateAdapters.isEmpty, totalWorkers > 0 else { return [] }
+        guard candidateAdapters.count > 1 else {
+            return Array(repeating: candidateAdapters[0], count: totalWorkers)
+        }
+
+        let weights = calculateInterfaceWeights(candidateAdapters: candidateAdapters)
+        var assignedCounts: [String: Int] = [:]
+        for iface in candidateAdapters {
+            assignedCounts[iface.id] = 0
+        }
+
+        var result: [PowerloadInterface] = []
+        for _ in 0..<totalWorkers {
+            var bestAdapter = candidateAdapters[0]
+            var bestScore = Double.infinity
+
+            for iface in candidateAdapters {
+                let assigned = assignedCounts[iface.id] ?? 0
+                let weight = weights[iface.id] ?? 1.0
+                let score = Double(assigned + 1) / max(0.01, weight)
+                if score < bestScore {
+                    bestScore = score
+                    bestAdapter = iface
+                }
+            }
+
+            result.append(bestAdapter)
+            assignedCounts[bestAdapter.id] = (assignedCounts[bestAdapter.id] ?? 0) + 1
+        }
+        return result
+    }
+
     // MARK: - Live Throughput Sampling & Periodic Interface Verification
 
     private func startThroughputTimer() {
@@ -344,6 +416,21 @@ public final class PowerloadNetworkManager: ObservableObject {
 
                     interfaces[i].downloadSpeed = downSpeed
                     interfaces[i].uploadSpeed = upSpeed
+
+                    // NetMerge capacity smoothing: fast attack (tau=2s), slow decay (tau=30s)
+                    if downSpeed >= 50_000 {
+                        if interfaces[i].ewmaThroughput == 0 {
+                            interfaces[i].ewmaThroughput = downSpeed
+                        } else {
+                            let tau = downSpeed < interfaces[i].ewmaThroughput ? 30.0 : 2.0
+                            let alpha = 1.0 - exp(-dt / tau)
+                            interfaces[i].ewmaThroughput += (downSpeed - interfaces[i].ewmaThroughput) * alpha
+                        }
+                    } else if interfaces[i].ewmaThroughput > 0 {
+                        let tau = 30.0
+                        let alpha = 1.0 - exp(-dt / tau)
+                        interfaces[i].ewmaThroughput += (0 - interfaces[i].ewmaThroughput) * alpha
+                    }
 
                     if interfaces[i].isEnabled {
                         totalDown += downSpeed
