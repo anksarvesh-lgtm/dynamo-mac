@@ -212,7 +212,7 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 130, alignment: .leading)
+                    .truncationMode(.tail)
                 HStack(spacing: 4) {
                     Circle().fill(Color.orange).frame(width: 5, height: 5)
                     Text("Disconnected")
@@ -220,6 +220,7 @@ public struct IslandAlertView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .layoutPriority(1)
         }
     }
 
@@ -237,8 +238,9 @@ public struct IslandAlertView: View {
                     .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .frame(maxWidth: 130, alignment: .leading)
+                    .truncationMode(.tail)
             }
+            .layoutPriority(1)
         }
     }
 
@@ -281,16 +283,17 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 130, alignment: .leading)
+                    .truncationMode(.tail)
 
                 if !artist.isEmpty {
                     Text(artist)
                         .font(.system(size: 9.5, weight: .medium, design: .rounded))
                         .foregroundStyle(alert.iconColor.opacity(0.9))
                         .lineLimit(1)
-                        .frame(maxWidth: 130, alignment: .leading)
+                        .truncationMode(.tail)
                 }
             }
+            .layoutPriority(1)
 
             // Dynamic Audio Equalizer Bars
             LiquidGlassEqualizerView(isPlaying: true, tint: alert.iconColor)
@@ -308,7 +311,7 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 110, alignment: .leading)
+                    .truncationMode(.tail)
 
                 HStack(spacing: 4) {
                     Circle()
@@ -319,6 +322,7 @@ public struct IslandAlertView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .layoutPriority(1)
 
             // Battery Badges (L / R / Case)
             HStack(spacing: 4) {
@@ -379,7 +383,7 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
+                    .truncationMode(.tail)
 
                 HStack(spacing: 4) {
                     Circle()
@@ -395,6 +399,7 @@ public struct IslandAlertView: View {
                     }
                 }
             }
+            .layoutPriority(1)
 
             if device.kind == .androidPhone {
                 Premium3DIconView(.androidPhone, size: 16, interactive: false)
@@ -415,7 +420,7 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
+                    .truncationMode(.tail)
 
                 HStack(spacing: 4) {
                     if let total = device.formattedCapacity {
@@ -435,6 +440,7 @@ public struct IslandAlertView: View {
                     }
                 }
             }
+            .layoutPriority(1)
 
             if let usedBytes = device.usedSpaceBytes, let totalBytes = device.capacityBytes, totalBytes > 0 {
                 let ratio = min(1.0, max(0.0, Double(usedBytes) / Double(totalBytes)))
@@ -459,7 +465,7 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
+                    .truncationMode(.tail)
 
                 HStack(spacing: 4) {
                     Circle()
@@ -470,6 +476,7 @@ public struct IslandAlertView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .layoutPriority(1)
 
             Premium3DIconView(.bluetooth, size: 14, interactive: false)
         }
@@ -585,8 +592,9 @@ public struct IslandAlertView: View {
                     .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
-                    .frame(maxWidth: 130, alignment: .leading)
+                    .truncationMode(.tail)
             }
+            .layoutPriority(1)
         }
     }
 
@@ -622,8 +630,9 @@ public struct IslandAlertView: View {
                     .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .frame(maxWidth: 110, alignment: .leading)
+                    .truncationMode(.tail)
             }
+            .layoutPriority(1)
 
             Circle()
                 .fill(alert.iconColor)
