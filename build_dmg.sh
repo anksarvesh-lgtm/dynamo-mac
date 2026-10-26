@@ -152,7 +152,8 @@ if [ "$HAS_XCODE" = true ]; then
   STATUS=${PIPESTATUS[0]}
   set -e
   if [ "$STATUS" -ne 0 ]; then
-    echo; echo "--- first errors ---"; grep -E "error:" "$BUILD_DIR/build.log" | head -n 15 || true
+    echo; echo "--- first errors ---"; grep -E "(error:|fatal:|Undefined symbols|ld:)" "$BUILD_DIR/build.log" | head -n 50 || true
+    echo; echo "--- last 100 log lines ---"; tail -n 100 "$BUILD_DIR/build.log" || true
     die "Build failed. Full log: $BUILD_DIR/build.log"
   fi
 
