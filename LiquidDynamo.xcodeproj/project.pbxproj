@@ -263,6 +263,7 @@
 		E1A000632E60000100000001 /* IslandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A000632E60000100000002 /* IslandController.swift */; };
 		E1A000642E60000100000001 /* IslandHostingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A000642E60000100000002 /* IslandHostingView.swift */; };
 		E1A000652E60000100000001 /* IslandAlertView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A000652E60000100000002 /* IslandAlertView.swift */; };
+		E1A000992E60000100000001 /* LiquidWaterCapsuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A000992E60000100000002 /* LiquidWaterCapsuleView.swift */; };
 		E1D000682E60000100000001 /* DynamicIslandHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D000682E60000100000002 /* DynamicIslandHub.swift */; };
 		E1A000662E60000100000001 /* MotionTuningPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A000662E60000100000002 /* MotionTuningPanelView.swift */; };
 		E1A000672E60000100000001 /* MotionTuningWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A000672E60000100000002 /* MotionTuningWindowController.swift */; };
@@ -606,6 +607,7 @@
 		E1A000632E60000100000002 /* IslandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandController.swift; sourceTree = "<group>"; };
 		E1A000642E60000100000002 /* IslandHostingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandHostingView.swift; sourceTree = "<group>"; };
 		E1A000652E60000100000002 /* IslandAlertView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandAlertView.swift; sourceTree = "<group>"; };
+		E1A000992E60000100000002 /* LiquidWaterCapsuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidWaterCapsuleView.swift; sourceTree = "<group>"; };
 		E1D000682E60000100000002 /* DynamicIslandHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandHub.swift; sourceTree = "<group>"; };
 		E1A000662E60000100000002 /* MotionTuningPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionTuningPanelView.swift; sourceTree = "<group>"; };
 		E1A000672E60000100000002 /* MotionTuningWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionTuningWindowController.swift; sourceTree = "<group>"; };
@@ -1390,6 +1392,7 @@
 				E1A000632E60000100000002 /* IslandController.swift */,
 				E1A000642E60000100000002 /* IslandHostingView.swift */,
 				E1A000652E60000100000002 /* IslandAlertView.swift */,
+				E1A000992E60000100000002 /* LiquidWaterCapsuleView.swift */,
 				E1D000682E60000100000002 /* DynamicIslandHub.swift */,
 				E2A000022E60000100000002 /* LiquidIslandLobe.swift */,
 				E2A000032E60000100000002 /* LiquidIslandCanvasView.swift */,
@@ -1857,6 +1860,7 @@
 				E1A000632E60000100000001 /* IslandController.swift in Sources */,
 				E1A000642E60000100000001 /* IslandHostingView.swift in Sources */,
 				E1A000652E60000100000001 /* IslandAlertView.swift in Sources */,
+				E1A000992E60000100000001 /* LiquidWaterCapsuleView.swift in Sources */,
 				E1D000682E60000100000001 /* DynamicIslandHub.swift in Sources */,
 				E1A000662E60000100000001 /* MotionTuningPanelView.swift in Sources */,
 				E1A000672E60000100000001 /* MotionTuningWindowController.swift in Sources */,

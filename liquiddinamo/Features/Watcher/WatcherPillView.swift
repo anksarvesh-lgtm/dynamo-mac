@@ -78,6 +78,14 @@ public struct WatcherPillView: View {
                             ambientColor: accentColor,
                             scrimFloor: 0.35
                         )
+
+                        // Live 3D Half-Filled Water Capsule layer (50% water fill, pouring stream, ripples, splashes)
+                        LiquidWaterCapsuleView(
+                            fillLevel: 0.50,
+                            tintColor: accentColor,
+                            streamXRatio: 0.22
+                        )
+
                         // 3D Glass Specular Sheen Highlight
                         Capsule()
                             .strokeBorder(

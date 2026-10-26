@@ -90,6 +90,14 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
                         ambientColor: tintColor,
                         scrimFloor: 0.35
                     )
+
+                    // Live 3D Half-Filled Water Capsule layer (50% water fill, pouring stream, ripples, splashes)
+                    LiquidWaterCapsuleView(
+                        fillLevel: 0.50,
+                        tintColor: tintColor,
+                        streamXRatio: 0.22
+                    )
+
                     // 3D Glass Specular Sheen Highlight
                     Capsule()
                         .strokeBorder(

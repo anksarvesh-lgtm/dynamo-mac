@@ -119,6 +119,14 @@ public struct DeviceShowcasePopupView: View {
                         ambientColor: deviceAccentColor,
                         scrimFloor: 0.35
                     )
+
+                    // Live 3D Half-Filled Water Capsule layer (50% water fill, pouring stream, ripples, splashes)
+                    LiquidWaterCapsuleView(
+                        fillLevel: 0.50,
+                        tintColor: deviceAccentColor,
+                        streamXRatio: 0.22
+                    )
+
                     // 3D Glass Specular Sheen Highlight
                     Capsule()
                         .strokeBorder(

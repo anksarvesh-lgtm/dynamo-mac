@@ -72,9 +72,17 @@ public struct BluetoothBatteryAlertPopupView: View {
                     LiquidGlassSurface(
                         shape: Capsule(),
                         isNotchAnchored: false,
-                        ambientColor: alert.batteryColor,
+                        ambientColor: self.alert.batteryColor,
                         scrimFloor: 0.35
                     )
+
+                    // Live 3D Half-Filled Water Capsule layer (50% water fill, pouring stream, ripples, splashes)
+                    LiquidWaterCapsuleView(
+                        fillLevel: 0.50,
+                        tintColor: self.alert.batteryColor,
+                        streamXRatio: 0.22
+                    )
+
                     // 3D Glass Specular Sheen Highlight
                     Capsule()
                         .strokeBorder(
