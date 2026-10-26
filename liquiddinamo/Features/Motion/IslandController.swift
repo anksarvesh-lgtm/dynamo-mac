@@ -713,24 +713,24 @@ public final class IslandController: ObservableObject {
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
 
         case .alertPop:
-            let estimatedW = alertPayload?.estimatedContentWidth ?? activeAlert?.estimatedContentWidth ?? 220.0
+            let estimatedW = alertPayload?.estimatedContentWidth ?? activeAlert?.estimatedContentWidth ?? 200.0
             let contentW = dynamicAlertCapsuleWidth ?? alertPayload?.customSize?.width ?? activeAlert?.customSize?.width ?? estimatedW
             let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
-            let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-            return CGSize(width: capsuleSize.width + 24.0, height: targetH)
+            let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 6) : capsuleSize.height
+            return CGSize(width: capsuleSize.width + 16.0, height: targetH)
         }
     }
 
     /// Named constant base width for transient alert and HUD 3D liquid capsules
-    public static let alertCapsuleDefaultWidth: CGFloat = 220.0
+    public static let alertCapsuleDefaultWidth: CGFloat = 200.0
 
     /// Derives the exact 3D liquid capsule size from NotchSafeAreaEngine geometry and content measurements
     public static func alertCapsuleSize(for geom: NotchGeometry, contentWidth: CGFloat? = nil) -> CGSize {
-        let minW: CGFloat = geom.hasPhysicalNotch ? max(180.0, geom.rawNotchWidth) : 180.0
-        let maxW: CGFloat = min(460.0, max(300.0, geom.screenFrame.width * 0.45))
+        let minW: CGFloat = geom.hasPhysicalNotch ? max(170.0, geom.rawNotchWidth) : 170.0
+        let maxW: CGFloat = min(350.0, max(240.0, geom.screenFrame.width * 0.30))
         let requestedW = contentWidth ?? alertCapsuleDefaultWidth
         let width = min(maxW, max(minW, requestedW))
-        let height = max(36.0, min(48.0, max(geom.notchHeight, 38.0)))
+        let height = max(34.0, min(42.0, max(geom.notchHeight, 36.0)))
         return CGSize(width: width, height: height)
     }
 

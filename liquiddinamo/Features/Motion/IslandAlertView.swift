@@ -52,11 +52,11 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
 
     public var body: some View {
         let geom = safeArea.currentGeometry
-        let minW: CGFloat = geom.hasPhysicalNotch ? max(180.0, geom.rawNotchWidth) : 180.0
-        let maxW: CGFloat = min(460.0, max(300.0, geom.screenFrame.width * 0.45))
-        let effectiveMeasuredW = measuredWidth > 0 ? (measuredWidth + 28.0) : (IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.alertCapsuleDefaultWidth)
+        let minW: CGFloat = geom.hasPhysicalNotch ? max(170.0, geom.rawNotchWidth) : 170.0
+        let maxW: CGFloat = min(350.0, max(240.0, geom.screenFrame.width * 0.30))
+        let effectiveMeasuredW = measuredWidth > 0 ? (measuredWidth + 24.0) : (IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.alertCapsuleDefaultWidth)
         let finalWidth = min(maxW, max(minW, effectiveMeasuredW))
-        let finalHeight = max(36.0, min(48.0, max(geom.notchHeight, 38.0)))
+        let finalHeight = max(34.0, min(42.0, max(geom.notchHeight, 36.0)))
 
         ZStack {
             content()
@@ -70,17 +70,17 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
                 .hidden()
 
             content()
-                .frame(width: max(0, finalWidth - 28.0))
+                .frame(width: max(0, finalWidth - 24.0))
         }
         .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
             if newWidth > 0 && abs(newWidth - measuredWidth) > 1.0 {
                 measuredWidth = newWidth
-                let calculated = min(maxW, max(minW, newWidth + 28.0))
+                let calculated = min(maxW, max(minW, newWidth + 24.0))
                 IslandController.shared.reportAlertCapsuleWidth(calculated)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 3.5)
         .frame(width: finalWidth, height: finalHeight)
             .background(
                 ZStack {
