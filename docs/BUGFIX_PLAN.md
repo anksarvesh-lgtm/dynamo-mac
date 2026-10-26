@@ -150,12 +150,12 @@ This document establishes the audit evidence, root causes, targeted minimal chan
 
 ## 3. "Do Not Regress" Safeguard Checklist
 
-- [ ] **Island stays open and shows detail card when icon clicked**: Verify pin-on-select and hover-exit guard in `IslandController.swift` remain intact.
-- [ ] **"Show on all displays" is permanently ON and options hidden**: Verify setting remains locked and unexposed in UI.
-- [ ] **Home dashboard rows wrap and Color Dropper is gone**: Verify dashboard layout preserves wrapping and Color Dropper remains removed from default grid.
-- [ ] **Net speed shows ONE combined value**: Verify network upload/download aggregation displays unified throughput.
-- [ ] **CPU-temp glow on left wing and RAM bar on right wing**: Verify wing sensor visualizers remain functional.
-- [ ] **Signing/notarization pipeline in build_dmg.sh**: Verify inside-out code signing flags and verification checks remain unchanged.
+- [x] **Island stays open and shows detail card when icon clicked**: Verified intact in `IslandController.swift` (pin-on-select line 111, hover-exit guard lines 808, 822) and verified by simulation in `scripts/test_reproduce_collapse.swift` (PASS).
+- [x] **"Show on all displays" is permanently ON and options hidden**: Verified launch enforcement and permanent observer restoration in `LiquidDynamoApp.swift` (`Defaults[.showOnAllDisplays] = true`), with UI configuration options completely removed from settings views.
+- [x] **Home dashboard rows wrap and Color Dropper is gone**: Verified dashboard layout preserves row wrapping and Color Dropper remains completely excised from the notch home grid.
+- [x] **Net speed shows ONE combined value**: Verified unified formatted string in `ContentView.swift` line 1828 (`speedProvider.formattedCombined`).
+- [x] **CPU-temp glow on left wing and RAM bar on right wing**: Verified `CPUTempGlowEdge` on left wing and `RAMBottomBar` on right wing in `WingBottomIndicators.swift`.
+- [x] **Signing/notarization pipeline in build_dmg.sh**: Verified inside-out Developer ID code signing, Hardened Runtime, notarization submission, and stapling intact via `scripts/test_release_script_milestone6.swift` (10/10 PASS).
 
 ---
 
