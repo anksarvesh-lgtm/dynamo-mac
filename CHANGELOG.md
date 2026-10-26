@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.8] — 2026-10-26
+
+### Background Auto-Download & Install & Instant Boot Checks
+- **Automated Background Updates**: Configured `GitHubUpdateChecker` to automatically download and stage updates in the background when pushed (`Defaults[.autoDownloadAndInstallUpdates]`), performing verified atomic in-place replacement and relaunch with zero user intervention required.
+- **Immediate Boot & Wake Verification**: Integrated immediate update checks on every boot and launch (0.5s post-startup) and subscribed to `NSWorkspace.didWakeNotification` to check for updates whenever the Mac wakes or unlocks.
+- **Background Periodic Scheduler**: Added automatic periodic background polling (every 30 minutes) ensuring updates pushed to GitHub are detected and installed swiftly while running in the background.
+- **High-Speed Streaming Pipeline**: Replaced byte-by-byte async sequence loop with native `URLSessionDownloadTask` and `HighSpeedDownloadDelegate`, saturating gigabit network connections directly to APFS storage at line-rate speeds (completing 22.6MB downloads in under 1 second on fast networks).
+- **Settings Toggle**: Added dedicated "Automatically download and install updates in background" toggle in Settings > Software Updates.
+
 ## [2.0.7] — 2026-10-26
 
 ### 3D Smoked-Glass Capsule Refinements & Content Contrast

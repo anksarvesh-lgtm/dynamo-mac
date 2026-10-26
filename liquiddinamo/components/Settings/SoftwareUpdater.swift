@@ -168,6 +168,7 @@ struct UpdaterSettingsView: View {
     private let updater: SPUUpdater
 
     @Default(.autoCheckUpdates) private var autoCheckUpdates
+    @Default(.autoDownloadAndInstallUpdates) private var autoDownloadAndInstallUpdates
     @State private var automaticallyChecksForUpdates: Bool
     @State private var automaticallyDownloadsUpdates: Bool
 
@@ -185,9 +186,10 @@ struct UpdaterSettingsView: View {
                     updater.automaticallyChecksForUpdates = newValue
                 }
 
-            Toggle("Automatically download and replace app", isOn: $automaticallyDownloadsUpdates)
+            Toggle("Automatically download and install updates in background", isOn: $autoDownloadAndInstallUpdates)
                 .disabled(!autoCheckUpdates)
-                .onChange(of: automaticallyDownloadsUpdates) { _, newValue in
+                .onChange(of: autoDownloadAndInstallUpdates) { _, newValue in
+                    automaticallyDownloadsUpdates = newValue
                     updater.automaticallyDownloadsUpdates = newValue
                 }
         } header: {

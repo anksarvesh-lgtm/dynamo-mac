@@ -19,30 +19,28 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.7"
+version = "2.0.8"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — 3D Smoked-Glass Capsules, Scopa Storage Optimizer & Dual Terminal Branding"
-release_body = """## LiquidDynamo 2.0.7 — 3D Smoked-Glass Capsules, Scopa Storage Optimizer & Dual Terminal Branding
+release_title = f"LiquidDynamo {version} — Instant Boot Update Checks & Background High-Speed Auto-Installer"
+release_body = """## LiquidDynamo 2.0.8 — Instant Boot Update Checks & Background High-Speed Auto-Installer
 
 LiquidDynamo transforms your MacBook hardware notch into an intelligent 3D Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.7:
-1. **3D Smoked-Glass Capsule Refinement**:
-   - Removed all water-filling waves, pouring streams, ripples, and splashes from capsules to eliminate text interference.
-   - Enhanced capsule backgrounds to high-opacity (92-97%) dark charcoal/obsidian smoked glass with restrained 3D specular curved gloss highlights.
-   - Content, icons, connection states, and status labels now remain crystal clear and readable on any desktop wallpaper.
-2. **Scopa Storage Optimizer Parity**:
-   - Cleanly renamed storage optimizer from Purge to **Scopa** across UI menus, dock views, notch dropdowns, models, and safety allowlist engine.
-3. **Dual Logo Terminal Installer**:
-   - One-line terminal installer updated with dual ANSI truecolor banners featuring the **LiquidDynamo app logo** and the **Agrigence website logo** (https://www.agrigence.in).
-   - Hardened dyld bindings and Gatekeeper auto-clearance ensure immediate, reliable startup.
-4. **Seamless Backward Compatibility**:
-   - Automated in-place updater verified to deliver version 2.0.7 to all older installed versions.
+### Core Highlights in Version 2.0.8:
+1. **Background Auto-Download & Install**:
+   - Added automated background update downloads and staging (`Defaults[.autoDownloadAndInstallUpdates]`), seamlessly applying verified updates in-place and relaunching without manual friction.
+2. **Instant Boot & Wake Verification**:
+   - Hooked immediate update checks on every app launch and boot (0.5s after launch) and on every system wake (`NSWorkspace.didWakeNotification`).
+   - Added automatic periodic background polling (every 30 minutes) to pick up new releases swiftly.
+3. **High-Speed Streaming Pipeline**:
+   - Replaced async sequence byte iteration with native `URLSessionDownloadTask` and `HighSpeedDownloadDelegate`, achieving line-rate gigabit throughput directly into APFS storage.
+4. **Settings Customization**:
+   - Added a dedicated toggle for "Automatically download and install updates in background" in Settings > Software Updates.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.7/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.8/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.7.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.7/LiquidDynamo-2.0.7.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.8.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.8/LiquidDynamo-2.0.8.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 

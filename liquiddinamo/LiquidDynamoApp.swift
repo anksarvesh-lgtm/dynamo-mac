@@ -921,10 +921,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }
-        // Auto-check for updates from GitHub releases
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+        // Immediate auto-check for updates from GitHub releases on boot & startup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if Defaults[.autoCheckUpdates] {
-                GitHubUpdateChecker.shared.checkForUpdates(silent: true)
+                GitHubUpdateChecker.shared.checkForUpdates(
+                    silent: true,
+                    autoInstall: Defaults[.autoDownloadAndInstallUpdates]
+                )
+            }
+            GitHubUpdateChecker.shared.startBackgroundUpdateScheduler()
+        }
+
+        // Auto-check for updates on system wake from sleep/boot unlock
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if Defaults[.autoCheckUpdates] {
+                GitHubUpdateChecker.shared.checkForUpdates(
+                    silent: true,
+                    autoInstall: Defaults[.autoDownloadAndInstallUpdates]
+                )
             }
         }
         #if DEBUG

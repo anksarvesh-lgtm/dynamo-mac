@@ -169,6 +169,74 @@ public enum UpdateSecurityError: LocalizedError {
     }
 }
 
+// MARK: - High-Speed Stream Download Delegate & Thread-Safe LockBox
+
+private final class DownloadLockBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isResumed = false
+
+    func resumeOnce(continuation: CheckedContinuation<URL, Error>, result: Result<URL, Error>) {
+        lock.lock()
+        defer { lock.unlock() }
+        if !isResumed {
+            isResumed = true
+            continuation.resume(with: result)
+        }
+    }
+}
+
+private final class HighSpeedDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let onProgress: @Sendable (Double, Int64, Int64) -> Void
+    private let onFinish: @Sendable (Result<URL, Error>) -> Void
+    private let lastUpdateLock = NSLock()
+    private var lastUpdateTime = Date.distantPast
+
+    init(
+        onProgress: @escaping @Sendable (Double, Int64, Int64) -> Void,
+        onFinish: @escaping @Sendable (Result<URL, Error>) -> Void
+    ) {
+        self.onProgress = onProgress
+        self.onFinish = onFinish
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        let now = Date()
+        lastUpdateLock.lock()
+        let shouldUpdate = now.timeIntervalSince(lastUpdateTime) >= 0.08 || totalBytesWritten == totalBytesExpectedToWrite
+        if shouldUpdate {
+            lastUpdateTime = now
+        }
+        lastUpdateLock.unlock()
+
+        if shouldUpdate {
+            let progress = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0.0
+            onProgress(progress, totalBytesWritten, totalBytesExpectedToWrite)
+        }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        let tempTarget = FileManager.default.temporaryDirectory.appendingPathComponent("ld_dl_\(UUID().uuidString)")
+        do {
+            try FileManager.default.moveItem(at: location, to: tempTarget)
+            onFinish(.success(tempTarget))
+        } catch {
+            onFinish(.failure(error))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error = error {
+            onFinish(.failure(error))
+        }
+    }
+}
+
 // MARK: - GitHubUpdateChecker
 
 @MainActor
@@ -205,12 +273,27 @@ public final class GitHubUpdateChecker: ObservableObject {
     @Published public var isBannerDismissed: Bool = false
 
     private var activeDownloadTask: Task<Void, Never>?
+    private var periodicCheckTimer: Timer?
 
     private init() {}
 
     // MARK: - 1. Check for Updates
 
+    public func startBackgroundUpdateScheduler(interval: TimeInterval = 1800) {
+        periodicCheckTimer?.invalidate()
+        periodicCheckTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                if Defaults[.autoCheckUpdates] {
+                    self.checkForUpdates(silent: true, autoInstall: Defaults[.autoDownloadAndInstallUpdates])
+                }
+            }
+        }
+    }
+
     public func checkForUpdates(silent: Bool = false, autoInstall: Bool = false) {
+        let effectiveAutoInstall = autoInstall || Defaults[.autoDownloadAndInstallUpdates]
+
         // Enforce user privacy preference: skip background checks when disabled
         if silent && !Defaults[.autoCheckUpdates] {
             return
@@ -242,7 +325,7 @@ public final class GitHubUpdateChecker: ObservableObject {
                     // Post update notification directly in the Dynamic Island
                     self.triggerIslandUpdateAlert(version: latestVersion)
 
-                    if autoInstall {
+                    if effectiveAutoInstall {
                         self.downloadAndInstallUpdate(from: targetURL)
                     }
                 } else {
@@ -273,50 +356,69 @@ public final class GitHubUpdateChecker: ObservableObject {
         request.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "2.0.0")", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 12
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw NSError(domain: "GitHubUpdateChecker", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to connect to GitHub Releases API."])
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let tagName = json["tag_name"] as? String {
+                let cleanVersion = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
+                let body = (json["body"] as? String) ?? "A new version of LiquidDynamo is available."
+
+                var chosenURL: URL? = nil
+                if let assets = json["assets"] as? [[String: Any]] {
+                    // Prioritize liquiddynamo.zip (contains application bundle)
+                    if let zipAsset = assets.first(where: {
+                        let name = ($0["name"] as? String)?.lowercased() ?? ""
+                        return name == "liquiddynamo.zip" || name.hasSuffix(".zip")
+                    }), let downloadStr = zipAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
+                        if (try? Self.validateDownloadURL(url)) != nil {
+                            chosenURL = url
+                        }
+                    } else if let dmgAsset = assets.first(where: {
+                        let name = ($0["name"] as? String)?.lowercased() ?? ""
+                        return name.hasSuffix(".dmg")
+                    }), let downloadStr = dmgAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
+                        if (try? Self.validateDownloadURL(url)) != nil {
+                            chosenURL = url
+                        }
+                    }
+                }
+
+                if chosenURL == nil && !cleanVersion.isEmpty {
+                    chosenURL = URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(cleanVersion)/liquiddynamo.zip")
+                }
+
+                return ReleasePayload(
+                    version: cleanVersion,
+                    body: body,
+                    downloadURL: chosenURL
+                )
+            }
+        } catch {
+            // Fall through to unauthenticated HTML redirect fallback
         }
 
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let tagName = json["tag_name"] as? String else {
-            throw NSError(domain: "GitHubUpdateChecker", code: 404, userInfo: [NSLocalizedDescriptionKey: "Invalid release response from GitHub."])
-        }
+        // Fallback: Query GitHub releases/latest redirect URL (bypasses unauthenticated API rate limits completely)
+        var headRequest = URLRequest(url: URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/latest")!)
+        headRequest.httpMethod = "HEAD"
+        headRequest.setValue("LiquidDynamo/\(Bundle.main.releaseVersionNumber ?? "2.0.0")", forHTTPHeaderField: "User-Agent")
+        headRequest.timeoutInterval = 12
 
-        let cleanVersion = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
-        let body = (json["body"] as? String) ?? "A new version of LiquidDynamo is available."
-
-        var chosenURL: URL? = nil
-        if let assets = json["assets"] as? [[String: Any]] {
-            // Prioritize liquiddynamo.zip (contains application bundle)
-            if let zipAsset = assets.first(where: {
-                let name = ($0["name"] as? String)?.lowercased() ?? ""
-                return name == "liquiddynamo.zip" || name.hasSuffix(".zip")
-            }), let downloadStr = zipAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
-                if (try? Self.validateDownloadURL(url)) != nil {
-                    chosenURL = url
-                }
-            } else if let dmgAsset = assets.first(where: {
-                let name = ($0["name"] as? String)?.lowercased() ?? ""
-                return name.hasSuffix(".dmg")
-            }), let downloadStr = dmgAsset["browser_download_url"] as? String, let url = URL(string: downloadStr) {
-                if (try? Self.validateDownloadURL(url)) != nil {
-                    chosenURL = url
-                }
+        let (_, redirectResponse) = try await URLSession.shared.data(for: headRequest)
+        if let finalURL = redirectResponse.url {
+            let lastComponent = finalURL.lastPathComponent
+            let cleanVersion = lastComponent.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
+            if !cleanVersion.isEmpty && SemanticVersion(cleanVersion) != nil {
+                let targetZip = URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(cleanVersion)/liquiddynamo.zip")
+                return ReleasePayload(
+                    version: cleanVersion,
+                    body: "LiquidDynamo v\(cleanVersion) is available with performance and security enhancements.",
+                    downloadURL: targetZip
+                )
             }
         }
 
-        // If no assets matched in payload, construct version-pinned official download URL
-        if chosenURL == nil && !cleanVersion.isEmpty {
-            let fallbackVersioned = URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(cleanVersion)/liquiddynamo.zip")
-            chosenURL = fallbackVersioned
-        }
-
-        return ReleasePayload(
-            version: cleanVersion,
-            body: body,
-            downloadURL: chosenURL
-        )
+        throw NSError(domain: "GitHubUpdateChecker", code: 404, userInfo: [NSLocalizedDescriptionKey: "Could not fetch release from GitHub API or release mirrors."])
     }
 
     // MARK: - 2. Dynamic Island Alert Notification
@@ -423,68 +525,47 @@ public final class GitHubUpdateChecker: ObservableObject {
                     }
 
                     var request = URLRequest(url: candidateURL)
-                    request.timeoutInterval = 120
+                    request.timeoutInterval = 60
                     request.setValue("LiquidDynamo-AutoUpdater", forHTTPHeaderField: "User-Agent")
 
-                    let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
-                    guard let httpResponse = response as? HTTPURLResponse else {
-                        throw NSError(domain: "AutoUpdater", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid server response."])
-                    }
+                    let lockBox = DownloadLockBox()
+                    let downloadedTempURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+                        let delegate = HighSpeedDownloadDelegate(
+                            onProgress: { [weak self] progress, downloadedBytes, totalBytes in
+                                Task { @MainActor [weak self] in
+                                    guard let self = self else { return }
+                                    self.downloadProgress = progress
+                                    let downloadedStr = Self.formatBytes(downloadedBytes)
+                                    let totalStr = totalBytes > 0 ? Self.formatBytes(totalBytes) : "…"
+                                    self.downloadStatusFormatted = "\(downloadedStr) / \(totalStr)"
+                                    self.status = .downloading(
+                                        progress: progress,
+                                        downloadedFormatted: downloadedStr,
+                                        totalFormatted: totalStr
+                                    )
+                                }
+                            },
+                            onFinish: { result in
+                                lockBox.resumeOnce(continuation: continuation, result: result)
+                            }
+                        )
 
-                    guard (200...299).contains(httpResponse.statusCode) else {
-                        throw NSError(domain: "AutoUpdater", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Download server returned HTTP \(httpResponse.statusCode)."])
-                    }
+                        let sessionConfig = URLSessionConfiguration.default
+                        sessionConfig.timeoutIntervalForRequest = 20
+                        sessionConfig.timeoutIntervalForResource = 300
+                        sessionConfig.waitsForConnectivity = true
+                        sessionConfig.httpMaximumConnectionsPerHost = 8
+                        sessionConfig.requestCachePolicy = .reloadIgnoringLocalCacheData
 
-                    let totalBytes = httpResponse.expectedContentLength
-                    var downloadedBytes: Int64 = 0
+                        let session = URLSession(configuration: sessionConfig, delegate: delegate, delegateQueue: nil)
+                        let downloadTask = session.downloadTask(with: request)
+                        downloadTask.resume()
+                    }
 
                     if FileManager.default.fileExists(atPath: tempDownloadURL.path) {
                         try? FileManager.default.removeItem(at: tempDownloadURL)
                     }
-                    FileManager.default.createFile(atPath: tempDownloadURL.path, contents: nil)
-                    guard let fileHandle = try? FileHandle(forWritingTo: tempDownloadURL) else {
-                        throw NSError(domain: "AutoUpdater", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not create temporary download file."])
-                    }
-
-                    var lastUpdate = Date()
-                    var buffer = Data()
-                    buffer.reserveCapacity(64 * 1024)
-
-                    for try await byte in asyncBytes {
-                        if Task.isCancelled {
-                            try? fileHandle.close()
-                            try? FileManager.default.removeItem(at: tempDownloadURL)
-                            self.isDownloading = false
-                            return
-                        }
-
-                        buffer.append(byte)
-                        downloadedBytes += 1
-
-                        if buffer.count >= 64 * 1024 {
-                            fileHandle.write(buffer)
-                            buffer.removeAll(keepingCapacity: true)
-
-                            if Date().timeIntervalSince(lastUpdate) > 0.12 {
-                                lastUpdate = Date()
-                                let fraction = totalBytes > 0 ? Double(downloadedBytes) / Double(totalBytes) : 0.0
-                                let downloadedStr = Self.formatBytes(downloadedBytes)
-                                let totalStr = totalBytes > 0 ? Self.formatBytes(totalBytes) : "…"
-                                self.downloadProgress = fraction
-                                self.downloadStatusFormatted = "\(downloadedStr) / \(totalStr)"
-                                self.status = .downloading(
-                                    progress: fraction,
-                                    downloadedFormatted: downloadedStr,
-                                    totalFormatted: totalStr
-                                )
-                            }
-                        }
-                    }
-
-                    if !buffer.isEmpty {
-                        fileHandle.write(buffer)
-                    }
-                    try? fileHandle.close()
+                    try FileManager.default.moveItem(at: downloadedTempURL, to: tempDownloadURL)
 
                     let downloadedFileSize = (try? FileManager.default.attributesOfItem(atPath: tempDownloadURL.path)[.size] as? Int64) ?? 0
                     guard downloadedFileSize > 1024 * 1024 else {
