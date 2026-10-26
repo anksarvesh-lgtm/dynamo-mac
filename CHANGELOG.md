@@ -2,6 +2,20 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.7] — 2026-10-26
+
+### 3D Smoked-Glass Capsule Refinements & Content Contrast
+- **Water Effect Removal**: Removed water-filling simulation, pouring streams, surface waves, ripples, and splashes across all capsules.
+- **Enhanced Dark Smoked-Glass Base**: Upgraded capsule backgrounds to a solid, high-opacity (92-97%) dark charcoal/obsidian glass with subtle 3D curved gloss reflections, ensuring crystal-clear text contrast on any wallpaper.
+- **Rendering Optimization**: Eliminated 60fps Canvas simulation loops and particle allocations, dramatically decreasing CPU and GPU utilization.
+
+### Scopa Storage Optimizer Parity
+- **Full Parity Renaming**: Cleanly rebranded the storage optimizer from Purge to **Scopa** across UI menus, dock views, notch dropdowns, models, and safety allowlist engine.
+
+### Dual Logo Terminal Installer
+- **Agrigence & LiquidDynamo Branding**: Enhanced the one-line terminal installer (`install.sh`) with dual ANSI truecolor badges featuring the **LiquidDynamo app logo** (3D notch droplet) and the **Agrigence website logo** (pen nib & sprout emblem with hyperlink).
+- **Auto-Launch Hardening**: Implemented direct dyld binding repairs and Gatekeeper clearance to guarantee immediate startup on macOS Sonoma and Sequoia.
+
 ## [2.0.6] — 2026-10-26
 
 ### Live 3D Half-Filled Water Capsule Notification

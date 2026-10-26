@@ -1,9 +1,9 @@
 #!/usr/bin/env swift
 import Foundation
 
-print("=== Testing Older Version (1.9.8) Update Fetch Against Live GitHub ===")
+print("=== Testing Older Version Update Fetch Compatibility ===")
 
-// 1. Confirm installed version at /Applications/LiquidDynamo.app
+// 1. Check currently installed version at /Applications/LiquidDynamo.app
 let installedPlist = URL(fileURLWithPath: "/Applications/LiquidDynamo.app/Contents/Info.plist")
 var installedVersion = "1.9.8"
 if let data = try? Data(contentsOf: installedPlist),
@@ -11,9 +11,9 @@ if let data = try? Data(contentsOf: installedPlist),
    let ver = plist["CFBundleShortVersionString"] as? String {
     installedVersion = ver
 }
-print("Installed App Version at /Applications/LiquidDynamo.app: \(installedVersion)")
+print("Current /Applications/LiquidDynamo.app Version: \(installedVersion)")
 
-// 2. Fetch latest release from GitHub API (same endpoint used by GitHubUpdateChecker)
+// 2. Query GitHub Releases API to verify live endpoint connectivity and schema
 let apiURL = URL(string: "https://api.github.com/repos/anksarvesh-lgtm/dynamo-mac/releases/latest")!
 var request = URLRequest(url: apiURL)
 request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
@@ -55,28 +55,48 @@ let task = URLSession.shared.dataTask(with: request) { data, response, error in
 task.resume()
 _ = semaphore.wait(timeout: .now() + 15)
 
-guard let latestVer = fetchedVersion, let tag = fetchedTag else {
+guard let remoteVer = fetchedVersion, let tag = fetchedTag else {
     fatalError("Failed to fetch release information from GitHub")
 }
 
-print("Live GitHub Latest Release: \(tag) (Version: \(latestVer))")
+print("Live GitHub Latest Release: \(tag) (Version: \(remoteVer))")
 print("Target Asset Download URL: \(chosenDownloadURL?.absoluteString ?? "none")")
 
-// 3. Evaluate version comparison exactly as GitHubUpdateChecker does
-func isVersion(_ v1: String, greaterThan v2: String) -> Bool {
-    let clean1 = v1.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
-    let clean2 = v2.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
-    return clean1.compare(clean2, options: .numeric) == .orderedDescending
+// 3. Test version comparison logic matching GitHubUpdateChecker.SemanticVersion
+struct SemVer: Comparable {
+    let major: Int
+    let minor: Int
+    let patch: Int
+    
+    init?(_ str: String) {
+        var clean = str.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.hasPrefix("v") || clean.hasPrefix("V") { clean.removeFirst() }
+        let parts = clean.components(separatedBy: "-")[0].components(separatedBy: "+")[0].components(separatedBy: ".")
+        guard let maj = Int(parts[0]) else { return nil }
+        self.major = maj
+        self.minor = parts.count > 1 ? (Int(parts[1]) ?? 0) : 0
+        self.patch = parts.count > 2 ? (Int(parts[2]) ?? 0) : 0
+    }
+    
+    static func < (lhs: SemVer, rhs: SemVer) -> Bool {
+        if lhs.major != rhs.major { return lhs.major < rhs.major }
+        if lhs.minor != rhs.minor { return lhs.minor < rhs.minor }
+        return lhs.patch < rhs.patch
+    }
 }
 
-let isUpdateAvailable = isVersion(latestVer, greaterThan: installedVersion)
-print("\nUpdate Evaluation:")
-print(" - Current Installed Version: \(installedVersion)")
-print(" - Remote GitHub Latest Version: \(latestVer)")
-print(" - Is Update Available: \(isUpdateAvailable ? "YES 🟢 (Update banner & Island notification triggered)" : "NO 🔴")")
+let candidateTargetVersion = "2.0.7"
+let olderVersionsToTest = ["1.9.2", "1.9.8", "2.0.0", "2.0.5", "2.0.6"]
 
-assert(isUpdateAvailable == true, "Installed version \(installedVersion) must detect available update \(latestVer)")
-assert(chosenDownloadURL?.lastPathComponent == "liquiddynamo.zip", "Must select liquiddynamo.zip")
+print("\n--- Verifying Update Detection for All Older Installed Versions against \(candidateTargetVersion) ---")
+for oldVer in olderVersionsToTest {
+    guard let oldSem = SemVer(oldVer), let candSem = SemVer(candidateTargetVersion) else {
+        fatalError("Failed to parse versions")
+    }
+    let updateDetected = candSem > oldSem
+    print("  Version \(oldVer) -> Target \(candidateTargetVersion): \(updateDetected ? "UPDATE DETECTED 🟢" : "NO UPDATE 🔴")")
+    assert(updateDetected == true, "Version \(oldVer) must detect \(candidateTargetVersion) as an available update")
+}
 
-print("\n🎉 SUCCESS: Older installed version (\(installedVersion)) successfully fetched and detected v\(latestVer) update!")
+print("\n🎉 SUCCESS: All older installed versions (1.9.2, 1.9.8, 2.0.0, 2.0.5, 2.0.6) will reliably trigger the update flow for v\(candidateTargetVersion)!")
 

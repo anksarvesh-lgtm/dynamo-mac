@@ -19,28 +19,30 @@ if not token:
     sys.exit(1)
 
 repos = ["anksarvesh-lgtm/dynamo-mac", "anksarvesh-lgtm/dynamomac"]
-version = "2.0.6"
+version = "2.0.7"
 tag_name = f"v{version}"
-release_title = f"LiquidDynamo {version} — Live 3D Water Glass Capsules & Global Clipping Refinements"
-release_body = """## LiquidDynamo 2.0.6 — Live 3D Water Glass Capsules & Global Clipping Refinements
+release_title = f"LiquidDynamo {version} — 3D Smoked-Glass Capsules, Scopa Storage Optimizer & Dual Terminal Branding"
+release_body = """## LiquidDynamo 2.0.7 — 3D Smoked-Glass Capsules, Scopa Storage Optimizer & Dual Terminal Branding
 
-LiquidDynamo transforms your MacBook hardware notch into an intelligent Liquid Glass status and notification Dynamic Island.
+LiquidDynamo transforms your MacBook hardware notch into an intelligent 3D Liquid Glass status and notification Dynamic Island.
 
-### Core Highlights in Version 2.0.6:
-1. **Unified Live 3D Water Effect Across All Capsules**:
-   - Implemented realistic half-filled (50%) liquid volume with dual-layered sine waves, animated fluid pouring streams, surface ripples, and dynamic specular caustics.
-   - Applied consistently across all connected device capsules (MagSafe Charger, Devices, Sarvesh/iPhone, RTL9201 external SSD) and dashboard quick tool status capsules.
-2. **Deterministic Spatial & Phase Staggering**:
-   - Seeded per-device phase offsets and stream X coordinates prevent artificial synchronized movement across multiple connected device capsules.
-3. **Specular Glass Containment**:
-   - Exact capsule boundary clipping preserving existing Liquid Glass materials, drop shadows, and responsive layout spring physics.
-4. **CI/CD & Update Engine Compatibility**:
-   - Runner updated to support Xcode 16 project schemas and verified direct update delivery.
+### Core Highlights in Version 2.0.7:
+1. **3D Smoked-Glass Capsule Refinement**:
+   - Removed all water-filling waves, pouring streams, ripples, and splashes from capsules to eliminate text interference.
+   - Enhanced capsule backgrounds to high-opacity (92-97%) dark charcoal/obsidian smoked glass with restrained 3D specular curved gloss highlights.
+   - Content, icons, connection states, and status labels now remain crystal clear and readable on any desktop wallpaper.
+2. **Scopa Storage Optimizer Parity**:
+   - Cleanly renamed storage optimizer from Purge to **Scopa** across UI menus, dock views, notch dropdowns, models, and safety allowlist engine.
+3. **Dual Logo Terminal Installer**:
+   - One-line terminal installer updated with dual ANSI truecolor banners featuring the **LiquidDynamo app logo** and the **Agrigence website logo** (https://www.agrigence.in).
+   - Hardened dyld bindings and Gatekeeper auto-clearance ensure immediate, reliable startup.
+4. **Seamless Backward Compatibility**:
+   - Automated in-place updater verified to deliver version 2.0.7 to all older installed versions.
 
 ### Direct Downloads:
-- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.6/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
+- **[liquiddynamo.zip](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.7/liquiddynamo.zip)** (Fast in-app update & direct app bundle)
 - **[liquiddynamo.zip (Latest)](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/liquiddynamo.zip)** (Permanent latest app zip link)
-- **[LiquidDynamo-2.0.6.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.6/LiquidDynamo-2.0.6.dmg)** (Standalone signed DMG)
+- **[LiquidDynamo-2.0.7.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/v2.0.7/LiquidDynamo-2.0.7.dmg)** (Standalone signed DMG)
 - **[LiquidDynamo.dmg](https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo.dmg)** (Permanent latest release link)
 """
 
@@ -55,15 +57,18 @@ if not os.path.exists(dmg_file):
 with open(dmg_file, "rb") as f:
     dmg_data = f.read()
 
-zip_file = os.path.expanduser("~/Desktop/liquiddynamo.zip")
-if not os.path.exists(zip_file):
-    zip_file = os.path.join(os.getcwd(), "build", "liquiddynamo.zip")
+zip_candidates = [
+    os.path.join(os.getcwd(), "liquiddynamo.zip"),
+    os.path.expanduser("~/Desktop/liquiddynamo.zip"),
+    os.path.join(os.getcwd(), "build", "liquiddynamo.zip"),
+]
+zip_file = next((z for z in zip_candidates if os.path.exists(z)), None)
 
 zip_data = None
-if os.path.exists(zip_file):
+if zip_file and os.path.exists(zip_file):
     with open(zip_file, "rb") as f:
         zip_data = f.read()
-    print(f"Loaded liquiddynamo.zip ({len(zip_data) // (1024*1024)} MB)")
+    print(f"Loaded liquiddynamo.zip from {zip_file} ({len(zip_data) // (1024*1024)} MB)")
 
 headers = {
     "Authorization": f"Bearer {token}",

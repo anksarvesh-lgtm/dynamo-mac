@@ -35,15 +35,15 @@ RED="${ESC}38;2;248;113;113m"
 print_banner() {
     clear 2>/dev/null || true
     echo ""
-    echo -e "${CYAN}   ██╗     ██╗ ██████╗ ██╗   ██╗██╗██████╗ ██████╗ ██╗   ██╗███╗   ██╗ █████╗ ███╗   ███╗ ██████╗ ${RESET}"
-    echo -e "${CYAN}   ██║     ██║██╔═══██╗██║   ██║██║██╔══██╗██╔══██╗╚██╗ ██╔╝████╗  ██║██╔══██╗████╗ ████║██╔═══██╗${RESET}"
-    echo -e "${MINT}   ██║     ██║██║   ██║██║   ██║██║██║  ██║██║  ██║ ╚████╔╝ ██╔██╗ ██║███████║██╔████╔██║██║   ██║${RESET}"
-    echo -e "${MINT}   ██║     ██║██║▄▄ ██║██║   ██║██║██║  ██║██║  ██║  ╚██╔╝  ██║╚██╗██║██╔══██║██║╚██╔╝██║██║   ██║${RESET}"
-    echo -e "${ACCENT_GREEN}   ███████╗██║╚██████╔╝╚██████╔╝██║██████╔╝██████╔╝   ██║   ██║ ╚████║██║  ██║██║ ╚═╝ ██║╚██████╔╝${RESET}"
-    echo -e "${ACCENT_GREEN}   ╚══════╝╚═╝ ╚══▀▀═╝  ╚═════╝ ╚═╝╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ${RESET}"
+    echo -e "  ${CYAN}╭─── 💧 APP LOGO: LiquidDynamo ───────╮${RESET}   ${BRIGHT_GREEN}╭─── 🌱 WEBSITE LOGO: Agrigence ──────╮${RESET}"
+    echo -e "  ${CYAN}│${RESET}   ${BLUE}▄██████▄${RESET}   ${BOLD}${WHITE}LiquidDynamo for Mac${RESET}  ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}      ${EMERALD}▲${RESET}      ${BOLD}${WHITE}Agrigence Labs${RESET}        ${BRIGHT_GREEN}│${RESET}"
+    echo -e "  ${CYAN}│${RESET}  ${CYAN}███${WHITE}╭──╮${CYAN}███${RESET}  ${MUTED}3D Organic Notch HUD${RESET}  ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}     ${ACCENT_GREEN}╱ ╲${RESET}     ${MUTED}Official Publisher Hub${RESET} ${BRIGHT_GREEN}│${RESET}"
+    echo -e "  ${CYAN}│${RESET}  ${BLUE}███${WHITE}│💧│${BLUE}███${RESET}  ${MUTED}Dynamic Island Pill ${RESET}  ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}    ${MINT}╱ █ ╲${RESET}    ${CYAN}https://www.agrigence.in${RESET} ${BRIGHT_GREEN}│${RESET}"
+    echo -e "  ${CYAN}│${RESET}   ${BLUE}▀██████▀${RESET}   ${BOLD}${CYAN}v2.0.7 • macOS 14+${RESET}    ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}   ${EMERALD}▀▀▀ █ ▀▀▀${RESET}  ${DIM}Copyright © 2026 Agrigence${RESET}${BRIGHT_GREEN}│${RESET}"
+    echo -e "  ${CYAN}╰─────────────────────────────────────╯${RESET}   ${BRIGHT_GREEN}╰─────────────────────────────────────╯${RESET}"
     echo ""
-    echo -e "   ${BOLD}${WHITE}Liquid Glass Dynamic Island & Notch Architecture for macOS${RESET}"
-    echo -e "   ${DIM}Crafted by ${RESET}${BOLD}${BRIGHT_GREEN}Agrigence${RESET} ${DIM}•${RESET} ${CYAN}https://www.agrigence.in/${RESET}"
+    echo -e "   ${BOLD}${WHITE}LiquidDynamo — One-Line Enterprise Installer & Gatekeeper Bypass${RESET}"
+    echo -e "   ${DIM}Crafted by ${RESET}${BOLD}${BRIGHT_GREEN}Agrigence${RESET} ${DIM}•${RESET} ${CYAN}https://www.agrigence.in/${RESET} ${DIM}•${RESET} ${WHITE}Universal Apple Silicon & Intel${RESET}"
     echo -e "   ${DARK_GRAY}───────────────────────────────────────────────────────────────────────────────${RESET}"
     echo ""
 }
@@ -242,8 +242,8 @@ if [ "$RUNNING" = false ]; then
     fi
 fi
 
-APP_VERSION="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "2.0.6")"
-APP_BUILD="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleVersion 2>/dev/null || echo "19")"
+APP_VERSION="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "2.0.7")"
+APP_BUILD="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleVersion 2>/dev/null || echo "20")"
 
 echo ""
 if [ "$RUNNING" = true ]; then
