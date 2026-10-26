@@ -20,9 +20,15 @@ This document outlines the core engineering guidelines, design constraints, and 
    - On external displays and non-notched Macs, the UI floats gracefully as a Dynamic Island pill.
 
 4. **100% Privacy & Zero Telemetry**:
-   - LiquidDynamo executes 100% locally.
-   - Never introduce analytics trackers, telemetry reporters, or network phone-home calls.
-   - Bluetooth discovery and CoreAudio device inspection must remain strictly local to user-paired devices.
+   - LiquidDynamo executes locally and transmits zero background analytics, tracking, telemetry, clipboard data, or personal files.
+   - Outbound network requests are strictly limited to user-controlled, opt-in features:
+     - Software update checks via GitHub Releases API (`api.github.com` / `github.com`), enabled by default with toggle in Settings > Privacy & General.
+     - Public IP lookup (`api64.ipify.org`), on-demand only in Network Dashboard, disabled by default.
+     - 3D Cloud model generation (`api.meshy.ai`), disabled by default, requiring explicit modal user consent before any image upload, with API keys stored exclusively in macOS Keychain.
+     - Synced music lyrics (`lrclib.net`), disabled by default per user lyrics preference.
+     - Powerload multi-interface downloads directly to user-supplied URLs.
+   - All network endpoints are disclosed and individually toggled in Settings > Privacy ("Network Access & Endpoints").
+   - Bluetooth discovery, CoreAudio inspection, and sensor monitoring remain strictly local to the user's Mac.
 
 ---
 

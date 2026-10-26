@@ -17,7 +17,7 @@
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/License-GPL--3.0-64D2FF?style=for-the-badge" alt="License" />
     </a>
-    <img src="https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%20Zero%20Telemetry-FF375F?style=for-the-badge" alt="Zero Telemetry" />
+    <img src="https://img.shields.io/badge/Privacy-Zero%20Telemetry%20%7C%20Opt--In%20Network-FF375F?style=for-the-badge" alt="Zero Telemetry" />
   </p>
 
   <p align="center">
@@ -235,7 +235,7 @@ bash scripts/verify_release.sh ~/Desktop/LiquidDynamo-2.0.5.dmg
 - **Metal & SceneKit Shaders**: Photorealistic liquid glass surface shaders (`LiquidGlassSurface`) and 3D USDZ rendering.
 - **Geometry Isolation (`NotchSafeAreaEngine`)**: Mathematical safe-area calculation ensuring exact pixel alignment with Apple's physical hardware notch and multi-display setups.
 - **Fluid Spring Physics (`IslandMotion`)**: Non-linear organic physics orchestration for smooth expanding, shrinking, and rubber-banding.
-- **100% Offline & Private**: Zero analytics, zero telemetric beacons, zero cloud accounts.
+- **Zero Telemetry & User-Controlled Network**: Zero background telemetry, analytics tracking, clipboard transmission, or personal file access. Outbound connections are strictly limited to user-controlled features (automatic updates, public IP lookup, Meshy 3D generation, lyrics, and direct downloads), all fully disclosed and configurable in **Settings > Privacy**.
 
 ---
 

@@ -6,12 +6,13 @@
 //
 
 import Combine
+import Defaults
 import Foundation
 
 /// Service managing on-demand retrieval of the user's public IP address.
 ///
 /// Principles:
-/// - Strictly off by default: Zero network calls until explicitly requested by the user.
+/// - Strictly off by default: Zero network calls until explicitly requested by the user and enabled in Settings > Privacy.
 /// - Privacy: Exclusively queries `api64.ipify.org` (user-confirmed endpoint).
 /// - Reactive: Publishes IP string, loading indicator, and error message on `@MainActor`.
 @MainActor
@@ -30,6 +31,12 @@ public final class PublicIPService: ObservableObject {
 
     /// Fetches the public IP from `api64.ipify.org`.
     public func fetch() {
+        guard Defaults[.privacyPublicIPLookup] else {
+            isRevealed = true
+            errorMessage = "Public IP lookup is disabled. Enable in Settings > Privacy."
+            return
+        }
+
         isRevealed = true
         isFetching = true
         errorMessage = nil

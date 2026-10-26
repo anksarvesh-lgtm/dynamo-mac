@@ -119,6 +119,27 @@ public final class CloudModelGenerationCoordinator: ObservableObject {
             return
         }
 
+        // Check privacy consent before transmitting image to third-party AI
+        if !Defaults[.privacyMeshyUploadEnabled] {
+            let alert = NSAlert()
+            alert.messageText = "Consent Required: 3D Cloud Generation"
+            alert.informativeText = "Generating a 3D model transmits your device image to Meshy AI (api.meshy.ai). No telemetry, clipboard data, or personal files are transmitted. Do you consent to uploading this image to Meshy AI?"
+            alert.addButton(withTitle: "Consent & Enable")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .informational
+            if alert.runModal() == .alertFirstButtonReturn {
+                Defaults[.privacyMeshyUploadEnabled] = true
+            } else {
+                activeJobs[key] = CloudJobState(
+                    progress: 0,
+                    statusMessage: "Generation cancelled: user did not consent to image upload.",
+                    isGenerating: false,
+                    error: "Upload consent required."
+                )
+                return
+            }
+        }
+
         activeJobs[key] = CloudJobState(
             progress: 0.05,
             statusMessage: "Loading product image...",

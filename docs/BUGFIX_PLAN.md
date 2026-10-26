@@ -130,17 +130,21 @@ This document establishes the audit evidence, root causes, targeted minimal chan
   - Validated syntax of `build_dmg.sh`, `scripts/compile_dynamo.sh`, `scripts/setup_spm_deps.sh`, and `scripts/verify_release.sh`.
 
 ### Milestone 7: Outbound Network Disclosure & Privacy Opt-Ins
-- **Cause**: Unannounced outbound network connections contradict zero-telemetry claims in README/RULES.
+- **Status**: **CONFIRMED & FIXED**
+- **Cause**: Outbound connections were found to `api64.ipify.org` (public IP lookup), `assets9.lottiefiles.com` (remote Lottie wave visualizer), `api.meshy.ai` (image to 3D cloud generation), and GitHub Releases without unified disclosure or granular privacy opt-ins.
 - **Change**:
-  1. Add "Network Access" section in Settings > Privacy detailing all outbound endpoints:
-     - Automatic Updates (`api.github.com` / `github.com`) - default ON.
-     - Public IP Lookup (`api64.ipify.org`) - default OFF with toggle.
-     - Meshy 3D Generation (`api.meshy.ai`) - default OFF, explicit consent dialog before upload, API key stored exclusively in Keychain.
-     - Music Lyrics (`lrclib.net`) - respect existing user preference.
-     - Lottie animations - bundle JSON locally or cache locally after consent.
-  2. Clarify README and RULES.md to transparently document network capabilities and user opt-ins.
-- **Risk**: UI layout regressions in Settings.
-- **Test**: Verify default states, toggling behavior, keychain storage, and local offline fallback.
+  1. Added "Network Access & Endpoints" card in `SettingsPrivacyView.swift` detailing all outbound connections:
+     - Software update checks (`api.github.com` / `github.com`) - default ON with toggle.
+     - Public IP lookup (`api64.ipify.org`) - default OFF with toggle; guarded in `PublicIPService.swift`.
+     - 3D Cloud model generation (`api.meshy.ai`) - default OFF with toggle; guarded in `MeshyImageTo3DProvider.swift`; explicit `NSAlert` modal consent before image upload in `CloudModelGenerationCoordinator.swift`; API key strictly in Keychain.
+     - Synced lyrics (`lrclib.net`) - default OFF with toggle per existing `enableLyrics` preference.
+     - Powerload multi-interface downloads - transparently disclosed as contacting user-provided URLs only.
+     - Remote Lottie animation - replaced with bundled `default_wave_visualizer.json` in `liquiddinamo/Resources` for 100% offline rendering.
+  2. Updated `README.md` and `RULES.md` to accurately disclose network boundaries and privacy opt-ins, removing inaccurate marketing claims.
+- **Risk**: None; default states match privacy principles and existing features remain functional.
+- **Test Evidence**:
+  - `scripts/test_network_disclosure_milestone7.swift`: 13/13 tests passed covering bundled Lottie JSON validity, local JSON precedence in LottieAnimationContainer, PublicIPService opt-in guard, MeshyImageTo3DProvider opt-in guard, modal consent dialog in coordinator, SettingsPrivacyView disclosures and toggles, default values in Constants.swift, and accurate documentation in RULES.md and README.md.
+  - `xcodebuild -scheme LiquidDynamo -configuration Debug build`: **BUILD SUCCEEDED**.
 
 ---
 

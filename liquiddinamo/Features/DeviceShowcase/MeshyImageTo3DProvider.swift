@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Defaults
 import Foundation
 import SceneKit
 
@@ -57,6 +58,11 @@ public final class MeshyImageTo3DProvider: ImageTo3DProvider, @unchecked Sendabl
         pngData: Data,
         onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws -> URL {
+        // 0. Privacy opt-in enforcement
+        guard Defaults[.privacyMeshyUploadEnabled] else {
+            throw ImageTo3DError.networkError("Meshy AI 3D model generation is disabled in Settings > Privacy.")
+        }
+
         // 1. Retrieve API key from secure Keychain (never printed or logged)
         guard let apiKey = KeychainService.shared.getMeshyKey(), !apiKey.isEmpty else {
             throw ImageTo3DError.missingApiKey(provider: "Meshy")
