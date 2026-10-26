@@ -104,14 +104,17 @@ This document establishes the audit evidence, root causes, targeted minimal chan
   - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 5: ADBClient Concurrency & Process Safety
+- **Status**: **CONFIRMED & FIXED (VERIFIED WITH 10/10 PASSING UNIT TESTS & XCODEBUILD DEBUG BUILD)**
 - **Cause**: Output pipes read only in `terminationHandler`, deadlocking on >64KB output; process timeouts return exit code 15 instead of typed error; `progressTimer` canceled when never resumed; existing file deleted before download completes.
 - **Change**:
-  1. Read `standardOutput` and `standardError` concurrently while process runs using `readabilityHandler` / async chunks into bounded accumulators.
-  2. Throw typed `ADBError.timeout` or `ADBError.cancelled` on timeouts and support Task cancellation.
-  3. Guarantee `progressTimer` lifecycle safety: instantiate/resume cleanly or verify state before cancellation.
-  4. Download to unique temporary file and use `FileManager.default.replaceItemAt` or atomic rename, preserving original file if transfer fails.
-- **Risk**: Process management under heavy concurrent operations.
-- **Test**: Mock 5MB pipe buffer test, hang/timeout test, cancellation test, atomic file replacement test.
+  1. Implemented concurrent streaming of `standardOutput` and `standardError` using `readabilityHandler` and thread-safe `ConcurrentDataBuffer` (10 MB bound), completely preventing pipe deadlocks on outputs >64 KB.
+  2. Implemented typed `ADBError` enum with `.timeout(timeoutSeconds:)`, `.cancelled`, `.commandFailed`, and `.transferFailed`. On process timeout, now throws `ADBError.timeout` instead of returning exit code 15.
+  3. Added `withTaskCancellationHandler` and `ProcessHolder` so cooperative Task cancellation promptly terminates the underlying child process.
+  4. Made `progressTimer` lifecycle exception-safe in both `pullFile` and `pushFile`: timer is instantiated and resumed only when `finalBytes > 0 && onProgress != nil`, eliminating the libdispatch inactive/suspended source crash.
+  5. Implemented atomic file replacement using `FileManager.default.replaceItemAt` in `pullFile`, ensuring existing files are never deleted prior to successful download completion.
+- **Test Evidence**:
+  - `scripts/test_adb_client_milestone5.swift`: 10/10 tests passed covering 5 MB pipe buffer streaming without deadlocks, typed 0.3s timeout error validation, Task cancellation, exception-safe timer lifecycle, atomic file replacement without pre-deletion, and ADBShellSecurity escaping.
+  - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 6: Release Script Reproducibility
 - **Cause**: In `RELEASE=1` mode, missing xcodebuild fell back to copying `/Applications/LiquidDynamo.app`, hardcoding version "17", and ignoring dylib copy failures.

@@ -46,6 +46,34 @@ public enum ADBConnectionState: Equatable, Sendable {
     }
 }
 
+// MARK: - ADB Error Types
+
+public enum ADBError: LocalizedError, Equatable, Sendable {
+    case adbNotFound
+    case timeout(timeoutSeconds: TimeInterval)
+    case cancelled
+    case commandFailed(exitCode: Int32, message: String)
+    case deviceDisconnected
+    case transferFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .adbNotFound:
+            return "ADB executable not found."
+        case .timeout(let sec):
+            return "ADB command timed out after \(sec) seconds."
+        case .cancelled:
+            return "ADB operation was cancelled."
+        case .commandFailed(let code, let msg):
+            return "ADB command failed (code \(code)): \(msg)"
+        case .deviceDisconnected:
+            return "Android device disconnected."
+        case .transferFailed(let msg):
+            return "ADB file transfer failed: \(msg)"
+        }
+    }
+}
+
 // MARK: - ADB Device Info
 
 public struct ADBDeviceInfo: Identifiable, Equatable, Hashable, Sendable {
@@ -521,52 +549,185 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
 
     // MARK: - Process Execution Engine
 
-    public func runAdbCommand(arguments: [String], timeout: TimeInterval = 30.0) async throws -> (stdout: String, stderr: String, exitCode: Int32) {
-        guard let executablePath = resolveAdbPath() else {
-            throw NSError(domain: "ADBClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "ADB executable not found."])
+    private final class ConcurrentDataBuffer: @unchecked Sendable {
+        private var data = Data()
+        private let lock = NSLock()
+        private let maxBytes: Int
+
+        init(maxBytes: Int = 10 * 1024 * 1024) {
+            self.maxBytes = maxBytes
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: executablePath)
-            process.arguments = arguments
-
-            let outPipe = Pipe()
-            let errPipe = Pipe()
-            process.standardOutput = outPipe
-            process.standardError = errPipe
-
-            final class TimerBox: @unchecked Sendable {
-                var timer: DispatchSourceTimer?
+        func append(_ chunk: Data) {
+            guard !chunk.isEmpty else { return }
+            lock.lock()
+            defer { lock.unlock() }
+            if data.count < maxBytes {
+                let toAppend = min(chunk.count, maxBytes - data.count)
+                data.append(chunk.prefix(toAppend))
             }
-            let box = TimerBox()
+        }
 
-            if timeout > 0 {
-                let t = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .userInitiated))
-                t.schedule(deadline: .now() + timeout)
-                t.setEventHandler { [weak process] in
-                    process?.terminate()
+        func string(encoding: String.Encoding = .utf8) -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            return String(data: data, encoding: encoding) ?? ""
+        }
+    }
+
+    private final class ProcessHolder: @unchecked Sendable {
+        private var process: Process?
+        private var onCancelHandler: (@Sendable () -> Void)?
+        private let lock = NSLock()
+
+        func set(process: Process, onCancel: (@Sendable () -> Void)? = nil) {
+            lock.lock()
+            self.process = process
+            self.onCancelHandler = onCancel
+            lock.unlock()
+        }
+
+        func cancel() {
+            lock.lock()
+            let p = process
+            let handler = onCancelHandler
+            lock.unlock()
+            handler?()
+            if let p = p, p.isRunning {
+                p.terminate()
+            }
+        }
+    }
+
+    public func runAdbCommand(arguments: [String], timeout: TimeInterval = 30.0) async throws -> (stdout: String, stderr: String, exitCode: Int32) {
+        if Task.isCancelled {
+            throw ADBError.cancelled
+        }
+        guard let executablePath = resolveAdbPath() else {
+            throw ADBError.adbNotFound
+        }
+
+        let holder = ProcessHolder()
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: executablePath)
+                process.arguments = arguments
+
+                let outPipe = Pipe()
+                let errPipe = Pipe()
+                process.standardOutput = outPipe
+                process.standardError = errPipe
+
+                let outHandle = outPipe.fileHandleForReading
+                let errHandle = errPipe.fileHandleForReading
+
+                let stdoutBuffer = ConcurrentDataBuffer(maxBytes: 10 * 1024 * 1024)
+                let stderrBuffer = ConcurrentDataBuffer(maxBytes: 10 * 1024 * 1024)
+
+                outHandle.readabilityHandler = { handle in
+                    stdoutBuffer.append(handle.availableData)
                 }
-                t.resume()
-                box.timer = t
-            }
 
-            process.terminationHandler = { proc in
-                box.timer?.cancel()
-                let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                let outStr = String(data: outData, encoding: .utf8) ?? ""
-                let errStr = String(data: errData, encoding: .utf8) ?? ""
+                errHandle.readabilityHandler = { handle in
+                    stderrBuffer.append(handle.availableData)
+                }
 
-                continuation.resume(returning: (stdout: outStr, stderr: errStr, exitCode: proc.terminationStatus))
-            }
+                enum TerminationReason: Sendable {
+                    case natural
+                    case timeout
+                    case cancelled
+                }
 
-            do {
-                try process.run()
-            } catch {
-                box.timer?.cancel()
-                continuation.resume(throwing: error)
+                final class CommandRunState: @unchecked Sendable {
+                    private var isResumed = false
+                    private let lock = NSLock()
+                    var reason: TerminationReason = .natural
+                    var timer: DispatchSourceTimer?
+
+                    func setReason(_ r: TerminationReason) {
+                        lock.lock()
+                        defer { lock.unlock() }
+                        reason = r
+                    }
+
+                    func finishOnce(
+                        continuation: CheckedContinuation<(stdout: String, stderr: String, exitCode: Int32), Error>,
+                        result: Result<(stdout: String, stderr: String, exitCode: Int32), Error>,
+                        timeoutDuration: TimeInterval
+                    ) {
+                        lock.lock()
+                        guard !isResumed else {
+                            lock.unlock()
+                            return
+                        }
+                        isResumed = true
+                        timer?.cancel()
+                        timer = nil
+                        let r = reason
+                        lock.unlock()
+
+                        switch r {
+                        case .timeout:
+                            continuation.resume(throwing: ADBError.timeout(timeoutSeconds: timeoutDuration))
+                        case .cancelled:
+                            continuation.resume(throwing: ADBError.cancelled)
+                        case .natural:
+                            continuation.resume(with: result)
+                        }
+                    }
+                }
+
+                let runState = CommandRunState()
+                holder.set(process: process, onCancel: {
+                    runState.setReason(.cancelled)
+                })
+
+                if timeout > 0 {
+                    let t = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .userInitiated))
+                    t.schedule(deadline: .now() + timeout)
+                    t.setEventHandler { [weak process, weak runState] in
+                        runState?.setReason(.timeout)
+                        if let proc = process, proc.isRunning {
+                            proc.terminate()
+                        }
+                    }
+                    t.resume()
+                    runState.timer = t
+                }
+
+                process.terminationHandler = { [weak runState] proc in
+                    outHandle.readabilityHandler = nil
+                    errHandle.readabilityHandler = nil
+
+                    stdoutBuffer.append(outHandle.readDataToEndOfFile())
+                    stderrBuffer.append(errHandle.readDataToEndOfFile())
+
+                    let outStr = stdoutBuffer.string()
+                    let errStr = stderrBuffer.string()
+
+                    runState?.finishOnce(
+                        continuation: continuation,
+                        result: .success((stdout: outStr, stderr: errStr, exitCode: proc.terminationStatus)),
+                        timeoutDuration: timeout
+                    )
+                }
+
+                do {
+                    try process.run()
+                } catch {
+                    outHandle.readabilityHandler = nil
+                    errHandle.readabilityHandler = nil
+                    runState.finishOnce(
+                        continuation: continuation,
+                        result: .failure(error),
+                        timeoutDuration: timeout
+                    )
+                }
             }
+        } onCancel: {
+            holder.cancel()
         }
     }
 
@@ -699,14 +860,28 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
         localURL: URL,
         onProgress: (@Sendable (ADBTransferProgress) -> Void)?
     ) async throws {
+        try await pullFile(serial: serial, remotePath: remotePath, localURL: localURL, expectedBytes: 0, onProgress: onProgress)
+    }
+
+    public func pullFile(
+        serial: String,
+        remotePath: String,
+        localURL: URL,
+        expectedBytes: Int64 = 0,
+        onProgress: (@Sendable (ADBTransferProgress) -> Void)? = nil
+    ) async throws {
+        if Task.isCancelled {
+            throw ADBError.cancelled
+        }
         let remoteNorm = ADBShellSecurity.normalizeRemotePath(remotePath)
-        let localPath = localURL.path
 
         // Check remote file size first for progress calculation
-        var expectedBytes: Int64 = 0
-        let statRes = try? await runAdbCommand(arguments: ["-s", serial, "shell", "stat -c %s \(ADBShellSecurity.escape(remoteNorm))"], timeout: 5.0)
-        if let s = statRes?.stdout.trimmingCharacters(in: .whitespacesAndNewlines), let b = Int64(s) {
-            expectedBytes = b
+        var expectedBytes = expectedBytes
+        if expectedBytes <= 0 {
+            let statRes = try? await runAdbCommand(arguments: ["-s", serial, "shell", "stat -c %s \(ADBShellSecurity.escape(remoteNorm))"], timeout: 5.0)
+            if let s = statRes?.stdout.trimmingCharacters(in: .whitespacesAndNewlines), let b = Int64(s) {
+                expectedBytes = b
+            }
         }
 
         // Temporary download file for atomic completion
@@ -717,74 +892,131 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
 
         let finalBytes = expectedBytes
         guard let executablePath = resolveAdbPath() else {
-            throw NSError(domain: "ADBClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "ADB not found."])
+            throw ADBError.adbNotFound
         }
 
         let startTime = Date()
+        let holder = ProcessHolder()
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: executablePath)
-            process.arguments = ["-s", serial, "pull", remoteNorm, tempDownloadURL.path]
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: executablePath)
+                process.arguments = ["-s", serial, "pull", remoteNorm, tempDownloadURL.path]
 
-            let errPipe = Pipe()
-            process.standardError = errPipe
+                let errPipe = Pipe()
+                process.standardError = errPipe
+                let errHandle = errPipe.fileHandleForReading
 
-            let progressTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
-            if finalBytes > 0 && onProgress != nil {
-                progressTimer.schedule(deadline: .now() + 0.25, repeating: 0.25)
-                progressTimer.setEventHandler {
-                    guard let attrs = try? FileManager.default.attributesOfItem(atPath: tempDownloadURL.path),
-                          let currentSize = attrs[.size] as? Int64 else { return }
-
-                    let elapsed = max(0.1, Date().timeIntervalSince(startTime))
-                    let speed = Double(currentSize) / elapsed
-                    let pct = min(1.0, Double(currentSize) / Double(finalBytes))
-
-                    onProgress?(ADBTransferProgress(
-                        bytesTransferred: currentSize,
-                        totalBytes: finalBytes,
-                        percentage: pct,
-                        speedBytesPerSecond: speed,
-                        currentItemName: (remoteNorm as NSString).lastPathComponent
-                    ))
+                let errBuffer = ConcurrentDataBuffer(maxBytes: 1024 * 1024)
+                errHandle.readabilityHandler = { handle in
+                    errBuffer.append(handle.availableData)
                 }
-                progressTimer.resume()
-            }
 
-            process.terminationHandler = { proc in
-                progressTimer.cancel()
+                // Exception-safe progress timer: created ONLY when used, and resumed immediately
+                let progressTimer: DispatchSourceTimer?
+                if finalBytes > 0 && onProgress != nil {
+                    let t = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+                    t.schedule(deadline: .now() + 0.25, repeating: 0.25)
+                    t.setEventHandler {
+                        guard let attrs = try? FileManager.default.attributesOfItem(atPath: tempDownloadURL.path),
+                              let currentSize = attrs[.size] as? Int64 else { return }
 
-                if proc.terminationStatus == 0 {
-                    do {
-                        if FileManager.default.fileExists(atPath: localPath) {
-                            try FileManager.default.removeItem(at: localURL)
-                        }
-                        try FileManager.default.moveItem(at: tempDownloadURL, to: localURL)
+                        let elapsed = max(0.1, Date().timeIntervalSince(startTime))
+                        let speed = Double(currentSize) / elapsed
+                        let pct = min(1.0, Double(currentSize) / Double(finalBytes))
+
                         onProgress?(ADBTransferProgress(
-                            bytesTransferred: finalBytes,
+                            bytesTransferred: currentSize,
                             totalBytes: finalBytes,
-                            percentage: 1.0,
-                            speedBytesPerSecond: 0,
+                            percentage: pct,
+                            speedBytesPerSecond: speed,
                             currentItemName: (remoteNorm as NSString).lastPathComponent
                         ))
-                        continuation.resume(returning: ())
-                    } catch {
-                        continuation.resume(throwing: error)
                     }
+                    t.resume()
+                    progressTimer = t
                 } else {
-                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                    let errStr = String(data: errData, encoding: .utf8) ?? "Transfer failed"
-                    continuation.resume(throwing: NSError(domain: "ADBClient", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: errStr]))
+                    progressTimer = nil
+                }
+
+                final class TransferRunState: @unchecked Sendable {
+                    private var isResumed = false
+                    private let lock = NSLock()
+                    var isCancelled = false
+
+                    func resumeOnce(continuation: CheckedContinuation<Void, Error>, error: Error?) {
+                        lock.lock()
+                        guard !isResumed else {
+                            lock.unlock()
+                            return
+                        }
+                        isResumed = true
+                        let cancelled = isCancelled
+                        lock.unlock()
+
+                        if cancelled {
+                            continuation.resume(throwing: ADBError.cancelled)
+                        } else if let err = error {
+                            continuation.resume(throwing: err)
+                        } else {
+                            continuation.resume(returning: ())
+                        }
+                    }
+                }
+
+                let runState = TransferRunState()
+                holder.set(process: process, onCancel: {
+                    runState.isCancelled = true
+                })
+
+                process.terminationHandler = { proc in
+                    progressTimer?.cancel()
+                    errHandle.readabilityHandler = nil
+                    errBuffer.append(errHandle.readDataToEndOfFile())
+                    let errStr = errBuffer.string()
+
+                    if proc.terminationStatus == 0 {
+                        do {
+                            // Safe atomic replacement: never delete target before temp is in place
+                            if FileManager.default.fileExists(atPath: localURL.path) {
+                                _ = try FileManager.default.replaceItemAt(
+                                    localURL,
+                                    withItemAt: tempDownloadURL,
+                                    backupItemName: nil,
+                                    options: [.usingNewMetadataOnly]
+                                )
+                            } else {
+                                try FileManager.default.moveItem(at: tempDownloadURL, to: localURL)
+                            }
+
+                            onProgress?(ADBTransferProgress(
+                                bytesTransferred: finalBytes,
+                                totalBytes: finalBytes,
+                                percentage: 1.0,
+                                speedBytesPerSecond: 0,
+                                currentItemName: (remoteNorm as NSString).lastPathComponent
+                            ))
+                            runState.resumeOnce(continuation: continuation, error: nil)
+                        } catch {
+                            runState.resumeOnce(continuation: continuation, error: ADBError.transferFailed("Failed to replace local file: \(error.localizedDescription)"))
+                        }
+                    } else {
+                        let finalMsg = errStr.isEmpty ? "Transfer failed" : errStr
+                        runState.resumeOnce(continuation: continuation, error: ADBError.commandFailed(exitCode: proc.terminationStatus, message: finalMsg.trimmingCharacters(in: .whitespacesAndNewlines)))
+                    }
+                }
+
+                do {
+                    try process.run()
+                } catch {
+                    progressTimer?.cancel()
+                    errHandle.readabilityHandler = nil
+                    runState.resumeOnce(continuation: continuation, error: error)
                 }
             }
-
-            do {
-                try process.run()
-            } catch {
-                progressTimer.cancel()
-                continuation.resume(throwing: error)
-            }
+        } onCancel: {
+            holder.cancel()
         }
     }
 
@@ -795,11 +1027,14 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
         conflictPolicy: ADBConflictPolicy = .replace,
         onProgress: (@Sendable (ADBTransferProgress) -> Void)?
     ) async throws {
+        if Task.isCancelled {
+            throw ADBError.cancelled
+        }
         var remoteNorm = ADBShellSecurity.normalizeRemotePath(remotePath)
         let localPath = localURL.path
 
         guard FileManager.default.fileExists(atPath: localPath) else {
-            throw NSError(domain: "ADBClient", code: 404, userInfo: [NSLocalizedDescriptionKey: "Local file does not exist."])
+            throw ADBError.transferFailed("Local file does not exist at: \(localPath)")
         }
 
         let attrs = try? FileManager.default.attributesOfItem(atPath: localPath)
@@ -824,65 +1059,113 @@ public final class LiveADBClient: ADBClient, @unchecked Sendable {
         }
 
         guard let executablePath = resolveAdbPath() else {
-            throw NSError(domain: "ADBClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "ADB not found."])
+            throw ADBError.adbNotFound
         }
 
         let startTime = Date()
+        let holder = ProcessHolder()
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: executablePath)
-            process.arguments = ["-s", serial, "push", localPath, remoteNorm]
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: executablePath)
+                process.arguments = ["-s", serial, "push", localPath, remoteNorm]
 
-            let errPipe = Pipe()
-            process.standardError = errPipe
+                let errPipe = Pipe()
+                process.standardError = errPipe
+                let errHandle = errPipe.fileHandleForReading
 
-            let progressTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
-            if fileSize > 0 && onProgress != nil {
-                progressTimer.schedule(deadline: .now() + 0.3, repeating: 0.3)
-                progressTimer.setEventHandler {
-                    // Estimate upload progress over time based on duration
-                    let elapsed = max(0.1, Date().timeIntervalSince(startTime))
-                    let estBytes = min(fileSize, Int64(Double(fileSize) * min(0.95, elapsed / max(1.0, Double(fileSize) / 25_000_000.0))))
-                    let speed = Double(estBytes) / elapsed
-                    let pct = Double(estBytes) / Double(fileSize)
-
-                    onProgress?(ADBTransferProgress(
-                        bytesTransferred: estBytes,
-                        totalBytes: fileSize,
-                        percentage: pct,
-                        speedBytesPerSecond: speed,
-                        currentItemName: localURL.lastPathComponent
-                    ))
+                let errBuffer = ConcurrentDataBuffer(maxBytes: 1024 * 1024)
+                errHandle.readabilityHandler = { handle in
+                    errBuffer.append(handle.availableData)
                 }
-                progressTimer.resume()
-            }
 
-            process.terminationHandler = { proc in
-                progressTimer.cancel()
+                // Exception-safe progress timer: created ONLY when used, and resumed immediately
+                let progressTimer: DispatchSourceTimer?
+                if fileSize > 0 && onProgress != nil {
+                    let t = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+                    t.schedule(deadline: .now() + 0.3, repeating: 0.3)
+                    t.setEventHandler {
+                        let elapsed = max(0.1, Date().timeIntervalSince(startTime))
+                        let estBytes = min(fileSize, Int64(Double(fileSize) * min(0.95, elapsed / max(1.0, Double(fileSize) / 25_000_000.0))))
+                        let speed = Double(estBytes) / elapsed
+                        let pct = Double(estBytes) / Double(fileSize)
 
-                if proc.terminationStatus == 0 {
-                    onProgress?(ADBTransferProgress(
-                        bytesTransferred: fileSize,
-                        totalBytes: fileSize,
-                        percentage: 1.0,
-                        speedBytesPerSecond: 0,
-                        currentItemName: localURL.lastPathComponent
-                    ))
-                    continuation.resume(returning: ())
+                        onProgress?(ADBTransferProgress(
+                            bytesTransferred: estBytes,
+                            totalBytes: fileSize,
+                            percentage: pct,
+                            speedBytesPerSecond: speed,
+                            currentItemName: localURL.lastPathComponent
+                        ))
+                    }
+                    t.resume()
+                    progressTimer = t
                 } else {
-                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                    let errStr = String(data: errData, encoding: .utf8) ?? "Upload failed"
-                    continuation.resume(throwing: NSError(domain: "ADBClient", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: errStr]))
+                    progressTimer = nil
+                }
+
+                final class PushState: @unchecked Sendable {
+                    private var isResumed = false
+                    private let lock = NSLock()
+                    var isCancelled = false
+
+                    func resumeOnce(continuation: CheckedContinuation<Void, Error>, error: Error?) {
+                        lock.lock()
+                        guard !isResumed else {
+                            lock.unlock()
+                            return
+                        }
+                        isResumed = true
+                        let cancelled = isCancelled
+                        lock.unlock()
+
+                        if cancelled {
+                            continuation.resume(throwing: ADBError.cancelled)
+                        } else if let err = error {
+                            continuation.resume(throwing: err)
+                        } else {
+                            continuation.resume(returning: ())
+                        }
+                    }
+                }
+
+                let runState = PushState()
+                holder.set(process: process, onCancel: {
+                    runState.isCancelled = true
+                })
+
+                process.terminationHandler = { proc in
+                    progressTimer?.cancel()
+                    errHandle.readabilityHandler = nil
+                    errBuffer.append(errHandle.readDataToEndOfFile())
+                    let errStr = errBuffer.string()
+
+                    if proc.terminationStatus == 0 {
+                        onProgress?(ADBTransferProgress(
+                            bytesTransferred: fileSize,
+                            totalBytes: fileSize,
+                            percentage: 1.0,
+                            speedBytesPerSecond: 0,
+                            currentItemName: localURL.lastPathComponent
+                        ))
+                        runState.resumeOnce(continuation: continuation, error: nil)
+                    } else {
+                        let finalMsg = errStr.isEmpty ? "Upload failed" : errStr
+                        runState.resumeOnce(continuation: continuation, error: ADBError.commandFailed(exitCode: proc.terminationStatus, message: finalMsg.trimmingCharacters(in: .whitespacesAndNewlines)))
+                    }
+                }
+
+                do {
+                    try process.run()
+                } catch {
+                    progressTimer?.cancel()
+                    errHandle.readabilityHandler = nil
+                    runState.resumeOnce(continuation: continuation, error: error)
                 }
             }
-
-            do {
-                try process.run()
-            } catch {
-                progressTimer.cancel()
-                continuation.resume(throwing: error)
-            }
+        } onCancel: {
+            holder.cancel()
         }
     }
 }
