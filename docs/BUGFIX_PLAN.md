@@ -75,16 +75,19 @@ This document establishes the audit evidence, root causes, targeted minimal chan
   - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 3: Robust Clipboard History Service
+- **Status**: **CONFIRMED & FIXED (VERIFIED WITH 23/23 PASSING UNIT TESTS & XCODEBUILD DEBUG BUILD)**
 - **Cause**: `lastChangeCount` consumed before filter completion; `HardwareSensorMonitor` window list false-positives on screenshots; timer in default run-loop mode stalls; image prefix(256) collision; main-thread file I/O and JSON encoding.
 - **Change**:
-  1. Update `lastChangeCount` only on definitive terminal decisions (permanent skips or successful ingestion). Transient conditions retry for up to 2.0s without advancing permanent count.
-  2. Implement dedicated clipboard-local screen-capture debouncer (on after 1.5s, off after 1.0s) and add `clipboardShieldDuringScreenRecording` setting (default true). Leave `HardwareSensorMonitor` and Island HUD unchanged.
-  3. Replace `Timer` with `DispatchSourceTimer` on background utility queue monitoring `changeCount`, holding `ProcessInfo.beginActivity` token, and re-arming on wake/active.
-  4. Implement image deduplication using SHA-256 hash of original bytes, stored as optional Codable property for backward compatibility.
-  5. Refine type priority to preserve text when rich preview images accompany text.
-  6. Offload image compression and file saving to background actor/queue with debounced disk persistence.
-- **Risk**: Handling rapid burst copy operations.
-- **Test**: Rapid copy stress tests, lazy promise retry test, SHA-256 dedupe verification, Codable backward-compatibility JSON decoding test.
+  1. Updated `lastChangeCount` consumption to occur strictly upon definitive terminal decisions (permanent skips or successful ingestion). Transient lazy promise conditions retry for up to 2.0s without advancing permanent count.
+  2. Implemented dedicated clipboard-local screen-capture debouncer with hysteresis (active after 1.5s of sustained recording, inactive after 1.0s of continuous absence), filtering transient screenshot tool spikes (`screencapture`), wired to `Defaults[.clipboardShieldDuringScreenRecording]` with settings toggle.
+  3. Replaced `Timer.scheduledTimer` with `DispatchSourceTimer` on background utility queue, holding `ProcessInfo.beginActivity` token for App Nap prevention, with automatic wake re-arming via `NSWorkspace.didWakeNotification`.
+  4. Implemented image deduplication using SHA-256 hash of original raw bytes stored as an optional Codable property on `ClipboardEntry` with backward compatibility for legacy JSON files.
+  5. Refined type priority to check text before standalone images, ensuring copied text is never dropped when companion rendered preview images are present.
+  6. Offloaded image decompression / thumbnail compression to a detached background task and debounced JSON disk persistence to a dedicated background utility queue.
+  7. Added explicit "Retry Access" button in `LiquidClipboardRegionView` for macOS 15.4+ pasteboard access.
+- **Test Evidence**:
+  - `scripts/test_clipboard_milestone3.swift`: 23/23 unit tests passed across SHA-256 deduplication, Codable backward compatibility, screen recording hysteresis debouncing, lazy promise retry with 2.0s timeout, and type priority text preservation.
+  - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 4: KalamBridge & FileDroid Thread Safety
 - **Cause**: NSLock locked on caller thread and unlocked inside C callback thread; static singletons overwrite concurrent calls; loose substring error check; hardcoded developer dylib paths; missing Xcode project references; arm64-only without Intel UI notice; missing third-party licenses.

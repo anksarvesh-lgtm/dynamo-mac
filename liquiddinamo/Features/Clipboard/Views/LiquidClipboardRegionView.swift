@@ -51,17 +51,31 @@ public struct LiquidClipboardRegionView: View {
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button {
-                service.openPrivacySettings()
-            } label: {
-                Text("Open System Settings")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(OrganicDropletShape().fill(Color.orange.opacity(0.8)))
+            HStack(spacing: 8) {
+                Button {
+                    service.openPrivacySettings()
+                } label: {
+                    Text("Open System Settings")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(OrganicDropletShape().fill(Color.orange.opacity(0.8)))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    service.requestExplicitPasteboardAccess()
+                } label: {
+                    Text("Retry Access")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(OrganicDropletShape().fill(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
     }

@@ -13,6 +13,7 @@ import SwiftUI
 public struct SettingsClipboardView: View {
     @ObservedObject var clipboard = ClipboardHistoryService.shared
     @Default(.showDashboardClipboard) private var showClipboardModule
+    @Default(.clipboardShieldDuringScreenRecording) private var shieldDuringScreenRecording
 
     public init() {}
 
@@ -63,6 +64,30 @@ public struct SettingsClipboardView: View {
                     }
 
                     Spacer()
+                }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
+                )
+                .padding(.horizontal, 24)
+
+                // Privacy Shield Setting Card
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Screen Recording Privacy Shield")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                            Text("Automatically pause and obscure clipboard history during sustained screen recording or sharing (>1.5s). Screenshots remain captured.")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $shieldDuringScreenRecording)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
                 }
                 .padding(18)
                 .background(

@@ -3,9 +3,12 @@
 //  LiquidDynamo
 //
 //  Service managing privacy-first clipboard history supporting Text, Images, Files, and URLs.
+//  Includes App Nap prevention, wake re-arm, screen capture debouncing, lazy promise retry,
+//  SHA-256 image deduplication, and background persistence.
 //
 
 import AppKit
+import CryptoKit
 import Defaults
 import Foundation
 
@@ -19,8 +22,24 @@ public final class ClipboardHistoryService: ObservableObject {
     @Published public private(set) var accessDenied: Bool = false
 
     private var lastChangeCount: Int = -1
-    private var checkTimer: Timer?
+    private var pendingChangeCount: Int = -1
+    private var pendingFirstSeen: Date?
     private var isSampling: Bool = false
+
+    // App Nap prevention and background monitoring timer
+    private var dispatchTimer: DispatchSourceTimer?
+    private var activityToken: NSObjectProtocol?
+    private var wakeObserver: NSObjectProtocol?
+    private let monitorQueue = DispatchQueue(label: "com.sarvesh.LiquidDynamo.clipboardMonitor", qos: .utility)
+    private let persistenceQueue = DispatchQueue(label: "com.sarvesh.LiquidDynamo.clipboardPersistence", qos: .utility)
+
+    // Debounced file persistence work items
+    private var recentSaveWorkItem: DispatchWorkItem?
+    private var pinnedSaveWorkItem: DispatchWorkItem?
+
+    // Screen recording debouncer state
+    private var rawScreenRecordingActive: Bool = false
+    private var rawScreenRecordingStateSince: Date?
 
     /// Password manager bundle IDs excluded by default
     private let excludedBundleIDs: Set<String> = [
@@ -72,22 +91,65 @@ public final class ClipboardHistoryService: ObservableObject {
         guard !isSampling else { return }
         isSampling = true
 
+        // Acquire App Nap activity prevention token
+        if activityToken == nil {
+            activityToken = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                reason: "Continuous Clipboard Monitoring"
+            )
+        }
+
+        // Register wake observer to re-arm monitor on system resume
+        if wakeObserver == nil {
+            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.rearmAfterWake()
+                }
+            }
+        }
+
         updateScreenCaptureState()
         checkPasteboard()
 
-        checkTimer?.invalidate()
-        // 0.35s interval provides instant real-time capture with zero CPU overhead
-        checkTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+        // Replace Timer with DispatchSourceTimer on background monitor queue
+        dispatchTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: monitorQueue)
+        timer.schedule(deadline: .now() + .milliseconds(350), repeating: .milliseconds(350), leeway: .milliseconds(50))
+        timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in
                 self?.checkPasteboard()
             }
         }
+        timer.resume()
+        self.dispatchTimer = timer
     }
 
     public func stop() {
         isSampling = false
-        checkTimer?.invalidate()
-        checkTimer = nil
+        dispatchTimer?.cancel()
+        dispatchTimer = nil
+
+        if let token = activityToken {
+            ProcessInfo.processInfo.endActivity(token)
+            activityToken = nil
+        }
+
+        if let observer = wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            wakeObserver = nil
+        }
+    }
+
+    public func rearmAfterWake() {
+        // Reset debouncer tracking and force immediate pasteboard re-check
+        rawScreenRecordingActive = false
+        rawScreenRecordingStateSince = nil
+        updateScreenCaptureState()
+        checkPasteboard()
     }
 
     public func openPrivacySettings() {
@@ -100,42 +162,84 @@ public final class ClipboardHistoryService: ObservableObject {
         }
     }
 
-    // MARK: - Screen Capture Detection
+    public func requestExplicitPasteboardAccess() {
+        self.accessDenied = false
+        self.checkPasteboard()
+    }
+
+    // MARK: - Screen Capture Detection with Debouncer
 
     public func updateScreenCaptureState() {
-        // Use HardwareSensorMonitor's verified WindowServer query (screencaptured, replayd)
-        // rather than guessing solely from background bundle IDs of apps like Teams or Zoom.
-        let isCaptured = HardwareSensorMonitor.shared.isScreenRecordingActive
-        if self.isScreenCaptured != isCaptured {
-            self.isScreenCaptured = isCaptured
+        // Respect user setting
+        guard Defaults[.clipboardShieldDuringScreenRecording] else {
+            if self.isScreenCaptured {
+                self.isScreenCaptured = false
+            }
+            return
+        }
+
+        let rawActive = HardwareSensorMonitor.shared.isScreenRecordingActive
+        let now = Date()
+
+        if rawActive != rawScreenRecordingActive {
+            rawScreenRecordingActive = rawActive
+            rawScreenRecordingStateSince = now
+        }
+
+        let elapsed = now.timeIntervalSince(rawScreenRecordingStateSince ?? now)
+
+        // Hysteresis debouncing:
+        // Transition to active only after 1.5s of sustained recording (filters transient screenshot flashes)
+        // Transition back to inactive only after 1.0s of continuous absence
+        if rawActive {
+            if elapsed >= 1.5 && !self.isScreenCaptured {
+                self.isScreenCaptured = true
+            }
+        } else {
+            if elapsed >= 1.0 && self.isScreenCaptured {
+                self.isScreenCaptured = false
+            }
         }
     }
 
-    // MARK: - Pasteboard Checking
+    // MARK: - Pasteboard Checking & Extraction
 
     public func checkPasteboard() {
         guard Defaults[.showDashboardClipboard] else { return }
         let pb = NSPasteboard.general
         let currentCount = pb.changeCount
         guard currentCount != lastChangeCount else { return }
+
         let isInitialCheck = (lastChangeCount == -1)
-        lastChangeCount = currentCount
+
+        // Track pending change count for transient retries (lazy promises)
+        if currentCount != pendingChangeCount {
+            pendingChangeCount = currentCount
+            pendingFirstSeen = Date()
+        }
 
         updateScreenCaptureState()
 
-        // 1. Exclude password managers
+        // 1. Exclude password managers (permanent skip for this changeCount)
         if let frontApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
             if excludedBundleIDs.contains(frontApp) {
+                commitChangeCount(currentCount)
                 return
             }
         }
 
-        // 2. Exclude concealed/sensitive types
-        guard let types = pb.types else { return }
+        // 2. Exclude concealed/sensitive types (permanent skip for this changeCount)
+        guard let types = pb.types else {
+            // macOS 15.4+ privacy check: if types is nil, access might be denied
+            checkTransientOrGiveUp(currentCount: currentCount)
+            return
+        }
+
         for type in types {
             let identifier = type.rawValue
             for concealed in concealedTypeIdentifiers {
                 if identifier.localizedCaseInsensitiveContains(concealed) {
+                    commitChangeCount(currentCount)
                     return
                 }
             }
@@ -143,6 +247,7 @@ public final class ClipboardHistoryService: ObservableObject {
 
         // 3. Shield contents during active screen recording
         if isScreenCaptured {
+            commitChangeCount(currentCount)
             return
         }
 
@@ -161,29 +266,106 @@ public final class ClipboardHistoryService: ObservableObject {
                 isPinned: false
             )
             addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
+            commitChangeCount(currentCount)
             return
         }
 
-        // B. Check for Images (TIFF / PNG / JPEG)
-        if types.contains(.tiff) || types.contains(.png) {
-            if let imgData = pb.data(forType: .png) ?? pb.data(forType: .tiff),
-               let image = NSImage(data: imgData) {
-                let thumbData = compressedImageData(from: image) ?? imgData
-                let desc = "Image (\(Int(image.size.width)) × \(Int(image.size.height)))"
+        // B. Check for Text (Priority over rich image previews: preserve copied text)
+        var extractedText: String? = nil
+        if types.contains(.string), let str = pb.string(forType: .string) {
+            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                extractedText = str
+            }
+        }
+
+        // If text was found, prioritize text and attach any companion image preview
+        if let string = extractedText {
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Check if companion thumbnail preview exists (e.g. from rich web clip)
+            var thumbData: Data? = nil
+            if types.contains(.png) || types.contains(.tiff) {
+                if let rawImg = pb.data(forType: .png) ?? pb.data(forType: .tiff),
+                   let img = NSImage(data: rawImg) {
+                    thumbData = Self.compressedImageData(from: img)
+                }
+            }
+
+            if let url = URL(string: trimmed),
+               let scheme = url.scheme?.lowercased(),
+               (scheme == "http" || scheme == "https"),
+               url.host != nil {
                 let entry = ClipboardEntry(
-                    type: .image,
-                    text: desc,
+                    type: .url,
+                    text: trimmed,
                     fileURL: nil,
                     imageData: thumbData,
                     timestamp: Date(),
                     isPinned: false
                 )
                 addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
+                commitChangeCount(currentCount)
+                return
+            } else {
+                let entry = ClipboardEntry(
+                    type: .text,
+                    text: string,
+                    fileURL: nil,
+                    imageData: thumbData,
+                    timestamp: Date(),
+                    isPinned: false
+                )
+                addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
+                commitChangeCount(currentCount)
                 return
             }
         }
 
-        // C. Check for URLs
+        // C. Check for Standalone Images (TIFF / PNG / JPEG without text)
+        if types.contains(.tiff) || types.contains(.png) {
+            if let imgData = pb.data(forType: .png) ?? pb.data(forType: .tiff) {
+                // Compute SHA-256 hash on original bytes for robust deduplication
+                let hashStr = SHA256.hash(data: imgData).map { String(format: "%02x", $0) }.joined()
+
+                // Quick deduplication check before image decompression
+                if pinnedEntries.contains(where: { $0.imageHash == hashStr }) ||
+                   recentEntries.first?.imageHash == hashStr {
+                    commitChangeCount(currentCount)
+                    return
+                }
+
+                // Offload image decompression and thumbnail compression to background actor
+                Task.detached(priority: .userInitiated) {
+                    guard let image = NSImage(data: imgData) else {
+                        await MainActor.run {
+                            self.commitChangeCount(currentCount)
+                        }
+                        return
+                    }
+
+                    let thumbData = Self.compressedImageData(from: image) ?? imgData
+                    let desc = "Image (\(Int(image.size.width)) × \(Int(image.size.height)))"
+                    let entry = ClipboardEntry(
+                        type: .image,
+                        text: desc,
+                        fileURL: nil,
+                        imageData: thumbData,
+                        timestamp: Date(),
+                        isPinned: false,
+                        imageHash: hashStr
+                    )
+
+                    await MainActor.run {
+                        self.addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
+                        self.commitChangeCount(currentCount)
+                    }
+                }
+                return
+            }
+        }
+
+        // D. Check for Standalone URLs
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
            let firstURL = urls.first, !firstURL.isFileURL,
            let scheme = firstURL.scheme?.lowercased(), (scheme == "http" || scheme == "https") {
@@ -196,39 +378,25 @@ public final class ClipboardHistoryService: ObservableObject {
                 isPinned: false
             )
             addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
+            commitChangeCount(currentCount)
             return
         }
 
-        // D. Check for Text (also detect if raw string is a URL)
-        if types.contains(.string), let string = pb.string(forType: .string) {
-            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return }
+        // If no content could be read yet, check if we should retry (lazy promise) or give up
+        checkTransientOrGiveUp(currentCount: currentCount)
+    }
 
-            if let url = URL(string: trimmed),
-               let scheme = url.scheme?.lowercased(),
-               (scheme == "http" || scheme == "https"),
-               url.host != nil {
-                let entry = ClipboardEntry(
-                    type: .url,
-                    text: trimmed,
-                    fileURL: nil,
-                    imageData: nil,
-                    timestamp: Date(),
-                    isPinned: false
-                )
-                addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
-            } else {
-                let entry = ClipboardEntry(
-                    type: .text,
-                    text: string,
-                    fileURL: nil,
-                    imageData: nil,
-                    timestamp: Date(),
-                    isPinned: false
-                )
-                addOrPromoteEntry(entry, isInitialCheck: isInitialCheck)
-            }
-            return
+    private func commitChangeCount(_ count: Int) {
+        self.lastChangeCount = count
+        self.pendingChangeCount = -1
+        self.pendingFirstSeen = nil
+    }
+
+    private func checkTransientOrGiveUp(currentCount: Int) {
+        let firstSeen = pendingFirstSeen ?? Date()
+        if Date().timeIntervalSince(firstSeen) >= 2.0 {
+            // Give up after 2.0 seconds of retries to avoid stalling on genuinely empty data
+            commitChangeCount(currentCount)
         }
     }
 
@@ -244,26 +412,29 @@ public final class ClipboardHistoryService: ObservableObject {
         // 3. Insert at top
         recentEntries.insert(entry, at: 0)
 
-        // 4. Retain up to 25 recent clipboard items (matches product requirement)
+        // 4. Retain up to 25 recent clipboard items
         if recentEntries.count > 25 {
             recentEntries.removeLast(recentEntries.count - 25)
         }
         saveRecentEntries()
 
-        // 5. Fire Bug 2 clipboard-copied capsule exactly once per new copy
+        // 5. Fire clipboard-copied notification exactly once per new copy
         if !isInitialCheck {
             DynamicIslandHub.shared.triggerClipboardAlert(text: entry.previewText)
         }
     }
 
-    private func isIdentical(_ a: ClipboardEntry, _ b: ClipboardEntry) -> Bool {
+    public func isIdentical(_ a: ClipboardEntry, _ b: ClipboardEntry) -> Bool {
         if a.type != b.type { return false }
         switch a.type {
         case .file:
             return a.fileURL?.standardizedFileURL.path == b.fileURL?.standardizedFileURL.path
         case .image:
+            if let hashA = a.imageHash, let hashB = b.imageHash {
+                return hashA == hashB
+            }
             if let dataA = a.imageData, let dataB = b.imageData {
-                return dataA.prefix(256) == dataB.prefix(256)
+                return dataA == dataB
             }
             return false
         case .url:
@@ -273,9 +444,11 @@ public final class ClipboardHistoryService: ObservableObject {
         }
     }
 
-    private func compressedImageData(from image: NSImage) -> Data? {
+    nonisolated public static func compressedImageData(from image: NSImage) -> Data? {
         let maxDimension: CGFloat = 500
         var newSize = image.size
+        guard newSize.width > 0 && newSize.height > 0 else { return nil }
+
         if newSize.width > maxDimension || newSize.height > maxDimension {
             let aspect = newSize.width / newSize.height
             if aspect > 1 {
@@ -372,15 +545,22 @@ public final class ClipboardHistoryService: ObservableObject {
         saveRecentEntries()
     }
 
-    // MARK: - Persistence (Pinned and Recent entries)
+    // MARK: - Persistence (Debounced Background Persistence)
 
     private func savePinnedEntries() {
-        do {
-            let data = try JSONEncoder().encode(pinnedEntries)
-            try data.write(to: pinnedFileURL, options: .atomic)
-        } catch {
-            print("❌ Failed to save pinned clipboard entries: \(error)")
+        pinnedSaveWorkItem?.cancel()
+        let snapshot = self.pinnedEntries
+        let url = self.pinnedFileURL
+        let workItem = DispatchWorkItem {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                try data.write(to: url, options: .atomic)
+            } catch {
+                print("❌ Failed to save pinned clipboard entries: \(error)")
+            }
         }
+        self.pinnedSaveWorkItem = workItem
+        persistenceQueue.asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 
     private func loadPinnedEntries() {
@@ -394,12 +574,19 @@ public final class ClipboardHistoryService: ObservableObject {
     }
 
     private func saveRecentEntries() {
-        do {
-            let data = try JSONEncoder().encode(recentEntries)
-            try data.write(to: recentFileURL, options: .atomic)
-        } catch {
-            print("❌ Failed to save recent clipboard entries: \(error)")
+        recentSaveWorkItem?.cancel()
+        let snapshot = self.recentEntries
+        let url = self.recentFileURL
+        let workItem = DispatchWorkItem {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                try data.write(to: url, options: .atomic)
+            } catch {
+                print("❌ Failed to save recent clipboard entries: \(error)")
+            }
         }
+        self.recentSaveWorkItem = workItem
+        persistenceQueue.asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 
     private func loadRecentEntries() {

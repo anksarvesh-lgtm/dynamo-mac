@@ -16,7 +16,7 @@ public enum ClipboardType: String, Codable, CaseIterable {
     case url
 }
 
-public struct ClipboardEntry: Identifiable, Codable, Equatable {
+public struct ClipboardEntry: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let type: ClipboardType
     public let text: String
@@ -24,6 +24,7 @@ public struct ClipboardEntry: Identifiable, Codable, Equatable {
     public let imageData: Data?
     public let timestamp: Date
     public var isPinned: Bool
+    public let imageHash: String?
 
     public init(
         id: UUID = UUID(),
@@ -32,7 +33,8 @@ public struct ClipboardEntry: Identifiable, Codable, Equatable {
         fileURL: URL? = nil,
         imageData: Data? = nil,
         timestamp: Date = Date(),
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        imageHash: String? = nil
     ) {
         self.id = id
         self.type = type
@@ -41,10 +43,11 @@ public struct ClipboardEntry: Identifiable, Codable, Equatable {
         self.imageData = imageData
         self.timestamp = timestamp
         self.isPinned = isPinned
+        self.imageHash = imageHash
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, type, text, fileURL, imageData, timestamp, isPinned
+        case id, type, text, fileURL, imageData, timestamp, isPinned, imageHash
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,6 +59,7 @@ public struct ClipboardEntry: Identifiable, Codable, Equatable {
         self.imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         self.timestamp = try container.decodeIfPresent(Date.self, forKey: .timestamp) ?? Date()
         self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        self.imageHash = try container.decodeIfPresent(String.self, forKey: .imageHash)
     }
 
     public var previewText: String {
