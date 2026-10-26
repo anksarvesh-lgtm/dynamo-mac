@@ -656,7 +656,7 @@ public final class DeviceMonitor: ObservableObject {
             return .keyboard
         } else if lower.contains("ipad") {
             return .tablet
-        } else if lower.contains("android") || lower.contains("pixel") || lower.contains("galaxy") || lower.contains("samsung") || lower.contains("redmi") || lower.contains("xiaomi") || lower.contains("oneplus") || lower.contains("oppo") || lower.contains("vivo") {
+        } else if lower.contains("android") || lower.contains("pixel") || lower.contains("galaxy") || lower.contains("samsung") || lower.contains("redmi") || lower.contains("xiaomi") || lower.contains("oneplus") || lower.contains("oppo") || lower.contains("vivo") || lower.contains("realme") || lower.contains("motorola") || lower.contains("moto ") || lower.contains("nothing phone") || lower.contains("honor") || lower.contains("sony") || lower.contains("xperia") || lower.contains("huawei") || lower.contains("poco") || lower.contains("infinix") || lower.contains("tecno") || lower.contains("asus") || lower.contains("rog phone") || lower.contains("mtp") || lower.contains("sm-") {
             return .androidPhone
         } else if lower.contains("iphone") || lower.contains("phone") || lower.contains("ios") {
             return .phone

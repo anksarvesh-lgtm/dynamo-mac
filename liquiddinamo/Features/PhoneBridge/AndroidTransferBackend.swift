@@ -349,12 +349,31 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
     public func queryStorageInfo(serial: String) async -> (total: UInt64, used: UInt64, free: UInt64)? {
         guard let adb = effectiveAdbPath else { return nil }
         
-        let candidatePaths = ["/storage/emulated/0", "/sdcard", "/storage/self/primary", "/data"]
+        // Strategy 1: dumpsys diskstats (system service, unrestricted across Android 4 - 15)
+        let diskstatsOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "dumpsys", "diskstats"])
+        if let res = Self.parseDiskstatsOutput(diskstatsOut) {
+            return res
+        }
         
-        // Strategy 1: stat -f -c '%a %b %s' (standard toybox/coreutils stat)
+        // Strategy 2: Global df -k (reads /proc/mounts without path permissions)
+        let globalDfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k"])
+        if let res = Self.parseDfMounts(globalDfOut) {
+            return res
+        }
+        
+        // Strategy 3: Target path df -k (without invalid POSIX -P flag which breaks toybox)
+        let candidatePaths = ["/data", "/storage/emulated/0", "/sdcard", "/storage/self/primary"]
         for path in candidatePaths {
-            let statOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "stat", "-f", "-c", "'%a %b %s'", path])
-            let cleaned = statOut.replacingOccurrences(of: "'", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let dfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", path])
+            if let res = Self.parseDfMounts(dfOut) ?? Self.parseDfOutput(dfOut) {
+                return res
+            }
+        }
+        
+        // Strategy 4: stat -f -c %a %b %s (unquoted format specifier for toybox stat)
+        for path in candidatePaths {
+            let statOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "stat", "-f", "-c", "%a %b %s", path])
+            let cleaned = statOut.trimmingCharacters(in: .whitespacesAndNewlines)
             let parts = cleaned.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
             if parts.count >= 3,
                let freeBlocks = UInt64(parts[0]),
@@ -368,19 +387,88 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
             }
         }
         
-        // Strategy 2: df -k -P (POSIX 1-line format) and df -k
-        for path in candidatePaths {
-            let dfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", "-P", path])
-            if let res = Self.parseDfOutput(dfOut) {
-                return res
+        return nil
+    }
+    
+    public static func parseDiskstatsOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+        for line in text.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.hasPrefix("Data-Free:") else { continue }
+            let parts = trimmed.replacingOccurrences(of: "Data-Free:", with: "")
+                .components(separatedBy: "/")
+            guard parts.count >= 2 else { continue }
+            
+            let freeStr = parts[0].trimmingCharacters(in: .whitespaces)
+            let totalPart = parts[1].components(separatedBy: "total")[0].trimmingCharacters(in: .whitespaces)
+            
+            if let freeBytes = parseByteToken(freeStr),
+               let totalBytes = parseByteToken(totalPart),
+               totalBytes > 0 {
+                let usedBytes = totalBytes > freeBytes ? (totalBytes - freeBytes) : 0
+                return (totalBytes, usedBytes, freeBytes)
             }
-            let dfOut2 = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", path])
-            if let res = Self.parseDfOutput(dfOut2) {
-                return res
+        }
+        return nil
+    }
+    
+    private static func parseByteToken(_ str: String) -> UInt64? {
+        let clean = str.trimmingCharacters(in: .whitespaces).uppercased()
+        if clean.hasSuffix("K") {
+            let numStr = String(clean.dropLast()).trimmingCharacters(in: .whitespaces)
+            return UInt64(numStr).map { $0 * 1024 }
+        } else if clean.hasSuffix("M") {
+            let numStr = String(clean.dropLast()).trimmingCharacters(in: .whitespaces)
+            return UInt64(numStr).map { $0 * 1024 * 1024 }
+        } else if clean.hasSuffix("G") {
+            let numStr = String(clean.dropLast()).trimmingCharacters(in: .whitespaces)
+            return UInt64(numStr).map { $0 * 1024 * 1024 * 1024 }
+        } else if let val = UInt64(clean) {
+            return val * 1024
+        }
+        return nil
+    }
+
+    public static func parseDfMounts(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+        let lines = text.components(separatedBy: "\n")
+        var bestCandidate: (total: UInt64, used: UInt64, free: UInt64)? = nil
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lower = trimmed.lowercased()
+            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("1024-blocks") || lower.contains("mounted on") {
+                continue
+            }
+            
+            let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            guard tokens.count >= 4 else { continue }
+            
+            let mount = tokens.last ?? ""
+            let isDataPartition = mount == "/data" || mount == "/storage/emulated" || mount == "/storage/emulated/0" || mount == "/sdcard" || mount == "/storage/self/primary"
+            
+            var numbers: [UInt64] = []
+            for token in tokens.dropFirst() {
+                if let val = UInt64(token) {
+                    numbers.append(val)
+                }
+            }
+            
+            if numbers.count >= 3, numbers[0] > 0 {
+                let total = numbers[0] * 1024
+                let used = numbers[1] * 1024
+                let free = numbers[2] * 1024
+                
+                if isDataPartition {
+                    return (total, used, free)
+                }
+                
+                if mount.hasSuffix("/data") || mount.contains("emulated") {
+                    bestCandidate = (total, used, free)
+                }
             }
         }
         
-        return nil
+        return bestCandidate
     }
     
     public static func parseDfOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
@@ -513,16 +601,16 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
         let bridge = MTPBridge.shared
         let initRes = await bridge.initialize()
         guard case .success = initRes else {
-            await bridge.dispose()
             return nil
         }
         let storagesRes = await bridge.fetchStorages()
-        await bridge.dispose()
         if case .success(let storages) = storagesRes, let first = storages.first {
             let total = first.Info.MaxCapability
             let free = first.Info.FreeSpaceInBytes
             let used = total > free ? (total - free) : 0
-            return (total, used, free)
+            if total > 0 {
+                return (total, used, free)
+            }
         }
         return nil
     }

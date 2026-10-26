@@ -112,12 +112,13 @@ public final class PhoneBridgeEngine: ObservableObject {
 
     public func selectDevice(serial: String) {
         if let dev = connectedDevices.first(where: { $0.serial == serial }) {
+            self.objectWillChange.send()
             self.selectedDevice = dev
             if dev.connectionType == .mtp && (self.currentRemotePath == "/sdcard" || !self.currentRemotePath.hasPrefix("/")) {
                 self.currentRemotePath = "/"
             }
             fetchDirectoryContents(path: self.currentRemotePath)
-            syncStorage()
+            syncStorage(forced: true)
         }
     }
 
@@ -137,13 +138,21 @@ public final class PhoneBridgeEngine: ObservableObject {
 
             await MainActor.run {
                 self.isSyncingStorage = false
-                guard let (total, used, free) = storageInfo, total > 0 else { return }
+                guard let (total, used, free) = storageInfo, total > 0 else {
+                    if forced {
+                        self.lastErrorMessage = "Storage stats currently unavailable for \(dev.displayName)"
+                    }
+                    return
+                }
+
+                self.objectWillChange.send()
 
                 // Update selectedDevice
-                if self.selectedDevice?.serial == serial {
-                    self.selectedDevice?.internalStorageTotal = total
-                    self.selectedDevice?.internalStorageUsed = used
-                    self.selectedDevice?.internalStorageFree = free
+                if var sel = self.selectedDevice, sel.serial == serial {
+                    sel.internalStorageTotal = total
+                    sel.internalStorageUsed = used
+                    sel.internalStorageFree = free
+                    self.selectedDevice = sel
                 }
 
                 // Update connectedDevices list
@@ -241,8 +250,8 @@ public final class PhoneBridgeEngine: ObservableObject {
         guard !isScanning else { return }
         let hasAndroidUsb = DeviceMonitor.shared.activeDevices.values.contains { $0.kind == .androidPhone }
         
-        // Skip background probe if no device is connected and not forced by user
-        if !hasAndroidUsb && !forced && connectedDevices.isEmpty {
+        // Skip background probe only if no Android USB device is detected, no active devices, and ADB is unavailable
+        if !hasAndroidUsb && !forced && connectedDevices.isEmpty && !adbBackend.isAvailable {
             return
         }
 
@@ -252,7 +261,7 @@ public final class PhoneBridgeEngine: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
 
-            // Probe ADB backend (always safe)
+            // Probe ADB backend (always safe and fast)
             let adbDevices = await self.adbBackend.scanDevices()
 
             // Only probe MTP native if Android USB device is physically present or user forced
@@ -270,6 +279,7 @@ public final class PhoneBridgeEngine: ObservableObject {
 
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
+                self.objectWillChange.send()
                 self.isScanning = false
                 let previousDevices = self.connectedDevices
                 self.connectedDevices = discovered
@@ -280,13 +290,24 @@ public final class PhoneBridgeEngine: ObservableObject {
                     self.stopPeriodicDeviceScanner()
                 }
 
-                if self.selectedDevice == nil || !discovered.contains(where: { $0.serial == self.selectedDevice?.serial }) {
+                // Preserve and refresh current selected device
+                if let currentSel = self.selectedDevice,
+                   let updated = discovered.first(where: { $0.serial == currentSel.serial }) {
+                    self.selectedDevice = updated
+                } else {
                     self.selectedDevice = discovered.first
                     if let sel = self.selectedDevice {
                         if sel.connectionType == .mtp && self.currentRemotePath == "/sdcard" {
                             self.currentRemotePath = "/"
                         }
                         self.fetchDirectoryContents(path: self.currentRemotePath)
+                    }
+                }
+
+                // Auto-sync storage if device is connected and storage is 0 or newly connected
+                if let sel = self.selectedDevice, sel.status == .connected {
+                    if sel.internalStorageTotal == 0 || previousDevices.isEmpty {
+                        self.syncStorage(forced: forced)
                     }
                 }
 

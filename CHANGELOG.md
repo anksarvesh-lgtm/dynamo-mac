@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.0] — 2026-10-26
+
+### Phone Bridge Android Storage Synchronization & USB Detection Fixes
+- **Multi-Tiered Android Storage Query**: Added unprivileged `dumpsys diskstats` parser providing 100% reliable internal storage metrics across Android 4 through Android 15 without requiring root access.
+- **Global Mount Point Parser**: Added resilient global `df -k` partition parser matching `/data`, `/storage/emulated`, and `/sdcard` mounts directly from kernel `/proc/mounts`, bypassing scoped storage and path permission blocks on Android 11–15.
+- **Toybox Stat Syntax Fix**: Fixed single-quote argument passing to `stat -f -c "%a %b %s"` in `AdbBackend`, resolving toybox format error.
+- **MTP Session Stability**: Removed premature `dispose()` invocations during storage query and device discovery in `MtpBackend`, preserving active MTP connections and directory navigation.
+- **Expanded Android Device Classification**: Added 20+ additional OEM and model identifiers (Samsung Galaxy SM-, Xiaomi, Redmi, Poco, OnePlus, Oppo, Vivo, Realme, Motorola, Nothing Phone, Honor, Sony Xperia, Huawei, Infinix, Tecno, Asus ROG, MTP) in `DeviceMonitor` to eliminate false negatives.
+- **Automatic Sync & UI Reactivity**: Enforced automatic storage sync on device connection and explicit `@MainActor` object invalidation in `PhoneBridgeEngine` ensuring instant UI re-renders in dynamic notch HUD and Finder mount info.
+
 ## [2.0.9] — 2026-10-26
 
 ### Minimal macOS Settings UI & Contextual Notch Aesthetics
