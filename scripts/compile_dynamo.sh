@@ -4,11 +4,13 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK="/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
 [ -d "$SDK" ] || SDK="$(xcrun --show-sdk-path)"
-MODULES_DIR="/tmp/spm_deps/modules"
-FRAMEWORKS_DIR="/tmp/spm_deps/frameworks_flat"
-BUNDLE_FRAMEWORKS="/tmp/spm_deps/bundle_frameworks"
+SPM_DEPS_DIR="${SPM_DEPS_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/spm_deps.XXXXXX")}"
+export SPM_DEPS_DIR
+MODULES_DIR="$SPM_DEPS_DIR/modules"
+FRAMEWORKS_DIR="$SPM_DEPS_DIR/frameworks_flat"
+BUNDLE_FRAMEWORKS="$SPM_DEPS_DIR/bundle_frameworks"
 
-echo "==> LiquidDynamo CLI Compiler using SDK: $SDK"
+echo "==> LiquidDynamo CLI Compiler using SDK: $SDK (deps: $SPM_DEPS_DIR)"
 mkdir -p "$MODULES_DIR" "$FRAMEWORKS_DIR" "$BUNDLE_FRAMEWORKS"
 
 # 1. Compile 7 Swift dependencies if not already present
@@ -27,19 +29,21 @@ done
 # 2. Gather all project Swift sources
 python3 -c "
 import os
+deps_dir = os.environ.get('SPM_DEPS_DIR', '/tmp/spm_deps')
 sources = []
 for root, dirs, files in os.walk('liquiddinamo'):
     for f in files:
         if f.endswith('.swift'):
             sources.append(os.path.join(root, f))
-with open('/tmp/spm_deps/all_dynamo_sources.txt', 'w') as f:
+sources_file = os.path.join(deps_dir, 'all_dynamo_sources.txt')
+with open(sources_file, 'w') as f:
     for s in sorted(sources):
         f.write(f'\"{s}\"\n')
 print(f'Prepared {len(sources)} Swift source files.')
 "
 
 # 3. Compile LiquidDynamo binary
-OUTPUT_BIN="/tmp/spm_deps/LiquidDynamo_test"
+OUTPUT_BIN="$SPM_DEPS_DIR/LiquidDynamo_test"
 echo "==> Compiling LiquidDynamo executable to $OUTPUT_BIN..."
 swiftc -module-name LiquidDynamo \
   -target arm64-apple-macos14.0 \
@@ -71,7 +75,7 @@ swiftc -module-name LiquidDynamo \
   -parse-as-library \
   -emit-executable \
   -o "$OUTPUT_BIN" \
-  @/tmp/spm_deps/all_dynamo_sources.txt \
+  @"$SPM_DEPS_DIR/all_dynamo_sources.txt" \
   -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   -Xlinker -rpath -Xlinker "$DIR/mediaremote-adapter"
 

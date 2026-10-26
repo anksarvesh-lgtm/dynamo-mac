@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-BASE="/tmp/spm_deps"
+BASE="${SPM_DEPS_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/spm_deps.XXXXXX")}"
+export SPM_DEPS_DIR="$BASE"
 OUT_DIR="$BASE/modules"
 FW_DIR="$BASE/frameworks_flat"
 BUNDLE_DIR="$BASE/bundle_frameworks"

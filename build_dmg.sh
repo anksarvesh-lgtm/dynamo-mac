@@ -50,15 +50,21 @@ if [ "${RELEASE:-0}" = "1" ] || [ "${RELEASE:-}" = "true" ]; then
   IS_RELEASE=true
 fi
 
-# ---- Extract Version from Project ----
+# ---- Extract Version and Build Number from Project ----
 VERSION=""
+BUILD_NUMBER=""
 if [ -f "LiquidDynamo.xcodeproj/project.pbxproj" ]; then
   VERSION="$(grep -m1 'MARKETING_VERSION' LiquidDynamo.xcodeproj/project.pbxproj | awk -F'=' '{print $2}' | tr -d ' ;\"' || true)"
+  BUILD_NUMBER="$(grep -m1 'CURRENT_PROJECT_VERSION' LiquidDynamo.xcodeproj/project.pbxproj | awk -F'=' '{print $2}' | tr -d ' ;\"' || true)"
 fi
 if [ -z "$VERSION" ] && [ -f "liquiddinamo/Info.plist" ]; then
   VERSION="$(plutil -p liquiddinamo/Info.plist 2>/dev/null | grep CFBundleShortVersionString | awk '{print $NF}' | tr -d '\"' || true)"
 fi
+if [ -z "$BUILD_NUMBER" ] && [ -f "liquiddinamo/Info.plist" ]; then
+  BUILD_NUMBER="$(plutil -p liquiddinamo/Info.plist 2>/dev/null | grep CFBundleVersion | awk '{print $NF}' | tr -d '\"' || true)"
+fi
 VERSION="${VERSION:-2.0.5}"
+BUILD_NUMBER="${BUILD_NUMBER:-18}"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
 
 # ---- Derive Team ID if possible ----
@@ -66,9 +72,17 @@ if [ -z "${DEVELOPMENT_TEAM:-}" ] && [ "$SIGN_IDENTITY" != "-" ]; then
   DEVELOPMENT_TEAM="$(echo "$SIGN_IDENTITY" | sed -n 's/.*(\([A-Z0-9]\{10\}\)).*/\1/p' || true)"
 fi
 
+# ---- Check Build Tools ----
+HAS_XCODE=false
+if command -v xcodebuild >/dev/null 2>&1; then
+  if xcodebuild -version >/dev/null 2>&1; then
+    HAS_XCODE=true
+  fi
+fi
+
 # ---- Enforcement & Fail-Fast ----
 if [ "$IS_RELEASE" = "true" ]; then
-  say "Running in RELEASE DISTRIBUTION mode (version: $VERSION)"
+  say "Running in RELEASE DISTRIBUTION mode (version: $VERSION, build: $BUILD_NUMBER)"
   if [ "$SIGN_IDENTITY" = "-" ] || [ -z "$SIGN_IDENTITY" ]; then
     echo ""
     printf "\033[31m=================================================================\n"
@@ -83,10 +97,23 @@ if [ "$IS_RELEASE" = "true" ]; then
     printf "=================================================================\033[0m\n\n"
     die "Refusing to create an ad-hoc release build."
   fi
+
+  if [ "$HAS_XCODE" = false ]; then
+    echo ""
+    printf "\033[31m=================================================================\n"
+    printf "❌ RELEASE REFUSED: xcodebuild is not available!\n"
+    printf "=================================================================\n"
+    printf "Official release builds require a clean, reproducible Xcode build.\n"
+    printf "The non-Xcode fallback and /Applications template are strictly forbidden\n"
+    printf "in release mode to prevent shipping corrupted or untracked artifacts.\n"
+    printf "=================================================================\033[0m\n\n"
+    die "Refusing to create a release build without xcodebuild."
+  fi
+
   # In release mode, NEVER overwrite /Applications or remove quarantine on local machine
   INSTALL_APP="false"
 else
-  say "Running in LOCAL TEST mode (version: $VERSION)"
+  say "Running in LOCAL TEST mode (version: $VERSION, build: $BUILD_NUMBER)"
   INSTALL_APP="${INSTALL_APP:-true}"
   if [ "$SIGN_IDENTITY" = "-" ]; then
     printf "\n\033[33m=================================================================\n"
@@ -98,16 +125,8 @@ else
   fi
 fi
 
-# ---- Check Build Tools ----
-HAS_XCODE=false
-if command -v xcodebuild >/dev/null 2>&1; then
-  if xcodebuild -version >/dev/null 2>&1; then
-    HAS_XCODE=true
-  fi
-fi
-
 # ---- Build / Stage Application ----
-say "Building $APP_NAME (version: $VERSION, signing identity: $SIGN_IDENTITY)"
+say "Building $APP_NAME (version: $VERSION, build: $BUILD_NUMBER, signing identity: $SIGN_IDENTITY)"
 rm -rf "$BUILD_DIR"; mkdir -p "$BUILD_DIR"
 
 if [ "$HAS_XCODE" = true ]; then
@@ -139,7 +158,38 @@ if [ "$HAS_XCODE" = true ]; then
 
   APP_PATH="$(find "$BUILD_DIR/derived/Build/Products/$CONFIG" -maxdepth 1 -name '*.app' | head -n1)"
   [ -d "$APP_PATH" ] || die "Built .app not found under $BUILD_DIR/derived/Build/Products/$CONFIG"
+
+  # Ensure required dynamic libraries in Frameworks are staged and verified
+  mkdir -p "$APP_PATH/Contents/Frameworks"
+  if [ -d "$(pwd)/Frameworks" ]; then
+    if [ "$IS_RELEASE" = "true" ]; then
+      say "Staging and validating Frameworks dynamic libraries for release..."
+      cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/"
+      [ -f "$APP_PATH/Contents/Frameworks/kalam.dylib" ] || die "Required kalam.dylib missing from staged Frameworks!"
+      [ -f "$APP_PATH/Contents/Frameworks/libusb.dylib" ] || die "Required libusb.dylib missing from staged Frameworks!"
+    else
+      cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
+    fi
+  elif [ "$IS_RELEASE" = "true" ]; then
+    die "Required Frameworks directory not found in project root for release."
+  fi
 else
+  # Non-Xcode fallback: strictly local test builds only
+  if [ "$IS_RELEASE" = "true" ]; then
+    die "Non-Xcode fallback is strictly forbidden in release mode."
+  fi
+
+  printf "\n\033[33m=================================================================\n"
+  printf "⚠️  LOCAL TEST FALLBACK: BUILDING WITHOUT XCODEBUILD\n"
+  printf "xcodebuild is not available. Using local swiftc compilation and template.\n"
+  printf "THIS BUILD IS FOR LOCAL TESTING ONLY AND CANNOT BE RELEASED.\n"
+  printf "=================================================================\033[0m\n\n"
+
+  # Isolate build artifacts in unique temporary directory with mktemp -d
+  FALLBACK_BUILD_TMP="$(mktemp -d "${TMPDIR:-/tmp}/spm_deps.XXXXXX")"
+  export SPM_DEPS_DIR="$FALLBACK_BUILD_TMP"
+  trap 'rm -rf "$FALLBACK_BUILD_TMP"' EXIT
+
   say "Compiling fresh binary with swiftc via scripts/compile_dynamo.sh..."
   bash "$(pwd)/scripts/compile_dynamo.sh"
   APP_PATH="$BUILD_DIR/$APP_NAME.app"
@@ -154,18 +204,24 @@ else
   fi
   
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
-  plutil -replace CFBundleVersion -string "17" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+  plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
   
   # Install fresh compiled binary
-  cp /tmp/spm_deps/LiquidDynamo_test "$APP_PATH/Contents/MacOS/$APP_NAME"
+  cp "$SPM_DEPS_DIR/LiquidDynamo_test" "$APP_PATH/Contents/MacOS/$APP_NAME"
   chmod +x "$APP_PATH/Contents/MacOS/$APP_NAME"
   
   # Install dependency dylibs and frameworks
   mkdir -p "$APP_PATH/Contents/Frameworks"
-  cp -f /tmp/spm_deps/bundle_frameworks/* "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
+  if [ -d "$SPM_DEPS_DIR/bundle_frameworks" ]; then
+    cp -f "$SPM_DEPS_DIR/bundle_frameworks/"* "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
+  fi
   rm -rf "$APP_PATH/Contents/Frameworks/Sparkle.framework" "$APP_PATH/Contents/Frameworks/Lottie.framework"
-  cp -R /tmp/spm_deps/frameworks_flat/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
-  cp -R /tmp/spm_deps/frameworks_flat/Lottie.framework "$APP_PATH/Contents/Frameworks/"
+  if [ -d "$SPM_DEPS_DIR/frameworks_flat/Sparkle.framework" ]; then
+    cp -R "$SPM_DEPS_DIR/frameworks_flat/Sparkle.framework" "$APP_PATH/Contents/Frameworks/"
+  fi
+  if [ -d "$SPM_DEPS_DIR/frameworks_flat/Lottie.framework" ]; then
+    cp -R "$SPM_DEPS_DIR/frameworks_flat/Lottie.framework" "$APP_PATH/Contents/Frameworks/"
+  fi
   if [ -d "$(pwd)/Frameworks" ]; then
     cp -f "$(pwd)/Frameworks/"*.dylib "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
   fi

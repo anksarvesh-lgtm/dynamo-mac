@@ -117,14 +117,17 @@ This document establishes the audit evidence, root causes, targeted minimal chan
   - `xcodebuild -scheme LiquidDynamo -configuration Debug CODE_SIGNING_ALLOWED=NO -destination "platform=macOS" build`: **BUILD SUCCEEDED**.
 
 ### Milestone 6: Release Script Reproducibility
-- **Cause**: In `RELEASE=1` mode, missing xcodebuild fell back to copying `/Applications/LiquidDynamo.app`, hardcoding version "17", and ignoring dylib copy failures.
+- **Status**: **CONFIRMED & FIXED**
+- **Cause**: In `RELEASE=1` mode, missing xcodebuild fell back to copying `/Applications/LiquidDynamo.app`, hardcoded version "17" (ignoring project's `CURRENT_PROJECT_VERSION 18`), ignored dylib copy failures with `|| true`, and used shared `/tmp/spm_deps`.
 - **Change**:
-  1. In release mode (`RELEASE=1` or `--release`), strictly enforce `xcodebuild` requirement and reject fallback templates.
-  2. For local test builds, use `mktemp -d` for isolated build artifacts instead of shared `/tmp/spm_deps`.
-  3. Fail fast on missing dylibs (`set -e`, remove `|| true` on critical framework copies).
-  4. Extract version and build numbers dynamically from Xcode project settings.
-- **Risk**: Breaking existing local build workflows.
-- **Test**: Run `scripts/verify_release.sh` and test build flags in release vs local test modes.
+  1. In release mode (`RELEASE=1` or `--release`), strictly enforce `xcodebuild` requirement and reject fallback templates and `/Applications` copying with fatal error.
+  2. For local test builds, use `mktemp -d` for isolated build artifacts instead of shared `/tmp/spm_deps`, display a loud warning banner, and clean up temporary build directories via trap.
+  3. Staged and validated required Framework dynamic libraries (`kalam.dylib`, `libusb.dylib`) fail fast without `|| true` in release mode.
+  4. Extracted version and build numbers dynamically from Xcode project settings (`MARKETING_VERSION 2.0.5`, `CURRENT_PROJECT_VERSION 18`), removing hardcoded "17".
+- **Risk**: None; standard Xcode build process preserved.
+- **Test Evidence**:
+  - `scripts/test_release_script_milestone6.swift`: 10/10 tests passed covering release mode rejection of missing Developer ID, release mode rejection of non-Xcode fallback, extraction of CURRENT_PROJECT_VERSION 18, removal of hardcoded CFBundleVersion 17, and isolated `mktemp -d` usage in `compile_dynamo.sh` and `setup_spm_deps.sh`.
+  - Validated syntax of `build_dmg.sh`, `scripts/compile_dynamo.sh`, `scripts/setup_spm_deps.sh`, and `scripts/verify_release.sh`.
 
 ### Milestone 7: Outbound Network Disclosure & Privacy Opt-Ins
 - **Cause**: Unannounced outbound network connections contradict zero-telemetry claims in README/RULES.
