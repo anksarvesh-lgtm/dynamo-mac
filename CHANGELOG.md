@@ -2,6 +2,13 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.1] — 2026-10-26
+
+### Live In-Place Auto-Update Pipeline & Package Delivery
+- **Guaranteed Dual-Format Release Artifacts**: Updated `build_dmg.sh` and CI release packaging to simultaneously create `LiquidDynamo-2.1.1.dmg`, unversioned `LiquidDynamo.dmg`, and `liquiddynamo.zip` for instant live updates.
+- **Older Version Compatibility**: Configured release workflow and asset staging to ensure existing installed clients querying `GitHubUpdateChecker` can seamlessly discover, download, and hot-swap to version 2.1.1.
+- **Phone Bridge Performance Verification**: Hardened background storage sync lifecycle and memory management across ADB and MTP communication pipelines.
+
 ## [2.1.0] — 2026-10-26
 
 ### Phone Bridge Android Storage Synchronization & USB Detection Fixes

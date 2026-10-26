@@ -178,12 +178,22 @@ jobs:
 
           # Extract built version for release tagging if workflow_dispatch was used without an explicit tag
           APP_VERSION="$(grep -m1 'MARKETING_VERSION' LiquidDynamo.xcodeproj/project.pbxproj | awk -F'=' '{print $2}' | tr -d ' ;\"' || true)"
-          echo "APP_VERSION=${APP_VERSION:-2.0.8}" >> $GITHUB_ENV
+          echo "APP_VERSION=${APP_VERSION:-2.1.1}" >> $GITHUB_ENV
 
           # Ensure liquiddynamo.zip is present for GitHub in-place auto-updater
-          if [ -d "build/LiquidDynamo.app" ]; then
-            echo "Creating liquiddynamo.zip for in-place auto-updater..."
-            ditto -c -k --keepParent build/LiquidDynamo.app "$OUTPUT_DIR/liquiddynamo.zip"
+          if [ ! -f "$OUTPUT_DIR/liquiddynamo.zip" ]; then
+            for APP_CANDIDATE in "$BUILD_DIR/LiquidDynamo.app" build/derived/Build/Products/*/"LiquidDynamo.app"; do
+              if [ -d "$APP_CANDIDATE" ]; then
+                echo "Creating liquiddynamo.zip from $APP_CANDIDATE for in-place auto-updater..."
+                ditto -c -k --keepParent "$APP_CANDIDATE" "$OUTPUT_DIR/liquiddynamo.zip"
+                break
+              fi
+            done
+          fi
+
+          # Ensure unversioned LiquidDynamo.dmg is present for direct permalinks
+          if [ -f "$OUTPUT_DIR"/LiquidDynamo-*.dmg ] && [ ! -f "$OUTPUT_DIR/LiquidDynamo.dmg" ]; then
+            cp -f "$OUTPUT_DIR"/LiquidDynamo-*.dmg "$OUTPUT_DIR/LiquidDynamo.dmg"
           fi
 
       - name: Verify Release Artifacts with verify_release.sh
@@ -199,6 +209,7 @@ jobs:
           tag_name: ${{ inputs.version != '' && inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', env.APP_VERSION)) }}
           files: |
             ${{ env.OUTPUT_DIR }}/LiquidDynamo-*.dmg
+            ${{ env.OUTPUT_DIR }}/LiquidDynamo.dmg
             ${{ env.OUTPUT_DIR }}/liquiddynamo.zip
           draft: false
           prerelease: false

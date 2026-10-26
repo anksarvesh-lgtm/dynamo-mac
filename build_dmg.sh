@@ -480,6 +480,26 @@ if [ -n "${NOTARY_PROFILE:-}" ] && [ "$SIGN_IDENTITY" != "-" ]; then
 fi
 
 # ==============================================================================
+# UPDATER & MIRROR PACKAGING
+# ==============================================================================
+say "Packaging auto-updater distribution artifacts..."
+
+# 1. Unversioned DMG link for direct downloads
+cp -f "$DMG_PATH" "$OUTPUT_DIR/$APP_NAME.dmg"
+echo "  Artifact: $OUTPUT_DIR/$APP_NAME.dmg"
+
+# 2. In-place auto-updater zip package (required by GitHubUpdateChecker)
+ZIP_PATH="$OUTPUT_DIR/liquiddynamo.zip"
+say "Creating in-place auto-updater package ($ZIP_PATH)..."
+ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+echo "  Artifact: $ZIP_PATH"
+echo "  Size:     $(du -sh "$ZIP_PATH" | awk '{print $1}')"
+
+# 3. Mirror signed app bundle to build/LiquidDynamo.app for CI and local workflows
+rm -rf "$BUILD_DIR/$APP_NAME.app"
+cp -R "$APP_PATH" "$BUILD_DIR/$APP_NAME.app"
+
+# ==============================================================================
 # SUMMARY & VERIFICATION
 # ==============================================================================
 say "Build & Packaging Complete!"
