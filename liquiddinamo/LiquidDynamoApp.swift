@@ -734,14 +734,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 || LiveActivityCenter.shared.activeAlert != nil
                 || LiveActivityCenter.shared.activeNotification != nil
             if hasAlert && IslandController.shared.activeOrganicItem == .none {
-                let contentW = IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeExpandedAlert?.customSize?.width
-                let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
-                let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-                targetSize = CGSize(width: capsuleSize.width, height: targetH)
+                targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: .expanded)
             } else if LiquidViewCoordinator.shared.currentView == .shelf {
                 targetSize = CGSize(width: max(islandTarget.width, 440), height: max(islandTarget.height, geom.notchHeight + 115))
             } else if LiquidViewCoordinator.shared.currentView == .plexo {
                 targetSize = CGSize(width: max(islandTarget.width, 560), height: max(islandTarget.height, geom.notchHeight + 450))
+            } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
+                targetSize = CGSize(width: max(islandTarget.width, 580), height: max(islandTarget.height, geom.notchHeight + 450))
             } else if LiquidViewCoordinator.shared.currentView == .home {
                 targetSize = islandTarget
             } else {
@@ -749,17 +748,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             shouldIgnore = false
         case .alertPop:
-            let contentW = explicitSize?.width ?? IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeAlert?.customSize?.width
-            let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
-            let popH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-            targetSize = CGSize(width: capsuleSize.width, height: popH)
+            targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: .alertPop)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
-            let candidateW = explicitSize?.width ?? IslandController.shared.targetSize.width
-            let neededW = max(minBaseW, candidateW)
-            targetSize = CGSize(width: neededW, height: geom.notchHeight)
-            shouldIgnore = false
+            let hasAlert = IslandController.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeNotification != nil
+                || LiveActivityCenter.shared.activeHUD != nil
+                || BluetoothBatteryAlertManager.shared.isShowingAlertPopup
+                || DeviceShowcaseCoordinator.shared.isShowing
+            if hasAlert {
+                targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: state)
+                shouldIgnore = false
+            } else {
+                let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+                let candidateW = explicitSize?.width ?? IslandController.shared.targetSize.width
+                let neededW = max(minBaseW, candidateW)
+                targetSize = CGSize(width: neededW, height: geom.notchHeight)
+                shouldIgnore = false
+            }
         }
 
         if let win = self.window, let screen = win.screen ?? NSScreen.main {
@@ -841,14 +848,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 || LiveActivityCenter.shared.activeAlert != nil
                 || LiveActivityCenter.shared.activeNotification != nil
             if hasAlert && IslandController.shared.activeOrganicItem == .none {
-                let contentW = IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeExpandedAlert?.customSize?.width
-                let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
-                let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-                targetSize = CGSize(width: capsuleSize.width, height: targetH)
+                targetSize = IslandController.shared.calculateDimensions(for: .expanded)
             } else if LiquidViewCoordinator.shared.currentView == .shelf {
                 targetSize = CGSize(width: max(islandTarget.width, 440), height: max(islandTarget.height, geom.notchHeight + 115))
             } else if LiquidViewCoordinator.shared.currentView == .plexo {
                 targetSize = CGSize(width: max(islandTarget.width, 560), height: max(islandTarget.height, geom.notchHeight + 450))
+            } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
+                targetSize = CGSize(width: max(islandTarget.width, 580), height: max(islandTarget.height, geom.notchHeight + 450))
             } else if LiquidViewCoordinator.shared.currentView == .home {
                 targetSize = islandTarget
             } else {
@@ -856,17 +862,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             shouldIgnore = false
         case .alertPop:
-            let contentW = IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.shared.activeAlert?.customSize?.width
-            let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
-            let popH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-            targetSize = CGSize(width: capsuleSize.width, height: popH)
+            targetSize = IslandController.shared.calculateDimensions(for: .alertPop)
             shouldIgnore = false
         case .idle, .compact, .minimal:
-            let restingW = getClosedNotchSize(screenUUID: screen.displayUUID).width
-            let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
-            let candidateW = IslandController.shared.targetSize.width > 0 ? IslandController.shared.targetSize.width : restingW
-            targetSize = CGSize(width: max(minBaseW, candidateW), height: geom.notchHeight)
-            shouldIgnore = false
+            let hasAlert = IslandController.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeNotification != nil
+                || LiveActivityCenter.shared.activeHUD != nil
+                || BluetoothBatteryAlertManager.shared.isShowingAlertPopup
+                || DeviceShowcaseCoordinator.shared.isShowing
+            if hasAlert {
+                targetSize = IslandController.shared.calculateDimensions(for: state)
+                shouldIgnore = false
+            } else {
+                let restingW = getClosedNotchSize(screenUUID: screen.displayUUID).width
+                let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+                let candidateW = IslandController.shared.targetSize.width > 0 ? IslandController.shared.targetSize.width : restingW
+                targetSize = CGSize(width: max(minBaseW, candidateW), height: geom.notchHeight)
+                shouldIgnore = false
+            }
         }
 
         let newRect = calculateNotchCenteredRect(for: screen, size: targetSize)

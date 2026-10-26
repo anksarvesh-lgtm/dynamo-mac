@@ -32,8 +32,8 @@ public struct WatcherPillView: View {
     private var capsuleDimensions: (width: CGFloat, height: CGFloat) {
         let geom = safeArea.currentGeometry
         let minW: CGFloat = geom.hasPhysicalNotch ? max(200.0, geom.rawNotchWidth) : 200.0
-        let maxW: CGFloat = min(300.0, max(220.0, geom.screenFrame.width * 0.35))
-        let effectiveMeasuredW = measuredContentWidth > 0 ? (measuredContentWidth + 24.0) : 220.0
+        let maxW: CGFloat = min(460.0, max(300.0, geom.screenFrame.width * 0.45))
+        let effectiveMeasuredW = measuredContentWidth > 0 ? (measuredContentWidth + 24.0) : (IslandController.shared.dynamicAlertCapsuleWidth ?? 220.0)
         let finalWidth = min(maxW, max(minW, effectiveMeasuredW))
         let finalHeight = max(38.0, min(46.0, max(geom.notchHeight, 38.0)))
         return (finalWidth, finalHeight)
@@ -43,22 +43,33 @@ public struct WatcherPillView: View {
         if let session = currentSession {
             let dims = capsuleDimensions
 
-            compactHorizontalContent(session: session)
-                .fixedSize(horizontal: true, vertical: false)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .preference(key: EventCapsuleIntrinsicWidthPreferenceKey.self, value: geo.size.width)
-                    }
-                )
-                .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
-                    if newWidth > 0 && abs(newWidth - measuredContentWidth) > 1.0 {
-                        measuredContentWidth = newWidth
-                    }
+            ZStack {
+                compactHorizontalContent(session: session)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .preference(key: EventCapsuleIntrinsicWidthPreferenceKey.self, value: geo.size.width)
+                        }
+                    )
+                    .hidden()
+
+                compactHorizontalContent(session: session)
+                    .frame(width: max(0, dims.width - 24.0))
+            }
+            .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
+                if newWidth > 0 && abs(newWidth - measuredContentWidth) > 1.0 {
+                    measuredContentWidth = newWidth
+                    let geom = safeArea.currentGeometry
+                    let minW: CGFloat = geom.hasPhysicalNotch ? max(200.0, geom.rawNotchWidth) : 200.0
+                    let maxW: CGFloat = min(460.0, max(300.0, geom.screenFrame.width * 0.45))
+                    let calculated = min(maxW, max(minW, newWidth + 24.0))
+                    IslandController.shared.reportAlertCapsuleWidth(calculated)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .frame(width: dims.width, height: dims.height)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .frame(width: dims.width, height: dims.height)
                 .background(
                     ZStack {
                         LiquidGlassSurface(
@@ -121,7 +132,7 @@ public struct WatcherPillView: View {
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(maxWidth: 100, alignment: .leading)
+                .layoutPriority(1)
 
             // Dot Separator
             Text("•")

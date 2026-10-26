@@ -93,6 +93,24 @@ public struct AlertPayload: Identifiable, Equatable, Sendable {
     public static func == (lhs: AlertPayload, rhs: AlertPayload) -> Bool {
         lhs.id == rhs.id && lhs.kind == rhs.kind && lhs.title == rhs.title
     }
+
+    /// Content-aware estimate of required capsule width before first SwiftUI layout pass
+    public var estimatedContentWidth: CGFloat {
+        if let custom = customSize?.width, custom > 0 {
+            return custom
+        }
+        var base: CGFloat = 80.0
+        if progress != nil {
+            base += 58.0
+        }
+        if let trailing = trailingText, !trailing.isEmpty {
+            base += CGFloat(trailing.count * 8 + 16)
+        }
+        let titleLen = CGFloat(title.count) * 7.5
+        let subLen = CGFloat(subtitle?.count ?? 0) * 6.2
+        let textWidth = max(titleLen, subLen)
+        return base + textWidth
+    }
 }
 
 // MARK: - Background Activity Tracking

@@ -53,29 +53,35 @@ public struct LiquidAlertCapsuleContainer<Content: View>: View {
     public var body: some View {
         let geom = safeArea.currentGeometry
         let minW: CGFloat = geom.hasPhysicalNotch ? max(180.0, geom.rawNotchWidth) : 180.0
-        let maxW: CGFloat = min(380.0, max(280.0, geom.screenFrame.width * 0.45))
-        let effectiveMeasuredW = measuredWidth > 0 ? (measuredWidth + 28.0) : IslandController.alertCapsuleDefaultWidth
+        let maxW: CGFloat = min(460.0, max(300.0, geom.screenFrame.width * 0.45))
+        let effectiveMeasuredW = measuredWidth > 0 ? (measuredWidth + 28.0) : (IslandController.shared.dynamicAlertCapsuleWidth ?? IslandController.alertCapsuleDefaultWidth)
         let finalWidth = min(maxW, max(minW, effectiveMeasuredW))
         let finalHeight = max(36.0, min(48.0, max(geom.notchHeight, 38.0)))
 
-        content()
-            .fixedSize(horizontal: true, vertical: false)
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .preference(key: EventCapsuleIntrinsicWidthPreferenceKey.self, value: geo.size.width)
-                }
-            )
-            .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
-                if newWidth > 0 && abs(newWidth - measuredWidth) > 1.0 {
-                    measuredWidth = newWidth
-                    let calculated = min(maxW, max(minW, newWidth + 28.0))
-                    IslandController.shared.reportAlertCapsuleWidth(calculated)
-                }
+        ZStack {
+            content()
+                .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(key: EventCapsuleIntrinsicWidthPreferenceKey.self, value: geo.size.width)
+                    }
+                )
+                .hidden()
+
+            content()
+                .frame(width: max(0, finalWidth - 28.0))
+        }
+        .onPreferenceChange(EventCapsuleIntrinsicWidthPreferenceKey.self) { newWidth in
+            if newWidth > 0 && abs(newWidth - measuredWidth) > 1.0 {
+                measuredWidth = newWidth
+                let calculated = min(maxW, max(minW, newWidth + 28.0))
+                IslandController.shared.reportAlertCapsuleWidth(calculated)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 4)
-            .frame(width: finalWidth, height: finalHeight)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
+        .frame(width: finalWidth, height: finalHeight)
             .background(
                 ZStack {
                     LiquidGlassSurface(
@@ -637,16 +643,17 @@ public struct IslandAlertView: View {
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .frame(maxWidth: 130, alignment: .leading)
+                    .truncationMode(.tail)
 
                 if let subtitle = alert.subtitle {
                     Text(subtitle)
                         .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .frame(maxWidth: 130, alignment: .leading)
+                        .truncationMode(.tail)
                 }
             }
+            .layoutPriority(1)
         }
     }
 }
@@ -698,14 +705,17 @@ public struct ExpandedAlertBannerView: View {
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .truncationMode(.tail)
 
                 if let subtitle = alert.subtitle {
                     Text(subtitle)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.75))
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
+            .layoutPriority(1)
 
             if let progress = alert.progress {
                 GeometryReader { g in
@@ -720,7 +730,7 @@ public struct ExpandedAlertBannerView: View {
                 .frame(width: 50, height: 4)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
             if let trailing = alert.trailingText {
                 Text(trailing)

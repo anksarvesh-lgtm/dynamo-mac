@@ -589,7 +589,6 @@ struct ContentView: View {
                                 hub.dismissNotification()
                             }
                             .padding(.top, topNotchGap)
-                            .padding(.horizontal, 14)
                         } else if let alert = hub.activeAlert {
                             ExpandedAlertBannerView(
                                 alert: AlertPayload(
@@ -606,13 +605,11 @@ struct ContentView: View {
                                 hub.dismissAlert()
                             }
                             .padding(.top, topNotchGap)
-                            .padding(.horizontal, 14)
                         } else if let expandedAlert = island.activeExpandedAlert {
                             ExpandedAlertBannerView(alert: expandedAlert) {
                                 island.dismissExpandedAlert()
                             }
                             .padding(.top, topNotchGap)
-                            .padding(.horizontal, 14)
                         } else if coordinator.currentView != .home {
                             LiquidHeader()
                                 .frame(height: max(vm.effectiveClosedNotchHeight, vm.geometry.exclusionHeight))

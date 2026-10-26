@@ -75,6 +75,31 @@ public final class IslandController: ObservableObject {
                 self.targetSize = newSize
             }
             AppDelegate.shared?.updateWindowFrame(for: .alertPop, explicitSize: newSize, animated: true)
+        } else if state == .expanded {
+            let hasAlert = activeExpandedAlert != nil
+                || LiveActivityCenter.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeNotification != nil
+            if hasAlert && activeOrganicItem == .none {
+                let newSize = calculateDimensions(for: .expanded)
+                withAnimation(IslandMotion.shared.expandSpring) {
+                    self.targetSize = newSize
+                }
+                AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: newSize, animated: true)
+            }
+        } else {
+            let hasAlert = activeAlert != nil
+                || LiveActivityCenter.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeNotification != nil
+                || LiveActivityCenter.shared.activeHUD != nil
+                || BluetoothBatteryAlertManager.shared.isShowingAlertPopup
+                || DeviceShowcaseCoordinator.shared.isShowing
+            if hasAlert {
+                let newSize = calculateDimensions(for: state)
+                withAnimation(IslandMotion.shared.expandSpring) {
+                    self.targetSize = newSize
+                }
+                AppDelegate.shared?.updateWindowFrame(for: state, explicitSize: newSize, animated: true)
+            }
         }
     }
 
@@ -511,6 +536,7 @@ public final class IslandController: ObservableObject {
         expandedAlertDwellTask = nil
         withAnimation(IslandMotion.shared.contentOutAnimation) {
             self.activeExpandedAlert = nil
+            self.dynamicAlertCapsuleWidth = nil
             LiveActivityCenter.shared.dismissAlert(immediate: true)
             LiveActivityCenter.shared.dismissNotification()
         }
@@ -524,6 +550,7 @@ public final class IslandController: ObservableObject {
     }
 
     public func dismissAlert() {
+        self.dynamicAlertCapsuleWidth = nil
         if !pendingAlerts.isEmpty {
             let next = pendingAlerts.removeFirst()
             transitionTo(.alertPop, alertPayload: next)
@@ -589,7 +616,7 @@ public final class IslandController: ObservableObject {
 
     // MARK: - Dimension Calculation
 
-    private func calculateDimensions(for state: IslandState, alertPayload: AlertPayload? = nil) -> CGSize {
+    public func calculateDimensions(for state: IslandState, alertPayload: AlertPayload? = nil) -> CGSize {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
         let restingWidth = geom.hasPhysicalNotch ? geom.rawNotchWidth : 140.0
         let restingHeight = geom.notchHeight
@@ -602,6 +629,20 @@ public final class IslandController: ObservableObject {
 
         switch state {
         case .idle, .compact:
+            let hasTransientAlert = activeAlert != nil
+                || LiveActivityCenter.shared.activeAlert != nil
+                || LiveActivityCenter.shared.activeNotification != nil
+                || LiveActivityCenter.shared.activeHUD != nil
+                || BluetoothBatteryAlertManager.shared.isShowingAlertPopup
+                || DeviceShowcaseCoordinator.shared.isShowing
+            if hasTransientAlert {
+                let estimatedW = activeAlert?.estimatedContentWidth ?? 220.0
+                let contentW = dynamicAlertCapsuleWidth ?? estimatedW
+                let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
+                let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
+                return CGSize(width: capsuleSize.width + 24.0, height: targetH)
+            }
+
             let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
             let showWings = hasWings || !registeredActivities.isEmpty
             let wingW = Defaults[.autoFitWings] ? activeWingWidth : max(geom.wingWidth, activeWingWidth)
@@ -619,10 +660,16 @@ public final class IslandController: ObservableObject {
                 || LiveActivityCenter.shared.activeNotification != nil
             // Transient alerts only resize the container if no item is selected
             if hasAlert && activeOrganicItem == .none {
-                let contentW = dynamicAlertCapsuleWidth ?? activeExpandedAlert?.customSize?.width ?? alertPayload?.customSize?.width
+                let estimatedW: CGFloat = {
+                    if let notif = LiveActivityCenter.shared.activeNotification {
+                        return 330.0
+                    }
+                    return activeExpandedAlert?.estimatedContentWidth ?? alertPayload?.estimatedContentWidth ?? 220.0
+                }()
+                let contentW = dynamicAlertCapsuleWidth ?? activeExpandedAlert?.customSize?.width ?? alertPayload?.customSize?.width ?? estimatedW
                 let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
                 let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-                return CGSize(width: capsuleSize.width, height: targetH)
+                return CGSize(width: capsuleSize.width + 24.0, height: targetH)
             }
 
             let screenMaxH: CGFloat = {
@@ -666,10 +713,11 @@ public final class IslandController: ObservableObject {
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
 
         case .alertPop:
-            let contentW = dynamicAlertCapsuleWidth ?? alertPayload?.customSize?.width ?? activeAlert?.customSize?.width
+            let estimatedW = alertPayload?.estimatedContentWidth ?? activeAlert?.estimatedContentWidth ?? 220.0
+            let contentW = dynamicAlertCapsuleWidth ?? alertPayload?.customSize?.width ?? activeAlert?.customSize?.width ?? estimatedW
             let capsuleSize = IslandController.alertCapsuleSize(for: geom, contentWidth: contentW)
             let targetH = geom.isNotched ? (geom.notchHeight + capsuleSize.height + 8) : capsuleSize.height
-            return CGSize(width: capsuleSize.width, height: targetH)
+            return CGSize(width: capsuleSize.width + 24.0, height: targetH)
         }
     }
 
@@ -679,7 +727,7 @@ public final class IslandController: ObservableObject {
     /// Derives the exact 3D liquid capsule size from NotchSafeAreaEngine geometry and content measurements
     public static func alertCapsuleSize(for geom: NotchGeometry, contentWidth: CGFloat? = nil) -> CGSize {
         let minW: CGFloat = geom.hasPhysicalNotch ? max(180.0, geom.rawNotchWidth) : 180.0
-        let maxW: CGFloat = min(380.0, max(280.0, geom.screenFrame.width * 0.45))
+        let maxW: CGFloat = min(460.0, max(300.0, geom.screenFrame.width * 0.45))
         let requestedW = contentWidth ?? alertCapsuleDefaultWidth
         let width = min(maxW, max(minW, requestedW))
         let height = max(36.0, min(48.0, max(geom.notchHeight, 38.0)))
@@ -872,7 +920,7 @@ public final class IslandController: ObservableObject {
 
     public func containsPointInVisibleShape(_ point: NSPoint, inWindow window: NSWindow) -> Bool {
         let screenPoint = window.convertPoint(toScreen: point)
-        if state == .expanded || LiquidViewModel.shared.notchState == .open {
+        if state == .expanded || LiquidViewModel.shared.notchState == .open || state == .alertPop {
             let targetRect = AppDelegate.shared?.targetFrame(for: window) ?? window.frame
             let unionFrame = window.frame.union(targetRect)
             return isMouseInHoverRegion(screenPoint) || unionFrame.contains(screenPoint)

@@ -64,14 +64,17 @@ public struct GenericAlertLiveActivityView: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .truncationMode(.tail)
 
                 if let subtitle = subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.system(size: 10.5, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
+            .layoutPriority(1)
 
             Spacer(minLength: 8)
 
@@ -92,7 +95,6 @@ public struct GenericAlertLiveActivityView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
         .frame(height: 42)
         .avoidsNotch(id: "GenericAlert:\(activityId)")
     }

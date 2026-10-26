@@ -142,7 +142,7 @@ public struct LiveActivityTemplateView<Content: View>: View {
             switch hoverPhase {
             case .active(let location):
                 if phase == .hold {
-                    let bodyW = IslandController.alertCapsuleSize(for: safeArea.currentGeometry).width
+                    let bodyW = IslandController.alertCapsuleSize(for: safeArea.currentGeometry, contentWidth: IslandController.shared.dynamicAlertCapsuleWidth).width
                     let halfW = max(bodyW / 2.0, 1.0)
                     let rawLean = (location.x - (bodyW / 2.0)) / halfW
                     let clamped = max(-1.0, min(1.0, rawLean))
