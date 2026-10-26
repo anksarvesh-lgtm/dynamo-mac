@@ -2,6 +2,104 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.0.6] — 2026-10-26
+
+### Milestone 1: Powerload Multi-Interface Network Engine
+- **Documented Network.framework Binding (`PowerloadHTTPClient.swift`)**:
+  - Replaced private, undocumented KVC key `kCFStreamPropertyBoundInterfaceIdentifier` / `_socketStreamProperties` with official Network.framework `NWConnection` binding using `NWParameters.requiredInterface` matched against active `NWInterface` instances.
+  - Added robust HTTP/1.1 Range streaming client supporting TLS, redirection resolution, and graceful fallback to `/usr/bin/curl --interface <bsd>` when socket-level binding is required.
+- **Authoritative Interface Eligibility & Gateway Health (`PowerloadNetworkManager.swift`)**:
+  - Replaced loose `hasIP || isLinkActive` check with strict qualification: requires `IFF_UP`, `IFF_RUNNING`, non-link-local IPv4 (excluding `169.254/16`) or global IPv6, and an active default router gateway verified via SCDynamicStore (`State:/Network/Service/<id>/IPv4 Router`).
+  - Added bound probe against the target download host before marking an interface usable.
+  - Excluded all virtual, loopback, and bridge interfaces (`vmnet*`, `utun*`, `bridge*`, `docker`, `awdl*`, `llw*`, `anpi*`).
+  - Removed "fallback to all enabled interfaces" behavior to prevent stalling on inactive NICs.
+  - Track granular health state per adapter: `usable`, `degraded`, or `unusable(reason:)` with visible reasons ("No default gateway", "Link-local address only", "Target host probe failed", "Interface link down").
+- **Throughput-Weighted Scheduling & Circuit Breaker (`PowerloadDownloadEngine.swift`)**:
+  - Replaced rigid round-robin scheduling with a work-stealing pool weighted by measured throughput (EWMA per interface).
+  - Added circuit breaker: after 3 consecutive failed chunk downloads, an interface is marked degraded with exponential backoff (30s–60s) and excluded from chunk scheduling until a health probe succeeds.
+  - Implemented exception-safe `FileHandle` validation, pausing downloads with visible alerts if target files cannot be opened or seeked rather than silently dropping data.
+- **Range Correctness & Single-Stream Fallback**:
+  - Strictly accept HTTP 206 with matching `Content-Range: bytes start-end/total`.
+  - Servers returning HTTP 200 to Range requests are detected as non-range-supporting; chunked multi-stream plan is immediately converted to a safe single-stream download from byte 0, completely preventing file corruption from overwriting chunks.
+  - Validate received chunk size against requested range and re-queue failed chunks without data loss.
+- **SCNetworkInterface Classification & Metered Connections**:
+  - Authoritative classification using `SCNetworkInterfaceGetInterfaceType` (IEEE 802.11, Ethernet, Bluetooth, Bridge, etc.) and hardware port mapping.
+  - Added user toggle `powerloadUseMeteredConnections` (default ON) with explicit documentation that Wi-Fi personal hotspots share the physical Wi-Fi radio and cannot be aggregated.
+
+### Milestone 2: Secure Application Updater
+- **Cryptographic Code Signature & Gatekeeper Verification (`GitHubUpdateChecker.swift`)**:
+  - Staged updates are cryptographically audited before replacement: requires `/usr/bin/codesign --verify --deep --strict`, Developer ID Application signing authority, exact Team Identifier match against the running binary via `SecCodeCopySelf`, and Gatekeeper validation via `/usr/sbin/spctl --assess --type execute`.
+  - Replaced unversioned fallback repository `dynamomac` and mutable `releases/download/app/...` URLs with version-pinned release assets from official GitHub repositories over HTTPS.
+  - Removed `-noverify` flag from `hdiutil attach`, ensuring disk images are fully checksum-verified prior to mounting.
+  - Removed quarantine stripping (`xattr -dr com.apple.quarantine` completely eliminated).
+- **SemVer 2.0.0 Specification Parser**:
+  - Implemented compliant Semantic Versioning parser with pre-release precedence, correctly sorting `"2.8-rc.1" < "2.8"`, `"1.10.0" > "1.9.0"`, and `"2.0.5" == "2.0.5"`.
+- **Atomic Staging & Automated Rollback**:
+  - Staged installation operates beside the active bundle within the same volume: creates `.backup` of `Bundle.main.bundleURL`, moves new app into place atomically, and automatically restores `.backup` if installation or verification fails.
+  - Added user opt-in toggle `Defaults[.autoCheckUpdates]` (default ON) in Settings > General / Privacy with transparent endpoint disclosure.
+
+### Milestone 3: Resilient Clipboard History Service
+- **Definitive Change Count Consumption & Lazy Promise Retries (`ClipboardHistoryService.swift`)**:
+  - `lastChangeCount` is now consumed strictly upon terminal decisions (permanent skips or successful ingestion).
+  - Transient conditions (lazy pasteboard promises where data is not yet generated) trigger non-blocking retries for up to 2.0 seconds without dropping entries.
+- **Clipboard-Local Screen Recording Debouncer with Hysteresis**:
+  - Built a dedicated clipboard screen-capture detector with 1.5s on / 1.0s off hysteresis, filtering transient screenshot overlays (`screencapture`) to prevent dropped copies during user screenshots.
+  - Wired to user setting `Defaults[.clipboardShieldDuringScreenRecording]` (default ON) with Settings toggle, leaving `HardwareSensorMonitor` and the Dynamic Island indicator untouched.
+- **DispatchSourceTimer & Background Persistence**:
+  - Replaced main-thread `Timer.scheduledTimer` with background `DispatchSourceTimer` on a utility queue, holding `ProcessInfo.beginActivity` token to prevent App Nap stalls during window drags and modal menus.
+  - Added automatic wake re-arming via `NSWorkspace.didWakeNotification`.
+  - Offloaded thumbnail decompression/compression to background tasks and debounced disk JSON encoding.
+- **SHA-256 Image Deduplication & Text Preservation**:
+  - Deduplicate images using SHA-256 hash of original raw bytes stored as an optional Codable field (`imageHash`), eliminating thumbnail `prefix(256)` collision bugs.
+  - Reordered type priority to inspect text before image representations, preserving rich text from spreadsheets and browsers that also place preview bitmaps on the pasteboard.
+  - Added explicit "Retry Access" action in `LiquidClipboardRegionView` for macOS 15.4+ pasteboard access behaviors.
+
+### Milestone 4: FileDroid & KalamBridge Thread Safety
+- **Serial AsyncStream Queue (`KalamBridge.swift`)**:
+  - Replaced problematic `NSLock` cross-thread locking/unlocking with a thread-safe serial `AsyncStream` FIFO operation queue.
+  - Eliminated global static handler collisions (`activeDoneHandler`, `activeProgressHandler`) by binding responses to isolated operation tokens.
+  - Added per-operation 15-second timeout and automatic bridge recovery with `KalamError.timeout`.
+- **Strict Codable Response Envelope**:
+  - Replaced loose substring checks with typed `KalamResponse<T>` JSON decoding, treating non-empty error fields or malformed JSON strictly as failures.
+- **Secure Dylib Resolution & Intel Compatibility**:
+  - Removed all hardcoded developer paths (`/Users/sarvesh/...`), CWD search paths, and `/Applications`. Restricted dynamic library loading to `Bundle.main.privateFrameworksURL` and `@rpath`.
+  - Added runtime architecture detection (`isSupportedArchitecture`): displays clear user guidance ("Native MTP bridge is unavailable on Intel Macs") rather than failing silently on x86_64 systems.
+  - Added comprehensive third-party license notices to `THIRD_PARTY_LICENSES` for libusb (LGPL-2.1 with dynamic linking and user relinking notices), OpenMTP, and Kalam.
+
+### Milestone 5: ADBClient Concurrency & Process Safety
+- **Bounded Concurrent Pipe Streaming (`ADBClient.swift`)**:
+  - Concurrently streams `standardOutput` and `standardError` via `readabilityHandler` into thread-safe `ConcurrentDataBuffer` (10 MB bounded capacity), eliminating child process deadlocks on output exceeding macOS 64 KB pipe buffer.
+- **Typed Error Hierarchy & Task Cancellation**:
+  - Implemented typed `ADBError` enum (`.timeout`, `.cancelled`, `.commandFailed`, `.transferFailed`).
+  - Process timeouts now throw typed `ADBError.timeout` rather than returning exit code 15 with truncated output.
+  - Added `withTaskCancellationHandler` and `ProcessHolder` so cooperative Swift Task cancellations promptly terminate the underlying ADB process.
+- **Exception-Safe Timers & Atomic File Replacement**:
+  - Made `progressTimer` in `pullFile` and `pushFile` lifecycle exception-safe: created and resumed only when `finalBytes > 0 && onProgress != nil`, eliminating libdispatch inactive source release crashes.
+  - Implemented atomic file placement in `pullFile` using `FileManager.default.replaceItemAt`, guaranteeing that existing destination files are never deleted prior to complete download success.
+
+### Milestone 6: Release Script Reproducibility
+- **Reproducible Release Guard (`build_dmg.sh`)**:
+  - When invoked with `RELEASE=1` or `--release`, strictly requires clean `xcodebuild` compilation and Developer ID Application signing identity; completely refuses non-Xcode fallback and `/Applications` template copying.
+  - Replaced hardcoded `CFBundleVersion 17` with dynamic project version extraction (`CURRENT_PROJECT_VERSION 18`).
+  - Staged framework dynamic libraries (`kalam.dylib`, `libusb.dylib`) fail fast if missing, removing unsafe `|| true`.
+- **Isolated Build Directories**:
+  - Replaced shared `/tmp/spm_deps` in `scripts/compile_dynamo.sh` and `scripts/setup_spm_deps.sh` with isolated `mktemp -d` temporary directories with automatic cleanup traps.
+
+### Milestone 7: Outbound Network Disclosure & Privacy Opt-Ins
+- **Unified Privacy Disclosure Card (`SettingsPrivacyView.swift`)**:
+  - Added "Network Access & Endpoints" disclosure card in Settings > Privacy listing all outbound network hosts, data transmitted, and user control toggles:
+    - Update Checks (`api.github.com` / `github.com`): default ON with toggle.
+    - Public IP Lookup (`api64.ipify.org`): default OFF with toggle; guarded in `PublicIPService.swift`.
+    - 3D Cloud Model Generation (`api.meshy.ai`): default OFF with toggle; guarded in `MeshyImageTo3DProvider.swift` with mandatory `NSAlert` modal confirmation dialog before image upload and API key stored strictly in macOS Keychain.
+    - Synced Lyrics (`lrclib.net`): default OFF with toggle per existing settings.
+    - Powerload Downloads: transparently documented as contacting user-provided URLs only.
+- **Bundled Offline Waveform Animation**:
+  - Bundled `default_wave_visualizer.json` in application resources for 100% offline rendering, removing network dependency on `assets9.lottiefiles.com`.
+- **Documentation Updates**:
+  - Updated `README.md` and `RULES.md` to accurately document network transparency, privacy opt-ins, and zero telemetry.
+
+---
+
 ## [2.0.5] — 2026-10-25
 
 ### Apple Developer ID Signing, Hardened Runtime, & Apple Notarization Pipeline

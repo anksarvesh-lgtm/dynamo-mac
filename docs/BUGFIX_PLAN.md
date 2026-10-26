@@ -169,3 +169,33 @@ This document establishes the audit evidence, root causes, targeted minimal chan
 | Physical Android Device via ADB | **UNVERIFIED** | Physical Android phone not attached; verified via unit tests and mock ADB scripts. |
 | Physical USB Tethering / iPhone Hotspot | **UNVERIFIED** | Physical secondary cellular tether not connected; verified via simulated multi-interface tests. |
 | Physical MTP Device via KalamBridge | **UNVERIFIED** | Physical MTP device not connected; verified via mock bridge harness and unit tests. |
+
+---
+
+## 5. Residual Risk & Architectural Decisions
+
+### 1. Intel (x86_64) Hardware & MTP Support
+- **Status**: **UNVERIFIED on physical Intel CPU**.
+- **Context**: The bundled `Frameworks/kalam.dylib` and `Frameworks/libusb.dylib` are single-architecture arm64 Mach-O binaries.
+- **Mitigation**: `KalamBridge.isSupportedArchitecture` detects non-Apple Silicon hosts and gracefully disarms MTP, presenting an explicit user notice ("Native MTP bridge is unavailable on Intel Macs") in the UI rather than crashing during `dlopen`.
+- **Follow-up**: Compile universal fat binaries (`lipo -create -arch x86_64 ... -arch arm64 ...`) if Intel MTP support is prioritized in future milestones.
+
+### 2. Physical Mobile Tethering & Hardware Variations
+- **Status**: **UNVERIFIED on physical USB cellular tethers**.
+- **Context**: Android USB tethering implementations vary between CDC-ECM (standard USB ethernet) and proprietary RNDIS. Some mobile carriers do not assign a routable default gateway or throttle multi-homed traffic.
+- **Mitigation**: `PowerloadNetworkManager` qualifies interfaces through SCDynamicStore gateway verification and bound target-host probes. Incompatible or unrouted tethers are marked `unusable(reason: ...)` and immediately bypassed, ensuring default Wi-Fi downloads are never stalled.
+
+### 3. Apple Notarization of Embedded Dynamic Libraries
+- **Status**: **VERIFIED in release pipeline scripts**.
+- **Context**: Both `kalam.dylib` and `libusb.dylib` reside in `Contents/Frameworks/` and must be signed with Developer ID Application authority and secure timestamps prior to app wrapping and DMG packaging.
+- **Mitigation**: `build_dmg.sh` signs nested Mach-O binaries inside-out with `--options runtime --timestamp`. In release mode (`RELEASE=1`), missing dylibs or unsigned binaries fail fast and are caught by `scripts/verify_release.sh`.
+
+### 4. Sparkle vs. Custom Updater Architecture Decision
+- **Decision**: **Retained and hardened the custom GitHub updater**.
+- **Rationale**: While Sparkle 2.x is linked, utilizing Sparkle requires deploying an EdDSA public key (`SUPublicEDKey`) and hosting a signed `appcast.xml` feed infrastructure. The custom updater in `GitHubUpdateChecker.swift` was hardened to match enterprise security standards:
+  - Cryptographic validation via `codesign --verify --deep --strict`, Team ID equivalence (`SecCodeCopySelf`), and Gatekeeper assessment (`spctl --assess --type execute`).
+  - Strict SemVer 2.0.0 parsing with pre-release precedence.
+  - Safe atomic staging with automatic rollback on failed file replacement.
+  - Removed quarantine stripping and `-noverify` DMG flags.
+  - User opt-in toggle (`Defaults[.autoCheckUpdates]`) with endpoint transparency.
+

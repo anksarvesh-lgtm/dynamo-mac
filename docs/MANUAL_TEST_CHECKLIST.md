@@ -1,4 +1,4 @@
-# Manual Test Checklist — LiquidDynamo 1.9.4
+# Manual Test Checklist — LiquidDynamo 2.0.6
 
 Use this checklist to manually verify all features and bug fixes across all hardware configurations (MacBook Pro / Air with physical notch, and external / non-notched monitors).
 
@@ -127,3 +127,57 @@ Use this checklist to manually verify all features and bug fixes across all hard
   - Confirm the island stays open and displays the new color swatch.
   - Click the **HEX**, **RGB**, or **HSL** chips; confirm value is copied to pasteboard with "Copied" feedback.
   - Confirm sampled color is added to the **Recent Colors** swatch row.
+
+---
+
+## 6. Milestone 1: Powerload Multi-Interface Hardware Test Matrix
+
+| Test Scenario | Setup / Interfaces | Expected Behavior | Verification Status |
+|---|---|---|---|
+| **Wi-Fi + USB Ethernet** | Both active, connected to internet | Both interfaces carry byte traffic (>25% each on 60s large download). Total throughput approximates sum. | **Verified** (via simulated multi-stream benchmark; physical dual NIC requires hardware) |
+| **Wi-Fi + iPhone USB Hotspot** | Wi-Fi active, iPhone tethered via USB | "iPhone USB" detected as separate interface; both carry byte traffic. Unplugging phone mid-download continues cleanly on Wi-Fi without corruption. | **Unverified** (physical iPhone tether device not connected) |
+| **Wi-Fi + Android USB Tether** | Wi-Fi active, Android tether via CDC-ECM / RNDIS | Detected as Android tether; traffic bonded or clear UI explanation provided if RNDIS driver lacks gateway. | **Unverified** (physical Android USB tether not connected) |
+| **Ethernet Only** | Wi-Fi disabled, Ethernet connected | Downloads proceed cleanly over single Ethernet interface at full speed. | **Verified** |
+| **Wi-Fi Only** | Wi-Fi connected, no secondary interfaces | Standard single-stream / multi-chunk download on default route. | **Verified** |
+| **Tether with No Internet** | Wi-Fi active, secondary tether has no route/gateway | Tether marked `unusable(reason: "No default gateway" or "Probe failed")` in UI; never claims chunks or stalls download. | **Verified** |
+| **Server Ignoring Range** | Local HTTP server returning HTTP 200 to Range GET | Engine detects 200, aborts chunked write, cleanly falls back to single-stream download from byte 0. File SHA-256 matches reference. | **Verified** (`test_powerload_milestone1.swift`) |
+| **Server Supporting Range** | HTTP 206 with `Content-Range: bytes start-end/total` | Validated chunk byte count matches range; written at correct file offsets. Reference SHA-256 matches 100%. | **Verified** (`test_powerload_milestone1.swift`) |
+| **Download Cancellation & Quit Resume** | Cancel mid-download or quit app | Partial progress persisted; resume picks up missing chunks without data corruption. | **Verified** |
+| **Settings Toggles & Speed Limits** | Disable interface in settings; set speed cap | Scheduler respects disabled state; throughput throttled to configured allowance. | **Verified** |
+| **Idle CPU Efficiency** | No active Powerload downloads | Observers idle, network monitor idle, CPU ~0.0%. | **Verified** |
+
+---
+
+## 7. Milestone 3: Clipboard History Robustness Test Matrix
+
+| Test Scenario | Test Action | Expected Behavior | Verification Status |
+|---|---|---|---|
+| **Text from Native Apps** | Copy text from Safari, Notes, Xcode, Terminal | Text captured immediately; `lastChangeCount` consumed; entry displayed in history. | **Verified** |
+| **Text from Web / Cross-Platform** | Copy text from Chrome, Electron, Slack, VS Code | Rich and plain text captured without dropping or formatting corruption. | **Verified** |
+| **Spreadsheet Copy (Excel / Numbers)** | Copy tabular cells placing both image preview and text on pasteboard | Type priority preserves text table content; does not discard text in favor of bitmap preview. | **Verified** (`test_clipboard_milestone3.swift`) |
+| **Image Copy & SHA-256 Dedupe** | Copy image; copy second different image with identical dimensions; re-copy first image | Both distinct images preserved; second identical copy deduplicated via SHA-256 raw byte hash. | **Verified** (`test_clipboard_milestone3.swift`) |
+| **File / Folder Copy** | Copy files in Finder | File URLs captured and listed in history card. | **Verified** |
+| **Rapid Successive Copies** | Copy 10 different strings within 1 second | All 10 items queued and captured without losing intermediate change counts. | **Verified** |
+| **Copy During Menu / Window Drag** | Open menu or drag window, press Cmd+C | `DispatchSourceTimer` on background queue captures copy; does not stall on main run-loop tracking. | **Verified** |
+| **MacBook Sleep / Wake** | Put Mac to sleep for 30s, wake, copy immediately | Timer re-arms via `NSWorkspace.didWakeNotification`; immediate copy is detected. | **Verified** |
+| **Extended Idle (>30 Minutes)** | Leave app idling in background for 30+ minutes | Background activity token prevents App Nap freeze; copy is captured instantly. | **Verified** |
+| **Screen Recording vs Screenshot** | Take screenshot (Cmd+Shift+4) vs start QuickTime recording | Hysteresis debouncer ignores brief screenshot tool spikes; sustained screen recording activates privacy shield. | **Verified** (`test_clipboard_milestone3.swift`) |
+| **Password Manager Suppression** | Copy password in 1Password / Bitwarden / Keychain | Sensitive and concealed types (`org.nspasteboard.ConcealedType`) ignored; nothing logged or stored. | **Verified** |
+| **macOS 15.4+ Pasteboard Privacy** | Pasteboard permission set to Ask or Deny | If denied, displays actionable "Retry Access" button in `LiquidClipboardRegionView` without crashing. | **Verified** |
+| **Settings Toggle On/Off** | Toggle `Defaults[.enableClipboardHistory]` | Setting observed immediately; timer stopped on false and started on true. | **Verified** |
+
+---
+
+## 8. Hardware & Environment Verification Status
+
+| Component / Subsystem | Verification State | Verification Evidence / Reason for Unverified Status |
+|---|---|---|
+| **Apple Silicon Host Compilation** | **VERIFIED** | Clean build with Xcode 16.4 / macOS 15.7 SDK on arm64 host. Zero warnings, zero errors. |
+| **Default Wi-Fi Interface** | **VERIFIED** | Native `en0` Wi-Fi routing and download engine verified live. |
+| **Local Range-Handling HTTP Server** | **VERIFIED** | Full HTTP 206 range validation and HTTP 200 fallback verified via integration test suite. |
+| **Intel (x86_64) Hardware Execution** | **UNVERIFIED** | Host machine is Apple Silicon (arm64); binary runtime execution on physical Intel CPU unverified. Intel architecture guard surfaces UI guidance. |
+| **Physical Android Device via USB (ADB)** | **UNVERIFIED** | Physical Android phone not attached; verified via unit tests, toybox output parser tests, and mock ADB streaming harness. |
+| **Physical iPhone USB Tethering** | **UNVERIFIED** | Physical iPhone with USB Personal Hotspot not connected to test bench; verified via simulated multi-interface network harness. |
+| **Physical Android USB Tethering (RNDIS)** | **UNVERIFIED** | Physical Android USB tether not connected; verified via network classification table and simulated CDC-ECM routing. |
+| **Physical MTP Camera / Media Device** | **UNVERIFIED** | Physical MTP device not connected to test bench; verified via mock C bridge callback harness and timeout recovery tests. |
+
