@@ -178,12 +178,13 @@ public struct LiquidOrganicNotchView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(
-            Capsule()
-                .fill(Color(red: 0.10, green: 0.14, blue: 0.22).opacity(0.92))
-                .overlay(
-                    Capsule()
-                        .strokeBorder(Color.blue.opacity(0.35), lineWidth: 0.8)
-                )
+            LiquidGlassWaterCapsuleBackground(
+                isSelected: false,
+                accentColor: Color.blue,
+                fillLevel: 0.50,
+                streamXRatio: 0.28,
+                phaseOffset: 1.0
+            )
         )
     }
 
@@ -202,9 +203,13 @@ public struct LiquidOrganicNotchView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
             .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(Color.green.opacity(0.50), lineWidth: 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: false,
+                    accentColor: Color.green,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.28,
+                    phaseOffset: 0.0
+                )
             )
             .transition(.scale.combined(with: .opacity))
         } else if let color = sensorMonitor.activeSensorLiquidColor {
@@ -220,9 +225,13 @@ public struct LiquidOrganicNotchView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 3)
             .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(color.opacity(0.55), lineWidth: 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: false,
+                    accentColor: color,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.28,
+                    phaseOffset: 0.6
+                )
             )
             .transition(.opacity)
         }
@@ -407,6 +416,17 @@ typealias WrappingFlowLayout = CenteredFlowLayout
     @ViewBuilder
     private func deviceIconButton(device: DeviceIdentity) -> some View {
         let isSelected = activeExpandedItem == .device(device.stableKey)
+        let hash = abs(device.stableKey.hashValue)
+        let phaseOffset = Double(hash % 100) * 0.05
+        let streamRatio = CGFloat(0.20 + Double(hash % 20) * 0.01)
+        let accentColor: Color = {
+            if device.kind == .charger { return Color.green }
+            if device.kind == .monitor { return Color.blue }
+            if device.kind == .androidPhone { return Color(red: 0.24, green: 0.86, blue: 0.52) }
+            if device.kind == .ssdDrive || device.kind == .usbStick { return Color.cyan }
+            return Color.accentColor
+        }()
+
         Button {
             if device.kind == .androidPhone {
                 PhoneBridgeWindowController.shared.showWindow()
@@ -528,9 +548,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.accentColor.opacity(0.25) : Color.white.opacity(0.06))
-                    .overlay(Capsule().stroke(isSelected ? Color.accentColor : Color.white.opacity(0.12), lineWidth: isSelected ? 1.5 : 0.5))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: accentColor,
+                    fillLevel: 0.50,
+                    streamXRatio: streamRatio,
+                    phaseOffset: phaseOffset
+                )
             )
         }
         .buttonStyle(.plain)
@@ -568,9 +592,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.cyan.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.cyan : Color.white.opacity(0.18), lineWidth: isSelected ? 1.5 : 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: Color.cyan,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.24,
+                    phaseOffset: 0.7
+                )
             )
         }
         .buttonStyle(.plain)
@@ -600,9 +628,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.orange.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.orange : Color.white.opacity(0.18), lineWidth: isSelected ? 1.5 : 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: Color.orange,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.26,
+                    phaseOffset: 1.4
+                )
             )
         }
         .buttonStyle(.plain)
@@ -647,12 +679,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.mint.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(
-                        Capsule()
-                            .stroke(isSelected ? Color.mint : (reclaimable > 0 ? Color.mint.opacity(0.40) : Color.white.opacity(0.18)), lineWidth: isSelected ? 1.5 : 0.75)
-                    )
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: Color.mint,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.25,
+                    phaseOffset: 2.1
+                )
             )
         }
         .buttonStyle(.plain)
@@ -701,9 +734,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.purple.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.purple : Color.white.opacity(0.18), lineWidth: isSelected ? 1.5 : 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: Color.purple,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.23,
+                    phaseOffset: 2.8
+                )
             )
         }
         .buttonStyle(.plain)
@@ -738,12 +775,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.accentColor.opacity(0.35) : (hasActiveSession ? Color.orange.opacity(0.20) : Color.black.opacity(0.50)))
-                    .overlay(
-                        Capsule()
-                            .stroke(isSelected ? Color.accentColor : (hasActiveSession ? Color.orange.opacity(0.40) : Color.white.opacity(0.18)), lineWidth: 0.75)
-                    )
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: hasActiveSession ? (session?.agentKind.themeColor ?? Color.accentColor) : Color.accentColor,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.25,
+                    phaseOffset: 3.5
+                )
             )
         }
         .buttonStyle(.plain)
@@ -786,9 +824,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.cyan.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.cyan : Color.white.opacity(0.18), lineWidth: isSelected ? 1.5 : 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: Color.cyan,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.25,
+                    phaseOffset: 4.2
+                )
             )
         }
         .buttonStyle(.plain)
@@ -840,9 +882,13 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? Color.green.opacity(0.35) : Color.black.opacity(0.60))
-                    .overlay(Capsule().stroke(isSelected ? Color.green : (hasDevice ? Color.green.opacity(0.5) : Color.white.opacity(0.18)), lineWidth: isSelected ? 1.5 : 0.75))
+                LiquidGlassWaterCapsuleBackground(
+                    isSelected: isSelected,
+                    accentColor: Color.green,
+                    fillLevel: 0.50,
+                    streamXRatio: 0.24,
+                    phaseOffset: 4.9
+                )
             )
         }
         .buttonStyle(.plain)

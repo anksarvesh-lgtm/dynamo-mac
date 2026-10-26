@@ -92,6 +92,7 @@ public struct LiquidWaterCapsuleView: View {
     public var fillLevel: CGFloat
     public var tintColor: Color?
     public var streamXRatio: CGFloat
+    public var phaseOffset: Double
 
     @State private var ripples: [WaterRipple] = []
     @State private var particles: [WaterDropletParticle] = []
@@ -101,17 +102,19 @@ public struct LiquidWaterCapsuleView: View {
     public init(
         fillLevel: CGFloat = 0.50,
         tintColor: Color? = nil,
-        streamXRatio: CGFloat = 0.28
+        streamXRatio: CGFloat = 0.28,
+        phaseOffset: Double = 0.0
     ) {
         self.fillLevel = fillLevel
         self.tintColor = tintColor
         self.streamXRatio = streamXRatio
+        self.phaseOffset = phaseOffset
     }
 
     public var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
             Canvas { context, size in
-                let now = timeline.date.timeIntervalSinceReferenceDate
+                let now = timeline.date.timeIntervalSinceReferenceDate + phaseOffset
                 drawWaterScene(context: context, size: size, time: now)
             }
         }
@@ -474,3 +477,66 @@ public struct LiquidWaterCapsuleView: View {
         drawExpandingRipple(phase: ripplePhase2)
     }
 }
+
+// MARK: - Reusable 3D Glass Water Capsule Background
+
+public struct LiquidGlassWaterCapsuleBackground: View {
+    public var isSelected: Bool
+    public var accentColor: Color
+    public var fillLevel: CGFloat
+    public var streamXRatio: CGFloat
+    public var phaseOffset: Double
+
+    public init(
+        isSelected: Bool = false,
+        accentColor: Color = Color.cyan,
+        fillLevel: CGFloat = 0.50,
+        streamXRatio: CGFloat = 0.28,
+        phaseOffset: Double = 0.0
+    ) {
+        self.isSelected = isSelected
+        self.accentColor = accentColor
+        self.fillLevel = fillLevel
+        self.streamXRatio = streamXRatio
+        self.phaseOffset = phaseOffset
+    }
+
+    public var body: some View {
+        ZStack {
+            // 1. Dark obsidian glass backdrop with subtle blur
+            Capsule()
+                .fill(Color.black.opacity(0.55))
+
+            // 2. 3D procedural water simulation with pouring stream, 50% fill, ripples, caustics
+            LiquidWaterCapsuleView(
+                fillLevel: fillLevel,
+                tintColor: isSelected ? accentColor : nil,
+                streamXRatio: streamXRatio,
+                phaseOffset: phaseOffset
+            )
+
+            // 3. Ambient inner glass glow & selection tint
+            if isSelected {
+                Capsule()
+                    .fill(accentColor.opacity(0.18))
+            }
+
+            // 4. Outer 3D glass specular rim border
+            Capsule()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            isSelected ? accentColor.opacity(0.9) : Color.white.opacity(0.35),
+                            isSelected ? accentColor.opacity(0.4) : Color.white.opacity(0.12),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: isSelected ? 1.2 : 0.75
+                )
+        }
+        .clipShape(Capsule())
+    }
+}
+
