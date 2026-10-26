@@ -78,6 +78,16 @@ jobs:
             exit 1
           fi
 
+      - name: Verify Swift Package Dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Resolving and verifying Swift Package dependencies with selected toolchain..."
+          xcodebuild -resolvePackageDependencies \
+            -project LiquidDynamo.xcodeproj \
+            -scheme LiquidDynamo
+          echo "Swift Package dependencies resolved successfully."
+
       - name: Set up Build Keychain (if Developer ID certificate secret exists)
         env:
           CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
