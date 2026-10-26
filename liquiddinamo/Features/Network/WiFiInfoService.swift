@@ -159,12 +159,14 @@ public enum WiFiPHYMode: String, CaseIterable, Identifiable, Sendable {
             self = .mode11ac
         case .mode11ax:
             self = .mode11ax
-        case .mode11be:
-            self = .mode11be
         case .modeNone:
             self = .none
-        @unknown default:
-            self = .unknown
+        default:
+            if cwPHYMode.rawValue == 7 {
+                self = .mode11be
+            } else {
+                self = .unknown
+            }
         }
     }
 }

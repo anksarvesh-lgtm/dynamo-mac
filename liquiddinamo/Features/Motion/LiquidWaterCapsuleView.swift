@@ -36,122 +36,125 @@ public struct LiquidWaterCapsuleView: View {
     public var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
-                let width = size.width
-                let height = size.height
-                guard width > 4, height > 4 else { return }
-
-                let time = timeline.date.timeIntervalSinceReferenceDate
-                let baseWaterY = height * (1.0 - fillLevel)
-
-                // 1. Compute multi-harmonic gentle surface wave points
-                let step: CGFloat = 2.5
-                var points: [CGPoint] = []
-                points.reserveCapacity(Int(width / step) + 2)
-
-                var x: CGFloat = 0.0
-                while x <= width {
-                    let normX = x / width
-                    // Gentle dual-frequency sinusoidal wave: amplitude ~1.6pt + 0.7pt (total ±2.3pt)
-                    let wave = sin(normX * 3.6 * .pi + time * 1.5 + phaseOffset) * 1.5
-                             + cos(normX * 5.4 * .pi - time * 1.1 + phaseOffset * 0.7) * 0.7
-                    let y = baseWaterY + wave
-                    points.append(CGPoint(x: x, y: y))
-                    x += step
-                }
-                if let last = points.last, last.x < width {
-                    let normX: CGFloat = 1.0
-                    let wave = sin(normX * 3.6 * .pi + time * 1.5 + phaseOffset) * 1.5
-                             + cos(normX * 5.4 * .pi - time * 1.1 + phaseOffset * 0.7) * 0.7
-                    points.append(CGPoint(x: width, y: baseWaterY + wave))
-                }
-
-                guard points.count >= 2 else { return }
-
-                // 2. Build Water Volume Fill Path
-                var waterFillPath = Path()
-                waterFillPath.move(to: CGPoint(x: 0, y: height))
-                waterFillPath.addLine(to: points[0])
-
-                for i in 1..<points.count {
-                    waterFillPath.addLine(to: points[i])
-                }
-                waterFillPath.addLine(to: CGPoint(x: width, y: height))
-                waterFillPath.closeSubpath()
-
-                // Vibrant translucent deep-blue / aqua ocean gradient
-                let primaryAqua = tintColor ?? Color(red: 0.06, green: 0.52, blue: 0.92)
-                let deepNavy = Color(red: 0.02, green: 0.14, blue: 0.38)
-                let baseAbyss = Color(red: 0.01, green: 0.07, blue: 0.22)
-
-                let waterGradient = Gradient(stops: [
-                    .init(color: primaryAqua.opacity(0.45), location: 0.0),
-                    .init(color: deepNavy.opacity(0.68), location: 0.50),
-                    .init(color: baseAbyss.opacity(0.85), location: 1.0)
-                ])
-
-                context.fill(
-                    waterFillPath,
-                    with: .linearGradient(
-                        waterGradient,
-                        startPoint: CGPoint(x: width * 0.5, y: baseWaterY - 3),
-                        endPoint: CGPoint(x: width * 0.5, y: height)
-                    )
-                )
-
-                // 3. Subsurface Caustic Ribbon (realistic 3D refraction depth)
-                var causticPath = Path()
-                causticPath.move(to: CGPoint(x: points[0].x, y: points[0].y + 2.4))
-                for pt in points.dropFirst() {
-                    causticPath.addLine(to: CGPoint(x: pt.x, y: pt.y + 2.4))
-                }
-                context.stroke(
-                    causticPath,
-                    with: .linearGradient(
-                        Gradient(stops: [
-                            .init(color: Color.white.opacity(0.20), location: 0.1),
-                            .init(color: primaryAqua.opacity(0.35), location: 0.5),
-                            .init(color: Color.white.opacity(0.15), location: 0.9)
-                        ]),
-                        startPoint: CGPoint(x: 0, y: baseWaterY),
-                        endPoint: CGPoint(x: width, y: baseWaterY)
-                    ),
-                    lineWidth: 1.4
-                )
-
-                // 4. Luminous Specular Meniscus Line (Air-Liquid Boundary)
-                var meniscusPath = Path()
-                meniscusPath.move(to: points[0])
-                for pt in points.dropFirst() {
-                    meniscusPath.addLine(to: pt)
-                }
-
-                // Diffuse meniscus glow
-                context.stroke(
-                    meniscusPath,
-                    with: .color(primaryAqua.opacity(0.40)),
-                    lineWidth: 2.6
-                )
-
-                // Sharp specular core highlight
-                let specularGradient = Gradient(stops: [
-                    .init(color: Color(red: 0.55, green: 0.88, blue: 1.0).opacity(0.90), location: 0.0),
-                    .init(color: Color.white.opacity(0.95), location: 0.45),
-                    .init(color: Color(red: 0.45, green: 0.82, blue: 1.0).opacity(0.85), location: 1.0)
-                ])
-
-                context.stroke(
-                    meniscusPath,
-                    with: .linearGradient(
-                        specularGradient,
-                        startPoint: CGPoint(x: 0, y: baseWaterY),
-                        endPoint: CGPoint(x: width, y: baseWaterY)
-                    ),
-                    lineWidth: 1.1
-                )
+                drawWater(into: &context, size: size, date: timeline.date)
             }
         }
         .clipShape(Capsule())
         .allowsHitTesting(false)
+    }
+
+    private func drawWater(into context: inout GraphicsContext, size: CGSize, date: Date) {
+        let width = size.width
+        let height = size.height
+        guard width > 4, height > 4 else { return }
+
+        let time = date.timeIntervalSinceReferenceDate
+        let baseWaterY = height * (1.0 - fillLevel)
+
+        // 1. Compute multi-harmonic gentle surface wave points
+        let step: CGFloat = 2.5
+        var points: [CGPoint] = []
+        points.reserveCapacity(Int(width / step) + 2)
+
+        var x: CGFloat = 0.0
+        while x <= width {
+            let normX = x / width
+            let wave = sin(normX * 3.6 * .pi + time * 1.5 + phaseOffset) * 1.5
+                     + cos(normX * 5.4 * .pi - time * 1.1 + phaseOffset * 0.7) * 0.7
+            let y = baseWaterY + wave
+            points.append(CGPoint(x: x, y: y))
+            x += step
+        }
+        if let last = points.last, last.x < width {
+            let normX: CGFloat = 1.0
+            let wave = sin(normX * 3.6 * .pi + time * 1.5 + phaseOffset) * 1.5
+                     + cos(normX * 5.4 * .pi - time * 1.1 + phaseOffset * 0.7) * 0.7
+            points.append(CGPoint(x: width, y: baseWaterY + wave))
+        }
+
+        guard points.count >= 2 else { return }
+
+        // 2. Build Water Volume Fill Path
+        var waterFillPath = Path()
+        waterFillPath.move(to: CGPoint(x: 0, y: height))
+        waterFillPath.addLine(to: points[0])
+
+        for i in 1..<points.count {
+            waterFillPath.addLine(to: points[i])
+        }
+        waterFillPath.addLine(to: CGPoint(x: width, y: height))
+        waterFillPath.closeSubpath()
+
+        // Vibrant translucent deep-blue / aqua ocean gradient
+        let primaryAqua = tintColor ?? Color(red: 0.06, green: 0.52, blue: 0.92)
+        let deepNavy = Color(red: 0.02, green: 0.14, blue: 0.38)
+        let baseAbyss = Color(red: 0.01, green: 0.07, blue: 0.22)
+
+        let waterGradient = Gradient(stops: [
+            .init(color: primaryAqua.opacity(0.45), location: 0.0),
+            .init(color: deepNavy.opacity(0.68), location: 0.50),
+            .init(color: baseAbyss.opacity(0.85), location: 1.0)
+        ])
+
+        context.fill(
+            waterFillPath,
+            with: .linearGradient(
+                waterGradient,
+                startPoint: CGPoint(x: width * 0.5, y: baseWaterY - 3),
+                endPoint: CGPoint(x: width * 0.5, y: height)
+            )
+        )
+
+        // 3. Subsurface Caustic Ribbon (realistic 3D refraction depth)
+        var causticPath = Path()
+        causticPath.move(to: CGPoint(x: points[0].x, y: points[0].y + 2.4))
+        for pt in points.dropFirst() {
+            causticPath.addLine(to: CGPoint(x: pt.x, y: pt.y + 2.4))
+        }
+        context.stroke(
+            causticPath,
+            with: .linearGradient(
+                Gradient(stops: [
+                    .init(color: Color.white.opacity(0.20), location: 0.1),
+                    .init(color: primaryAqua.opacity(0.35), location: 0.5),
+                    .init(color: Color.white.opacity(0.15), location: 0.9)
+                ]),
+                startPoint: CGPoint(x: 0, y: baseWaterY),
+                endPoint: CGPoint(x: width, y: baseWaterY)
+            ),
+            lineWidth: 1.4
+        )
+
+        // 4. Luminous Specular Meniscus Line (Air-Liquid Boundary)
+        var meniscusPath = Path()
+        meniscusPath.move(to: points[0])
+        for pt in points.dropFirst() {
+            meniscusPath.addLine(to: pt)
+        }
+
+        // Diffuse meniscus glow
+        context.stroke(
+            meniscusPath,
+            with: .color(primaryAqua.opacity(0.40)),
+            lineWidth: 2.6
+        )
+
+        // Sharp specular core highlight
+        let specularGradient = Gradient(stops: [
+            .init(color: Color(red: 0.55, green: 0.88, blue: 1.0).opacity(0.90), location: 0.0),
+            .init(color: Color.white.opacity(0.95), location: 0.45),
+            .init(color: Color(red: 0.45, green: 0.82, blue: 1.0).opacity(0.85), location: 1.0)
+        ])
+
+        context.stroke(
+            meniscusPath,
+            with: .linearGradient(
+                specularGradient,
+                startPoint: CGPoint(x: 0, y: baseWaterY),
+                endPoint: CGPoint(x: width, y: baseWaterY)
+            ),
+            lineWidth: 1.1
+        )
     }
 }
 

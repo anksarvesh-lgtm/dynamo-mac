@@ -29,307 +29,23 @@ public struct NotchStorageCleanerView: View {
         let categories = res?.categoriesWithReclaimableItems ?? []
 
         VStack(spacing: 11) {
-            // Top Header: Title, Metric, Scan & Scopa Action
-            HStack(alignment: .center) {
-                HStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(colors: [Color.green.opacity(0.4), Color.mint.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 36, height: 36)
-                            .overlay(Circle().stroke(Color.mint.opacity(0.6), lineWidth: 1))
+            headerView(reclaimable: reclaimable, reclaimableStr: reclaimableStr, categoriesCount: categories.count)
 
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(Color.mint)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text("Scopa")
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-
-                            if !cleaner.hasFDA {
-                                Text("Limited Scan")
-                                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.orange.opacity(0.25)))
-                                    .foregroundStyle(Color.orange)
-                            }
-                        }
-
-                        Text(cleaner.isScanning ? "Scanning macOS caches & dev artifacts…" : "\(reclaimableStr) cleanable across \(categories.count) categories")
-                            .font(.system(size: 11, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                HStack(spacing: 8) {
-                    // Rescan button
-                    Button {
-                        cleaner.scanAgain()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 10, weight: .bold))
-                            Text("Rescan")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.10))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.6))
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(cleaner.isScanning || cleaner.isCleaning)
-
-                    // Clean Safe Items Button
-                    if reclaimable > 0 {
-                        Button {
-                            confirmationMessage = "Move all Safe to Clean cache and build files to Trash?"
-                            pendingCleanAction = {
-                                Task {
-                                    let (count, bytes) = await cleaner.cleanSafeItems()
-                                    if count > 0 {
-                                        cleanedBytesReport = bytes
-                                        showCleanSuccessBanner = true
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                                            showCleanSuccessBanner = false
-                                        }
-                                    }
-                                }
-                            }
-                            showConfirmationSheet = true
-                        } label: {
-                            HStack(spacing: 5) {
-                                if cleaner.isCleaning {
-                                    ProgressView()
-                                        .controlSize(.mini)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "checkmark.shield.fill")
-                                        .font(.system(size: 10, weight: .bold))
-                                }
-
-                                Text(cleaner.isCleaning ? "Cleaning…" : "Clean Safe Items")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 5.5)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(colors: [Color.green, Color.mint], startPoint: .leading, endPoint: .trailing)
-                                    )
-                                    .shadow(color: Color.green.opacity(0.4), radius: 6)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(cleaner.isCleaning)
-                    }
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
-
-            // FDA Onboarding Banner (if Full Disk Access not yet granted)
             if !cleaner.hasFDA {
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color.orange)
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Full Disk Access Required for Deep Scan")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                        Text("Enables App Uninstaller leftovers and full duplicate file scanning without per-folder prompts.")
-                            .font(.system(size: 9.5, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        cleaner.requestFullDiskAccess()
-                    } label: {
-                        Text("Grant Access")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.orange))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.orange.opacity(0.12))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.35), lineWidth: 0.75))
-                )
-                .padding(.horizontal, 14)
+                fdaBanner
             }
 
-            // Success celebration banner
             if showCleanSuccessBanner {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.green)
-                        .font(.system(size: 12))
-                    Text("Successfully moved \(ByteCountFormatter.string(fromByteCount: cleanedBytesReport, countStyle: .file)) to Trash!")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.white)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(Color.green.opacity(0.25))
-                        .overlay(Capsule().stroke(Color.green.opacity(0.50), lineWidth: 0.75))
-                )
-                .transition(.scale.combined(with: .opacity))
+                cleanSuccessBanner
             }
 
-            // Where your space went: Multi-segmented Overview Breakdown Bar
             if let result = res {
-                VStack(spacing: 5) {
-                    GeometryReader { geo in
-                        let w = geo.size.width
-                        let total = max(1, CGFloat(result.volumeTotal))
-                        let sysW = max(3, (CGFloat(result.systemBytes) / total) * w)
-                        let appW = max(3, (CGFloat(result.appsBytes) / total) * w)
-                        let recW = max(4, (CGFloat(result.totalReclaimableBytes) / total) * w)
-                        let freeW = max(4, (CGFloat(result.volumeFree) / total) * w)
-
-                        HStack(spacing: 2) {
-                            // System space
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.gray.opacity(0.65))
-                                .frame(width: sysW)
-
-                            // Applications
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(LinearGradient(colors: [Color.blue.opacity(0.85), Color.indigo.opacity(0.85)], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: appW)
-
-                            // Cleanable / Reclaimable
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(LinearGradient(colors: [Color.green, Color.mint], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: recW)
-
-                            // Free space
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.white.opacity(0.12))
-                                .frame(width: freeW)
-                        }
-                    }
-                    .frame(height: 7)
-
-                    HStack {
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.gray.opacity(0.8)).frame(width: 5.5, height: 5.5)
-                            Text("System")
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.blue).frame(width: 5.5, height: 5.5)
-                            Text("Apps: \(result.formattedVolumeUsed)")
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.mint).frame(width: 5.5, height: 5.5)
-                            Text("Cleanable: \(result.formattedTotalReclaimable)")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Color.mint)
-                        }
-
-                        Spacer()
-
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.white.opacity(0.3)).frame(width: 5.5, height: 5.5)
-                            Text("Free: \(result.formattedVolumeFree)")
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(.horizontal, 14)
+                breakdownBar(result: result)
             }
 
-            // Categories List
-            if categories.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Color.green)
-                    Text("Your Mac is spotless!")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("No unnecessary cache files or junk found.")
-                        .font(.system(size: 11, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-            } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 8) {
-                        ForEach(categories) { cat in
-                            categoryCard(for: cat, in: res)
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 4)
-                }
-                .frame(maxHeight: 220)
-            }
+            categoriesSection(categories: categories, res: res)
 
-            // Bottom Info Bar
-            HStack {
-                HStack(spacing: 5) {
-                    Image(systemName: "checkmark.shield.fill")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color.green)
-                    Text("Allowlist deletion only • Items moved to Trash • Never emptied")
-                        .font(.system(size: 9.5, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button {
-                    SettingsWindowController.shared.showWindow()
-                } label: {
-                    HStack(spacing: 3) {
-                        Text("Open Full Settings")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 9.5))
-                    }
-                    .foregroundStyle(Color.mint)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 8)
+            bottomInfoBar
         }
         .frame(maxWidth: .infinity)
         .background(
@@ -354,6 +70,313 @@ public struct NotchStorageCleanerView: View {
                 cleaner.performStartupScanIfNeeded()
             }
         }
+    }
+
+    @ViewBuilder
+    private func headerView(reclaimable: Int64, reclaimableStr: String, categoriesCount: Int) -> some View {
+        HStack(alignment: .center) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(colors: [Color.green.opacity(0.4), Color.mint.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 36, height: 36)
+                        .overlay(Circle().stroke(Color.mint.opacity(0.6), lineWidth: 1))
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.mint)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Scopa")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+
+                        if !cleaner.hasFDA {
+                            Text("Limited Scan")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.orange.opacity(0.25)))
+                                .foregroundStyle(Color.orange)
+                        }
+                    }
+
+                    Text(cleaner.isScanning ? "Scanning macOS caches & dev artifacts…" : "\(reclaimableStr) cleanable across \(categoriesCount) categories")
+                        .font(.system(size: 11, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button {
+                    cleaner.scanAgain()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("Rescan")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.10))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.6))
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(cleaner.isScanning || cleaner.isCleaning)
+
+                if reclaimable > 0 {
+                    cleanSafeItemsButton
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var cleanSafeItemsButton: some View {
+        Button {
+            confirmationMessage = "Move all Safe to Clean cache and build files to Trash?"
+            pendingCleanAction = {
+                Task {
+                    let (count, bytes) = await cleaner.cleanSafeItems()
+                    if count > 0 {
+                        cleanedBytesReport = bytes
+                        showCleanSuccessBanner = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                            showCleanSuccessBanner = false
+                        }
+                    }
+                }
+            }
+            showConfirmationSheet = true
+        } label: {
+            HStack(spacing: 5) {
+                if cleaner.isCleaning {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(.system(size: 10, weight: .bold))
+                }
+
+                Text(cleaner.isCleaning ? "Cleaning…" : "Clean Safe Items")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5.5)
+            .background(
+                Capsule()
+                    .fill(
+                        LinearGradient(colors: [Color.green, Color.mint], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .shadow(color: Color.green.opacity(0.4), radius: 6)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(cleaner.isCleaning)
+    }
+
+    @ViewBuilder
+    private var fdaBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Color.orange)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Full Disk Access Required for Deep Scan")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Enables App Uninstaller leftovers and full duplicate file scanning without per-folder prompts.")
+                    .font(.system(size: 9.5, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                cleaner.requestFullDiskAccess()
+            } label: {
+                Text("Grant Access")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.orange))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.orange.opacity(0.12))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.35), lineWidth: 0.75))
+        )
+        .padding(.horizontal, 14)
+    }
+
+    @ViewBuilder
+    private var cleanSuccessBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Color.green)
+                .font(.system(size: 12))
+            Text("Successfully moved \(ByteCountFormatter.string(fromByteCount: cleanedBytesReport, countStyle: .file)) to Trash!")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.green.opacity(0.25))
+                .overlay(Capsule().stroke(Color.green.opacity(0.50), lineWidth: 0.75))
+        )
+        .transition(.scale.combined(with: .opacity))
+    }
+
+    @ViewBuilder
+    private func breakdownBar(result: StorageCleanupResult) -> some View {
+        VStack(spacing: 5) {
+            GeometryReader { geo in
+                let w = geo.size.width
+                let total = max(1, CGFloat(result.volumeTotal))
+                let sysW = max(3, (CGFloat(result.systemBytes) / total) * w)
+                let appW = max(3, (CGFloat(result.appsBytes) / total) * w)
+                let recW = max(4, (CGFloat(result.totalReclaimableBytes) / total) * w)
+                let freeW = max(4, (CGFloat(result.volumeFree) / total) * w)
+
+                HStack(spacing: 2) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.65))
+                        .frame(width: sysW)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(LinearGradient(colors: [Color.blue.opacity(0.85), Color.indigo.opacity(0.85)], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: appW)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(LinearGradient(colors: [Color.green, Color.mint], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: recW)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: freeW)
+                }
+            }
+            .frame(height: 7)
+
+            HStack {
+                HStack(spacing: 4) {
+                    Circle().fill(Color.gray.opacity(0.8)).frame(width: 5.5, height: 5.5)
+                    Text("System")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 4) {
+                    Circle().fill(Color.blue).frame(width: 5.5, height: 5.5)
+                    Text("Apps: \(result.formattedVolumeUsed)")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Circle().fill(Color.mint).frame(width: 5.5, height: 5.5)
+                    Text("Cleanable: \(result.formattedTotalReclaimable)")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color.mint)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Circle().fill(Color.white.opacity(0.3)).frame(width: 5.5, height: 5.5)
+                    Text("Free: \(result.formattedVolumeFree)")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+    }
+
+    @ViewBuilder
+    private func categoriesSection(categories: [StorageCleanupCategory], res: StorageCleanupResult?) -> some View {
+        if categories.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Color.green)
+                Text("Your Mac is spotless!")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("No unnecessary cache files or junk found.")
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+        } else {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 8) {
+                    ForEach(categories) { cat in
+                        categoryCard(for: cat, in: res)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: 220)
+        }
+    }
+
+    @ViewBuilder
+    private var bottomInfoBar: some View {
+        HStack {
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.green)
+                Text("Allowlist deletion only • Items moved to Trash • Never emptied")
+                    .font(.system(size: 9.5, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                SettingsWindowController.shared.showWindow()
+            } label: {
+                HStack(spacing: 3) {
+                    Text("Open Full Settings")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    Image(systemName: "arrow.up.forward.app")
+                        .font(.system(size: 9.5))
+                }
+                .foregroundStyle(Color.mint)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
     }
 
     @ViewBuilder
