@@ -28,7 +28,7 @@ guard let token = getGitToken(), !token.isEmpty else {
 }
 
 let owner = "anksarvesh-lgtm"
-let repos = ["dynamo-mac", "dynamomac"]
+let repos = ["dynamo-mac"]
 
 struct TargetRelease {
     let tag: String
