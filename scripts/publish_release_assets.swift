@@ -38,33 +38,32 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.1.4
-- **OpenMTP Kalam Native Engine**: Fully integrated OpenMTP's battle-tested Go kernel (`kalam.dylib` + `libusb.dylib`) directly via C-FFI bindings into LiquidDynamo's native Phone Bridge, enabling high-performance MTP file transfers without external software or ADB debugging.
-- **Robust C-FFI JSON Handling**: Added JSON boolean response decoders (`MTPBoolResponse`) for directory creation, deletion, renaming, uploads, and downloads, eliminating decoding mismatch errors.
-- **Automatic USB Conflict Resolver**: Detects and cleanly terminates competing USB daemon listeners (e.g. `Android File Transfer`, `Android File Transfer Agent`, Dropbox USB monitors) that lock USB endpoints.
-- **Dynamic Transfer Progress & Speed Tracking**: Real-time speed monitoring (MB/s), active/bulk byte counters, elapsed time, and dynamic queue timeout extensions so large transfers never abort prematurely.
-- **Multi-Storage Partition Support**: Seamless internal storage and SD card partition discovery with an interactive quick-access picker in Phone Bridge view.
-- **Smart Protocol Selector**: 3-way protocol switcher in Settings (Smart Auto, OpenMTP Native, ADB High-Speed) with live engine status and one-click "Free USB Port" conflict clearing.
+### Release Highlights — LiquidDynamo 2.1.5
+- **ADB Storage Discovery Pipeline**: Fixed Unix pipe buffer deadlock in `runProcess` by draining stdout/stderr asynchronously on background queues with a 5.0s safety watchdog timer.
+- **Permission-Free Partition Query**: Added fast toybox `stat -f` discovery on `/sdcard` before fallback to `df`, eliminating `Permission denied` failures on modern unrooted Android 10-15 devices.
+- **Line-Wrapped Filesystem Parsing**: Re-engineered `parseDfOutput` using percentage token anchoring (`%`) to correctly handle multi-line device paths (e.g. Pixel and Samsung `/dev/block/bootdevice/by-name/userdata` mount rows).
+- **Multi-Tier macOS Startup Autostart**: Introduced `AutoStartManager` combining native `SMAppService.mainApp`, user LaunchAgent plist (`~/Library/LaunchAgents/com.agrigence.liquiddynamo.plist`), and System Events Login Item fallback, ensuring 100% reliable launch-on-boot on macOS Sonoma and Sequoia regardless of ad-hoc signature approval states.
+- **Cross-Backend Storage Fallback**: Automatic transparent failover between ADB and native OpenMTP backends if primary query returns incomplete metrics.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.1.4",
-        name: "LiquidDynamo 2.1.4 — OpenMTP Native Phone Bridge Integration & USB Conflict Resolver",
+        tag: "v2.1.5",
+        name: "LiquidDynamo 2.1.5 — ADB Storage Discovery & Multi-Tier Autostart Overhaul",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.4 (build 27)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.5 (build 28)",
         makeLatest: false
     )
 ]
 
 let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.1.4.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.4.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.1.5.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.5.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip")
 ]

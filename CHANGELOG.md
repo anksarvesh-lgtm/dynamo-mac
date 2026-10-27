@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.5] — 2026-10-27
+
+### ADB Storage Discovery & Multi-Tier Autostart Overhaul
+- **ADB Process Deadlock Fix**: Fixed a Unix pipe buffer exhaustion bug in `AndroidTransferBackend.runProcess` where `waitUntilExit()` blocked on large stdout/stderr outputs (>64KB); replaced with concurrent asynchronous pipe-draining queues and a 5.0s safety watchdog timer.
+- **Permission-Free Partition Discovery**: Prioritized lightweight toybox `stat -f` discovery on `/sdcard` prior to running `df`, bypassing `Permission denied` restrictions on unrooted Android 10-15 devices.
+- **Line-Wrapped Storage Parser**: Re-engineered `parseDfOutput` with percentage token anchoring (`%`) to correctly parse multi-line device paths (e.g. `/dev/block/bootdevice/by-name/userdata` on Samsung and Pixel hardware).
+- **Multi-Tier macOS Startup Autostart**: Implemented `AutoStartManager` featuring native `SMAppService.mainApp`, hardened User LaunchAgent plist (`~/Library/LaunchAgents/com.agrigence.liquiddynamo.plist`), and System Events Login Item fallback to guarantee reliable launch-at-login across macOS 14 Sonoma and macOS 15 Sequoia regardless of ad-hoc signature status.
+- **Cross-Backend Storage Fallback**: Added transparent automatic failover between ADB and native OpenMTP backends in `PhoneBridgeEngine.syncStorage` if storage partition metrics are incomplete.
+
 ## [2.1.4] — 2026-10-27
 
 ### OpenMTP Native Phone Bridge Integration & USB Conflict Resolution
