@@ -454,7 +454,7 @@ extension Defaults.Keys {
     static let phonebridgeTransferConcurrency = Key<Int>("phonebridgeTransferConcurrency", default: 2)
     static let phonebridgeShowHiddenFiles = Key<Bool>("phonebridgeShowHiddenFiles", default: false)
     static let phonebridgeNotifications = Key<Bool>("phonebridgeNotifications", default: true)
-    static let phonebridgeBackendType = Key<String>("phonebridgeBackendType", default: "adb")
+    static let phonebridgeBackendType = Key<String>("phonebridgeBackendType", default: "auto")
     static let migratedPhoneBridgeKeys_v1 = Key<Bool>("migratedPhoneBridgeKeys_v1", default: false)
 
     // Backward-compatibility aliases for filedroid*

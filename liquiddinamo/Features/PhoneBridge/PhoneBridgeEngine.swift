@@ -246,12 +246,31 @@ public final class PhoneBridgeEngine: ObservableObject {
         scanTimer = nil
     }
 
+    public var availableMtpStorages: [MTPStorageItem] {
+        mtpBackend.availableStorages
+    }
+
+    public func selectMtpStorage(storageId: UInt32) {
+        mtpBackend.setTargetStorageId(storageId)
+        self.currentRemotePath = "/"
+        fetchDirectoryContents(path: "/")
+        syncStorage(forced: true)
+    }
+
+    public func terminateUsbConflicts() -> Bool {
+        let killed = MTPProcessConflictResolver.terminateConflictingProcesses()
+        if killed {
+            scanDevices(forced: true)
+        }
+        return killed
+    }
+
     public func scanDevices(forced: Bool = false) {
         guard !isScanning else { return }
         let hasAndroidUsb = DeviceMonitor.shared.activeDevices.values.contains { $0.kind == .androidPhone }
         
-        // Skip background probe only if no Android USB device is detected, no active devices, and ADB is unavailable
-        if !hasAndroidUsb && !forced && connectedDevices.isEmpty && !adbBackend.isAvailable {
+        // Skip background probe only if no Android USB device is detected, no active devices, and neither backend is available
+        if !hasAndroidUsb && !forced && connectedDevices.isEmpty && !adbBackend.isAvailable && !mtpBackend.isAvailable {
             return
         }
 
@@ -261,12 +280,15 @@ public final class PhoneBridgeEngine: ObservableObject {
         Task { [weak self] in
             guard let self = self else { return }
 
-            // Probe ADB backend (always safe and fast)
-            let adbDevices = await self.adbBackend.scanDevices()
+            // Probe ADB backend (if not strictly set to mtp only)
+            var adbDevices: [AndroidDevice] = []
+            if Defaults[.phonebridgeBackendType] != "mtp" && self.adbBackend.isAvailable {
+                adbDevices = await self.adbBackend.scanDevices()
+            }
 
-            // Only probe MTP native if Android USB device is physically present or user forced
+            // Probe OpenMTP native MTP backend (if not strictly set to adb only)
             var mtpDevices: [AndroidDevice] = []
-            if (hasAndroidUsb || forced) && Defaults[.phonebridgeBackendType] != "adb" {
+            if Defaults[.phonebridgeBackendType] != "adb" && self.mtpBackend.isAvailable {
                 mtpDevices = await self.mtpBackend.scanDevices(force: forced)
             }
 

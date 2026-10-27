@@ -503,7 +503,10 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
 
 public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
     public let backendType: PhoneBridgeConnectionType = .mtp
-    private var cachedStorageId: UInt32 = 65537
+    public private(set) var cachedStorageId: UInt32 = 65537
+    public private(set) var availableStorages: [MTPStorageItem] = []
+    private var isSessionActive: Bool = false
+    private let sessionLock = NSLock()
 
     public var isAvailable: Bool {
         return MTPBridge.isSupportedArchitecture && MTPBridge.shared.isLoaded
@@ -521,6 +524,56 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
         MTPBridge.shared.loadDylib()
     }
 
+    public func ensureSession() async throws {
+        let bridge = MTPBridge.shared
+        if !bridge.isLoaded {
+            bridge.loadDylib()
+        }
+        guard bridge.isLoaded else {
+            throw MTPError.dylibNotLoaded
+        }
+
+        sessionLock.lock()
+        let active = isSessionActive
+        sessionLock.unlock()
+
+        if active {
+            return
+        }
+
+        let initRes = await bridge.initialize()
+        switch initRes {
+        case .success:
+            sessionLock.lock()
+            isSessionActive = true
+            sessionLock.unlock()
+
+            let storagesRes = await bridge.fetchStorages()
+            if case .success(let storages) = storagesRes, !storages.isEmpty {
+                self.availableStorages = storages
+                if let first = storages.first {
+                    self.cachedStorageId = first.Sid
+                }
+            }
+        case .failure(let err):
+            sessionLock.lock()
+            isSessionActive = false
+            sessionLock.unlock()
+            throw err
+        }
+    }
+
+    public func invalidateSession() async {
+        sessionLock.lock()
+        isSessionActive = false
+        sessionLock.unlock()
+        await MTPBridge.shared.dispose()
+    }
+
+    public func setTargetStorageId(_ sid: UInt32) {
+        self.cachedStorageId = sid
+    }
+
     public func scanDevices() async -> [AndroidDevice] {
         return await scanDevices(force: false)
     }
@@ -529,7 +582,8 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
         let hasAndroidUsb = await MainActor.run {
             DeviceMonitor.shared.activeDevices.values.contains { $0.kind == .androidPhone }
         }
-        guard hasAndroidUsb || force else { return [] }
+        let allowProbe = hasAndroidUsb || force || Defaults[.phonebridgeBackendType] == "mtp" || Defaults[.phonebridgeBackendType] == "auto"
+        guard allowProbe else { return [] }
 
         let bridge = MTPBridge.shared
         if !bridge.isLoaded {
@@ -540,6 +594,10 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
         let initRes = await bridge.initialize()
         switch initRes {
         case .success(let info):
+            sessionLock.lock()
+            isSessionActive = true
+            sessionLock.unlock()
+
             let model = info.mtpDeviceInfo?.Model ?? info.usbDeviceInfo?.Product ?? "Android Device"
             let manufacturer = info.mtpDeviceInfo?.Manufacturer ?? info.usbDeviceInfo?.Manufacturer ?? "Android"
             let serial = info.mtpDeviceInfo?.SerialNumber ?? info.usbDeviceInfo?.SerialNumber ?? "MTP-\(abs(model.hashValue))"
@@ -553,21 +611,20 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
 
             let storagesRes = await bridge.fetchStorages()
             if case .success(let storages) = storagesRes, !storages.isEmpty {
+                self.availableStorages = storages
                 if let first = storages.first {
                     self.cachedStorageId = first.Sid
-                    totalBytes = first.Info.MaxCapability
-                    freeBytes = first.Info.FreeSpaceInBytes
+                    totalBytes = first.Info.safeMaxCapability
+                    freeBytes = first.Info.safeFreeSpace
                     usedBytes = totalBytes > freeBytes ? (totalBytes - freeBytes) : 0
                 }
                 if storages.count > 1 {
                     let second = storages[1]
-                    sdTotal = second.Info.MaxCapability
-                    sdFree = second.Info.FreeSpaceInBytes
+                    sdTotal = second.Info.safeMaxCapability
+                    sdFree = second.Info.safeFreeSpace
                     sdUsed = (sdTotal ?? 0) > (sdFree ?? 0) ? ((sdTotal ?? 0) - (sdFree ?? 0)) : 0
                 }
             }
-
-            await bridge.dispose()
 
             let dev = AndroidDevice(
                 serial: serial,
@@ -592,21 +649,24 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
             return [dev]
 
         case .failure:
-            await bridge.dispose()
+            await invalidateSession()
             return []
         }
     }
 
     public func queryStorageInfo(serial: String) async -> (total: UInt64, used: UInt64, free: UInt64)? {
         let bridge = MTPBridge.shared
-        let initRes = await bridge.initialize()
-        guard case .success = initRes else {
+        do {
+            try await ensureSession()
+        } catch {
             return nil
         }
+
         let storagesRes = await bridge.fetchStorages()
         if case .success(let storages) = storagesRes, let first = storages.first {
-            let total = first.Info.MaxCapability
-            let free = first.Info.FreeSpaceInBytes
+            self.availableStorages = storages
+            let total = first.Info.safeMaxCapability
+            let free = first.Info.safeFreeSpace
             let used = total > free ? (total - free) : 0
             if total > 0 {
                 return (total, used, free)
@@ -617,26 +677,16 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
 
     public func fetchDirectoryContents(serial: String, path: String, showHidden: Bool) async throws -> [AndroidFileItem] {
         let bridge = MTPBridge.shared
-        let initRes = await bridge.initialize()
-        guard case .success = initRes else {
-            await bridge.dispose()
-            throw NSError(domain: "MtpBackend", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to open MTP session"])
-        }
+        try await ensureSession()
 
-        let storagesRes = await bridge.fetchStorages()
-        if case .success(let storages) = storagesRes, let first = storages.first {
-            self.cachedStorageId = first.Sid
-        }
-
-        let walkRes = await bridge.walk(storageId: self.cachedStorageId, fullPath: path, recursive: false, skipHidden: !showHidden)
-        await bridge.dispose()
+        let normalizedPath = path.isEmpty ? "/" : path
+        let walkRes = await bridge.walk(storageId: self.cachedStorageId, fullPath: normalizedPath, recursive: false, skipHidden: !showHidden)
 
         switch walkRes {
         case .success(let items):
             let isoFormatter = ISO8601DateFormatter()
             return items.map { item in
-                let modDate = isoFormatter.date(from: item.dateAdded) ?? Date()
-                let cleanExt = item.extension.trimmingCharacters(in: .whitespacesAndNewlines)
+                let modDate = item.dateAdded.flatMap { isoFormatter.date(from: $0) } ?? Date()
                 return AndroidFileItem(
                     name: item.name,
                     remotePath: item.path,
@@ -653,59 +703,99 @@ public final class MtpBackend: AndroidTransferBackend, @unchecked Sendable {
             }
 
         case .failure(let error):
+            await invalidateSession()
             throw error
         }
     }
 
     public func createFolder(serial: String, remotePath: String) async throws {
         let bridge = MTPBridge.shared
-        _ = await bridge.initialize()
+        try await ensureSession()
+
         let res = await bridge.makeDirectory(storageId: self.cachedStorageId, fullPath: remotePath)
-        await bridge.dispose()
-        if case .failure(let err) = res {
+        switch res {
+        case .success:
+            break
+        case .failure(let err):
+            await invalidateSession()
             throw err
         }
     }
 
     public func renameItem(serial: String, remotePath: String, newName: String) async throws {
         let bridge = MTPBridge.shared
-        _ = await bridge.initialize()
+        try await ensureSession()
+
         let res = await bridge.renameFile(storageId: self.cachedStorageId, fullPath: remotePath, newFileName: newName)
-        await bridge.dispose()
-        if case .failure(let err) = res {
+        switch res {
+        case .success:
+            break
+        case .failure(let err):
+            await invalidateSession()
             throw err
         }
     }
 
     public func deleteItems(serial: String, remotePaths: [String]) async throws {
         let bridge = MTPBridge.shared
-        _ = await bridge.initialize()
+        try await ensureSession()
+
         let res = await bridge.deleteFiles(storageId: self.cachedStorageId, files: remotePaths)
-        await bridge.dispose()
-        if case .failure(let err) = res {
+        switch res {
+        case .success:
+            break
+        case .failure(let err):
+            await invalidateSession()
             throw err
         }
     }
 
     public func pushFile(serial: String, localPath: String, remotePath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
         let bridge = MTPBridge.shared
-        _ = await bridge.initialize()
-        let res = await bridge.uploadFiles(storageId: self.cachedStorageId, sources: [localPath], destination: remotePath, onProgress: onProgress)
-        await bridge.dispose()
-        if case .failure(let err) = res {
+        try await ensureSession()
+
+        let destinationDir = (remotePath as NSString).deletingLastPathComponent
+        let targetDir = destinationDir.isEmpty ? "/" : destinationDir
+
+        let res = await bridge.uploadFiles(
+            storageId: self.cachedStorageId,
+            sources: [localPath],
+            destination: targetDir,
+            onProgress: { sent, total, _ in
+                onProgress?(sent, total)
+            }
+        )
+        switch res {
+        case .success:
+            break
+        case .failure(let err):
+            await invalidateSession()
             throw err
         }
     }
 
     public func pullFile(serial: String, remotePath: String, localPath: String, onProgress: (@Sendable (Int64, Int64) -> Void)?) async throws {
         let bridge = MTPBridge.shared
-        _ = await bridge.initialize()
+        try await ensureSession()
+
         let localDir = (localPath as NSString).deletingLastPathComponent
         try? FileManager.default.createDirectory(atPath: localDir, withIntermediateDirectories: true)
-        let res = await bridge.downloadFiles(storageId: self.cachedStorageId, sources: [remotePath], destination: localDir, onProgress: onProgress)
-        await bridge.dispose()
-        if case .failure(let err) = res {
+
+        let res = await bridge.downloadFiles(
+            storageId: self.cachedStorageId,
+            sources: [remotePath],
+            destination: localDir,
+            onProgress: { sent, total, _ in
+                onProgress?(sent, total)
+            }
+        )
+        switch res {
+        case .success:
+            break
+        case .failure(let err):
+            await invalidateSession()
             throw err
         }
     }
 }
+

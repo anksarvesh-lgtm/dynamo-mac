@@ -32,6 +32,34 @@ public struct PhoneBridgeView: View {
         VStack(spacing: 10) {
             headerBar
 
+            if let err = engine.lastErrorMessage {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.orange)
+                    Text(err)
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    Spacer()
+                    if err.contains("busy") || err.contains("locking") || err.contains("MTP") || err.contains("conflict") {
+                        Button("Free USB Port") {
+                            _ = engine.terminateUsbConflicts()
+                        }
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(Color.orange.opacity(0.35))
+                        .clipShape(Capsule())
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(Color.orange.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
             if !engine.isAdbAvailable && engine.activeBackend.backendType == .adb {
                 adbMissingHelpCard
             } else if let dev = engine.selectedDevice {
@@ -378,6 +406,31 @@ public struct PhoneBridgeView: View {
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                if isMtp && engine.availableMtpStorages.count > 1 {
+                    Menu {
+                        ForEach(engine.availableMtpStorages) { storage in
+                            Button(storage.Info.effectiveDescription) {
+                                engine.selectMtpStorage(storageId: storage.Sid)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "externaldrive.fill")
+                                .font(.system(size: 9.5, weight: .bold))
+                            Text("Storage (\(engine.availableMtpStorages.count))")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 7))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3.5)
+                        .background(Color.cyan.opacity(0.2))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.cyan.opacity(0.4), lineWidth: 0.75))
+                    }
+                    .menuStyle(.borderlessButton)
+                }
+
                 quickAccessButton(title: "Internal", path: rootPath, icon: "internaldrive")
                 quickAccessButton(title: "DCIM", path: "\(rootPrefix)/DCIM", icon: "camera.fill")
                 quickAccessButton(title: "Downloads", path: "\(rootPrefix)/Download", icon: "arrow.down.circle.fill")
@@ -793,6 +846,35 @@ public struct PhoneBridgeView: View {
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+            }
+
+            let conflictingApps = MTPProcessConflictResolver.findRunningConflictingProcesses()
+            if !conflictingApps.isEmpty {
+                VStack(spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.orange)
+                        Text("\(conflictingApps.joined(separator: ", ")) is running")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
+                    Text("May block OpenMTP from accessing the USB port.")
+                        .font(.system(size: 9.5, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Button("Free USB Port") {
+                        _ = engine.terminateUsbConflicts()
+                    }
+                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.3))
+                    .clipShape(Capsule())
+                    .buttonStyle(.plain)
+                }
+                .padding(8)
+                .background(Color.orange.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
 
             HStack(spacing: 8) {

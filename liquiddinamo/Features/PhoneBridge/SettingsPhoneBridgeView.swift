@@ -152,24 +152,50 @@ public struct SettingsPhoneBridgeView: View {
                     .padding(8)
                 }
 
-                // 2. Transfer Backend Selection (Option B)
+                // 2. Transfer Backend Selection (OpenMTP + ADB)
                 GroupBox(label: Label("Transfer Backend", systemImage: "gearshape.2.fill")) {
                     VStack(alignment: .leading, spacing: 10) {
                         Picker("Active Protocol:", selection: $backendType) {
-                            Text("ADB High-Speed (Recommended)").tag("adb")
-                            Text("OpenMTP (libmtp)").tag("mtp")
+                            Text("Smart Auto").tag("auto")
+                            Text("OpenMTP Native").tag("mtp")
+                            Text("ADB High-Speed").tag("adb")
                         }
                         .pickerStyle(.segmented)
 
-                        if backendType == "adb" {
-                            Text("ADB uses Android Debug Bridge for up to 45 MB/s transfer speeds. Requires USB Debugging enabled on your phone.")
+                        if backendType == "auto" {
+                            Text("Smart Auto automatically connects using OpenMTP native driver without needing developer options, while seamlessly utilizing ADB high-speed when available.")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        } else if backendType == "adb" {
+                            Text("ADB uses Android Debug Bridge for up to 45 MB/s transfer speeds. Requires USB Debugging enabled in phone Developer Options.")
                                 .font(.system(size: 11, design: .rounded))
                                 .foregroundStyle(.secondary)
                         } else {
-                            Text(engine.mtpBackend.isAvailable ? "Native libmtp detected and ready for standard MTP file transfers without USB debugging." : "libmtp tools are optional for MTP mode. If not installed, enable USB Debugging on your phone or run 'brew install libmtp'.")
+                            Text("OpenMTP uses native Apple Silicon C-FFI (kalam.dylib + libusb) for standard MTP file transfers without requiring USB debugging.")
                                 .font(.system(size: 11, design: .rounded))
                                 .foregroundStyle(.secondary)
                         }
+
+                        HStack(spacing: 8) {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(MTPBridge.shared.isLoaded ? Color.green : Color.orange)
+                                    .frame(width: 6, height: 6)
+                                Text(MTPBridge.shared.isLoaded ? "OpenMTP Kalam Engine Active" : "OpenMTP Initializing…")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button("Free USB Port") {
+                                _ = engine.terminateUsbConflicts()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                            .help("Terminates conflicting Android File Transfer agents to give LiquidDynamo exclusive USB access")
+                        }
+                        .padding(.top, 2)
                     }
                     .padding(8)
                 }
