@@ -2,6 +2,12 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.7] — 2026-10-27
+
+### Auto-Playing Animated GIF Demo & GitHub Showcase
+- **Animated GIF Integration**: Converted 60fps screen recording into an optimized, auto-playing, infinitely looping GIF (`docs/assets/demo.gif` / `LiquidDynamo-Demo.gif`) enabling instant video preview across all GitHub web and mobile interfaces.
+- **Direct Video Stream Link**: Linked animated GIF directly to high-definition MP4 asset on GitHub Releases.
+
 ## [2.1.6] — 2026-10-27
 
 ### Complete Feature Suite Documentation & Live Video Showcase
