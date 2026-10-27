@@ -429,13 +429,15 @@ public final class DeviceMonitor: ObservableObject {
         // Initial real-time enumeration
         refreshBluetoothDevices()
 
-        // 2-second background sync timer to guarantee real-time detection & immediate disconnect removal
+        // 12-second background sync timer with 3s tolerance to conserve CPU/power while guaranteeing fallback detection
         btPollingTimer?.invalidate()
-        btPollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 12.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refreshBluetoothDevices()
             }
         }
+        timer.tolerance = 3.0
+        btPollingTimer = timer
 
         // Observe connections posted by BluetoothService
         NotificationCenter.default.publisher(for: .bluetoothDeviceDidConnect)

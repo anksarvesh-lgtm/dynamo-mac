@@ -115,13 +115,15 @@ public final class ClipboardHistoryService: ObservableObject {
         updateScreenCaptureState()
         checkPasteboard()
 
-        // Replace Timer with DispatchSourceTimer on background monitor queue
+        // Replace Timer with DispatchSourceTimer on background monitor queue with power-efficient leeway
         dispatchTimer?.cancel()
         let timer = DispatchSource.makeTimerSource(queue: monitorQueue)
-        timer.schedule(deadline: .now() + .milliseconds(350), repeating: .milliseconds(350), leeway: .milliseconds(50))
+        timer.schedule(deadline: .now() + .milliseconds(750), repeating: .milliseconds(750), leeway: .milliseconds(150))
         timer.setEventHandler { [weak self] in
+            let currentCount = NSPasteboard.general.changeCount
             Task { @MainActor [weak self] in
-                self?.checkPasteboard()
+                guard let self = self, currentCount != self.lastChangeCount else { return }
+                self.checkPasteboard()
             }
         }
         timer.resume()

@@ -295,6 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var closedScrollLocalMonitor: Any?
     private var expandedScrollLocalMonitor: Any?
     private var lastClosedMoveCheckTime: TimeInterval = 0
+    private var isHoveringWingsOrNotch: Bool = false
 
     // Delta accumulator for smooth, jitter-free gesture detection
     private var accumulatedScrollX: CGFloat = 0
@@ -489,8 +490,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     NotificationCenter.default.post(name: .resetSideReadoutDetails, object: nil)
                 }
             } else if event.type == .mouseMoved {
+                // Fast-path bounding check: If cursor is not near the top 80pt area of the screen,
+                // skip hit-testing and avoid waking notification observers entirely.
+                if mouseLoc.y < screen.frame.maxY - 80 {
+                    if self.isHoveringWingsOrNotch {
+                        self.isHoveringWingsOrNotch = false
+                        if Defaults[.enableSideReadouts] {
+                            NotificationCenter.default.post(name: .sideReadoutHoverChanged, object: ["left": false, "right": false])
+                        }
+                    }
+                    return
+                }
+
+                self.isHoveringWingsOrNotch = true
                 let now = CACurrentMediaTime()
-                guard now - self.lastClosedMoveCheckTime >= 0.016 else { return }
+                guard now - self.lastClosedMoveCheckTime >= 0.032 else { return }
                 self.lastClosedMoveCheckTime = now
 
                 if Defaults[.enableSideReadouts] {
@@ -902,9 +916,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ProcessInfo.processInfo.disableAutomaticTermination("LiquidDynamo Dynamic Island and Notch background service")
         ProcessInfo.processInfo.disableSuddenTermination()
 
-        // Hold user-initiated latency-critical background activity to prevent App Nap from throttling or sleeping the app
+        // Hold user-initiated activity to prevent App Nap while allowing idle sleep and core power saving
         backgroundActivityAssertion = ProcessInfo.processInfo.beginActivity(
-            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+            options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "LiquidDynamo live notch monitor, telemetry wings, and system status"
         )
 

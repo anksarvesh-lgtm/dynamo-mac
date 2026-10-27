@@ -93,7 +93,7 @@ public final class NetworkThroughputService: ObservableObject {
         let effectiveInterval = isLowPower ? max(3.0, baseInterval * 2.0) : baseInterval
 
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + effectiveInterval, repeating: effectiveInterval, leeway: .milliseconds(100))
+        timer.schedule(deadline: .now() + effectiveInterval, repeating: effectiveInterval, leeway: .milliseconds(250))
         timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self = self, self.isRunning else { return }

@@ -34,7 +34,7 @@ public struct LiquidWaterCapsuleView: View {
     }
 
     public var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
             Canvas { context, size in
                 drawWater(into: &context, size: size, date: timeline.date)
             }

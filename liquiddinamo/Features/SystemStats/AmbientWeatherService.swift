@@ -82,12 +82,14 @@ public final class AmbientWeatherService: ObservableObject {
     private func updateRippleAnimationState() {
         if condition == .rainy {
             guard rippleTimer == nil else { return }
-            rippleTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            let timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self = self, self.condition == .rainy else { return }
-                    self.rainDropletRipplePhase = (self.rainDropletRipplePhase + 0.08).truncatingRemainder(dividingBy: .pi * 2)
+                    self.rainDropletRipplePhase = (self.rainDropletRipplePhase + 0.12).truncatingRemainder(dividingBy: .pi * 2)
                 }
             }
+            timer.tolerance = 0.01
+            rippleTimer = timer
         } else {
             rippleTimer?.invalidate()
             rippleTimer = nil

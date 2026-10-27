@@ -356,8 +356,8 @@ public struct SceneKitDeviceView: NSViewRepresentable {
         scnView.autoenablesDefaultLighting = false
         scnView.allowsCameraControl = allowsCameraControl
         scnView.antialiasingMode = .multisampling4X
-        scnView.preferredFramesPerSecond = 60
-        scnView.rendersContinuously = true
+        scnView.preferredFramesPerSecond = 30
+        scnView.rendersContinuously = !isPaused
         scnView.isPlaying = !isPaused
 
         let hostScene = SCNScene()
@@ -441,6 +441,7 @@ public struct SceneKitDeviceView: NSViewRepresentable {
 
     public static func dismantleNSView(_ scnView: SCNView, coordinator: Coordinator) {
         scnView.isPlaying = false
+        scnView.rendersContinuously = false
         coordinator.turntableNode?.removeAction(forKey: "turntableSpin")
     }
 
@@ -486,6 +487,7 @@ public struct SceneKitDeviceView: NSViewRepresentable {
         func updatePlayback(isPaused: Bool, rpm: Float) {
             guard let scnView = scnView, let turntable = turntableNode else { return }
             scnView.isPlaying = !isPaused
+            scnView.rendersContinuously = !isPaused
 
             turntable.removeAction(forKey: "turntableSpin")
             if !isPaused && rpm > 0.01 {

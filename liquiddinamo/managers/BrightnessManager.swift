@@ -24,12 +24,28 @@ final class BrightnessManager: ObservableObject {
 
 	var shouldShowOverlay: Bool { Date().timeIntervalSince(lastChangeAt) < visibleDuration }
 
-	private func readDirectScreenBrightness() -> Float? {
+	private typealias GetBrightnessFn = @convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32
+	private typealias SetBrightnessFn = @convention(c) (CGDirectDisplayID, Float) -> Int32
+
+	private static let displayServicesHandle: UnsafeMutableRawPointer? = {
 		let path = "/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices"
-		guard let handle = dlopen(path, RTLD_LAZY) else { return nil }
-		guard let sym = dlsym(handle, "DisplayServicesGetBrightness") else { return nil }
-		typealias Fn = @convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32
-		let fn = unsafeBitCast(sym, to: Fn.self)
+		return dlopen(path, RTLD_LAZY)
+	}()
+
+	private static let getBrightnessFn: GetBrightnessFn? = {
+		guard let handle = displayServicesHandle,
+		      let sym = dlsym(handle, "DisplayServicesGetBrightness") else { return nil }
+		return unsafeBitCast(sym, to: GetBrightnessFn.self)
+	}()
+
+	private static let setBrightnessFn: SetBrightnessFn? = {
+		guard let handle = displayServicesHandle,
+		      let sym = dlsym(handle, "DisplayServicesSetBrightness") else { return nil }
+		return unsafeBitCast(sym, to: SetBrightnessFn.self)
+	}()
+
+	private func readDirectScreenBrightness() -> Float? {
+		guard let fn = Self.getBrightnessFn else { return nil }
 		var b: Float = 0
 		if fn(CGMainDisplayID(), &b) == 0 {
 			return b
@@ -38,7 +54,8 @@ final class BrightnessManager: ObservableObject {
 	}
 
 	private func startMonitor() {
-		monitorTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+		monitorTimer?.invalidate()
+		let timer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
 			guard let self = self else { return }
 			guard Defaults[.showNotchOSD] else { return }
 			if let current = self.readDirectScreenBrightness() {
@@ -52,6 +69,8 @@ final class BrightnessManager: ObservableObject {
 				}
 			}
 		}
+		timer.tolerance = 0.2
+		monitorTimer = timer
 	}
 
 	@MainActor
@@ -93,11 +112,7 @@ final class BrightnessManager: ObservableObject {
 
 	@discardableResult
 	private func writeDirectScreenBrightness(_ value: Float) -> Bool {
-		let path = "/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices"
-		guard let handle = dlopen(path, RTLD_LAZY) else { return false }
-		guard let sym = dlsym(handle, "DisplayServicesSetBrightness") else { return false }
-		typealias Fn = @convention(c) (CGDirectDisplayID, Float) -> Int32
-		let fn = unsafeBitCast(sym, to: Fn.self)
+		guard let fn = Self.setBrightnessFn else { return false }
 		return fn(CGMainDisplayID(), value) == 0
 	}
 

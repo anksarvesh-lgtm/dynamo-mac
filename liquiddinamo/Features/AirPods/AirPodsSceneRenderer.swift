@@ -40,7 +40,11 @@ public final class AirPodsSceneRenderer: NSObject, ObservableObject {
     // State Tracking
     @Published public var warpProgress: Double = 0.0
     @Published public var dragOffset: CGSize = .zero
-    @Published public var isVisible: Bool = false
+    @Published public var isVisible: Bool = false {
+        didSet {
+            updateRenderState()
+        }
+    }
     @Published public var isLowPowerMode: Bool = ProcessInfo.processInfo.isLowPowerModeEnabled
     public var previousConnectedState: Bool = false
 
@@ -68,12 +72,17 @@ public final class AirPodsSceneRenderer: NSObject, ObservableObject {
     private func setupView() {
         scnView.scene = scene
         scnView.backgroundColor = .clear
-        scnView.rendersContinuously = true
-        scnView.preferredFramesPerSecond = ProcessInfo.processInfo.isLowPowerModeEnabled ? 30 : 60
+        scnView.rendersContinuously = false
+        scnView.preferredFramesPerSecond = 30
         scnView.antialiasingMode = .multisampling4X
         scnView.autoenablesDefaultLighting = false
         scnView.allowsCameraControl = false
-        scnView.isPlaying = true
+        scnView.isPlaying = false
+    }
+
+    private func updateRenderState() {
+        scnView.isPlaying = isVisible
+        scnView.rendersContinuously = isVisible
     }
 
     // MARK: - Lighting Rig (Soft rim light against pure black notch)

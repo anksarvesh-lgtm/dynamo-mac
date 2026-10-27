@@ -45,11 +45,13 @@ public final class HardwareSensorMonitor: ObservableObject {
     public func startMonitoring() {
         stopMonitoring()
         checkSensors()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.checkSensors()
             }
         }
+        timer.tolerance = 0.5
+        pollTimer = timer
     }
 
     public func stopMonitoring() {

@@ -219,7 +219,7 @@ final class MediaKeyInterceptor: ObservableObject {
     
     private func startPermissionMonitoring() {
         guard permissionPollTimer == nil else { return }
-        permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 guard Defaults[.hideSystemOSD] || Defaults[.hudReplacement] else {
@@ -238,6 +238,8 @@ final class MediaKeyInterceptor: ObservableObject {
                 }
             }
         }
+        timer.tolerance = 1.0
+        permissionPollTimer = timer
     }
     
     private func stopPermissionMonitoring() {

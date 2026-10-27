@@ -53,11 +53,13 @@ public final class ChargingIntelligenceService: ObservableObject {
     public func start() {
         pollTimer?.invalidate()
         checkChargingStatus()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.checkChargingStatus()
             }
         }
+        timer.tolerance = 2.0
+        pollTimer = timer
     }
 
     public func stop() {
