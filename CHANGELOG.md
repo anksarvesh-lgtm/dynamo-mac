@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.4] — 2026-10-27
+
+### OpenMTP Native Phone Bridge Integration & USB Conflict Resolution
+- **OpenMTP Kalam Native Engine**: Fully integrated OpenMTP's battle-tested Go kernel (`kalam.dylib` + `libusb.dylib`) directly via C-FFI bindings into LiquidDynamo's native Phone Bridge, enabling high-performance MTP file transfers without external software or ADB debugging requirements.
+- **Robust C-FFI Response Handling**: Added JSON boolean response decoders (`MTPBoolResponse`) for `MakeDirectory`, `DeleteFile`, `RenameFile`, `UploadFiles`, and `DownloadFiles`, eliminating decoding mismatch errors. Corrected JSON payload keys to match native Kalam inputs.
+- **Automatic USB Conflict Resolver**: Integrated `MTPProcessConflictResolver` to automatically detect and cleanly terminate competing USB daemon listeners (e.g., `Android File Transfer`, `Android File Transfer Agent`, Dropbox USB monitors) that claim exclusive USB endpoints.
+- **Dynamic Transfer Progress & Speed Tracking**: Implemented real-time speed monitoring (MB/s), active/bulk byte counters, elapsed time, and dynamic queue timeout extensions so large transfers never abort prematurely.
+- **Multi-Storage Partition Support**: Added seamless internal storage and SD card partition discovery with an interactive quick-access picker in Phone Bridge view.
+- **Smart Protocol Selector**: Added a 3-way protocol switcher in Settings (Smart Auto, OpenMTP Native, ADB High-Speed) with live engine status and one-click "Free USB Port" conflict clearing.
+
 ## [2.1.3] — 2026-10-27
 
 ### In-App Auto-Updater Relaunch & Atomic Replacement Engine Hardening

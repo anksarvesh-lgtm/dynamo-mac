@@ -8,6 +8,7 @@
 //
 
 import AppKit
+import Defaults
 import Foundation
 
 // MARK: - Backend Protocol

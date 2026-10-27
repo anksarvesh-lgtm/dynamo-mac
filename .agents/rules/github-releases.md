@@ -12,14 +12,14 @@ These rules govern version releases, CI/CD packaging, in-app updates, and asset 
      `https://api.github.com/repos/anksarvesh-lgtm/dynamo-mac/releases/latest`
    - If a Git Tag is pushed without publishing an official GitHub Release, the GitHub API will continue returning the previous release tag, and **installed older versions will fail to detect the new update**.
 
-2. **Mandatory Release Publishing**:
-   - Whenever a new version is built and pushed:
-     1. Bump `MARKETING_VERSION` in `LiquidDynamo.xcodeproj/project.pbxproj` and release scripts.
-     2. Build the application and package the DMG (`build_dmg.sh`).
-     3. Package `liquiddynamo.zip` containing `LiquidDynamo.app` (`ditto -c -k --keepParent build/LiquidDynamo.app ~/Desktop/liquiddynamo.zip`).
+2. **Mandatory Version Bump & Build on Every Push**:
+   - Every single time any code, fix, or feature update is made to the app before pushing:
+     1. Bump `MARKETING_VERSION` (semver) and `CURRENT_PROJECT_VERSION` (integer build number) in `LiquidDynamo.xcodeproj/project.pbxproj`.
+     2. Update `CHANGELOG.md`, `README.md`, and version fallbacks.
+     3. Build the application and package the DMG and update zip (`INSTALL_APP=false bash build_dmg.sh`).
      4. Tag the commit: `git tag -a v{version} -m "Release v{version}"`.
-     5. Push commits and tag: `git push origin main && git push origin v{version}`.
-     6. **Publish the GitHub Release**: Run `python3 scripts/publish_github_release.py` or create the release via GitHub Releases API / UI, attaching `LiquidDynamo-{version}.dmg`, `LiquidDynamo.dmg`, and `liquiddynamo.zip`.
+     5. Push commits and tag: `git push origin main && git push origin v{version}` to both remotes.
+     6. **Publish the GitHub Release**: Run `swift scripts/publish_release_assets.swift` to upload `LiquidDynamo-{version}.dmg`, `LiquidDynamo.dmg`, and `liquiddynamo.zip` to both repositories.
 
 ---
 

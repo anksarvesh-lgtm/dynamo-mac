@@ -38,32 +38,33 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.1.3
-- **Auto-Updater Relaunch & Replacement Hardening**: Re-engineered in-place auto-updater using detached background execution with `nohup` and signal trapping (`trap '' HUP INT QUIT TERM`), preventing operating system termination of the updater subtask when the parent app exits.
-- **Helper Process Termination & Lock Release**: Automatically terminates lingering helper processes (`mediaremote-adapter.pl`, `net-merge`, `LiquidDynamoXPCHelper`) to release open file locks and ensure clean, atomic overwrites of `/Applications/LiquidDynamo.app`.
-- **Target Location Safety**: Automatically detects execution from read-only DMG volumes and redirects target installation to `/Applications/LiquidDynamo.app`.
-- **Quarantine & Signature Cleansing**: Strips macOS quarantine flags (`xattr -cr`) on staged and installed applications and re-applies ad-hoc signatures for seamless launch without security warnings.
-- **Full Version Sync Across Targets**: Synchronized `MARKETING_VERSION = 2.1.3` and `CURRENT_PROJECT_VERSION = 26` across all targets in Xcode project configuration, eliminating false out-of-date detection loops.
+### Release Highlights — LiquidDynamo 2.1.4
+- **OpenMTP Kalam Native Engine**: Fully integrated OpenMTP's battle-tested Go kernel (`kalam.dylib` + `libusb.dylib`) directly via C-FFI bindings into LiquidDynamo's native Phone Bridge, enabling high-performance MTP file transfers without external software or ADB debugging.
+- **Robust C-FFI JSON Handling**: Added JSON boolean response decoders (`MTPBoolResponse`) for directory creation, deletion, renaming, uploads, and downloads, eliminating decoding mismatch errors.
+- **Automatic USB Conflict Resolver**: Detects and cleanly terminates competing USB daemon listeners (e.g. `Android File Transfer`, `Android File Transfer Agent`, Dropbox USB monitors) that lock USB endpoints.
+- **Dynamic Transfer Progress & Speed Tracking**: Real-time speed monitoring (MB/s), active/bulk byte counters, elapsed time, and dynamic queue timeout extensions so large transfers never abort prematurely.
+- **Multi-Storage Partition Support**: Seamless internal storage and SD card partition discovery with an interactive quick-access picker in Phone Bridge view.
+- **Smart Protocol Selector**: 3-way protocol switcher in Settings (Smart Auto, OpenMTP Native, ADB High-Speed) with live engine status and one-click "Free USB Port" conflict clearing.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.1.3",
-        name: "LiquidDynamo 2.1.3 — Auto-Updater Relaunch & Atomic Replacement Engine Hardening",
+        tag: "v2.1.4",
+        name: "LiquidDynamo 2.1.4 — OpenMTP Native Phone Bridge Integration & USB Conflict Resolver",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.3 (build 26)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.4 (build 27)",
         makeLatest: false
     )
 ]
 
 let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.1.3.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.3.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.1.4.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.4.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip")
 ]

@@ -117,3 +117,22 @@ This document outlines the core engineering guidelines, design constraints, and 
 6. **GitHub Actions CI Secrets Fallback**:
    - `.github/workflows/release.yml` must never fail if optional Developer ID signing secrets are unset.
    - It must gracefully log a warning, produce standard release packages, and publish the release.
+
+---
+
+## 7. Mandatory Version Bump & Release Packaging on Every Push
+
+1. **Version & Build Increment on Every Push**:
+   - Whenever any bug fix, feature, or update is made to the application, ALWAYS increment `MARKETING_VERSION` (semver) and `CURRENT_PROJECT_VERSION` (build number) across all targets in `LiquidDynamo.xcodeproj/project.pbxproj`.
+   - Update `CHANGELOG.md` with the new version section and summary of improvements.
+   - Update version badges and links in `README.md`.
+   - Update version fallbacks in `liquiddinamo/components/Settings/SettingsView.swift` and `install.sh`.
+
+2. **Always Package Release Before Pushing**:
+   - Run `INSTALL_APP=false bash build_dmg.sh` to generate the new release DMG (`LiquidDynamo-{version}.dmg`, `LiquidDynamo.dmg`) and in-place auto-update archive (`liquiddynamo.zip`).
+   - Verify codesigning and bundle integrity.
+
+3. **Synchronize Remotes & Publish Release Assets**:
+   - Commit the changes and push commits and tags to both remotes (`dynamo-mac` and `dynamomac`).
+   - Run `swift scripts/publish_release_assets.swift` to publish the new GitHub Release with attached `.dmg` and `.zip` assets so users instantly receive the update prompt without manual intervention.
+
