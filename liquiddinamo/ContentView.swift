@@ -1745,16 +1745,20 @@ struct CollapsedLiveInfoWingsView: View {
             }
 
         case .cpuTemp:
+            let tempColor = WingIndicatorColors.cpuTemperatureColor(
+                temperature: statsService.isTemperatureAvailable ? statsService.cpuTemperature : nil,
+                thermalState: statsService.thermalState
+            )
             HStack(spacing: 3.5) {
                 Image(systemName: "thermometer.medium")
                     .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(statsService.thermalStateColor)
+                    .foregroundStyle(tempColor)
                 if showDetails {
                     Text(statsService.formattedCPUTemperature)
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
                         .lineLimit(1)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(tempColor)
                         .fixedSize()
                 }
             }

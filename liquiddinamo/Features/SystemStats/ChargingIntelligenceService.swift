@@ -50,21 +50,43 @@ public final class ChargingIntelligenceService: ObservableObject {
         }
     }
 
+    private var runLoopSource: CFRunLoopSource?
+
     public func start() {
-        pollTimer?.invalidate()
+        stop()
         checkChargingStatus()
-        let timer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { [weak self] _ in
+
+        // 1. Native event-driven IOKit Power Sources runloop source (instant, zero polling)
+        if runLoopSource == nil {
+            if let source = IOPSNotificationCreateRunLoopSource({ context in
+                guard let context = context else { return }
+                let service = Unmanaged<ChargingIntelligenceService>.fromOpaque(context).takeUnretainedValue()
+                Task { @MainActor in
+                    service.checkChargingStatus()
+                }
+            }, Unmanaged.passUnretained(self).toOpaque())?.takeRetainedValue() {
+                self.runLoopSource = source
+                CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+            }
+        }
+
+        // 2. Slow fallback timer with generous tolerance (30s interval, 10s tolerance)
+        let timer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.checkChargingStatus()
             }
         }
-        timer.tolerance = 2.0
+        timer.tolerance = 10.0
         pollTimer = timer
     }
 
     public func stop() {
         pollTimer?.invalidate()
         pollTimer = nil
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+            runLoopSource = nil
+        }
     }
 
     public func checkChargingStatus() {

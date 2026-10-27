@@ -17,9 +17,33 @@ final class BrightnessManager: ObservableObject {
 	private let client = XPCHelperClient.shared
 	private var monitorTimer: Timer?
 
+	private var osdObserver: Defaults.Observation?
+
 	private init() {
 		refresh()
-		startMonitor()
+		osdObserver = Defaults.observe(.showNotchOSD) { [weak self] change in
+			if change.newValue {
+				self?.startMonitor()
+			} else {
+				self?.stopMonitor()
+			}
+		}
+		if Defaults[.showNotchOSD] {
+			startMonitor()
+		}
+	}
+
+	func updateMonitorState() {
+		if Defaults[.showNotchOSD] {
+			startMonitor()
+		} else {
+			stopMonitor()
+		}
+	}
+
+	func stopMonitor() {
+		monitorTimer?.invalidate()
+		monitorTimer = nil
 	}
 
 	var shouldShowOverlay: Bool { Date().timeIntervalSince(lastChangeAt) < visibleDuration }

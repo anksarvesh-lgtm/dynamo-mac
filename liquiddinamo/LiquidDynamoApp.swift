@@ -231,6 +231,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func onScreenLocked(_ notification: Notification) {
         isScreenLocked = true
+        SystemStatsService.shared.stop()
+        NetworkThroughputService.shared.stop()
+        HardwareSensorMonitor.shared.stopMonitoring()
+        ChargingIntelligenceService.shared.stop()
+        ClipboardHistoryService.shared.stop()
+        BrightnessManager.shared.stopMonitor()
         if !Defaults[.showOnLockScreen] {
             cleanupWindows()
         } else {
@@ -241,6 +247,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func onScreenUnlocked(_ notification: Notification) {
         isScreenLocked = false
+        if Defaults[.enableSideReadouts] {
+            SystemStatsService.shared.start()
+            NetworkThroughputService.shared.start()
+        }
+        HardwareSensorMonitor.shared.startMonitoring()
+        ChargingIntelligenceService.shared.start()
+        ClipboardHistoryService.shared.start()
+        BrightnessManager.shared.updateMonitorState()
         if !Defaults[.showOnLockScreen] {
             adjustWindowPosition(changeAlpha: true)
         } else {
@@ -1064,6 +1078,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 IslandController.shared.onSystemSleep()
                 SystemStatsService.shared.stop()
                 NetworkThroughputService.shared.stop()
+                HardwareSensorMonitor.shared.stopMonitoring()
+                ChargingIntelligenceService.shared.stop()
+                ClipboardHistoryService.shared.stop()
+                BrightnessManager.shared.stopMonitor()
             }
         }
 
@@ -1073,6 +1091,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 SystemStatsService.shared.stop()
                 NetworkThroughputService.shared.stop()
+                HardwareSensorMonitor.shared.stopMonitoring()
+                ChargingIntelligenceService.shared.stop()
+                ClipboardHistoryService.shared.stop()
+                BrightnessManager.shared.stopMonitor()
             }
         }
 
@@ -1086,6 +1108,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     SystemStatsService.shared.start()
                     NetworkThroughputService.shared.start()
                 }
+                HardwareSensorMonitor.shared.startMonitoring()
+                ChargingIntelligenceService.shared.start()
+                ClipboardHistoryService.shared.start()
+                BrightnessManager.shared.updateMonitorState()
             }
         }
 
@@ -1097,6 +1123,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     SystemStatsService.shared.start()
                     NetworkThroughputService.shared.start()
                 }
+                HardwareSensorMonitor.shared.startMonitoring()
+                ChargingIntelligenceService.shared.start()
+                ClipboardHistoryService.shared.start()
+                BrightnessManager.shared.updateMonitorState()
             }
         }
 

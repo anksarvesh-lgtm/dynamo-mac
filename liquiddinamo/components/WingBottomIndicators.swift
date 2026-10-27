@@ -26,7 +26,7 @@ public struct WingIndicatorColors {
     }
 
     /// Pure function for CPU temperature color mapping.
-    /// Range: <= 45°C cool cyan/teal, 45-60 green, 60-72 yellow, 72-82 orange, >= 82 red.
+    /// Range: <= 50°C cool green/cyan, 50-70°C warm amber to orange warning, >= 70°C higher intense red.
     /// If temperature is unavailable (nil), cleanly falls back to macOS ThermalState.
     public static func cpuTemperatureColor(
         temperature: Double?,
@@ -35,34 +35,40 @@ public struct WingIndicatorColors {
         guard let temp = temperature else {
             switch thermalState {
             case .nominal:
-                return Color(red: 0.20, green: 0.82, blue: 0.40)
+                return Color(red: 0.22, green: 0.84, blue: 0.38)
             case .fair:
-                return Color(red: 0.95, green: 0.80, blue: 0.20)
+                return Color(red: 0.98, green: 0.78, blue: 0.16)
             case .serious:
-                return Color(red: 1.00, green: 0.55, blue: 0.15)
+                return Color(red: 1.00, green: 0.44, blue: 0.10)
             case .critical:
-                return Color(red: 0.95, green: 0.25, blue: 0.25)
+                return Color(red: 1.00, green: 0.12, blue: 0.12)
             @unknown default:
-                return Color(red: 0.20, green: 0.82, blue: 0.40)
+                return Color(red: 0.22, green: 0.84, blue: 0.38)
             }
         }
 
-        let cyan = (r: 0.15, g: 0.82, b: 0.85)
-        let green = (r: 0.22, g: 0.84, b: 0.38)
-        let yellow = (r: 0.96, g: 0.82, b: 0.18)
-        let orange = (r: 1.00, g: 0.50, b: 0.12)
-        let red = (r: 0.95, g: 0.20, b: 0.20)
+        let coolGreen = (r: 0.20, g: 0.84, b: 0.42)
+        let amber = (r: 0.98, g: 0.78, b: 0.16)
+        let orange = (r: 1.00, g: 0.44, b: 0.10)
+        let highRed = (r: 1.00, g: 0.14, b: 0.14)
+        let intenseRed = (r: 1.00, g: 0.04, b: 0.04)
 
-        if temp <= 45.0 {
-            return Color(red: cyan.r, green: cyan.g, blue: cyan.b)
-        } else if temp < 60.0 {
-            return interpolateColor(from: cyan, to: green, progress: (temp - 45.0) / 15.0)
-        } else if temp < 72.0 {
-            return interpolateColor(from: green, to: yellow, progress: (temp - 60.0) / 12.0)
-        } else if temp < 82.0 {
-            return interpolateColor(from: yellow, to: orange, progress: (temp - 72.0) / 10.0)
+        if temp <= 50.0 {
+            return Color(red: coolGreen.r, green: coolGreen.g, blue: coolGreen.b)
+        } else if temp < 58.0 {
+            // Immediately after 50°C, shift from cool green to warm amber
+            let p = (temp - 50.0) / 8.0
+            return interpolateColor(from: coolGreen, to: amber, progress: p)
+        } else if temp < 70.0 {
+            // 58°C to 70°C, warm amber shifts into vivid warning orange
+            let p = (temp - 58.0) / 12.0
+            return interpolateColor(from: amber, to: orange, progress: p)
+        } else if temp < 85.0 {
+            // At 70°C+, immediately hit higher red, deepening toward intense red
+            let p = (temp - 70.0) / 15.0
+            return interpolateColor(from: highRed, to: intenseRed, progress: p)
         } else {
-            return interpolateColor(from: orange, to: red, progress: min(1.0, (temp - 82.0) / 13.0))
+            return Color(red: intenseRed.r, green: intenseRed.g, blue: intenseRed.b)
         }
     }
 
@@ -113,7 +119,7 @@ public struct CPUTempGlowEdge: View {
     }
 
     private var isUrgent: Bool {
-        if let temp = statsService.cpuTemperature, temp >= 85.0 {
+        if let temp = statsService.cpuTemperature, temp >= 70.0 {
             return true
         }
         return statsService.thermalState == .serious || statsService.thermalState == .critical

@@ -37,12 +37,26 @@ public final class HardwareSensorMonitor: ObservableObject {
     }
 
     private var pollTimer: Timer?
+    private var privacyObserver: Defaults.Observation?
 
     private init() {
-        startMonitoring()
+        privacyObserver = Defaults.observe(.privacyIndicatorsEnabled) { [weak self] change in
+            if change.newValue {
+                self?.startMonitoring()
+            } else {
+                self?.stopMonitoring()
+            }
+        }
+        if Defaults[.privacyIndicatorsEnabled] {
+            startMonitoring()
+        }
     }
 
     public func startMonitoring() {
+        guard Defaults[.privacyIndicatorsEnabled] else {
+            stopMonitoring()
+            return
+        }
         stopMonitoring()
         checkSensors()
         let timer = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { [weak self] _ in

@@ -79,12 +79,23 @@ final class SystemStatsService: ObservableObject {
     }
 
     var thermalStateColor: Color {
+        if let temp = cpuTemperature {
+            if temp <= 50.0 {
+                return Color(red: 0.22, green: 0.84, blue: 0.38)
+            } else if temp < 58.0 {
+                return Color(red: 0.98, green: 0.78, blue: 0.16)
+            } else if temp < 70.0 {
+                return Color(red: 1.00, green: 0.44, blue: 0.10)
+            } else {
+                return Color(red: 1.00, green: 0.12, blue: 0.12)
+            }
+        }
         switch thermalState {
-        case .nominal: return .green
-        case .fair: return .yellow
-        case .serious: return .orange
-        case .critical: return .red
-        @unknown default: return .green
+        case .nominal: return Color(red: 0.22, green: 0.84, blue: 0.38)
+        case .fair: return Color(red: 0.98, green: 0.78, blue: 0.16)
+        case .serious: return Color(red: 1.00, green: 0.44, blue: 0.10)
+        case .critical: return Color(red: 1.00, green: 0.12, blue: 0.12)
+        @unknown default: return Color(red: 0.22, green: 0.84, blue: 0.38)
         }
     }
 
