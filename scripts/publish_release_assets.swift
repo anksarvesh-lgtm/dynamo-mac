@@ -38,23 +38,26 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.1.7
-- **Auto-Playing Animated GIF Demo**: Added optimized, looping animated GIF (`LiquidDynamo-Demo.gif` / `docs/assets/demo.gif`) enabling instant auto-playing live demonstration on all GitHub web and mobile README views.
-- **Direct Video Stream Link**: Linked GIF to full-resolution 60fps MP4 video release asset.
-- **Exhaustive Feature Suite Documentation**: Documented all 12 core architecture modules in detail.
+### Release Highlights — LiquidDynamo 2.1.8
+- **Lightweight Engine & Idle CPU Suspension**: Suspended 3D SceneKit continuous rendering (`rendersContinuously = false`, `isPlaying = false`) in `AirPodsSceneRenderer` and `DeviceModelRenderer` when views are collapsed or off-screen.
+- **DisplayServices Direct C-Symbol Caching**: Eliminated repeated `dlopen`/`dlsym` calls in `BrightnessManager` with static C symbol pointers and throttled polling to 0.8s with energy coalescing tolerance.
+- **Fast-Path Cursor Bounding**: Bypassed mouse hover computations and notifications whenever cursor is outside the top 80pt area of the screen.
+- **Kernel Power Scaling**: Removed `.latencyCritical` from `ProcessInfo.beginActivity` to allow macOS kernel to downclock cores and enter deepest C-states at idle.
+- **Coalesced Periodic Timers**: Throttled background telemetry timers across Bluetooth, hardware sensors, battery status, and clipboard history.
+- **ProMotion Animation Capping**: Capped liquid capsule animation timelines to 30 FPS, saving 75% frame redraws on 120Hz displays.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.1.7",
-        name: "LiquidDynamo 2.1.7 — Animated GIF Demo & Complete Feature Suite",
+        tag: "v2.1.8",
+        name: "LiquidDynamo 2.1.8 — Lightweight Engine & CPU / Battery Optimization",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.7 (build 30)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.8 (build 31)",
         makeLatest: false
     )
 ]
@@ -64,7 +67,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.1.7.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.7.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.1.8.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.8.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

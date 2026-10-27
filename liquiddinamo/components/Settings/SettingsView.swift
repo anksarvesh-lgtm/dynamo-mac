@@ -1199,14 +1199,14 @@ struct About: View {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text(Bundle.main.releaseVersionNumber ?? "2.1.7")
+                        Text(Bundle.main.releaseVersionNumber ?? "2.1.8")
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
                     HStack {
                         Text("Build Number")
                         Spacer()
-                        Text(Bundle.main.buildVersionNumber ?? "30")
+                        Text(Bundle.main.buildVersionNumber ?? "31")
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
@@ -1219,7 +1219,7 @@ struct About: View {
                     HStack {
                         Text("Release")
                         Spacer()
-                        Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "2.1.7")")
+                        Text("LiquidDynamo \(Bundle.main.releaseVersionNumber ?? "2.1.8")")
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }

@@ -2,6 +2,17 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.8] — 2026-10-27
+
+### Lightweight Engine & Deep CPU / Battery Power Optimizations
+- **SceneKit Idle Suspension**: Suspended 3D SceneKit continuous rendering (`rendersContinuously = false`, `isPlaying = false`, `stop()`) in `AirPodsSceneRenderer` and `DeviceModelRenderer` whenever views are collapsed or off-screen, eliminating background 60 FPS GPU/CPU drawing loops.
+- **DisplayServices C-Symbol Caching**: Eliminated repeated `dlopen` and `dlsym` calls on every tick in `BrightnessManager`; cached native DisplayServices dynamic function pointers statically and throttled polling interval to 0.8s with a 200ms energy coalescing tolerance.
+- **Fast-Path Mouse Bounding Check**: Added instant coordinate boundary rejection in `LiquidDynamoApp` closed mouse event monitor to bypass expensive wing geometry calculations and notification dispatches whenever the cursor is outside the top 80pt screen area.
+- **Process Activity Power Scaling**: Removed `.latencyCritical` from `ProcessInfo.beginActivity`, allowing macOS kernel scheduler to park idle cores and drop CPU clocks to deepest energy-saving C-states.
+- **Clipboard Queue Optimization**: Upgraded `ClipboardHistoryService` timer to 750ms with 150ms leeway and pre-filtered on `changeCount` before dispatching to the main thread.
+- **Periodic Timer Throttling with System Tolerance**: Reduced background telemetry wakeups across `DeviceMonitor` (12s with 3s tolerance), `HardwareSensorMonitor` (3.5s with 0.5s tolerance), `ChargingIntelligenceService` (8s with 2s tolerance), and `MediaKeyInterceptor` (5s with 1s tolerance).
+- **ProMotion TimelineView Capping**: Capped `LiquidWaterCapsuleView` animation timeline to 30 FPS (saving 75% frame redraws on 120Hz ProMotion displays) and throttled ambient weather ripples to 20 FPS.
+
 ## [2.1.7] — 2026-10-27
 
 ### Auto-Playing Animated GIF Demo & GitHub Showcase
