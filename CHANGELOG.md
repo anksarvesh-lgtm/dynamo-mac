@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.9] — 2026-10-27
+
+### Dynamic CPU Temperature Alerts & On-Demand Service Lifecycle Architecture
+- **Dynamic CPU Temperature Color Thresholding**: CPU temperature displays in notch wings and system status monitors now maintain a cool cyan/green palette under normal loads (`<= 50°C`), smoothly transition into warm amber and warning orange (`50°C - 70°C`), and switch immediately to higher intense red (`Color(red: 1.0, green: 0.14, blue: 0.14)`) at `>= 70°C` with high-alert urgent breathing bloom.
+- **Zero-Polling Battery Intelligence (`IOPSNotificationCreateRunLoopSource`)**: Replaced continuous timer-based power telemetry in `ChargingIntelligenceService` with native Apple IOKit kernel run-loop notifications, ensuring zero CPU cycles spent polling when power state does not change, with a relaxed 30-second / 10-second tolerance fallback.
+- **Strict Demand-Driven Service Lifecycle**:
+  - `HardwareSensorMonitor`: Dynamically stops timers and releases resources when `Defaults[.privacyIndicatorsEnabled]` is turned off.
+  - `BrightnessManager`: Shuts down display polling loops whenever notch volume/brightness OSDs are disabled in preferences.
+  - Deep Sleep & Lock Freezing: `LiquidDynamoApp` automatically halts `SystemStatsService`, `NetworkThroughputService`, `HardwareSensorMonitor`, `ChargingIntelligenceService`, `ClipboardHistoryService`, and `BrightnessManager` when the screen locks or displays enter power-save mode, resuming only explicitly enabled features upon unlock.
+
 ## [2.1.8] — 2026-10-27
 
 ### Lightweight Engine & Deep CPU / Battery Power Optimizations

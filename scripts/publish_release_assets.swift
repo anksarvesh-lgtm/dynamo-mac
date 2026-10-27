@@ -38,26 +38,26 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.1.8
-- **Lightweight Engine & Idle CPU Suspension**: Suspended 3D SceneKit continuous rendering (`rendersContinuously = false`, `isPlaying = false`) in `AirPodsSceneRenderer` and `DeviceModelRenderer` when views are collapsed or off-screen.
-- **DisplayServices Direct C-Symbol Caching**: Eliminated repeated `dlopen`/`dlsym` calls in `BrightnessManager` with static C symbol pointers and throttled polling to 0.8s with energy coalescing tolerance.
-- **Fast-Path Cursor Bounding**: Bypassed mouse hover computations and notifications whenever cursor is outside the top 80pt area of the screen.
-- **Kernel Power Scaling**: Removed `.latencyCritical` from `ProcessInfo.beginActivity` to allow macOS kernel to downclock cores and enter deepest C-states at idle.
-- **Coalesced Periodic Timers**: Throttled background telemetry timers across Bluetooth, hardware sensors, battery status, and clipboard history.
-- **ProMotion Animation Capping**: Capped liquid capsule animation timelines to 30 FPS, saving 75% frame redraws on 120Hz displays.
+### Release Highlights — LiquidDynamo 2.1.9
+- **Dynamic CPU Temperature Color Thresholding**: CPU temperature displays in notch wings and system status monitors maintain a cool cyan/green palette under normal loads (<= 50°C), transition smoothly through warm amber and warning orange (50°C - 70°C), and switch immediately to higher intense red at >= 70°C with high-alert urgent breathing bloom.
+- **Zero-Polling Battery Intelligence (`IOPSNotificationCreateRunLoopSource`)**: Replaced continuous timer-based power telemetry in `ChargingIntelligenceService` with native Apple IOKit kernel run-loop notifications, ensuring zero CPU cycles spent polling when power state does not change.
+- **Demand-Driven Feature Lifecycle**:
+  - `HardwareSensorMonitor`: Dynamically stops timers and releases resources when `Defaults[.privacyIndicatorsEnabled]` is turned off.
+  - `BrightnessManager`: Shuts down display polling loops whenever notch volume/brightness OSDs are disabled in preferences.
+  - Deep Sleep & Lock Freezing: `LiquidDynamoApp` automatically halts all background telemetry (system stats, network throughput, privacy sensors, battery monitors, clipboard history) when screen locks or displays enter power-save mode, resuming only explicitly enabled features upon unlock.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.1.8",
-        name: "LiquidDynamo 2.1.8 — Lightweight Engine & CPU / Battery Optimization",
+        tag: "v2.1.9",
+        name: "LiquidDynamo 2.1.9 — Dynamic CPU Temp Alerts & Demand-Driven Engine",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.8 (build 31)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.9 (build 32)",
         makeLatest: false
     )
 ]
@@ -67,7 +67,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.1.8.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.8.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.1.9.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.9.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),
