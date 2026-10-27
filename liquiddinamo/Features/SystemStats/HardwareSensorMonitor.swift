@@ -13,6 +13,7 @@ import Combine
 import CoreAudio
 import CoreGraphics
 import CoreMediaIO
+import Defaults
 import Foundation
 import SwiftUI
 
