@@ -44,13 +44,13 @@
   <h3 id="-experience-the-notch-video-demo">🎬 Experience LiquidDynamo in Action</h3>
 
   <p align="center">
-    <video src="docs/assets/demo.mp4" width="100%" max-width="960px" controls autoplay loop muted playsinline style="border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-      <source src="docs/assets/demo.mp4" type="video/mp4" />
-      <source src="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo-Demo.mp4" type="video/mp4" />
-      <em>Your browser does not support HTML5 video. <a href="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo-Demo.mp4">Click here to download the MP4 demo video</a>.</em>
-    </video>
+    <a href="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo-Demo.mp4">
+      <img src="docs/assets/demo.gif" alt="LiquidDynamo Live Animated Demo" width="920" style="border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
+    </a>
     <br />
     <em><b>LiquidDynamo Live Recording</b>: 3D SceneKit hardware orbit, fluid notch expansion, live MagSafe charging, ambient thermal wings, and modular power drawers.</em>
+    <br />
+    <sub>▶️ Auto-playing live recording. Click image or <a href="https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/LiquidDynamo-Demo.mp4">download full 60fps MP4 video</a>.</sub>
   </p>
 
 </div>
