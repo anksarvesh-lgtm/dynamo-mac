@@ -2,6 +2,13 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.1.6] — 2026-10-27
+
+### Complete Feature Suite Documentation & Live Video Showcase
+- **Integrated High-Definition Video Showcase**: Replaced static screenshots with an embedded 60fps live demo video (`docs/assets/demo.mp4` / `LiquidDynamo-Demo.mp4`) showing real-time 3D SceneKit accessory physics, fluid notch expansion, MagSafe charging, ambient thermal glows, and power drawers.
+- **Exhaustive Feature Suite Documentation**: Documented all 12 core architecture modules across the application, including Interactive Notch Wings, 3D SceneKit Universe, Dual-Engine Phone Bridge (OpenMTP + ADB), Powerload Multi-Network Bonding, Watcher AI HUD, Scopa Storage Optimizer, Music & Synced Lyrics, Liquid Glass System HUDs, Two-Finger Notch Gestures, Color Dropper, Privacy Clipboard, and Multi-Tier AutoStart.
+- **Asset Cleanup**: Removed deprecated static png previews from repository history to streamline repository footprint.
+
 ## [2.1.5] — 2026-10-27
 
 ### ADB Storage Discovery & Multi-Tier Autostart Overhaul

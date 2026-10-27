@@ -38,34 +38,33 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.1.5
-- **ADB Storage Discovery Pipeline**: Fixed Unix pipe buffer deadlock in `runProcess` by draining stdout/stderr asynchronously on background queues with a 5.0s safety watchdog timer.
-- **Permission-Free Partition Query**: Added fast toybox `stat -f` discovery on `/sdcard` before fallback to `df`, eliminating `Permission denied` failures on modern unrooted Android 10-15 devices.
-- **Line-Wrapped Filesystem Parsing**: Re-engineered `parseDfOutput` using percentage token anchoring (`%`) to correctly handle multi-line device paths (e.g. Pixel and Samsung `/dev/block/bootdevice/by-name/userdata` mount rows).
-- **Multi-Tier macOS Startup Autostart**: Introduced `AutoStartManager` combining native `SMAppService.mainApp`, user LaunchAgent plist (`~/Library/LaunchAgents/com.agrigence.liquiddynamo.plist`), and System Events Login Item fallback, ensuring 100% reliable launch-on-boot on macOS Sonoma and Sequoia regardless of ad-hoc signature approval states.
-- **Cross-Backend Storage Fallback**: Automatic transparent failover between ADB and native OpenMTP backends if primary query returns incomplete metrics.
+### Release Highlights — LiquidDynamo 2.1.6
+- **Integrated High-Definition Video Showcase**: Replaced static screenshots with an embedded 60fps live demo video (`LiquidDynamo-Demo.mp4` / `docs/assets/demo.mp4`) showing real-time 3D SceneKit accessory physics, fluid notch expansion, MagSafe charging, ambient thermal glows, and power drawers.
+- **Exhaustive Feature Suite Documentation**: Documented all 12 core architecture modules across the application, including Interactive Notch Wings, 3D SceneKit Universe, Dual-Engine Phone Bridge (OpenMTP + ADB), Powerload Multi-Network Bonding, Watcher AI HUD, Scopa Storage Optimizer, Music & Synced Lyrics, Liquid Glass System HUDs, Two-Finger Notch Gestures, Color Dropper, Privacy Clipboard, and Multi-Tier AutoStart.
+- **ADB Storage & Autostart Integration**: Hardened against Unix pipe buffer exhaustion, added toybox `stat -f` discovery, percentage-anchored `df` parser, and multi-tier `AutoStartManager` (`SMAppService` + LaunchAgent plist + AppleScript fallback).
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.1.5",
-        name: "LiquidDynamo 2.1.5 — ADB Storage Discovery & Multi-Tier Autostart Overhaul",
+        tag: "v2.1.6",
+        name: "LiquidDynamo 2.1.6 — Video Showcase & Exhaustive Feature Suite Release",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.5 (build 28)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.1.6 (build 29)",
         makeLatest: false
     )
 ]
 
 let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.1.5.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.5.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.1.6.dmg", desktop.appendingPathComponent("LiquidDynamo-2.1.6.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
-    ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip")
+    ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
+    ("LiquidDynamo-Demo.mp4", desktop.appendingPathComponent("LiquidDynamo-Demo.mp4"), "video/mp4")
 ]
 
 for repo in repos {
