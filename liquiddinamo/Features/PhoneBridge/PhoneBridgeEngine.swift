@@ -134,7 +134,13 @@ public final class PhoneBridgeEngine: ObservableObject {
 
         Task { [weak self] in
             guard let self = self else { return }
-            let storageInfo = await backend.queryStorageInfo(serial: serial)
+            var storageInfo = await backend.queryStorageInfo(serial: serial)
+            if storageInfo == nil || storageInfo?.total == 0 {
+                let fallback: AndroidTransferBackend = (backend.backendType == .adb) ? self.mtpBackend : self.adbBackend
+                if fallback.isAvailable {
+                    storageInfo = await fallback.queryStorageInfo(serial: serial)
+                }
+            }
 
             await MainActor.run {
                 self.isSyncingStorage = false

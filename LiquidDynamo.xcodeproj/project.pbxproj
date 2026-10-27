@@ -50,6 +50,7 @@
 		FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; };
 		FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		E6A000012E60000100000001 /* StorageCleanupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000012E60000100000002 /* StorageCleanupManager.swift */; };
+		E6A000102E60000100000001 /* AutoStartManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000102E60000100000002 /* AutoStartManager.swift */; };
 		E6A000022E60000100000001 /* StorageSafetyPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000022E60000100000002 /* StorageSafetyPolicy.swift */; };
 		E6A000032E60000100000001 /* StorageCleanupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000032E60000100000002 /* StorageCleanupModels.swift */; };
 		E6A000042E60000100000001 /* SettingsControlCenterSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000042E60000100000002 /* SettingsControlCenterSidebar.swift */; };
@@ -405,6 +406,7 @@
 		FE02DCB34EA3B127A9143791 /* kalam.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = kalam.dylib; path = Frameworks/kalam.dylib; sourceTree = SOURCE_ROOT; };
 		FE3064FB0E9BC6606F26E2EE /* libusb.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libusb.dylib; path = Frameworks/libusb.dylib; sourceTree = SOURCE_ROOT; };
 		E6A000012E60000100000002 /* StorageCleanupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageCleanupManager.swift; sourceTree = "<group>"; };
+		E6A000102E60000100000002 /* AutoStartManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoStartManager.swift; sourceTree = "<group>"; };
 		E6A000022E60000100000002 /* StorageSafetyPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageSafetyPolicy.swift; sourceTree = "<group>"; };
 		E6A000032E60000100000002 /* StorageCleanupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageCleanupModels.swift; sourceTree = "<group>"; };
 		E6A000042E60000100000002 /* SettingsControlCenterSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsControlCenterSidebar.swift; sourceTree = "<group>"; };
@@ -969,6 +971,7 @@
 		147163B52C5D804B0068B555 /* managers */ = {
 			isa = PBXGroup;
 			children = (
+				E6A000102E60000100000002 /* AutoStartManager.swift */,
 				E6A000012E60000100000002 /* StorageCleanupManager.swift */,
 				11D58EA12E760AE100FA8377 /* ImageService.swift */,
 				F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */,
@@ -1693,6 +1696,7 @@
 				FE9EB28D03211F01BCB3ECF5 /* StatusBarMenu.swift in Sources */,
 				FE68B87B682474C4D7926AF1 /* Clipboard+Content.swift in Sources */,
 				E6A000012E60000100000001 /* StorageCleanupManager.swift in Sources */,
+				E6A000102E60000100000001 /* AutoStartManager.swift in Sources */,
 				E6A000022E60000100000001 /* StorageSafetyPolicy.swift in Sources */,
 				E6A000032E60000100000001 /* StorageCleanupModels.swift in Sources */,
 				E6A000042E60000100000001 /* SettingsControlCenterSidebar.swift in Sources */,

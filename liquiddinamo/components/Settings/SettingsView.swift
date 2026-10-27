@@ -157,7 +157,7 @@ struct GeneralSettings: View {
                     Text("Show menu bar icon")
                 }
                 .tint(.effectiveAccent)
-                LaunchAtLogin.Toggle("Launch at login")
+                AutoStartToggle("Launch at login")
             } header: {
                 Text("System features")
             }

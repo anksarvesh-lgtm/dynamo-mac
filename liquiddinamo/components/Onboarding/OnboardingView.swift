@@ -89,7 +89,7 @@ struct OnboardingView: View {
     @State private var selectedLook: LookChoice = .balanced
     @State private var openOnHover: Bool = Defaults[.openNotchOnHover]
     @State private var openOnDrag: Bool = Defaults[.openNotchOnDrag]
-    @State private var launchAtLogin: Bool = LaunchAtLogin.isEnabled
+    @State private var launchAtLogin: Bool = AutoStartManager.shared.isEnabled
     @State private var customSearchText: String = ""
 
     // Custom Module Selection Checklist
@@ -466,7 +466,7 @@ struct OnboardingView: View {
                     .toggleStyle(.checkbox)
                     .font(.system(size: 12))
                     .onChange(of: launchAtLogin) { val in
-                        LaunchAtLogin.isEnabled = val
+                        AutoStartManager.shared.setEnabled(val)
                     }
             }
 

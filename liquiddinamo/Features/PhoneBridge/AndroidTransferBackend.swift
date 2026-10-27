@@ -312,7 +312,7 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
     
     // MARK: - Process Execution Helpers
     
-    private static func runProcess(executable: String, arguments: [String]) async -> String {
+    private static func runProcess(executable: String, arguments: [String], timeoutSeconds: TimeInterval = 5.0) async -> String {
         return await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executable)
@@ -322,14 +322,46 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
             process.standardOutput = pipe
             process.standardError = pipe
             
+            // Drain pipe concurrently on background queue to prevent pipe buffer deadlocks on large outputs (>64KB)
+            let group = DispatchGroup()
+            var outputData = Data()
+            let lock = NSLock()
+            
+            group.enter()
+            DispatchQueue.global(qos: .userInitiated).async {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                lock.lock()
+                outputData = data
+                lock.unlock()
+                group.leave()
+            }
+            
             do {
                 try process.run()
-                process.waitUntilExit()
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let out = String(data: data, encoding: .utf8) ?? ""
-                continuation.resume(returning: out)
             } catch {
                 continuation.resume(returning: "")
+                return
+            }
+            
+            // Enforce hard execution timeout so hangs or prompts terminate cleanly
+            let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+            timer.schedule(deadline: .now() + timeoutSeconds)
+            timer.setEventHandler {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+            timer.resume()
+            
+            DispatchQueue.global(qos: .userInitiated).async {
+                process.waitUntilExit()
+                _ = group.wait(timeout: .now() + 0.5)
+                timer.cancel()
+                
+                lock.lock()
+                let result = String(data: outputData, encoding: .utf8) ?? ""
+                lock.unlock()
+                continuation.resume(returning: result)
             }
         }
     }
@@ -349,61 +381,228 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
     
     public func queryStorageInfo(serial: String) async -> (total: UInt64, used: UInt64, free: UInt64)? {
         guard let adb = effectiveAdbPath else { return nil }
+        let candidatePaths = ["/sdcard", "/storage/emulated/0", "/storage/self/primary", "/data/media/0", "/data"]
         
-        // Strategy 1: dumpsys diskstats (system service, unrestricted across Android 4 - 15)
-        let diskstatsOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "dumpsys", "diskstats"])
-        if let res = Self.parseDiskstatsOutput(diskstatsOut) {
-            return res
-        }
-        
-        // Strategy 2: Global df -k (reads /proc/mounts without path permissions)
-        let globalDfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k"])
-        if let res = Self.parseDfMounts(globalDfOut) {
-            return res
-        }
-        
-        // Strategy 3: Target path df -k (without invalid POSIX -P flag which breaks toybox)
-        let candidatePaths = ["/data", "/storage/emulated/0", "/sdcard", "/storage/self/primary"]
+        // Strategy 1: stat -f (fastest, lightweight ~150B, permission-free on /sdcard across Android 5 - 15)
         for path in candidatePaths {
-            let dfOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", path])
-            if let res = Self.parseDfMounts(dfOut) ?? Self.parseDfOutput(dfOut) {
+            let statOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "stat", "-f", path], timeoutSeconds: 3.0)
+            if let res = Self.parseStatFOutput(statOut) {
+                return res
+            }
+            let statFmtOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "stat", "-f", "-c", "%s %b %a", path], timeoutSeconds: 3.0)
+            if let res = Self.parseStatFOutput(statFmtOut) {
                 return res
             }
         }
         
-        // Strategy 4: stat -f -c %a %b %s (unquoted format specifier for toybox stat)
+        // Strategy 2: Target path df (handles both df -k and default df with row-wrapping)
         for path in candidatePaths {
-            let statOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "stat", "-f", "-c", "%a %b %s", path])
-            let cleaned = statOut.trimmingCharacters(in: .whitespacesAndNewlines)
-            let parts = cleaned.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-            if parts.count >= 3,
-               let freeBlocks = UInt64(parts[0]),
-               let totalBlocks = UInt64(parts[1]),
-               let blockSize = UInt64(parts[2]),
-               totalBlocks > 0, blockSize > 0 {
-                let total = totalBlocks * blockSize
-                let free = freeBlocks * blockSize
-                let used = total > free ? (total - free) : 0
-                return (total, used, free)
+            let dfKOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k", path], timeoutSeconds: 3.0)
+            if let res = Self.parseDfOutput(dfKOut) {
+                return res
             }
+            let dfPlainOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", path], timeoutSeconds: 3.0)
+            if let res = Self.parseDfOutput(dfPlainOut) {
+                return res
+            }
+        }
+        
+        // Strategy 3: Global df
+        let globalDfK = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df", "-k"], timeoutSeconds: 4.0)
+        if let res = Self.parseDfOutput(globalDfK) {
+            return res
+        }
+        let globalDf = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "df"], timeoutSeconds: 4.0)
+        if let res = Self.parseDfOutput(globalDf) {
+            return res
+        }
+        
+        // Strategy 4: dumpsys diskstats (system service fallback)
+        let diskstatsOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "dumpsys", "diskstats"], timeoutSeconds: 4.0)
+        if let res = Self.parseDiskstatsOutput(diskstatsOut) {
+            return res
+        }
+        
+        // Strategy 5: dumpsys volume
+        let volumeOut = await Self.runProcess(executable: adb, arguments: ["-s", serial, "shell", "dumpsys", "volume"], timeoutSeconds: 3.0)
+        if let res = Self.parseVolumeOutput(volumeOut) {
+            return res
         }
         
         return nil
     }
-    
+
+    // MARK: - Storage Output Parsers
+
+    public static func parseStatFOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains("Permission denied"), !trimmed.contains("No such file") else { return nil }
+
+        // Form 1: stat -f human-readable output (standard toybox/coreutils)
+        // Block size: 4096       Fundamental block size: 4096
+        // Blocks: Total: 30514176   Free: 15302656   Available: 15302656
+        var blockSize: UInt64? = nil
+        var totalBlocks: UInt64? = nil
+        var freeBlocks: UInt64? = nil
+
+        let lines = trimmed.components(separatedBy: "\n")
+        for line in lines {
+            let lower = line.lowercased()
+            if lower.contains("block size:") {
+                let parts = line.components(separatedBy: ":")
+                if parts.count >= 2 {
+                    let firstNum = parts[1].components(separatedBy: .whitespaces).filter { !$0.isEmpty }.first
+                    if let n = firstNum, let b = UInt64(n), b > 0 {
+                        blockSize = b
+                    }
+                }
+            }
+            if lower.contains("blocks:") && lower.contains("total:") {
+                let tokens = line.replacingOccurrences(of: ":", with: " ").components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+                for (idx, tok) in tokens.enumerated() {
+                    if tok.lowercased() == "total" && idx + 1 < tokens.count {
+                        totalBlocks = UInt64(tokens[idx + 1])
+                    } else if (tok.lowercased() == "available" || tok.lowercased() == "free") && idx + 1 < tokens.count {
+                        if freeBlocks == nil {
+                            freeBlocks = UInt64(tokens[idx + 1])
+                        }
+                    }
+                }
+            }
+        }
+
+        if let b = blockSize, let t = totalBlocks, let f = freeBlocks, t > 0, b > 0 {
+            let total = t * b
+            let free = min(f * b, total)
+            let used = total > free ? (total - free) : 0
+            return (total, used, free)
+        }
+
+        // Form 2: stat -f -c '%s %b %a' output (single line with 3 numbers)
+        let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        if tokens.count >= 3,
+           let b = UInt64(tokens[0]),
+           let t = UInt64(tokens[1]),
+           let f = UInt64(tokens[2]),
+           b > 0, t > 0 {
+            let total = t * b
+            let free = min(f * b, total)
+            let used = total > free ? (total - free) : 0
+            return (total, used, free)
+        }
+
+        return nil
+    }
+
+    public static func parseByteOrBlockToken(_ str: String, defaultMultiplier: UInt64 = 1024) -> UInt64? {
+        var clean = str.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !clean.isEmpty else { return nil }
+
+        var multiplier: Double = Double(defaultMultiplier)
+        if clean.hasSuffix("B") && !clean.hasSuffix("KB") && !clean.hasSuffix("MB") && !clean.hasSuffix("GB") && !clean.hasSuffix("TB") {
+            clean = String(clean.dropLast())
+            multiplier = 1.0
+        } else if clean.hasSuffix("TB") || clean.hasSuffix("T") {
+            clean = clean.hasSuffix("TB") ? String(clean.dropLast(2)) : String(clean.dropLast(1))
+            multiplier = 1024.0 * 1024.0 * 1024.0 * 1024.0
+        } else if clean.hasSuffix("GB") || clean.hasSuffix("G") {
+            clean = clean.hasSuffix("GB") ? String(clean.dropLast(2)) : String(clean.dropLast(1))
+            multiplier = 1024.0 * 1024.0 * 1024.0
+        } else if clean.hasSuffix("MB") || clean.hasSuffix("M") {
+            clean = clean.hasSuffix("MB") ? String(clean.dropLast(2)) : String(clean.dropLast(1))
+            multiplier = 1024.0 * 1024.0
+        } else if clean.hasSuffix("KB") || clean.hasSuffix("K") {
+            clean = clean.hasSuffix("KB") ? String(clean.dropLast(2)) : String(clean.dropLast(1))
+            multiplier = 1024.0
+        }
+
+        clean = clean.trimmingCharacters(in: .whitespaces)
+        if let doubleVal = Double(clean) {
+            return UInt64(doubleVal * multiplier)
+        }
+        return nil
+    }
+
+    public static func parseDfOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+        let lines = text.components(separatedBy: "\n")
+        var best: (total: UInt64, used: UInt64, free: UInt64)? = nil
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let lower = trimmed.lowercased()
+            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("1024-blocks") || lower.contains("mounted on") || lower.contains("permission denied") {
+                continue
+            }
+
+            let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            guard tokens.count >= 4 else { continue }
+
+            // Locate percentage anchor token (e.g. "67%")
+            if let pctIdx = tokens.firstIndex(where: { $0.hasSuffix("%") }), pctIdx >= 3 {
+                let totalTok = tokens[pctIdx - 3]
+                let usedTok = tokens[pctIdx - 2]
+                let freeTok = tokens[pctIdx - 1]
+
+                if let total = parseByteOrBlockToken(totalTok),
+                   let used = parseByteOrBlockToken(usedTok),
+                   let free = parseByteOrBlockToken(freeTok),
+                   total > 0 {
+                    let mount = tokens.last ?? ""
+                    let isPrimary = mount == "/data" || mount == "/storage/emulated" || mount == "/storage/emulated/0" || mount == "/sdcard" || mount == "/storage/self/primary" || mount.contains("emulated") || mount.hasSuffix("/data")
+
+                    if isPrimary {
+                        return (total, used, free)
+                    }
+                    if best == nil {
+                        best = (total, used, free)
+                    }
+                }
+            }
+        }
+
+        // If line wrapped (device path on first line, metrics on second line)
+        var allTokens: [String] = []
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.contains("Permission denied") else { continue }
+            let lower = trimmed.lowercased()
+            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("mounted on") {
+                continue
+            }
+            allTokens.append(contentsOf: trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty })
+        }
+
+        for (idx, tok) in allTokens.enumerated() {
+            if tok.hasSuffix("%") && idx >= 3 {
+                let totalTok = allTokens[idx - 3]
+                let usedTok = allTokens[idx - 2]
+                let freeTok = allTokens[idx - 1]
+
+                if let total = parseByteOrBlockToken(totalTok),
+                   let used = parseByteOrBlockToken(usedTok),
+                   let free = parseByteOrBlockToken(freeTok),
+                   total > 0 {
+                    return (total, used, free)
+                }
+            }
+        }
+
+        return best
+    }
+
     public static func parseDiskstatsOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
         for line in text.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard trimmed.hasPrefix("Data-Free:") else { continue }
-            let parts = trimmed.replacingOccurrences(of: "Data-Free:", with: "")
-                .components(separatedBy: "/")
+            let parts = trimmed.replacingOccurrences(of: "Data-Free:", with: "").components(separatedBy: "/")
             guard parts.count >= 2 else { continue }
-            
+
             let freeStr = parts[0].trimmingCharacters(in: .whitespaces)
             let totalPart = parts[1].components(separatedBy: "total")[0].trimmingCharacters(in: .whitespaces)
-            
-            if let freeBytes = parseByteToken(freeStr),
-               let totalBytes = parseByteToken(totalPart),
+
+            if let freeBytes = parseByteOrBlockToken(freeStr),
+               let totalBytes = parseByteOrBlockToken(totalPart),
                totalBytes > 0 {
                 let usedBytes = totalBytes > freeBytes ? (totalBytes - freeBytes) : 0
                 return (totalBytes, usedBytes, freeBytes)
@@ -411,90 +610,30 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
         }
         return nil
     }
-    
-    private static func parseByteToken(_ str: String) -> UInt64? {
-        let clean = str.trimmingCharacters(in: .whitespaces).uppercased()
-        if clean.hasSuffix("K") {
-            let numStr = String(clean.dropLast()).trimmingCharacters(in: .whitespaces)
-            return UInt64(numStr).map { $0 * 1024 }
-        } else if clean.hasSuffix("M") {
-            let numStr = String(clean.dropLast()).trimmingCharacters(in: .whitespaces)
-            return UInt64(numStr).map { $0 * 1024 * 1024 }
-        } else if clean.hasSuffix("G") {
-            let numStr = String(clean.dropLast()).trimmingCharacters(in: .whitespaces)
-            return UInt64(numStr).map { $0 * 1024 * 1024 * 1024 }
-        } else if let val = UInt64(clean) {
-            return val * 1024
-        }
-        return nil
-    }
 
-    public static func parseDfMounts(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+    public static func parseVolumeOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
+        var totalBytes: UInt64? = nil
+        var freeBytes: UInt64? = nil
+
         let lines = text.components(separatedBy: "\n")
-        var bestCandidate: (total: UInt64, used: UInt64, free: UInt64)? = nil
-        
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-            let lower = trimmed.lowercased()
-            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("1024-blocks") || lower.contains("mounted on") {
-                continue
-            }
-            
-            let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-            guard tokens.count >= 4 else { continue }
-            
-            let mount = tokens.last ?? ""
-            let isDataPartition = mount == "/data" || mount == "/storage/emulated" || mount == "/storage/emulated/0" || mount == "/sdcard" || mount == "/storage/self/primary"
-            
-            var numbers: [UInt64] = []
-            for token in tokens.dropFirst() {
-                if let val = UInt64(token) {
-                    numbers.append(val)
-                }
-            }
-            
-            if numbers.count >= 3, numbers[0] > 0 {
-                let total = numbers[0] * 1024
-                let used = numbers[1] * 1024
-                let free = numbers[2] * 1024
-                
-                if isDataPartition {
-                    return (total, used, free)
-                }
-                
-                if mount.hasSuffix("/data") || mount.contains("emulated") {
-                    bestCandidate = (total, used, free)
+            let lower = line.lowercased()
+            guard lower.contains("emulated") || lower.contains("internal") || lower.contains("primary") else { continue }
+
+            let tokens = line.replacingOccurrences(of: "=", with: " ").replacingOccurrences(of: ":", with: " ").components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            for (idx, tok) in tokens.enumerated() {
+                if (tok.lowercased() == "totalbytes" || tok.lowercased() == "total") && idx + 1 < tokens.count {
+                    totalBytes = parseByteOrBlockToken(tokens[idx + 1], defaultMultiplier: 1)
+                } else if (tok.lowercased() == "freebytes" || tok.lowercased() == "free") && idx + 1 < tokens.count {
+                    freeBytes = parseByteOrBlockToken(tokens[idx + 1], defaultMultiplier: 1)
                 }
             }
         }
-        
-        return bestCandidate
-    }
-    
-    public static func parseDfOutput(_ text: String) -> (total: UInt64, used: UInt64, free: UInt64)? {
-        let lines = text.components(separatedBy: "\n")
-        var dataTokens: [String] = []
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-            let lower = trimmed.lowercased()
-            if lower.contains("filesystem") || lower.contains("1k-blocks") || lower.contains("1024-blocks") || lower.contains("mounted on") {
-                continue
-            }
-            let tokens = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-            dataTokens.append(contentsOf: tokens)
-        }
-        
-        // Locate 3 consecutive numeric columns (total 1K, used 1K, free 1K)
-        for i in 0..<dataTokens.count {
-            if i + 2 < dataTokens.count,
-               let totalK = UInt64(dataTokens[i]),
-               let usedK = UInt64(dataTokens[i+1]),
-               let freeK = UInt64(dataTokens[i+2]),
-               totalK > 0 {
-                return (totalK * 1024, usedK * 1024, freeK * 1024)
-            }
+
+        if let t = totalBytes, let f = freeBytes, t > 0 {
+            let free = min(f, t)
+            let used = t > free ? (t - free) : 0
+            return (t, used, free)
         }
         return nil
     }

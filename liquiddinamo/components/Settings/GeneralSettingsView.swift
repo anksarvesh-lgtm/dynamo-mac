@@ -130,7 +130,7 @@ public struct GeneralSettingsView: View {
         ) {
             VStack(spacing: 11) {
                 NativeSettingsRow("Launch at Login", description: "Start LiquidDynamo automatically on boot", icon: "arrow.up.circle.fill") {
-                    LaunchAtLogin.Toggle("")
+                    AutoStartToggle("")
                         .labelsHidden()
                 }
 

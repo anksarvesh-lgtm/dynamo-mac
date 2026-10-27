@@ -918,6 +918,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         migrateWingMetricsIfNeeded()
         migratePhoneBridgeKeysIfNeeded()
         startClosedEventMonitors()
+        AutoStartManager.shared.syncOnLaunch()
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }

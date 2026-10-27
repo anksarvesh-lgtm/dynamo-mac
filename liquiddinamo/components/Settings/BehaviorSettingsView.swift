@@ -59,7 +59,7 @@ public struct BehaviorSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                LaunchAtLogin.Toggle("Launch at login")
+                AutoStartToggle("Launch at login")
             } header: {
                 Text("Interaction & Startup")
             }
