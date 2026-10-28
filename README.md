@@ -225,6 +225,13 @@ curl -fsSL https://github.com/anksarvesh-lgtm/dynamo-mac/releases/download/app/l
 2. Launch from Launchpad or Spotlight.
 3. Grant standard macOS permissions (Accessibility, Bluetooth, Camera, Calendars) during setup.
 
+> [!TIP]
+> **macOS Sonoma & Sequoia Gatekeeper Note**: If you manually download the DMG and macOS displays *"LiquidDynamo is damaged or incomplete"*, this is macOS Gatekeeper's quarantine attribute on downloaded files. Simply run this one-time command in Terminal to bypass Gatekeeper:
+> ```bash
+> xattr -cr /Applications/LiquidDynamo.app
+> ```
+> *(Or use the 1-Line Installer above which automatically bypasses Gatekeeper during setup).*
+
 ---
 
 ## 🛠️ Building from Source
