@@ -117,9 +117,18 @@ if [ ! -d "$FW_DIR/Sparkle.framework" ]; then
     curl -sL https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz | tar -xJ -C "$FW_DIR"
 fi
 
-# 5. Copy Lottie.framework
-if [ ! -d "$FW_DIR/Lottie.framework" ] && [ -d "/Applications/LiquidDynamo.app/Contents/Frameworks/Lottie.framework" ]; then
-    cp -R "/Applications/LiquidDynamo.app/Contents/Frameworks/Lottie.framework" "$FW_DIR/"
+# 5. Copy or download Lottie.framework
+if [ ! -d "$FW_DIR/Lottie.framework" ]; then
+    if [ -d "$DIR/Frameworks/Lottie.framework" ]; then
+        cp -R "$DIR/Frameworks/Lottie.framework" "$FW_DIR/"
+    elif [ -d "/Applications/LiquidDynamo.app/Contents/Frameworks/Lottie.framework" ] && [ -d "/Applications/LiquidDynamo.app/Contents/Frameworks/Lottie.framework/Modules" ]; then
+        cp -R "/Applications/LiquidDynamo.app/Contents/Frameworks/Lottie.framework" "$FW_DIR/"
+    else
+        echo "=== Downloading Lottie.xcframework 4.5.0 ==="
+        curl -sL https://github.com/airbnb/lottie-ios/releases/download/4.5.0/Lottie.xcframework.zip -o "$BASE/lottie.zip"
+        unzip -q "$BASE/lottie.zip" -d "$BASE"
+        cp -R "$BASE"/Lottie.xcframework/macos*/*.framework "$FW_DIR/"
+    fi
 fi
 
 # 6. Re-link install names to @rpath in bundle_frameworks

@@ -496,8 +496,10 @@ echo "  Artifact: $ZIP_PATH"
 echo "  Size:     $(du -sh "$ZIP_PATH" | awk '{print $1}')"
 
 # 3. Mirror signed app bundle to build/LiquidDynamo.app for CI and local workflows
-rm -rf "$BUILD_DIR/$APP_NAME.app"
-cp -R "$APP_PATH" "$BUILD_DIR/$APP_NAME.app"
+if [ "$APP_PATH" != "$BUILD_DIR/$APP_NAME.app" ]; then
+  rm -rf "$BUILD_DIR/$APP_NAME.app"
+  cp -R "$APP_PATH" "$BUILD_DIR/$APP_NAME.app"
+fi
 
 # ==============================================================================
 # SUMMARY & VERIFICATION

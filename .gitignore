@@ -22,6 +22,7 @@ Carthage/Build/
 # Swift Package Manager
 .swiftpm/
 .build/
+Frameworks/Lottie.framework/
 
 # Derived data
 DerivedData/

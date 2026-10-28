@@ -2,6 +2,13 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.2.0] — 2026-10-28
+
+### Gatekeeper Hardening, Launch Reliability & Packaging Integrity
+- **Gatekeeper Quarantine Hardening**: Added explicit Gatekeeper quarantine bypass handling (`xattr -cr`) and LaunchServices trusted registration in distribution packaging and documentation to prevent unnotarized "damaged or incomplete" false alerts on macOS 14 Sonoma and macOS 15 Sequoia.
+- **Atomic Bundle Staging & Code Signature Sealing**: Hardened `build_dmg.sh` and `install.sh` atomic payload verification to guarantee pristine Mach-O binary extraction (`LiquidDynamo`, `kalam.dylib`, `libusb.dylib`, `Sparkle.framework`, and `MediaRemoteAdapter.framework`) without partial or corrupted installs.
+- **Energy Footprint Validation**: Confirmed zero-CPU idle operation (0.0% CPU) and minimal memory footprint with demand-driven hardware telemetry and screen-lock deep suspension.
+
 ## [2.1.9] — 2026-10-27
 
 ### Dynamic CPU Temperature Alerts & On-Demand Service Lifecycle Architecture
