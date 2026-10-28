@@ -65,6 +65,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name AsyncXPCConnection \
   -emit-module -emit-module-path "$OUT_DIR/AsyncXPCConnection.swiftmodule" \
   -emit-library -o "$OUT_DIR/libAsyncXPCConnection.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libAsyncXPCConnection.dylib" \
   "$BASE/AsyncXPCConnection/Sources/AsyncXPCConnection/"*.swift
 
 echo "=== Building Defaults ==="
@@ -72,6 +73,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name Defaults \
   -emit-module -emit-module-path "$OUT_DIR/Defaults.swiftmodule" \
   -emit-library -o "$OUT_DIR/libDefaults.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libDefaults.dylib" \
   "$BASE/Defaults/Sources/Defaults/"*.swift
 
 echo "=== Building KeyboardShortcuts ==="
@@ -79,6 +81,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name KeyboardShortcuts \
   -emit-module -emit-module-path "$OUT_DIR/KeyboardShortcuts.swiftmodule" \
   -emit-library -o "$OUT_DIR/libKeyboardShortcuts.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libKeyboardShortcuts.dylib" \
   "$BASE/KeyboardShortcuts/Sources/KeyboardShortcuts/"*.swift
 
 echo "=== Building LaunchAtLogin ==="
@@ -86,6 +89,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name LaunchAtLogin \
   -emit-module -emit-module-path "$OUT_DIR/LaunchAtLogin.swiftmodule" \
   -emit-library -o "$OUT_DIR/libLaunchAtLogin.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libLaunchAtLogin.dylib" \
   "$BASE/LaunchAtLogin/Sources/LaunchAtLogin/"*.swift
 
 echo "=== Building MacroVisionKit ==="
@@ -93,6 +97,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name MacroVisionKit \
   -emit-module -emit-module-path "$OUT_DIR/MacroVisionKit.swiftmodule" \
   -emit-library -o "$OUT_DIR/libMacroVisionKit.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libMacroVisionKit.dylib" \
   "$BASE/MacroVisionKit/Sources/MacroVisionKit/"*.swift
 
 echo "=== Building SkyLightWindow ==="
@@ -100,6 +105,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name SkyLightWindow \
   -emit-module -emit-module-path "$OUT_DIR/SkyLightWindow.swiftmodule" \
   -emit-library -o "$OUT_DIR/libSkyLightWindow.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libSkyLightWindow.dylib" \
   "$BASE/SkyLightWindow/Sources/SkyLightWindow/"*.swift
 
 echo "=== Building SwiftUIIntrospect ==="
@@ -108,6 +114,7 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
   -module-name SwiftUIIntrospect \
   -emit-module -emit-module-path "$OUT_DIR/SwiftUIIntrospect.swiftmodule" \
   -emit-library -o "$OUT_DIR/libSwiftUIIntrospect.dylib" \
+  -Xlinker -install_name -Xlinker "@rpath/libSwiftUIIntrospect.dylib" \
   @"$BASE/introspect_sources.txt"
 
 # 4. Fetch Sparkle headers/framework if not in frameworks_flat
@@ -131,10 +138,11 @@ if [ ! -d "$FW_DIR/Lottie.framework" ]; then
     fi
 fi
 
-# 6. Re-link install names to @rpath in bundle_frameworks
+# 6. Re-link install names to @rpath in both OUT_DIR and BUNDLE_DIR
 for lib in AsyncXPCConnection Defaults KeyboardShortcuts LaunchAtLogin MacroVisionKit SkyLightWindow SwiftUIIntrospect; do
+    install_name_tool -id "@rpath/lib${lib}.dylib" "$OUT_DIR/lib${lib}.dylib" 2>/dev/null || true
     cp -f "$OUT_DIR/lib${lib}.dylib" "$BUNDLE_DIR/"
-    install_name_tool -id "@rpath/lib${lib}.dylib" "$BUNDLE_DIR/lib${lib}.dylib"
+    install_name_tool -id "@rpath/lib${lib}.dylib" "$BUNDLE_DIR/lib${lib}.dylib" 2>/dev/null || true
 done
 
 echo "==> All SPM dependencies successfully configured!"

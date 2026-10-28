@@ -81,7 +81,12 @@ swiftc -module-name LiquidDynamo \
 
 # 4. Re-link install names to @rpath
 for lib in AsyncXPCConnection Defaults KeyboardShortcuts LaunchAtLogin MacroVisionKit SkyLightWindow SwiftUIIntrospect; do
-    install_name_tool -change "$MODULES_DIR/lib${lib}.dylib" "@rpath/lib${lib}.dylib" "$OUTPUT_BIN"
+    install_name_tool -change "$MODULES_DIR/lib${lib}.dylib" "@rpath/lib${lib}.dylib" "$OUTPUT_BIN" 2>/dev/null || true
+    CURRENT_REF="$(otool -L "$OUTPUT_BIN" | awk '{print $1}' | grep "/lib${lib}\.dylib" || true)"
+    if [ -n "$CURRENT_REF" ] && [ "$CURRENT_REF" != "@rpath/lib${lib}.dylib" ]; then
+        echo "==> Re-linking $CURRENT_REF to @rpath/lib${lib}.dylib in $OUTPUT_BIN"
+        install_name_tool -change "$CURRENT_REF" "@rpath/lib${lib}.dylib" "$OUTPUT_BIN" 2>/dev/null || true
+    fi
 done
 
 if [ -d "$DIR/build/LiquidDynamo.app/Contents/MacOS" ]; then

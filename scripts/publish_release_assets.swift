@@ -38,7 +38,7 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.2.0
+### Release Highlights — LiquidDynamo 2.2.5
 - **Gatekeeper Hardening & Quarantine Resolution**: Integrated Gatekeeper quarantine clearance (`xattr -cr`) and LaunchServices trusted registration in distribution packaging and documentation to prevent "damaged or incomplete" false alarms on macOS Sonoma (14) and macOS Sequoia (15).
 - **Atomic Bundle Staging & Code Signature Sealing**: Hardened bundle staging pipelines to guarantee pristine code signing and extraction across all nested frameworks (`Sparkle`, `MediaRemoteAdapter`, `kalam.dylib`, `libusb.dylib`, `LiquidDynamoXPCHelper`).
 - **Dynamic CPU Temperature Alerting**: Smooth color transitioning from cool green/cyan (<= 50°C) through warm amber/orange (50°C - 70°C) to higher intense red (>= 70°C) with urgent pulsing bloom.
@@ -48,15 +48,15 @@ let releaseBody = """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.2.0",
-        name: "LiquidDynamo 2.2.0 — Gatekeeper Hardening & Launch Reliability",
+        tag: "v2.2.5",
+        name: "LiquidDynamo 2.2.5 — Gatekeeper Hardening & Launch Reliability",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.0 (build 33)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.5 (build 36)",
         makeLatest: false
     )
 ]
@@ -66,7 +66,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.2.0.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.0.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.2.5.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.5.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

@@ -242,6 +242,19 @@ fi
 
 say "Staged Application: $APP_PATH"
 
+# Ensure all dylibs in Frameworks are referenced via @rpath and have correct ID
+say "Normalizing and securing dynamic library IDs and install names..."
+for lib in "$APP_PATH/Contents/Frameworks/"*.dylib; do
+  [ -f "$lib" ] || continue
+  libname="$(basename "$lib")"
+  install_name_tool -id "@rpath/$libname" "$lib" 2>/dev/null || true
+  CURRENT_REF="$(otool -L "$APP_PATH/Contents/MacOS/$APP_NAME" | awk '{print $1}' | grep "/$libname$" || true)"
+  if [ -n "$CURRENT_REF" ] && [ "$CURRENT_REF" != "@rpath/$libname" ]; then
+    say "Re-linking $CURRENT_REF to @rpath/$libname in $APP_NAME binary..."
+    install_name_tool -change "$CURRENT_REF" "@rpath/$libname" "$APP_PATH/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+  fi
+done
+
 # ==============================================================================
 # INSIDE-OUT CODE SIGNING
 # ==============================================================================

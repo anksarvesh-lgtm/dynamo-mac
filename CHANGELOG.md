@@ -2,6 +2,13 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.2.5] — 2026-10-28
+
+### Clean Baseline Stabilization & Production Build
+- **Codebase Baseline Restoration**: Restored clean production baseline from release v2.2.0, discarding intermediate unreleased changes.
+- **Dynamic Linking & Launch Hardening**: Verified @rpath dynamic library references and Mach-O load commands across all embedded dependencies (`Sparkle`, `MediaRemoteAdapter`, `kalam.dylib`, `libusb.dylib`, `LiquidDynamoXPCHelper`).
+- **Gatekeeper Hardening**: Enforced automatic quarantine clearance and trusted launch flags in the distribution bundle.
+
 ## [2.2.0] — 2026-10-28
 
 ### Gatekeeper Hardening, Launch Reliability & Packaging Integrity
