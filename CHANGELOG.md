@@ -2,6 +2,13 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.2.7] — 2026-10-31
+
+### Purely Content-Driven Wing Sizing & Adaptive Auto-Fit
+- **Purely Content-Driven Wing Sizing**: Removed static pre-default width floors so both left and right wings dynamically and independently adapt their size to their measured intrinsic content width without excess padding or forced minimum constraints.
+- **Dynamic Content Adaptation**: Seamlessly expands and contracts when hovering, expanding readout details, or displaying dynamic metric labels while maintaining fluid spring motion.
+- **In-App Auto-Update Delivery**: Distributed via Sparkle appcast and GitHub release pipelines for seamless live updating.
+
 ## [2.2.6] — 2026-10-31
 
 ### Wing Fire Flare Indicator, 100px Default Wing Width & Single-Instance Multi-App Prevention

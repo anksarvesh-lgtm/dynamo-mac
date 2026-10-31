@@ -31,6 +31,10 @@ public struct AudioOutputDevice: Identifiable, Hashable, Equatable {
     public var isExternal: Bool {
         let lowerUID = uid.lowercased()
         let lowerName = name.lowercased()
+        // Wired and external headphones/earphones (even when plugged into built-in 3.5mm jack) are external output devices
+        if lowerName.contains("headphone") || lowerName.contains("earphone") || lowerName.contains("headset") || lowerName.contains("earbuds") {
+            return true
+        }
         if lowerUID.contains("builtin") || lowerUID.contains("built-in") {
             return false
         }

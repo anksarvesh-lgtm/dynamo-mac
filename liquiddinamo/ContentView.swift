@@ -1196,7 +1196,7 @@ struct CollapsedLiveInfoWingsView: View {
     @State private var measuredLeftWingWidth: CGFloat = 46.0
     @State private var measuredRightWingWidth: CGFloat = 46.0
 
-    private let minWingFloor: CGFloat = 24.0
+    private let minWingFloor: CGFloat = 38.0
 
     private var currentLeftWingWidth: CGFloat {
         guard leftWingMetric != .none else { return 0 }
@@ -1363,8 +1363,7 @@ struct CollapsedLiveInfoWingsView: View {
                             Spacer(minLength: 0)
                             if enableSideReadouts && leftWingMetric != .none {
                                 leftDropContent
-                                    .padding(.leading, 8)
-                                    .padding(.trailing, 9)
+                                    .padding(.horizontal, 12)
                                     .padding(.vertical, 3)
                                     .fixedSize(horizontal: true, vertical: false)
                                     .background(
@@ -1405,8 +1404,7 @@ struct CollapsedLiveInfoWingsView: View {
                         HStack(spacing: 0) {
                             if enableSideReadouts && rightWingMetric != .none {
                                 rightDropContent
-                                    .padding(.leading, 8)
-                                    .padding(.trailing, 9)
+                                    .padding(.horizontal, 12)
                                     .padding(.vertical, 3)
                                     .fixedSize(horizontal: true, vertical: false)
                                     .background(
@@ -1563,8 +1561,8 @@ struct CollapsedLiveInfoWingsView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             leftDropContent
-                .padding(.leading, 8)
-                .padding(.trailing, 10)
+                .padding(.leading, 14)
+                .padding(.trailing, 8)
                 .padding(.vertical, 3)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(
@@ -1628,7 +1626,7 @@ struct CollapsedLiveInfoWingsView: View {
         HStack(spacing: 0) {
             rightDropContent
                 .padding(.leading, 8)
-                .padding(.trailing, 10)
+                .padding(.trailing, 14)
                 .padding(.vertical, 3)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(

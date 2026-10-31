@@ -73,6 +73,7 @@ public enum ConnectionType: String, Codable, CaseIterable {
     case usb = "USB"
     case display = "DisplayPort / HDMI"
     case power = "AC Power"
+    case audioJack = "Audio Jack"
 }
 
 public struct DeviceIdentity: Identifiable, Equatable, Hashable {
@@ -354,6 +355,7 @@ public final class DeviceMonitor: ObservableObject {
         setupGameControllerMonitoring()
         setupAirPodsMonitoring()
         setupPowerAdapterMonitoring()
+        setupAudioHeadphoneMonitoring()
     }
 
     deinit {
@@ -397,6 +399,52 @@ public final class DeviceMonitor: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Wired Earphone & Headphone Monitoring
+
+    private var previousWiredHeadphoneKey: String?
+
+    private func setupAudioHeadphoneMonitoring() {
+        Publishers.CombineLatest(VolumeManager.shared.$outputDevices, VolumeManager.shared.$currentOutputDevice)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] allDevices, currentDevice in
+                guard let self = self else { return }
+                self.syncWiredAudioHeadphones(allDevices: allDevices, current: currentDevice)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func syncWiredAudioHeadphones(allDevices: [AudioOutputDevice], current: AudioOutputDevice?) {
+        let wiredHeadphones = allDevices.filter { dev in
+            let lower = dev.name.lowercased()
+            let lowerUID = dev.uid.lowercased()
+            let isHeadphoneName = lower.contains("headphone") || lower.contains("earphone") || lower.contains("headset") || lower.contains("earbuds")
+            let isBluetooth = lowerUID.contains("bluetooth") || lowerUID.contains("bt") || lowerUID.range(of: "^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}", options: .regularExpression) != nil
+            return isHeadphoneName && !isBluetooth
+        }
+
+        if let headphone = wiredHeadphones.first {
+            let stableKey = "audio_wired_\(headphone.uid)"
+            if self.activeDevices[stableKey] == nil {
+                let lower = headphone.name.lowercased()
+                let isEarphone = lower.contains("earphone") || lower.contains("in-ear")
+                let device = DeviceIdentity(
+                    stableKey: stableKey,
+                    kind: isEarphone ? .earphones : .headphones,
+                    displayName: headphone.name,
+                    vendor: "Apple",
+                    model: isEarphone ? "Wired Earphones" : "Wired Headphones",
+                    connectionType: .audioJack,
+                    iconName: "headphones"
+                )
+                self.publishEvent(type: .connected, device: device)
+                self.previousWiredHeadphoneKey = stableKey
+            }
+        } else if let prevKey = self.previousWiredHeadphoneKey, let existing = self.activeDevices[prevKey] {
+            self.publishEvent(type: .disconnected, device: existing)
+            self.previousWiredHeadphoneKey = nil
+        }
     }
 
     // MARK: - Public Publishing Helper

@@ -38,25 +38,24 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.2.6
-- **CPU Temperature Fire Flare Fill (50% Wing Height)**: Left wing features an organic 50% height flame flare with 6 independent flickering tongues, smooth vertical gradient, hot additive base glow, and 1.2s urgent breathing at >= 70°C.
-- **1-70 °C Temperature Colour Rule**: Linear piecewise color interpolation: green (<= 1°C), yellow (35.5°C), orange (52.75°C), and intense red (>= 70°C).
-- **Default 100px Wing Width**: Balanced default wing width set to 100 pt for enhanced readability and aesthetic proportions.
-- **Single-Instance Enforcement**: Kernel `flock` and `NSRunningApplication` checks guarantee only one instance can run at any time, eliminating duplicate menu bar icons and windows.
-- **Installer & Packaging Deduplication**: Auto-detaches mounted DMGs and unregisters temporary bundle paths from LaunchServices to eliminate duplicate apps in Spotlight and Launchpad.
+### Release Highlights — LiquidDynamo 2.2.7
+- **External Wired Earphones & Headphones Showcase**: CoreAudio monitoring integrated into DeviceMonitor. Plugging in wired 3.5mm or USB-C earphones immediately showcases the device in the Dynamic Island with 3D models and audio routing.
+- **Purely Content-Driven Wing Sizing**: Left and right wings now adjust their sizes independently and dynamically based strictly on their measured intrinsic content width without static pre-default floors.
+- **Droplet Shape Margin Hardening**: Enhanced tip padding and geometry floors to eliminate clipping on rounded droplet curves.
+- **Seamless In-App Updates**: Full Sparkle appcast and release asset distribution for live in-app updating.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.2.6",
-        name: "LiquidDynamo 2.2.6 — Fire Flare Wing Indicator & Single-Instance Multi-App Prevention",
+        tag: "v2.2.7",
+        name: "LiquidDynamo 2.2.7 — Wired Earphones Support & Adaptive Content-Driven Wings",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.6 (build 37)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.7 (build 38)",
         makeLatest: false
     )
 ]
@@ -66,7 +65,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.2.6.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.6.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.2.7.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.7.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),
