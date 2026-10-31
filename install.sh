@@ -93,13 +93,22 @@ ARCH="$(uname -m)"
 step_success "Running macOS ${OS_VERSION} (${OS_BUILD}) on ${ARCH} architecture."
 
 # ==============================================================================
-# 2. Process Cleanup for Clean In-Place Upgrade
+# 2. Process Cleanup for Clean In-Place Upgrade & Volume Detach
 # ==============================================================================
-step_info "2" "5" "Checking running application instances..."
+step_info "2" "5" "Checking running application instances & active volumes..."
 
-if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
+# Eject any currently mounted LiquidDynamo disk images to avoid LaunchServices duplicate indexing
+for vol in /Volumes/LiquidDynamo*; do
+    if [ -d "$vol" ]; then
+        step_sub "Detaching active disk volume ($vol)..."
+        hdiutil detach "$vol" -force >/dev/null 2>&1 || true
+    fi
+done
+
+if pgrep -x "LiquidDynamo" >/dev/null 2>&1 || pgrep -f "LiquidDynamoXPCHelper" >/dev/null 2>&1; then
     step_sub "Closing active LiquidDynamo instance for seamless update..."
     pkill -x "LiquidDynamo" 2>/dev/null || true
+    pkill -f "LiquidDynamoXPCHelper" 2>/dev/null || true
     sleep 0.8
     if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
         pkill -9 -x "LiquidDynamo" 2>/dev/null || true
@@ -212,6 +221,19 @@ if command -v codesign >/dev/null 2>&1; then
     codesign --force --sign - "$TARGET_APP/Contents/MacOS/LiquidDynamo" 2>/dev/null || true
     codesign --force --deep --sign - "$TARGET_APP" 2>/dev/null || true
 fi
+
+step_sub "Synchronizing macOS LaunchServices registry..."
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [ -x "$LSREGISTER" ]; then
+    # Unregister staging copy, unmounted disk image paths, and old lowercase app names
+    "$LSREGISTER" -u "$APP_SOURCE" 2>/dev/null || true
+    "$LSREGISTER" -u "/Volumes/LiquidDynamo/LiquidDynamo.app" 2>/dev/null || true
+    "$LSREGISTER" -u "/Volumes/LiquidDynamo/liquiddynamo.app" 2>/dev/null || true
+    "$LSREGISTER" -u "/Applications/liquiddynamo.app" 2>/dev/null || true
+    # Register and force rebuild for target application
+    "$LSREGISTER" -f "$TARGET_APP" 2>/dev/null || true
+fi
+
 step_success "Installation verified and sealed successfully."
 
 # ==============================================================================
@@ -219,12 +241,13 @@ step_success "Installation verified and sealed successfully."
 # ==============================================================================
 step_info "5" "5" "Launching LiquidDynamo and verifying runtime state..."
 
-# Launch via LaunchServices
-open "$TARGET_APP" 2>/dev/null || true
+# Launch cleanly via LaunchServices using bundle identifier and target path
+step_sub "Activating LiquidDynamo via macOS LaunchServices..."
+open -b "com.agrigence.liquiddynamo" "$TARGET_APP" 2>/dev/null || open "$TARGET_APP" 2>/dev/null || true
 
-# Verification poll (up to 4 seconds)
+# Verification poll (allow up to 10 seconds for initial Gatekeeper scan and Metal shader init)
 RUNNING=false
-for i in {1..8}; do
+for i in {1..20}; do
     if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
         RUNNING=true
         break
@@ -232,14 +255,17 @@ for i in {1..8}; do
     sleep 0.5
 done
 
-# Fallback: direct background spawn if LaunchServices was delayed
+# Controlled fallback: only launch directly if LaunchServices completely failed and NO process is active
 if [ "$RUNNING" = false ]; then
-    step_warn "LaunchServices queued execution. Spawning directly..."
-    nohup "$TARGET_APP/Contents/MacOS/LiquidDynamo" >/dev/null 2>&1 &
-    sleep 1.0
-    if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
-        RUNNING=true
-    fi
+    step_warn "LaunchServices queued execution. Attempting single direct launch..."
+    "$TARGET_APP/Contents/MacOS/LiquidDynamo" >/dev/null 2>&1 &
+    for j in {1..6}; do
+        if pgrep -x "LiquidDynamo" >/dev/null 2>&1; then
+            RUNNING=true
+            break
+        fi
+        sleep 0.5
+    done
 fi
 
 APP_VERSION="$(defaults read "$TARGET_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "2.2.5")"
