@@ -382,6 +382,10 @@ if [ "${INSTALL_APP:-false}" = "true" ] && [ "$IS_RELEASE" = "false" ]; then
   rm -rf "/Applications/$APP_NAME.app"
   cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
   xattr -dr com.apple.quarantine "/Applications/$APP_NAME.app" 2>/dev/null || true
+  LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+  if [ -x "$LSREGISTER" ]; then
+    "$LSREGISTER" -f "/Applications/$APP_NAME.app" 2>/dev/null || true
+  fi
 fi
 
 # ==============================================================================
@@ -456,6 +460,13 @@ fi
 # Convert to final compressed DMG
 hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" >/dev/null
 rm -f "$TEMP_DMG"
+
+# Clean up LaunchServices registrations for staging and volume bundles to avoid ghost apps
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [ -x "$LSREGISTER" ]; then
+  "$LSREGISTER" -u "$STAGE/$APP_NAME.app" 2>/dev/null || true
+  "$LSREGISTER" -u "/Volumes/$APP_NAME/$APP_NAME.app" 2>/dev/null || true
+fi
 rm -rf "$STAGE"
 
 # Sign the DMG
