@@ -30,9 +30,9 @@ public final class IslandController: ObservableObject {
     @Published public private(set) var topCornerRadius: CGFloat = 6.0
     @Published public private(set) var bottomCornerRadius: CGFloat = 14.0
     @Published public private(set) var hasShadow: Bool = false
-    @Published public private(set) var activeWingWidth: CGFloat = 100.0
-    @Published public private(set) var activeLeftWingWidth: CGFloat = 100.0
-    @Published public private(set) var activeRightWingWidth: CGFloat = 100.0
+    @Published public private(set) var activeWingWidth: CGFloat = 46.0
+    @Published public private(set) var activeLeftWingWidth: CGFloat = 46.0
+    @Published public private(set) var activeRightWingWidth: CGFloat = 46.0
 
     // MARK: - Staged Content Reveal Pipeline
 
