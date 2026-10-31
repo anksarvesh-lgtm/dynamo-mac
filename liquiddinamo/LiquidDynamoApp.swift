@@ -7,6 +7,7 @@
 
 import AVFoundation
 import Combine
+import Darwin
 import Defaults
 import KeyboardShortcuts
 import Sparkle
@@ -19,16 +20,56 @@ struct DynamicNotchApp: App {
     @Environment(\.openWindow) var openWindow
 
     let updaterController: SPUStandardUpdaterController
+    private static var instanceLockFD: Int32 = -1
 
     init() {
         setbuf(__stdoutp, nil)
         setbuf(__stderrp, nil)
         print("🚀 [DynamicNotchApp.init]")
+
+        // Enforce strict single-instance execution to prevent duplicate processes
+        if !Self.enforceSingleInstance() {
+            exit(0)
+        }
+
         updaterController = SPUStandardUpdaterController(
             startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
 
         // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
+    }
+
+    @discardableResult
+    private static func enforceSingleInstance() -> Bool {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.agrigence.liquiddynamo"
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+
+        // 1. Check if another instance is already running via LaunchServices / NSWorkspace
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        let otherInstances = runningApps.filter { $0.processIdentifier != currentPID }
+
+        if let existing = otherInstances.first {
+            NSLog("⚠️ [SingleInstance] Another instance of LiquidDynamo (PID %d) is already running. Activating existing instance and exiting current process (PID %d).", existing.processIdentifier, currentPID)
+            existing.activate(options: [.activateIgnoringOtherApps])
+            return false
+        }
+
+        // 2. Kernel-level advisory lock to eliminate race conditions during simultaneous spawns
+        let lockPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("com.agrigence.liquiddynamo.lock")
+        let fd = open(lockPath, O_CREAT | O_RDWR, 0o644)
+        if fd >= 0 {
+            if flock(fd, LOCK_EX | LOCK_NB) != 0 {
+                close(fd)
+                NSLog("⚠️ [SingleInstance] Lockfile '%@' is already held by another process. Exiting duplicate process (PID %d).", lockPath, currentPID)
+                if let existing = runningApps.first(where: { $0.processIdentifier != currentPID }) {
+                    existing.activate(options: [.activateIgnoringOtherApps])
+                }
+                return false
+            }
+            instanceLockFD = fd
+        }
+
+        return true
     }
 
     var body: some Scene {
