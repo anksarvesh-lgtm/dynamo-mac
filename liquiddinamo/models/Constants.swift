@@ -277,7 +277,7 @@ extension Defaults.Keys {
     static let leftSideReadout = Key<SideReadoutType>("leftSideReadout", default: .cpu)
     static let rightSideReadout = Key<SideReadoutType>("rightSideReadout", default: .network)
     static let sideReadoutInterval = Key<Double>("sideReadoutInterval", default: 1.0)
-    static let wingWidth = Key<CGFloat>("wingWidth", default: 68.0)
+    static let wingWidth = Key<CGFloat>("wingWidth", default: 100.0)
     static let autoFitWings = Key<Bool>("autoFitWings", default: true)
     static let hideWingsInFullScreen = Key<Bool>("hideWingsInFullScreen", default: true)
     static let wingsBuiltInDisplayOnly = Key<Bool>("wingsBuiltInDisplayOnly", default: false)

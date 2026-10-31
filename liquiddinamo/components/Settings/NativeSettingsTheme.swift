@@ -382,7 +382,7 @@ public struct ReferenceNotchCapsule: View {
     public init(
         leftMetric: WingMetric = .cpuUsage,
         rightMetric: WingMetric = .weather,
-        wingWidth: CGFloat = 80,
+        wingWidth: CGFloat = 100,
         autoFit: Bool = true
     ) {
         self.leftMetric = leftMetric

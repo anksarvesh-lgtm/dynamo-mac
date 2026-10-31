@@ -393,7 +393,7 @@ public struct LookSettingsView: View {
         Defaults[.waterIntensity] = 0.5
         Defaults[.leftWingMetric] = .cpuUsage
         Defaults[.rightWingMetric] = .netDownUp
-        Defaults[.wingWidth] = 80.0
+        Defaults[.wingWidth] = 100.0
         Defaults[.hideWingsInFullScreen] = true
         Defaults[.wingsBuiltInDisplayOnly] = true
         Defaults[.compactMode] = false

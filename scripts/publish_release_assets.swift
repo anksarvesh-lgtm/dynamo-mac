@@ -38,25 +38,25 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.2.5
-- **Gatekeeper Hardening & Quarantine Resolution**: Integrated Gatekeeper quarantine clearance (`xattr -cr`) and LaunchServices trusted registration in distribution packaging and documentation to prevent "damaged or incomplete" false alarms on macOS Sonoma (14) and macOS Sequoia (15).
-- **Atomic Bundle Staging & Code Signature Sealing**: Hardened bundle staging pipelines to guarantee pristine code signing and extraction across all nested frameworks (`Sparkle`, `MediaRemoteAdapter`, `kalam.dylib`, `libusb.dylib`, `LiquidDynamoXPCHelper`).
-- **Dynamic CPU Temperature Alerting**: Smooth color transitioning from cool green/cyan (<= 50°C) through warm amber/orange (50°C - 70°C) to higher intense red (>= 70°C) with urgent pulsing bloom.
-- **Zero-Polling Battery Intelligence**: Event-driven Apple IOKit kernel run-loop notifications (`IOPSNotificationCreateRunLoopSource`) ensuring 0.0% idle CPU and minimal memory overhead.
-- **Strict Demand-Driven Feature Lifecycle**: Inactive telemetry loops shut down automatically; all background services deep-freeze on screen lock and display sleep.
+### Release Highlights — LiquidDynamo 2.2.6
+- **CPU Temperature Fire Flare Fill (50% Wing Height)**: Left wing features an organic 50% height flame flare with 6 independent flickering tongues, smooth vertical gradient, hot additive base glow, and 1.2s urgent breathing at >= 70°C.
+- **1-70 °C Temperature Colour Rule**: Linear piecewise color interpolation: green (<= 1°C), yellow (35.5°C), orange (52.75°C), and intense red (>= 70°C).
+- **Default 100px Wing Width**: Balanced default wing width set to 100 pt for enhanced readability and aesthetic proportions.
+- **Single-Instance Enforcement**: Kernel `flock` and `NSRunningApplication` checks guarantee only one instance can run at any time, eliminating duplicate menu bar icons and windows.
+- **Installer & Packaging Deduplication**: Auto-detaches mounted DMGs and unregisters temporary bundle paths from LaunchServices to eliminate duplicate apps in Spotlight and Launchpad.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.2.5",
-        name: "LiquidDynamo 2.2.5 — Gatekeeper Hardening & Launch Reliability",
+        tag: "v2.2.6",
+        name: "LiquidDynamo 2.2.6 — Fire Flare Wing Indicator & Single-Instance Multi-App Prevention",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.5 (build 36)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.6 (build 37)",
         makeLatest: false
     )
 ]
@@ -66,7 +66,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.2.5.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.5.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.2.6.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.6.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

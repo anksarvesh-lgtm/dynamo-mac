@@ -198,22 +198,23 @@ else
   printf "THIS BUILD IS FOR LOCAL TESTING ONLY AND CANNOT BE RELEASED.\n"
   printf "=================================================================\033[0m\n\n"
 
-  # Isolate build artifacts in unique temporary directory with mktemp -d
-  FALLBACK_BUILD_TMP="$(mktemp -d "${TMPDIR:-/tmp}/spm_deps.XXXXXX")"
+  # Isolate build artifacts in unique temporary directory with mktemp -d if not already provided
+  FALLBACK_BUILD_TMP="${SPM_DEPS_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/spm_deps.XXXXXX")}"
   export SPM_DEPS_DIR="$FALLBACK_BUILD_TMP"
-  trap 'rm -rf "$FALLBACK_BUILD_TMP"' EXIT
+
 
   say "Compiling fresh binary with swiftc via scripts/compile_dynamo.sh..."
   bash "$(pwd)/scripts/compile_dynamo.sh"
   APP_PATH="$BUILD_DIR/$APP_NAME.app"
-  rm -rf "$APP_PATH"
-  
-  if [ -d "/Applications/$APP_NAME.app" ]; then
-    cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
-  elif [ -d "$(pwd)/build/$APP_NAME.app" ]; then
-    cp -R "$(pwd)/build/$APP_NAME.app" "$APP_PATH"
-  else
-    die "Base app bundle template not found."
+
+  if [ ! -d "$APP_PATH" ]; then
+    if [ -d "/Applications/$APP_NAME.app" ]; then
+      cp -R "/Applications/$APP_NAME.app" "$APP_PATH"
+    elif [ -d "/Users/sarvesh/Documents/Lquid/build/$APP_NAME.app" ]; then
+      cp -R "/Users/sarvesh/Documents/Lquid/build/$APP_NAME.app" "$APP_PATH"
+    else
+      die "Base app bundle template not found."
+    fi
   fi
   
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true

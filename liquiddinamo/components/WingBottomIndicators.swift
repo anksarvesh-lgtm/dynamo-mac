@@ -33,9 +33,8 @@ public struct WingTempPalette {
     public static var redColor: Color { Color(red: red.r, green: red.g, blue: red.b) }
 }
 
-// MARK: - DEBUG Temperature Override (compiled out in Release)
+// MARK: - DEBUG Temperature Override (Active when launch argument or env var provided)
 
-#if DEBUG
 public enum WingTempOverride {
     public static var overrideTemp: Double? {
         let args = CommandLine.arguments
@@ -48,7 +47,6 @@ public enum WingTempOverride {
         return nil
     }
 }
-#endif
 
 // MARK: - Wing Indicator Colors & Pure Math Functions
 
@@ -177,11 +175,9 @@ public struct CPUTempGlowEdge: View {
     public init() {}
 
     private var activeTemperature: Double? {
-        #if DEBUG
         if let override = WingTempOverride.overrideTemp {
             return override
         }
-        #endif
         return statsService.isTemperatureAvailable ? statsService.cpuTemperature : nil
     }
 
@@ -484,50 +480,3 @@ public struct RAMBottomBar: View {
     }
 }
 
-// MARK: - C2: RIGHT Wing RAM Progress Bar
-
-public struct RAMBottomBar: View {
-    @ObservedObject private var statsService = SystemStatsService.shared
-
-    public init() {}
-
-    private var fillRatio: Double {
-        WingIndicatorColors.ramFillRatio(percentage: statsService.memoryPercentage)
-    }
-
-    private var barColor: Color {
-        WingIndicatorColors.ramUsageColor(
-            percentage: statsService.memoryPercentage,
-            memoryPressure: statsService.memoryPressure
-        )
-    }
-
-    public var body: some View {
-        let ratio = fillRatio
-        let color = barColor
-
-        GeometryReader { proxy in
-            let totalW = max(0, proxy.size.width - 12.0) // 6pt padding on each side
-            let filledW = max(0, totalW * CGFloat(ratio))
-
-            ZStack(alignment: .leading) {
-                // Background Track: White at ~12% opacity
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: totalW, height: 2.5)
-
-                // Active Fill: Progress with subtle glow, anchored from notch outward (leading)
-                Capsule()
-                    .fill(color)
-                    .frame(width: filledW, height: 2.5)
-                    .shadow(color: color.opacity(0.50), radius: 2.0, x: 0, y: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .frame(height: proxy.size.height, alignment: .bottom)
-        }
-        .frame(height: 3.5, alignment: .bottom)
-        .padding(.bottom, 1.0)
-        .animation(.easeInOut(duration: 0.6), value: ratio)
-        .animation(.easeInOut(duration: 0.6), value: color)
-    }
-}

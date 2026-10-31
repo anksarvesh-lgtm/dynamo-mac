@@ -1193,19 +1193,23 @@ struct CollapsedLiveInfoWingsView: View {
     @State private var isRightHovering: Bool = false
     @State private var autoCollapseTask: Task<Void, Never>? = nil
 
-    @State private var measuredLeftWingWidth: CGFloat = 46.0
-    @State private var measuredRightWingWidth: CGFloat = 46.0
+    @State private var measuredLeftWingWidth: CGFloat = 100.0
+    @State private var measuredRightWingWidth: CGFloat = 100.0
 
     private let minWingFloor: CGFloat = 36.0
 
+    private var minEffectiveWingWidth: CGFloat {
+        max(minWingFloor, wingWidth)
+    }
+
     private var currentLeftWingWidth: CGFloat {
         guard leftWingMetric != .none else { return 0 }
-        return autoFitWings ? max(minWingFloor, measuredLeftWingWidth) : max(minWingFloor, wingWidth)
+        return autoFitWings ? max(minEffectiveWingWidth, measuredLeftWingWidth) : minEffectiveWingWidth
     }
 
     private var currentRightWingWidth: CGFloat {
         guard rightWingMetric != .none else { return 0 }
-        return autoFitWings ? max(minWingFloor, measuredRightWingWidth) : max(minWingFloor, wingWidth)
+        return autoFitWings ? max(minEffectiveWingWidth, measuredRightWingWidth) : minEffectiveWingWidth
     }
 
     private var maxWingWidth: CGFloat {
@@ -1334,7 +1338,7 @@ struct CollapsedLiveInfoWingsView: View {
                         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
                         .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
                             guard w > 0 else { return }
-                            let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                            let targetW = autoFitWings ? max(minEffectiveWingWidth, w) : minEffectiveWingWidth
                             if abs(self.measuredLeftWingWidth - targetW) >= 1.0 {
                                 withAnimation(IslandMotion.shared.expandSpring) {
                                     self.measuredLeftWingWidth = targetW
@@ -1344,7 +1348,7 @@ struct CollapsedLiveInfoWingsView: View {
                         }
                         .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
                             guard w > 0 else { return }
-                            let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                            let targetW = autoFitWings ? max(minEffectiveWingWidth, w) : minEffectiveWingWidth
                             if abs(self.measuredRightWingWidth - targetW) >= 1.0 {
                                 withAnimation(IslandMotion.shared.expandSpring) {
                                     self.measuredRightWingWidth = targetW
@@ -1444,7 +1448,7 @@ struct CollapsedLiveInfoWingsView: View {
                     .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
                     .onPreferenceChange(LeftWingWidthPreferenceKey.self) { w in
                         guard w > 0 else { return }
-                        let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                        let targetW = autoFitWings ? max(minEffectiveWingWidth, w) : minEffectiveWingWidth
                         if abs(self.measuredLeftWingWidth - targetW) >= 1.0 {
                             withAnimation(IslandMotion.shared.expandSpring) {
                                 self.measuredLeftWingWidth = targetW
@@ -1454,7 +1458,7 @@ struct CollapsedLiveInfoWingsView: View {
                     }
                     .onPreferenceChange(RightWingWidthPreferenceKey.self) { w in
                         guard w > 0 else { return }
-                        let targetW = autoFitWings ? max(minWingFloor, w) : max(minWingFloor, wingWidth)
+                        let targetW = autoFitWings ? max(minEffectiveWingWidth, w) : minEffectiveWingWidth
                         if abs(self.measuredRightWingWidth - targetW) >= 1.0 {
                             withAnimation(IslandMotion.shared.expandSpring) {
                                 self.measuredRightWingWidth = targetW

@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.2.6] — 2026-10-31
+
+### Wing Fire Flare Indicator, 100px Default Wing Width & Single-Instance Multi-App Prevention
+- **CPU Temperature "Fire Flare" Fill (50% Wing Height)**: Replaced the 2pt edge line on the left wing with an organic 50% height fire flare (`flareFillFraction = 0.5`) clipped to the wing capsule/drop shape. Features 6 independent flickering flame tongues, a soft base vertical gradient, lighter core (mixed 35% with white), additive bottom edge glow, and 1.2s urgent brightness breathing at `>= 70°C` or serious/critical thermal state.
+- **1-70 °C Temperature Color Palette**: Unified CPU temperature color rule in `WingTempPalette`: green at `1.0°C` and below, yellow at `35.5°C` (50%), orange at `52.75°C` (75%), and red at `70.0°C` and above, with monotonic piecewise-linear interpolation and matched `ThermalState` fallback.
+- **Default 100px Wing Width**: Updated default wing width (`Defaults[.wingWidth]`) to 100 pt for balanced notch aesthetics and spacious readability.
+- **Strict Single-Instance Enforcement**: Implemented kernel-level `flock` and `NSRunningApplication` activation at launch to guarantee that only one instance of LiquidDynamo can run at any time, instantly terminating duplicate launches and focusing the primary instance.
+- **Installer & Packaging Deduplication**: Hardened `install.sh` and `build_dmg.sh` to unmount any active DMG volumes, unregister stale/staging bundle paths from LaunchServices (`lsregister -u`), register the target bundle (`lsregister -f`), and eliminate the background spawn race condition.
+- **Consolidated Startup Registration**: Streamlined `AutoStartManager` to use modern `SMAppService` on macOS 13+ as the sole authority, removing duplicate simultaneous registrations in LaunchAgents and System Events Login Items.
+
 ## [2.2.5] — 2026-10-28
 
 ### Clean Baseline Stabilization & Production Build
