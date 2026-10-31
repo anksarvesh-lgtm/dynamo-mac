@@ -2,9 +2,10 @@
 //  AutoStartManager.swift
 //  LiquidDynamo
 //
-//  Multi-tier login autostart manager supporting macOS 14 Sonoma and 15 Sequoia.
-//  Combines native SMAppService (macOS 13+), user LaunchAgent plist (~/Library/LaunchAgents),
-//  and System Events Login Item to guarantee 100% reliable startup registration.
+//  Single-source login autostart manager supporting macOS 14 Sonoma and 15 Sequoia.
+//  Uses native SMAppService (macOS 13+) as primary authority, with fallback to user
+//  LaunchAgent plist (~/Library/LaunchAgents). Eliminates duplicate registrations
+//  and prevents registration when running from transient DMG or temp volumes.
 //
 
 import AppKit
@@ -25,34 +26,38 @@ public final class AutoStartManager: ObservableObject {
         return home.appendingPathComponent("Library/LaunchAgents/\(launchAgentLabel).plist")
     }
 
+    /// Validates whether the application is installed in a permanent location eligible for autostart
+    public var isEligibleForAutoStart: Bool {
+        let bundlePath = Bundle.main.bundlePath
+        if bundlePath.hasPrefix("/Volumes/") || bundlePath.contains("/tmp/") || bundlePath.contains("/var/folders/") {
+            return false
+        }
+        return true
+    }
+
     private init() {
         self.isEnabled = queryCurrentStatus()
     }
 
     /// Evaluates if any of the autostart mechanisms or user defaults are active
     public func queryCurrentStatus() -> Bool {
-        // 1. Check LaunchAgent plist existence
-        if FileManager.default.fileExists(atPath: launchAgentPlistURL.path) {
-            return true
-        }
-
-        // 2. Check SMAppService mainApp status
+        // 1. Check SMAppService mainApp status (macOS 13+)
         if #available(macOS 13.0, *) {
             if SMAppService.mainApp.status == .enabled {
                 return true
             }
         }
 
-        // 3. Check System Events login item
-        if checkSystemEventsLoginItem() {
+        // 2. Check LaunchAgent plist existence
+        if FileManager.default.fileExists(atPath: launchAgentPlistURL.path) {
             return true
         }
 
-        // 4. Check user defaults persistence
+        // 3. Fallback check user defaults persistence
         return Defaults[.launchAtLogin]
     }
 
-    /// Toggles autostart on or off across all supported macOS persistence layers
+    /// Toggles autostart on or off cleanly without duplicate persistence entries
     public func setEnabled(_ enable: Bool) {
         objectWillChange.send()
         Defaults[.launchAtLogin] = enable
@@ -66,16 +71,13 @@ public final class AutoStartManager: ObservableObject {
         self.isEnabled = queryCurrentStatus()
     }
 
-    /// Synchronizes startup registration on app launch
+    /// Synchronizes startup registration on app launch and prunes legacy duplicates
     public func syncOnLaunch() {
         if Defaults[.launchAtLogin] {
             enableAutoStart()
             self.isEnabled = true
         } else {
-            // Verify and remove if user explicitly disabled
-            if FileManager.default.fileExists(atPath: launchAgentPlistURL.path) {
-                disableAutoStart()
-            }
+            disableAutoStart()
             self.isEnabled = false
         }
     }
@@ -83,41 +85,52 @@ public final class AutoStartManager: ObservableObject {
     // MARK: - Internal Registration
 
     private func enableAutoStart() {
-        // Tier 1: SMAppService (native macOS 13+)
+        guard isEligibleForAutoStart else {
+            NSLog("⚠️ [AutoStartManager] Skipping autostart registration: running from volume or transient path: %@", Bundle.main.bundlePath)
+            return
+        }
+
+        var smRegistered = false
+        // Primary modern mechanism: SMAppService (macOS 13+)
         if #available(macOS 13.0, *) {
             do {
                 if SMAppService.mainApp.status == .enabled {
                     try? SMAppService.mainApp.unregister()
                 }
                 try SMAppService.mainApp.register()
+                smRegistered = true
+                NSLog("✓ [AutoStartManager] SMAppService registration succeeded.")
             } catch {
-                NSLog("⚠️ [AutoStartManager] SMAppService registration note: \(error.localizedDescription)")
+                NSLog("⚠️ [AutoStartManager] SMAppService registration note: %@", error.localizedDescription)
             }
         }
 
-        // Tier 2: User LaunchAgent Plist (~/Library/LaunchAgents)
-        installLaunchAgentPlist()
-
-        // Tier 3: System Events Login Item
-        addSystemEventsLoginItem()
+        if smRegistered {
+            // Clean up any redundant legacy LaunchAgent and System Events login item to avoid duplicate spawns
+            removeLaunchAgentPlist()
+            removeSystemEventsLoginItem()
+        } else {
+            // Fallback for environments where SMAppService is restricted
+            installLaunchAgentPlist()
+            removeSystemEventsLoginItem()
+        }
     }
 
     private func disableAutoStart() {
-        // Tier 1: SMAppService
+        // Clean up all persistence tiers thoroughly
         if #available(macOS 13.0, *) {
             try? SMAppService.mainApp.unregister()
         }
 
-        // Tier 2: LaunchAgent Plist
         removeLaunchAgentPlist()
-
-        // Tier 3: System Events Login Item
         removeSystemEventsLoginItem()
     }
 
     // MARK: - LaunchAgent Plist Implementation
 
     private func installLaunchAgentPlist() {
+        guard isEligibleForAutoStart else { return }
+
         let fm = FileManager.default
         let folder = launchAgentPlistURL.deletingLastPathComponent()
         try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -153,23 +166,7 @@ public final class AutoStartManager: ObservableObject {
         try? FileManager.default.removeItem(at: launchAgentPlistURL)
     }
 
-    // MARK: - System Events Login Item Implementation
-
-    private func addSystemEventsLoginItem() {
-        let appPath = Bundle.main.bundlePath
-        // Use AppleScript to register Login Item without sandbox restrictions
-        let script = """
-        tell application "System Events"
-            if not (exists login item "LiquidDynamo") then
-                make login item at end with properties {name:"LiquidDynamo", path:"\(appPath)", hidden:false}
-            end if
-        end tell
-        """
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script) {
-            appleScript.executeAndReturnError(&error)
-        }
-    }
+    // MARK: - Legacy System Events Cleanup
 
     private func removeSystemEventsLoginItem() {
         let script = """
@@ -183,20 +180,6 @@ public final class AutoStartManager: ObservableObject {
         if let appleScript = NSAppleScript(source: script) {
             appleScript.executeAndReturnError(&error)
         }
-    }
-
-    private func checkSystemEventsLoginItem() -> Bool {
-        let script = """
-        tell application "System Events"
-            return (exists login item "LiquidDynamo")
-        end tell
-        """
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script) {
-            let res = appleScript.executeAndReturnError(&error)
-            return res.booleanValue
-        }
-        return false
     }
 }
 
