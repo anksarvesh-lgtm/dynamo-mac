@@ -691,12 +691,15 @@ public final class IslandController: ObservableObject {
                 return CGSize(width: 580, height: min(max(480, geom.notchHeight + 450), screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .home {
                 let homeWidth = max(openNotchSize.width, 660)
+                let hasConnectedDevices = PermanentConnectedDevicesHeaderView.hasAnyConnectedDevice
                 switch activeOrganicItem {
                 case .none:
-                    return CGSize(width: homeWidth, height: min(max(140, geom.notchHeight + 105), screenMaxH))
+                    let baseH = hasConnectedDevices ? (geom.notchHeight + 96) : (geom.notchHeight + 64)
+                    return CGSize(width: homeWidth, height: min(max(105, baseH), screenMaxH))
                 case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher:
-                    // Compact expansion: roughly double the resting island height
-                    return CGSize(width: homeWidth, height: min(max(220, geom.notchHeight + 185), screenMaxH))
+                    // In-place expansion: roughly double the resting island height (~220-230pt)
+                    let detailH = hasConnectedDevices ? (geom.notchHeight + 195) : (geom.notchHeight + 155)
+                    return CGSize(width: homeWidth, height: min(max(195, detailH), screenMaxH))
                 }
             }
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))

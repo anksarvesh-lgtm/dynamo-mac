@@ -3,10 +3,13 @@
 //  LiquidDynamo
 //
 //  Permanent Connected Devices Header:
-//  - MagSafe 3 Charger & Wireless / Wired Audio (realme Buds Wireless / AirPods)
-//  - Always persistent across all carousel slides and detail modes
-//  - Organic liquid-glass dual capsule layout linked by fluid refractive bridge
-//  - Live dynamic telemetry with optical glow and water physics interaction
+//  - Strictly verified real hardware data only (never dummy, placeholder, or fabricated info)
+//  - MagSafe 3 / Power Adapter & Verified Bluetooth / Audio Peripherals
+//  - Conditional Visibility:
+//      * 0 connected: Completely hidden (zero blank space, carousel shifts up)
+//      * 1 connected: Exactly 1 card displayed full width
+//      * 2+ connected: 2 balanced cards side-by-side
+//  - Apple Liquid Glass Visual Language with organic specular lighting
 //
 
 import AppKit
@@ -28,17 +31,29 @@ public struct LiquidColorTokens {
     public static let mutedText = Color(red: 0x73 / 255.0, green: 0x7B / 255.0, blue: 0x85 / 255.0) // #737B85
 }
 
+public enum ConnectedDeviceCardItem: Identifiable, Equatable {
+    case charger(name: String, watts: Int, isCharging: Bool)
+    case peripheral(device: DeviceIdentity)
+
+    public var id: String {
+        switch self {
+        case .charger:
+            return "card_charger"
+        case .peripheral(let dev):
+            return "card_dev_\(dev.stableKey)"
+        }
+    }
+}
+
 public struct PermanentConnectedDevicesHeaderView: View {
     @ObservedObject var chargingService = ChargingIntelligenceService.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var deviceMonitor = DeviceMonitor.shared
-    @ObservedObject var memoryRegistry = DeviceMemoryRegistry.shared
 
     public var onSelectCharger: (() -> Void)? = nil
     public var onSelectAudioDevice: ((DeviceIdentity?) -> Void)? = nil
 
-    @State private var isHoveringCharger: Bool = false
-    @State private var isHoveringAudio: Bool = false
+    @State private var hoveredCardId: String? = nil
     @State private var pulsePhase: Double = 0.0
 
     public init(
@@ -49,52 +64,24 @@ public struct PermanentConnectedDevicesHeaderView: View {
         self.onSelectAudioDevice = onSelectAudioDevice
     }
 
-    // Resolve strictly verified active connected device (audio, peripheral, etc.)
-    private var primaryConnectedDevice: DeviceIdentity? {
-        // Query only active devices verified by DeviceMonitor
-        return deviceMonitor.sortedActiveDevices.first(where: {
-            ($0.kind == .neckband || $0.kind == .headphones || $0.kind == .earbuds || $0.kind == .earphones || $0.kind == .airpods || $0.kind == .keyboard || $0.kind == .mouse || $0.kind == .trackpad) &&
-            deviceMonitor.activeDevices[$0.stableKey] != nil
-        })
-    }
-
-    private var isAudioConnected: Bool {
-        return primaryConnectedDevice != nil
-    }
-
-    public var body: some View {
-        HStack(spacing: 8) {
-            // MARK: - Left Card: MagSafe 3 / Power Adapter / Mac Battery
-            chargerCard
-                .onHover { h in withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) { isHoveringCharger = h } }
-                .onTapGesture {
-                    onSelectCharger?()
-                }
-
-            // MARK: - Right Card: Verified Connected Bluetooth / Audio Device
-            audioDeviceCard
-                .onHover { h in withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) { isHoveringAudio = h } }
-                .onTapGesture {
-                    onSelectAudioDevice?(primaryConnectedDevice)
-                }
+    /// Helper to determine if any verified connected hardware exists
+    public static var hasAnyConnectedDevice: Bool {
+        let isPlugged = ChargingIntelligenceService.shared.isPluggedIn || BatteryStatusViewModel.shared.isPluggedIn
+        if isPlugged { return true }
+        let hasBt = DeviceMonitor.shared.sortedActiveDevices.contains { dev in
+            dev.kind != .monitor && dev.kind != .androidPhone && !dev.displayName.contains("Built-in") && DeviceMonitor.shared.activeDevices[dev.stableKey] != nil
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
-                pulsePhase = 1.0
-            }
-        }
+        return hasBt
     }
 
-    // MARK: - MagSafe 3 / Power Adapter / Internal Battery Card (100% Real Hardware Telemetry)
-    @ViewBuilder
-    private var chargerCard: some View {
+    /// Evaluates genuinely connected hardware only
+    private var verifiedConnectedCards: [ConnectedDeviceCardItem] {
+        var cards: [ConnectedDeviceCardItem] = []
+
+        // 1. External Charger (Only when plugged in to external power)
         let isPlugged = chargingService.isPluggedIn || batteryModel.isPluggedIn
-        let isCharging = chargingService.isCharging || batteryModel.isCharging
-        let watts = chargingService.adapterWatts
-        let portDesc: String = {
-            if isPlugged {
+        if isPlugged {
+            let portDesc: String = {
                 if chargingService.connectedPortDescription.contains("MagSafe") {
                     return "MagSafe 3 Charger"
                 } else if !chargingService.adapterName.isEmpty {
@@ -102,55 +89,129 @@ public struct PermanentConnectedDevicesHeaderView: View {
                 } else {
                     return "Power Adapter"
                 }
-            } else {
-                return "MacBook Battery"
-            }
-        }()
+            }()
+            let watts = chargingService.adapterWatts
+            let isCharging = chargingService.isCharging || batteryModel.isCharging
+            cards.append(.charger(name: portDesc, watts: watts, isCharging: isCharging))
+        }
 
+        // 2. Verified Active Bluetooth / Audio Peripherals
+        let activePeripherals = deviceMonitor.sortedActiveDevices.filter { dev in
+            dev.kind != .monitor &&
+            dev.kind != .androidPhone &&
+            !dev.displayName.contains("Built-in") &&
+            deviceMonitor.activeDevices[dev.stableKey] != nil
+        }
+
+        for dev in activePeripherals {
+            cards.append(.peripheral(device: dev))
+        }
+
+        return cards
+    }
+
+    public var body: some View {
+        let cards = verifiedConnectedCards
+
+        // Rule: If 0 devices connected, completely hide section!
+        if cards.isEmpty {
+            EmptyView()
+        } else if cards.count == 1 {
+            // Rule: Exactly 1 card displayed full width
+            HStack(spacing: 0) {
+                renderCard(cards[0], isFullWidth: true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .onAppear { startPulse() }
+        } else {
+            // Rule: 2+ devices connected, display 2 balanced cards side-by-side
+            HStack(spacing: 8) {
+                renderCard(cards[0], isFullWidth: false)
+                renderCard(cards[1], isFullWidth: false)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .onAppear { startPulse() }
+        }
+    }
+
+    private func startPulse() {
+        withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+            pulsePhase = 1.0
+        }
+    }
+
+    @ViewBuilder
+    private func renderCard(_ item: ConnectedDeviceCardItem, isFullWidth: Bool) -> some View {
+        switch item {
+        case .charger(let name, let watts, let isCharging):
+            chargerCardView(name: name, watts: watts, isCharging: isCharging, isFullWidth: isFullWidth)
+                .onHover { h in
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+                        hoveredCardId = h ? "charger" : nil
+                    }
+                }
+                .onTapGesture {
+                    onSelectCharger?()
+                }
+
+        case .peripheral(let dev):
+            peripheralCardView(device: dev, isFullWidth: isFullWidth)
+                .onHover { h in
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+                        hoveredCardId = h ? dev.stableKey : nil
+                    }
+                }
+                .onTapGesture {
+                    onSelectAudioDevice?(dev)
+                }
+        }
+    }
+
+    // MARK: - Charger Card View (Real Hardware Telemetry)
+    @ViewBuilder
+    private func chargerCardView(name: String, watts: Int, isCharging: Bool, isFullWidth: Bool) -> some View {
+        let isHovered = hoveredCardId == "charger"
         let statusText: String = {
             if isCharging {
                 return watts > 0 ? "⚡ \(watts)W · Charging" : "⚡ Charging"
-            } else if isPlugged {
-                return watts > 0 ? "⚡ \(watts)W · Plugged In" : "⚡ Plugged In"
             } else {
-                let bat = Int(batteryModel.levelBattery)
-                return "● \(bat)% · On Battery"
+                return watts > 0 ? "⚡ \(watts)W · Plugged In" : "⚡ Plugged In"
             }
         }()
 
         HStack(spacing: 10) {
-            // Circular Charging / Battery Badge
+            // Circular Charging Badge with Live Emerald Glow
             ZStack {
                 Circle()
-                    .fill(isPlugged ? LiquidColorTokens.emerald.opacity(0.18) : Color.white.opacity(0.08))
-                    .frame(width: 32, height: 32)
+                    .fill(LiquidColorTokens.emerald.opacity(0.18))
+                    .frame(width: 30, height: 30)
                     .overlay(
                         Circle()
                             .stroke(
-                                isPlugged
-                                    ? LiquidColorTokens.emerald.opacity(0.55 + pulsePhase * 0.35)
-                                    : Color.white.opacity(0.16),
+                                LiquidColorTokens.emerald.opacity(0.55 + pulsePhase * 0.35),
                                 lineWidth: 1.5
                             )
                     )
-                    .shadow(color: isPlugged ? LiquidColorTokens.emerald.opacity(0.35 + pulsePhase * 0.25) : .clear, radius: 6)
+                    .shadow(color: LiquidColorTokens.emerald.opacity(0.35 + pulsePhase * 0.25), radius: 6)
 
-                Image(systemName: isPlugged ? "bolt.fill" : "battery.100")
+                Image(systemName: "bolt.fill")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(isPlugged ? LiquidColorTokens.emerald : LiquidColorTokens.secondaryText)
+                    .foregroundStyle(LiquidColorTokens.emerald)
                     .scaleEffect(isCharging ? (1.0 + pulsePhase * 0.08) : 1.0)
             }
 
-            // Name & Dynamic Metric
-            VStack(alignment: .leading, spacing: 2) {
-                Text(portDesc)
+            // Name & Dynamic Charging Metric
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name)
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(LiquidColorTokens.primaryText)
                     .lineLimit(1)
 
                 Text(statusText)
                     .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isPlugged ? LiquidColorTokens.emerald : LiquidColorTokens.secondaryText)
+                    .foregroundStyle(LiquidColorTokens.emerald)
                     .lineLimit(1)
             }
 
@@ -158,83 +219,55 @@ public struct PermanentConnectedDevicesHeaderView: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 9.5, weight: .bold))
-                .foregroundStyle(LiquidColorTokens.secondaryText.opacity(isHoveringCharger ? 0.9 : 0.4))
+                .foregroundStyle(LiquidColorTokens.secondaryText.opacity(isHovered ? 0.9 : 0.4))
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .frame(maxWidth: isFullWidth ? .infinity : nil)
         .background(
-            liquidCapsuleBackdrop(
-                isHovered: isHoveringCharger,
-                accentColor: isPlugged ? LiquidColorTokens.emerald : nil
-            )
+            liquidCapsuleBackdrop(isHovered: isHovered, accentColor: LiquidColorTokens.emerald)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // MARK: - Audio / Peripheral Device Card (Real Telemetry Only)
+    // MARK: - Peripheral / Bluetooth Card View (Real Hardware Data Only)
     @ViewBuilder
-    private var audioDeviceCard: some View {
-        let dev = primaryConnectedDevice
-        let isConn = (dev != nil)
-        let displayName = dev?.displayName ?? "Bluetooth Devices"
-        let batteryPct = dev?.batteryPercentage
+    private func peripheralCardView(device: DeviceIdentity, isFullWidth: Bool) -> some View {
+        let isHovered = hoveredCardId == device.stableKey
+        let batteryPct = device.batteryPercentage
 
         HStack(spacing: 10) {
-            // Icon Inside Rounded Squircle Badge
+            // Rounded Squircle Badge with Device Icon
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isConn ? Color.white.opacity(0.12) : Color.white.opacity(0.06))
-                    .frame(width: 32, height: 32)
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 30, height: 30)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(isConn ? Color.white.opacity(0.28) : Color.white.opacity(0.10), lineWidth: 1.0)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 1.0)
                     )
 
-                if let kind = dev?.kind {
-                    switch kind {
-                    case .airpods, .earbuds:
-                        Image(systemName: "earbuds.case.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.white)
-                    case .keyboard:
-                        Image(systemName: "applekeyboard")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.white)
-                    case .mouse, .trackpad:
-                        Image(systemName: "magicmouse")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.white)
-                    default:
-                        Image(systemName: "headphones")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.white)
-                    }
-                } else {
-                    Image(systemName: "bluetooth")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(LiquidColorTokens.secondaryText)
-                }
+                deviceIcon(for: device.kind)
             }
 
-            // Name & Battery / Status
-            VStack(alignment: .leading, spacing: 2) {
-                Text(displayName)
+            // Name & Battery / Connection Status
+            VStack(alignment: .leading, spacing: 1) {
+                Text(device.displayName)
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(LiquidColorTokens.primaryText)
                     .lineLimit(1)
 
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(isConn ? LiquidColorTokens.emerald : LiquidColorTokens.mutedText)
+                        .fill(LiquidColorTokens.emerald)
                         .frame(width: 5, height: 5)
-                        .shadow(color: isConn ? LiquidColorTokens.emerald.opacity(0.7) : .clear, radius: 2)
+                        .shadow(color: LiquidColorTokens.emerald.opacity(0.7), radius: 2)
 
-                    Text(isConn ? "Connected" : "No Devices Connected")
+                    Text("Connected")
                         .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                        .foregroundStyle(isConn ? LiquidColorTokens.emerald : LiquidColorTokens.mutedText)
+                        .foregroundStyle(LiquidColorTokens.emerald)
 
-                    if let bat = batteryPct {
+                    if let bat = batteryPct, bat > 0 {
                         Text("· \(bat)%")
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(LiquidColorTokens.secondaryText)
@@ -249,92 +282,120 @@ public struct PermanentConnectedDevicesHeaderView: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 9.5, weight: .bold))
-                .foregroundStyle(LiquidColorTokens.secondaryText.opacity(isHoveringAudio ? 0.9 : 0.4))
+                .foregroundStyle(LiquidColorTokens.secondaryText.opacity(isHovered ? 0.9 : 0.4))
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .frame(maxWidth: isFullWidth ? .infinity : nil)
         .background(
-            liquidCapsuleBackdrop(
-                isHovered: isHoveringAudio,
-                accentColor: isConn ? LiquidColorTokens.emerald : nil
-            )
+            liquidCapsuleBackdrop(isHovered: isHovered, accentColor: nil)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // MARK: - Mini Battery Gauge
     @ViewBuilder
-    private func batteryMiniGauge(percent: Int) -> some View {
-        let barColor = percent <= 20 ? Color.red : LiquidColorTokens.emerald
-        HStack(spacing: 1.5) {
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 2.2, style: .continuous)
-                    .stroke(barColor.opacity(0.85), lineWidth: 1.0)
-                    .frame(width: 15, height: 8)
-
-                RoundedRectangle(cornerRadius: 1.2, style: .continuous)
-                    .fill(barColor)
-                    .frame(width: max(2.5, 11.0 * CGFloat(min(100, max(0, percent))) / 100.0), height: 5)
-                    .offset(x: 1.2)
-            }
-            // Battery terminal cap
-            RoundedRectangle(cornerRadius: 1, style: .continuous)
-                .fill(barColor.opacity(0.85))
-                .frame(width: 1.5, height: 4)
+    private func deviceIcon(for kind: DeviceKind) -> some View {
+        switch kind {
+        case .airpods, .earbuds, .neckband, .earphones:
+            Image(systemName: "earbuds.case.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
+        case .headphones:
+            Image(systemName: "headphones")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
+        case .keyboard:
+            Image(systemName: "applekeyboard")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
+        case .mouse, .trackpad:
+            Image(systemName: "magicmouse")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
+        case .ssdDrive, .usbStick:
+            Image(systemName: "externaldrive.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
+        default:
+            Image(systemName: "headphones")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white)
         }
     }
 
-    // MARK: - Liquid Capsule Backdrop
+    @ViewBuilder
+    private func batteryMiniGauge(percent: Int) -> some View {
+        let clamped = max(0, min(100, percent))
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(Color.white.opacity(0.18))
+                .frame(width: 16, height: 7)
+
+            Capsule()
+                .fill(clamped > 20 ? LiquidColorTokens.emerald : Color.red)
+                .frame(width: max(2, 16.0 * CGFloat(clamped) / 100.0), height: 7)
+        }
+    }
+
+    // MARK: - Liquid Capsule Backdrop (Apple Dark Liquid Glass)
     @ViewBuilder
     private func liquidCapsuleBackdrop(isHovered: Bool, accentColor: Color?) -> some View {
         ZStack {
-            // Dark smoked glass base (#17191C)
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(LiquidColorTokens.primaryGlass.opacity(0.85))
+            // Frosted blur depth
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
 
-            // Secondary glass depth (#24282D)
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            // Deep obsidian charcoal (#17191C, 75% opacity)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LiquidColorTokens.primaryGlass.opacity(0.75))
+
+            // Internal gradient (#24282D down to #090B0E)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            LiquidColorTokens.secondaryGlass.opacity(0.55),
-                            LiquidColorTokens.deepShadow.opacity(0.75)
+                            LiquidColorTokens.secondaryGlass.opacity(0.45),
+                            LiquidColorTokens.deepShadow.opacity(0.70)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+            // Optional accent glow
+            if let accent = accentColor {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(accent.opacity(isHovered ? 0.16 : 0.08))
+            }
+
+            // Directional specular sheen
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.white.opacity(isHovered ? 0.22 : 0.12), location: 0.0),
+                            .init(color: Color.white.opacity(0.03), location: 0.40),
+                            .init(color: Color.clear, location: 0.80)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
 
-            // Subtle optical teal refraction (#123B36)
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            (accentColor ?? LiquidColorTokens.tealRefraction).opacity(isHovered ? 0.22 : 0.12),
-                            Color.clear
-                        ],
-                        center: .topLeading,
-                        startRadius: 2,
-                        endRadius: 90
-                    )
-                )
-
-            // Silver edge specular highlight (#DDE8F0)
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            // Specular border rim
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
                         stops: [
-                            .init(color: LiquidColorTokens.silverHighlight.opacity(isHovered ? 0.55 : 0.32), location: 0.0),
-                            .init(color: LiquidColorTokens.champagneReflection.opacity(0.18), location: 0.45),
-                            .init(color: Color.white.opacity(0.06), location: 1.0)
+                            .init(color: LiquidColorTokens.silverHighlight.opacity(isHovered ? 0.70 : 0.45), location: 0.0),
+                            .init(color: LiquidColorTokens.tealRefraction.opacity(0.30), location: 0.50),
+                            .init(color: LiquidColorTokens.champagneReflection.opacity(0.40), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1.0
+                    lineWidth: 0.9
                 )
         }
-        .shadow(color: LiquidColorTokens.deepShadow.opacity(0.6), radius: 8, x: 0, y: 3)
     }
 }
