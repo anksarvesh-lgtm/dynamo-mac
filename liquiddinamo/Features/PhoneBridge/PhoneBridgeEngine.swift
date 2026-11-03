@@ -91,10 +91,29 @@ public final class PhoneBridgeEngine: ObservableObject {
     // MARK: - ADB Path Resolution
 
     public func resolveAdbPath() {
-        adbBackend.effectiveAdbPath.map { _ in () }
-        self.adbPath = adbBackend.effectiveAdbPath
-        self.isAdbAvailable = adbBackend.isAvailable
-        Defaults[.phonebridgeAdbPath] = self.adbPath ?? ""
+        if let fast = adbBackend.effectiveAdbPath {
+            self.adbPath = fast
+            self.isAdbAvailable = true
+            Defaults[.phonebridgeAdbPath] = fast
+            return
+        }
+
+        self.adbPath = nil
+        self.isAdbAvailable = false
+
+        // Background asynchronous resolution without blocking main thread or pumping run loop
+        Task.detached(priority: .utility) { [weak self] in
+            let backend = AdbBackend()
+            let resolved = backend.effectiveAdbPath
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.adbPath = resolved
+                self.isAdbAvailable = (resolved != nil)
+                if let path = resolved {
+                    Defaults[.phonebridgeAdbPath] = path
+                }
+            }
+        }
     }
 
     public func setCustomAdbPath(_ path: String) -> Bool {

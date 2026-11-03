@@ -44,9 +44,10 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
     }
     
     private static var cachedResolvedAdbPath: String? = nil
+    private static var hasAttemptedShellResolution = false
 
-    public var effectiveAdbPath: String? {
-        if let cached = Self.cachedResolvedAdbPath, FileManager.default.isExecutableFile(atPath: cached) {
+    public static func resolveAdbPathFast() -> String? {
+        if let cached = cachedResolvedAdbPath, FileManager.default.isExecutableFile(atPath: cached) {
             return cached
         }
 
@@ -54,7 +55,7 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
         let custom = UserDefaults.standard.string(forKey: "phonebridge_custom_adb_path")
             ?? UserDefaults.standard.string(forKey: "filedroid_custom_adb_path") ?? ""
         if !custom.isEmpty && FileManager.default.isExecutableFile(atPath: custom) {
-            Self.cachedResolvedAdbPath = custom
+            cachedResolvedAdbPath = custom
             return custom
         }
 
@@ -65,7 +66,7 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
         let configPath = FileManager.default.fileExists(atPath: phonebridgeConfig) ? phonebridgeConfig : filedroidConfig
         if let saved = try? String(contentsOfFile: configPath, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
            !saved.isEmpty, FileManager.default.isExecutableFile(atPath: saved) {
-            Self.cachedResolvedAdbPath = saved
+            cachedResolvedAdbPath = saved
             return saved
         }
 
@@ -81,11 +82,29 @@ public final class AdbBackend: AndroidTransferBackend, @unchecked Sendable {
             "/usr/bin/adb"
         ]
         if let found = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
-            Self.cachedResolvedAdbPath = found
+            cachedResolvedAdbPath = found
             return found
         }
 
-        // 4. Login shell resolution ('which adb')
+        return nil
+    }
+
+    public var effectiveAdbPath: String? {
+        if let fast = Self.resolveAdbPathFast() {
+            return fast
+        }
+
+        // If called on the main thread, NEVER block or pump the run loop with a synchronous login shell!
+        if Thread.isMainThread {
+            return nil
+        }
+
+        guard !Self.hasAttemptedShellResolution else {
+            return Self.cachedResolvedAdbPath
+        }
+        Self.hasAttemptedShellResolution = true
+
+        // 4. Login shell resolution ('which adb') executed only on background thread
         let pipe = Pipe()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")

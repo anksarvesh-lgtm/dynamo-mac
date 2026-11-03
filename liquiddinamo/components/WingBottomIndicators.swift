@@ -317,9 +317,9 @@ public struct CPUTempGlowEdge: View {
         // 1. Base vertical gradient: solid temperature color at bottom edge fading to transparent at 50% line
         let baseRect = CGRect(x: 0, y: size.height - maxFlareHeight, width: size.width, height: maxFlareHeight)
         let baseGrad = Gradient(stops: [
-            .init(color: baseColor.opacity(0.46 * intensityMult), location: 1.0),
+            .init(color: baseColor.opacity(0.0), location: 0.0),
             .init(color: baseColor.opacity(0.22 * intensityMult), location: 0.50),
-            .init(color: baseColor.opacity(0.0), location: 0.0)
+            .init(color: baseColor.opacity(0.46 * intensityMult), location: 1.0)
         ])
         ctx.fill(
             Path(baseRect),
@@ -380,8 +380,8 @@ public struct CPUTempGlowEdge: View {
         let glowRect = CGRect(x: 0, y: size.height - glowH, width: size.width, height: glowH)
         ctx.blendMode = .plusLighter
         let glowGrad = Gradient(stops: [
-            .init(color: coreColor.opacity(0.50 * intensityMult), location: 1.0),
-            .init(color: coreColor.opacity(0.0), location: 0.0)
+            .init(color: coreColor.opacity(0.0), location: 0.0),
+            .init(color: coreColor.opacity(0.50 * intensityMult), location: 1.0)
         ])
         ctx.fill(
             Path(glowRect),
