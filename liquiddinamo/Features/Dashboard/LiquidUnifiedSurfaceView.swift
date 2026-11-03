@@ -216,23 +216,37 @@ public struct LiquidUnifiedSurfaceView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            LiquidColorTokens.tealRefraction.opacity(0.35),
-                            LiquidColorTokens.blueRefraction.opacity(0.18),
+                            LiquidColorTokens.tealRefraction.opacity(0.40),
+                            LiquidColorTokens.blueRefraction.opacity(0.22),
                             Color.clear
                         ],
                         center: .topLeading,
                         startRadius: 10,
-                        endRadius: 320
+                        endRadius: 360
                     )
                 )
 
-            // Layer 5: Directional Top Specular Sheen (-45° illumination)
+            // Layer 5: Warm Champagne Environmental Highlight (Bottom Right)
+            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            LiquidColorTokens.champagneReflection.opacity(0.20),
+                            Color.clear
+                        ],
+                        center: .bottomTrailing,
+                        startRadius: 5,
+                        endRadius: 200
+                    )
+                )
+
+            // Layer 6: Directional Top Specular Sheen (-45° illumination)
             RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
                 .fill(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(isHovered ? 0.22 : 0.14), location: 0.0),
-                            .init(color: Color.white.opacity(0.04), location: 0.25),
+                            .init(color: Color.white.opacity(isHovered ? 0.25 : 0.16), location: 0.0),
+                            .init(color: Color.white.opacity(0.05), location: 0.25),
                             .init(color: Color.clear, location: 0.60)
                         ],
                         startPoint: .topLeading,
@@ -240,20 +254,21 @@ public struct LiquidUnifiedSurfaceView: View {
                     )
                 )
 
-            // Layer 6: Razor Specular Rim (Silver #DDE8F0, Champagne #C69B70)
+            // Layer 7: Razor Specular Rim (Silver #DDE8F0, Teal, Champagne #C69B70)
             RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
                         stops: [
-                            .init(color: LiquidColorTokens.silverHighlight.opacity(isHovered ? 0.70 : 0.48), location: 0.0),
-                            .init(color: LiquidColorTokens.champagneReflection.opacity(0.30), location: 0.35),
-                            .init(color: Color.white.opacity(0.08), location: 0.70),
-                            .init(color: LiquidColorTokens.silverHighlight.opacity(0.20), location: 1.0)
+                            .init(color: LiquidColorTokens.silverHighlight.opacity(isHovered ? 0.80 : 0.60), location: 0.0),
+                            .init(color: LiquidColorTokens.tealRefraction.opacity(0.45), location: 0.35),
+                            .init(color: Color.white.opacity(0.10), location: 0.65),
+                            .init(color: LiquidColorTokens.champagneReflection.opacity(0.55), location: 0.95),
+                            .init(color: LiquidColorTokens.silverHighlight.opacity(0.35), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1.0
+                    lineWidth: 1.1
                 )
         }
     }
