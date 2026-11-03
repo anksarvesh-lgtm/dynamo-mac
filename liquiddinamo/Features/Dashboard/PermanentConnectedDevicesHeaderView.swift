@@ -202,23 +202,17 @@ public struct PermanentConnectedDevicesHeaderView: View {
         HStack(spacing: 10) {
             // White Icon Inside Rounded Squircle Badge
             ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.white.opacity(0.12))
                     .frame(width: 32, height: 32)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .stroke(Color.white.opacity(0.25), lineWidth: 1.0)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.white.opacity(0.28), lineWidth: 1.0)
                     )
 
-                if let kind = dev?.kind, (kind == .airpods || kind == .earbuds) {
-                    Image(systemName: "airpodspro")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.white)
-                } else {
-                    Image(systemName: "headphones")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.white)
-                }
+                Image(systemName: "earbuds.case.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.white)
             }
 
             // Name & Battery / Status
@@ -229,31 +223,21 @@ public struct PermanentConnectedDevicesHeaderView: View {
                     .lineLimit(1)
 
                 HStack(spacing: 4) {
-                    if isConn {
-                        Circle()
-                            .fill(LiquidColorTokens.emerald)
-                            .frame(width: 5, height: 5)
-                            .shadow(color: LiquidColorTokens.emerald.opacity(0.6), radius: 2)
+                    Circle()
+                        .fill(isConn ? LiquidColorTokens.emerald : LiquidColorTokens.mutedText)
+                        .frame(width: 5, height: 5)
+                        .shadow(color: isConn ? LiquidColorTokens.emerald.opacity(0.7) : .clear, radius: 2)
 
-                        Text("Connected")
-                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                            .foregroundStyle(LiquidColorTokens.emerald)
+                    Text(isConn ? "Connected" : "Disconnected")
+                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(isConn ? LiquidColorTokens.emerald : LiquidColorTokens.mutedText)
 
-                        if let bat = batteryPct {
-                            Text("· \(bat)%")
-                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(LiquidColorTokens.secondaryText)
+                    if let bat = batteryPct {
+                        Text("· \(bat)%")
+                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(LiquidColorTokens.secondaryText)
 
-                            batteryMiniGauge(percent: bat)
-                        }
-                    } else {
-                        Circle()
-                            .fill(LiquidColorTokens.mutedText)
-                            .frame(width: 5, height: 5)
-
-                        Text("Disconnected")
-                            .font(.system(size: 9.5, weight: .medium, design: .rounded))
-                            .foregroundStyle(LiquidColorTokens.mutedText)
+                        batteryMiniGauge(percent: bat)
                     }
                 }
                 .lineLimit(1)
@@ -281,15 +265,21 @@ public struct PermanentConnectedDevicesHeaderView: View {
     @ViewBuilder
     private func batteryMiniGauge(percent: Int) -> some View {
         let barColor = percent <= 20 ? Color.red : LiquidColorTokens.emerald
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .stroke(barColor.opacity(0.85), lineWidth: 0.9)
-                .frame(width: 14, height: 7)
+        HStack(spacing: 1.5) {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2.2, style: .continuous)
+                    .stroke(barColor.opacity(0.85), lineWidth: 1.0)
+                    .frame(width: 15, height: 8)
 
-            RoundedRectangle(cornerRadius: 1.2, style: .continuous)
-                .fill(barColor)
-                .frame(width: max(2, 10.0 * CGFloat(min(100, max(0, percent))) / 100.0), height: 4)
-                .offset(x: 1.5)
+                RoundedRectangle(cornerRadius: 1.2, style: .continuous)
+                    .fill(barColor)
+                    .frame(width: max(2.5, 11.0 * CGFloat(min(100, max(0, percent))) / 100.0), height: 5)
+                    .offset(x: 1.2)
+            }
+            // Battery terminal cap
+            RoundedRectangle(cornerRadius: 1, style: .continuous)
+                .fill(barColor.opacity(0.85))
+                .frame(width: 1.5, height: 4)
         }
     }
 
