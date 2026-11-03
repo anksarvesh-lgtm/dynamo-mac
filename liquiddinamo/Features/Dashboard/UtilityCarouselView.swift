@@ -24,6 +24,18 @@ public enum CarouselUtility: String, CaseIterable, Identifiable {
     case watcher
 
     public var id: String { rawValue }
+
+    public var route: UtilityRoute {
+        switch self {
+        case .player: return .player
+        case .clipboard: return .clipboard
+        case .dropper: return .dropper
+        case .scopa: return .scopa
+        case .powerload: return .powerload
+        case .phoneBridge: return .phoneBridge
+        case .watcher: return .watcher
+        }
+    }
 }
 
 public struct UtilityCarouselView: View {
