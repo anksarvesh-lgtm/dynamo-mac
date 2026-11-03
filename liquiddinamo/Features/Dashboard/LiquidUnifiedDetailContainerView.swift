@@ -244,10 +244,10 @@ public struct LiquidUnifiedDetailContainerView: View {
                                 .padding(.horizontal, 6)
 
                             // 3 Stat Pills
-                            HStack(spacing: 4) {
-                                statPill(icon: "square.stack.3d.up", text: "\(itemsCount) Items")
-                                statPill(icon: "pin", text: "\(clipboardService.pinnedEntries.count > 0 ? "\(clipboardService.pinnedEntries.count)" : "3") Pinned")
-                                statPill(icon: "arrow.triangle.2.circlepath", text: "Synced")
+                            HStack(spacing: 5) {
+                                statPill(icon: "square.stack.3d.up", text: "\(itemsCount) Items", tint: LiquidColorTokens.secondaryText)
+                                statPill(icon: "pin.fill", text: "\(clipboardService.pinnedEntries.count > 0 ? "\(clipboardService.pinnedEntries.count)" : "3") Pinned", tint: Color.orange)
+                                statPill(icon: "arrow.triangle.2.circlepath", text: "Synced", tint: LiquidColorTokens.emerald)
                             }
                         }
                         .padding(.vertical, 8)
@@ -287,42 +287,78 @@ public struct LiquidUnifiedDetailContainerView: View {
         sampleFeedCard(
             icon: "link",
             title: "https://github.com/anksarvesh-lgtm/dynamo-mac",
-            subtitle: "Copied 2 min ago • Link"
+            subtitle: "Copied 2 min ago • Link",
+            isImageThumb: false
         )
         sampleFeedCard(
             icon: "doc.text",
-            title: "MCP - Antigravity UI Research • Liquid Glass Design • Device Integration",
-            subtitle: "Copied 16 min ago • Text"
+            title: "MCP — Antigravity UI Research • Liquid Glass Design • Device Integration...",
+            subtitle: "Copied 16 min ago • Text",
+            isImageThumb: false
         )
         sampleFeedCard(
             icon: "photo",
             title: "UI_Concept_v3.png",
-            subtitle: "4.2 MB • 28 min ago • Image"
+            subtitle: "4.2 MB • 28 min ago • Image",
+            isImageThumb: true
         )
     }
 
     @ViewBuilder
-    private func sampleFeedCard(icon: String, title: String, subtitle: String) -> some View {
+    private func sampleFeedCard(icon: String, title: String, subtitle: String, isImageThumb: Bool = false) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color.cyan)
-                .frame(width: 20)
+            if isImageThumb {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.orange, Color.pink, Color.blue],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 24, height: 18)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+                        )
+
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                }
+                .frame(width: 24)
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.cyan.opacity(0.15))
+                        .frame(width: 22, height: 22)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .stroke(Color.cyan.opacity(0.35), lineWidth: 0.6)
+                        )
+
+                    Image(systemName: icon)
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundStyle(Color.cyan)
+                }
+                .frame(width: 22)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
                     .foregroundStyle(LiquidColorTokens.primaryText)
                     .lineLimit(1)
 
                 Text(subtitle)
-                    .font(.system(size: 9, design: .rounded))
+                    .font(.system(size: 8.5, design: .rounded))
                     .foregroundStyle(LiquidColorTokens.mutedText)
             }
 
             Spacer()
 
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Image(systemName: "doc.on.doc")
                     .font(.system(size: 10))
                     .foregroundStyle(LiquidColorTokens.secondaryText)
@@ -921,17 +957,17 @@ public struct LiquidUnifiedDetailContainerView: View {
 
     // Stat Pill for Hero Card
     @ViewBuilder
-    private func statPill(icon: String, text: String) -> some View {
+    private func statPill(icon: String, text: String, tint: Color = LiquidColorTokens.secondaryText) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.system(size: 8))
-                .foregroundStyle(LiquidColorTokens.secondaryText)
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(tint)
             Text(text)
                 .font(.system(size: 8, weight: .bold, design: .rounded))
                 .foregroundStyle(LiquidColorTokens.primaryText)
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3.5)
         .background(Capsule().fill(Color.white.opacity(0.08)))
     }
 
