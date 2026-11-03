@@ -342,7 +342,7 @@ struct ContentView: View {
         let geom = vm.geometry
         let notchH = geom.notchHeight
         let yOffset = geom.isNotched ? (notchH + 8) : 0
-        if vm.notchState == .closed && island.state != .expanded && island.activeExpandedAlert == nil {
+        if hub.activeNotification != nil || (island.activeAlert != nil && (island.state == .alertPop || island.state == .compact || island.state == .idle || vm.notchState == .closed)) {
             if let notif = hub.activeNotification {
                 LiveActivityTemplateView(
                     mode: .liquidDropletBloom,
@@ -614,6 +614,10 @@ struct ContentView: View {
                             LiquidHeader()
                                 .frame(height: max(vm.effectiveClosedNotchHeight, vm.geometry.exclusionHeight))
                                 .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
+                        } else {
+                            // Anchor wings flanking physical notch during expansion
+                            CollapsedLiveInfoWingsView()
+                                .islandCompactSwap(id: "wingsView")
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -627,7 +631,8 @@ struct ContentView: View {
                             .islandCompactSwap(id: "wingsView")
                     }
                 } else {
-                    Rectangle().fill(.clear).frame(width: vm.notchExclusionWidth, height: vm.effectiveClosedNotchHeight)
+                    CollapsedLiveInfoWingsView()
+                        .islandCompactSwap(id: "wingsView")
                 }
 
                        if coordinator.sneakPeek.show {
