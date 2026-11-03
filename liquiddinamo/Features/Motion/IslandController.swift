@@ -147,7 +147,9 @@ public final class IslandController: ObservableObject {
                 withAnimation(IslandMotion.shared.expandSpring) {
                     targetSize = newTarget
                 }
-                AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: newTarget, animated: false)
+                DispatchQueue.main.async {
+                    AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: newTarget, animated: true)
+                }
             } else {
                 lastReportedMeasuredHeight = minimumHeight(for: activeOrganicItem)
             }
@@ -688,26 +690,13 @@ public final class IslandController: ObservableObject {
             } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
                 return CGSize(width: 580, height: min(max(480, geom.notchHeight + 450), screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .home {
-                let homeWidth = max(openNotchSize.width, 740)
+                let homeWidth = max(openNotchSize.width, 660)
                 switch activeOrganicItem {
                 case .none:
-                    return CGSize(width: homeWidth, height: min(max(180, geom.notchHeight + 155), screenMaxH))
-                case .clipboard:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 310), screenMaxH))
-                case .dropper:
-                    return CGSize(width: homeWidth, height: min(max(300, geom.notchHeight + 270), screenMaxH))
-                case .device:
-                    return CGSize(width: homeWidth, height: min(max(320, geom.notchHeight + 280), screenMaxH))
-                case .storageCleaner:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 300), screenMaxH))
-                case .colorDropper:
-                    return CGSize(width: homeWidth, height: min(max(300, geom.notchHeight + 270), screenMaxH))
-                case .plexo, .powerload:
-                    return CGSize(width: homeWidth, height: min(max(360, geom.notchHeight + 320), screenMaxH))
-                case .phoneBridge:
-                    return CGSize(width: homeWidth, height: min(max(360, geom.notchHeight + 320), screenMaxH))
-                case .watcher:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 300), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(140, geom.notchHeight + 105), screenMaxH))
+                case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher:
+                    // Compact expansion: roughly double the resting island height
+                    return CGSize(width: homeWidth, height: min(max(220, geom.notchHeight + 185), screenMaxH))
                 }
             }
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
@@ -739,23 +728,9 @@ public final class IslandController: ObservableObject {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
         switch item {
         case .none:
-            return max(180, geom.notchHeight + 155)
-        case .clipboard:
-            return max(340, geom.notchHeight + 310)
-        case .dropper:
-            return max(300, geom.notchHeight + 270)
-        case .device:
-            return max(320, geom.notchHeight + 280)
-        case .storageCleaner:
-            return max(340, geom.notchHeight + 300)
-        case .colorDropper:
-            return max(300, geom.notchHeight + 270)
-        case .plexo, .powerload:
-            return max(360, geom.notchHeight + 320)
-        case .phoneBridge:
-            return max(360, geom.notchHeight + 320)
-        case .watcher:
-            return max(340, geom.notchHeight + 300)
+            return max(140, geom.notchHeight + 105)
+        case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher:
+            return max(220, geom.notchHeight + 185)
         }
     }
 

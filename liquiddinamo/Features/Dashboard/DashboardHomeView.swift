@@ -16,5 +16,6 @@ struct DashboardHomeView: View {
 
     var body: some View {
         LiquidUnifiedSurfaceView()
+            .environmentObject(vm)
     }
 }

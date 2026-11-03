@@ -294,9 +294,9 @@ public struct LiquidUnifiedDetailContainerView: View {
                 .frame(width: 120)
 
                 // Column 2: Center Item Feed
-                VStack(spacing: 6) {
+                VStack(spacing: 5) {
                     ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 5) {
+                        VStack(spacing: 4) {
                             // Display filtered items or sample demonstration entries if empty
                             if filteredClipboardItems.isEmpty {
                                 defaultClipboardItemsDemo
@@ -307,24 +307,24 @@ public struct LiquidUnifiedDetailContainerView: View {
                             }
                         }
                     }
-                    .frame(maxHeight: 180)
+                    .frame(maxHeight: 110)
                 }
                 .frame(maxWidth: .infinity)
 
                 // Column 3: Right Preview Hero Card
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .fill(LiquidColorTokens.secondaryGlass.opacity(0.65))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
                             )
 
-                        VStack(spacing: 6) {
+                        VStack(spacing: 4) {
                             // 3D Glass Clipboard Icon
                             ZStack {
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .fill(
                                         LinearGradient(
                                             colors: [Color.cyan.opacity(0.35), Color.blue.opacity(0.15)],
@@ -332,41 +332,41 @@ public struct LiquidUnifiedDetailContainerView: View {
                                             endPoint: .bottomTrailing
                                         )
                                     )
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: 34, height: 34)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
                                             .stroke(Color.white.opacity(0.30), lineWidth: 1.0)
                                     )
-                                    .shadow(color: Color.cyan.opacity(0.3), radius: 6)
+                                    .shadow(color: Color.cyan.opacity(0.3), radius: 5)
 
                                 Image(systemName: "doc.on.clipboard.fill")
-                                    .font(.system(size: 22))
+                                    .font(.system(size: 16))
                                     .foregroundStyle(Color.white)
                             }
 
                             Text("Clipboard")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(LiquidColorTokens.primaryText)
 
-                            Text("Capture, manage and reuse your copied content across apps.")
-                                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                            Text("Capture, manage and reuse copied content.")
+                                .font(.system(size: 8.5, weight: .medium, design: .rounded))
                                 .foregroundStyle(LiquidColorTokens.secondaryText)
                                 .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .padding(.horizontal, 6)
+                                .lineLimit(1)
+                                .padding(.horizontal, 4)
 
                             // 3 Stat Pills
-                            HStack(spacing: 5) {
-                                statPill(icon: "square.stack.3d.up", text: "\(itemsCount) Items", tint: LiquidColorTokens.secondaryText)
-                                statPill(icon: "pin.fill", text: "\(clipboardService.pinnedEntries.count > 0 ? "\(clipboardService.pinnedEntries.count)" : "3") Pinned", tint: Color.orange)
+                            HStack(spacing: 3) {
+                                statPill(icon: "square.stack.3d.up", text: "\(itemsCount)")
+                                statPill(icon: "pin.fill", text: "\(clipboardService.pinnedEntries.count > 0 ? "\(clipboardService.pinnedEntries.count)" : "3")", tint: Color.orange)
                                 statPill(icon: "arrow.triangle.2.circlepath", text: "Synced", tint: LiquidColorTokens.emerald)
                             }
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 6)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 4)
                     }
                 }
-                .frame(width: 190)
+                .frame(width: 160)
             }
 
             // Bottom Pagination Dots
@@ -622,37 +622,37 @@ public struct LiquidUnifiedDetailContainerView: View {
                                 .font(.system(size: 10, design: .rounded))
                                 .foregroundStyle(LiquidColorTokens.mutedText)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: 140)
+                        .frame(maxWidth: .infinity, maxHeight: 110)
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(shelfState.items) { item in
                                     ShelfItemView(item: item)
-                                        .frame(width: 90)
+                                        .frame(width: 80)
                                 }
                             }
                         }
-                        .frame(height: 140)
+                        .frame(height: 110)
                     }
                 }
                 .frame(maxWidth: .infinity)
 
                 // Color Swatch & Metrics Card
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     let swatchColor = colorDropper.currentColor?.swiftUIColor ?? Color.orange
                     ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(swatchColor.opacity(0.25))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(swatchColor, lineWidth: 1.2))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(swatchColor, lineWidth: 1.2))
 
-                        VStack(spacing: 4) {
+                        VStack(spacing: 3) {
                             Circle()
                                 .fill(swatchColor)
-                                .frame(width: 32, height: 32)
+                                .frame(width: 28, height: 28)
                                 .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 1.0))
 
                             Text(colorDropper.currentColor?.hex ?? "#00D982")
-                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
                                 .foregroundStyle(LiquidColorTokens.primaryText)
 
                             Button("Copy HEX") {
@@ -661,16 +661,16 @@ public struct LiquidUnifiedDetailContainerView: View {
                                     NSPasteboard.general.setString(hex, forType: .string)
                                 }
                             }
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8.5, weight: .bold))
                             .buttonStyle(.plain)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
                             .background(Color.white.opacity(0.12))
                             .clipShape(Capsule())
                         }
-                        .padding(8)
+                        .padding(6)
                     }
-                    .frame(width: 140, height: 140)
+                    .frame(width: 120, height: 110)
                 }
             }
 
@@ -730,7 +730,7 @@ public struct LiquidUnifiedDetailContainerView: View {
 
             // Scopa Storage Cleaner View Integration
             NotchStorageCleanerView()
-                .frame(maxHeight: 180)
+                .frame(maxHeight: 120)
 
             paginationDots
         }
@@ -742,7 +742,7 @@ public struct LiquidUnifiedDetailContainerView: View {
 
     @ViewBuilder
     private var powerloadDetailView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             HStack(spacing: 10) {
                 backButton
 
@@ -772,7 +772,7 @@ public struct LiquidUnifiedDetailContainerView: View {
             }
 
             PowerloadView()
-                .frame(maxHeight: 220)
+                .frame(maxHeight: 120)
 
             paginationDots
         }
@@ -784,7 +784,7 @@ public struct LiquidUnifiedDetailContainerView: View {
 
     @ViewBuilder
     private var phoneBridgeDetailView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             HStack(spacing: 10) {
                 backButton
 
@@ -827,7 +827,7 @@ public struct LiquidUnifiedDetailContainerView: View {
             }
 
             PhoneBridgeView()
-                .frame(maxHeight: 220)
+                .frame(maxHeight: 120)
 
             paginationDots
         }
@@ -839,7 +839,7 @@ public struct LiquidUnifiedDetailContainerView: View {
 
     @ViewBuilder
     private var watcherDetailView: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             HStack(spacing: 10) {
                 backButton
 
@@ -869,7 +869,7 @@ public struct LiquidUnifiedDetailContainerView: View {
             }
 
             WatcherDetailCard()
-                .frame(maxHeight: 200)
+                .frame(maxHeight: 120)
 
             paginationDots
         }

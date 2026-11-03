@@ -15,6 +15,7 @@ import Combine
 import SwiftUI
 
 public struct LiquidUnifiedSurfaceView: View {
+    @EnvironmentObject var vm: LiquidViewModel
     @ObservedObject var island = IslandController.shared
     @ObservedObject var motion = IslandMotion.shared
     @ObservedObject var safeArea = NotchSafeAreaEngine.shared
@@ -96,6 +97,7 @@ public struct LiquidUnifiedSurfaceView: View {
                             }
                         }
                     )
+                    .environmentObject(vm)
                     .frame(maxWidth: .infinity)
                     .transition(
                         .asymmetric(
@@ -145,8 +147,9 @@ public struct LiquidUnifiedSurfaceView: View {
     private func toggleExpansion(_ mode: ExpandedMode) {
         island.cancelHoverCollapse()
         island.isPinnedOpen = true
-        LiquidViewModel.shared.open(pinned: true)
-        AppDelegate.shared?.vm.open(pinned: true)
+        if vm.notchState != .open {
+            vm.open(pinned: true)
+        }
 
         withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
             if expandedMode == mode {
