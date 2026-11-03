@@ -74,16 +74,16 @@ public struct LiquidGlassCardModifier: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(glassBordersAndLighting)
             .shadow(
-                color: Color.black.opacity(isHovered ? 0.38 : 0.22),
-                radius: isHovered ? 16 : 10,
+                color: Color.black.opacity(isHovered ? 0.22 : 0.15),
+                radius: 15.73,
                 x: 0,
-                y: isHovered ? 8 : 4
+                y: isHovered ? 10 : 6
             )
             .shadow(
                 color: Color.black.opacity(0.12),
-                radius: 2,
+                radius: 4,
                 x: 0,
-                y: 1
+                y: 2
             )
             .scaleEffect(interactive && isHovered && !reduceMotion ? 1.012 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isHovered)
@@ -206,20 +206,20 @@ public struct LiquidGlassCardModifier: ViewModifier {
                     .padding(0.5)
             )
             .overlay(
-                // Chromatic dispersion rim (prismatic light splitting along beveled glass boundary)
+                // Chromatic dispersion rim (prismatic light splitting along beveled glass boundary - calibrated 50% dispersion)
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
                             stops: [
-                                .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.30), location: 0.00),
-                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.20), location: 0.28),
-                                .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.22), location: 0.62),
-                                .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.32), location: 1.00)
+                                .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.45), location: 0.00),
+                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.32), location: 0.28),
+                                .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.35), location: 0.62),
+                                .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.48), location: 1.00)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 0.8
+                        lineWidth: 0.85
                     )
                     .blendMode(.plusLighter)
             )
@@ -311,22 +311,27 @@ public struct LiquidGlassCapsuleModifier: ViewModifier {
                     )
             )
             .overlay(
-                // Chromatic dispersion rim (prismatic light splitting along beveled glass boundary)
+                // Chromatic dispersion rim (prismatic light splitting along beveled glass boundary - calibrated 50% dispersion)
                 Capsule()
                     .strokeBorder(
                         LinearGradient(
                             stops: [
-                                .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.30), location: 0.00),
-                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.20), location: 0.28),
-                                .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.22), location: 0.62),
-                                .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.32), location: 1.00)
+                                .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.45), location: 0.00),
+                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.32), location: 0.28),
+                                .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.35), location: 0.62),
+                                .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.48), location: 1.00)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 0.75
+                        lineWidth: 0.80
                     )
                     .blendMode(.plusLighter)
+            )
+            .shadow(
+                color: Color.black.opacity(0.15),
+                radius: 15.73,
+                y: isHovered ? 6 : 3
             )
             .shadow(
                 color: Color.black.opacity(isHovered ? 0.25 : 0.12),

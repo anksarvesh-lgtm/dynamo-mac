@@ -235,25 +235,26 @@ public struct LiquidGlassWaterCapsuleBackground: View {
                     lineWidth: isSelected ? 1.2 : 0.8
                 )
 
-            // 6. Chromatic Dispersion Rim (Wavelength-dependent Prismatic Edge)
+            // 6. Chromatic Dispersion Rim (Wavelength-dependent Prismatic Edge - calibrated 50% dispersion)
             Capsule()
                 .strokeBorder(
                     LinearGradient(
                         stops: [
-                            .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.32), location: 0.00),
-                            .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.22), location: 0.30),
-                            .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.25), location: 0.65),
-                            .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.35), location: 1.00)
+                            .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.48), location: 0.00),
+                            .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.35), location: 0.30),
+                            .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.38), location: 0.65),
+                            .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.50), location: 1.00)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 0.75
+                    lineWidth: 0.80
                 )
                 .blendMode(.plusLighter)
         }
         .clipShape(Capsule())
-        .shadow(color: Color.black.opacity(0.40), radius: 3, y: 1.5)
+        .shadow(color: Color.black.opacity(0.15), radius: 15.73, y: 6)
+        .shadow(color: Color.black.opacity(0.35), radius: 4, y: 1.5)
     }
 }
 
