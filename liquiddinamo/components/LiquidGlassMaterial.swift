@@ -195,3 +195,4 @@ public struct LiquidGlassCard<Content: View>: View {
             .liquidGlass(preset: preset, cornerRadius: cornerRadius, isInteractive: isInteractive)
     }
 }
+
