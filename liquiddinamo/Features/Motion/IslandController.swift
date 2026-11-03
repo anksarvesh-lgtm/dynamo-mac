@@ -691,23 +691,23 @@ public final class IslandController: ObservableObject {
                 let homeWidth = max(openNotchSize.width, 740)
                 switch activeOrganicItem {
                 case .none:
-                    return CGSize(width: homeWidth, height: min(max(200, geom.notchHeight + 175), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(180, geom.notchHeight + 155), screenMaxH))
                 case .clipboard:
-                    return CGSize(width: homeWidth, height: min(max(440, geom.notchHeight + 430), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 310), screenMaxH))
                 case .dropper:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 320), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(300, geom.notchHeight + 270), screenMaxH))
                 case .device:
-                    return CGSize(width: homeWidth, height: min(max(420, geom.notchHeight + 390), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(320, geom.notchHeight + 280), screenMaxH))
                 case .storageCleaner:
-                    return CGSize(width: homeWidth, height: min(max(460, geom.notchHeight + 430), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 300), screenMaxH))
                 case .colorDropper:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 320), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(300, geom.notchHeight + 270), screenMaxH))
                 case .plexo, .powerload:
-                    return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(360, geom.notchHeight + 320), screenMaxH))
                 case .phoneBridge:
-                    return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(360, geom.notchHeight + 320), screenMaxH))
                 case .watcher:
-                    return CGSize(width: homeWidth, height: min(max(440, geom.notchHeight + 410), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 300), screenMaxH))
                 }
             }
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
@@ -739,23 +739,23 @@ public final class IslandController: ObservableObject {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
         switch item {
         case .none:
-            return max(200, geom.notchHeight + 175)
+            return max(180, geom.notchHeight + 155)
         case .clipboard:
-            return max(440, geom.notchHeight + 430)
+            return max(340, geom.notchHeight + 310)
         case .dropper:
-            return max(340, geom.notchHeight + 320)
+            return max(300, geom.notchHeight + 270)
         case .device:
-            return max(420, geom.notchHeight + 390)
+            return max(320, geom.notchHeight + 280)
         case .storageCleaner:
-            return max(460, geom.notchHeight + 430)
+            return max(340, geom.notchHeight + 300)
         case .colorDropper:
-            return max(340, geom.notchHeight + 320)
+            return max(300, geom.notchHeight + 270)
         case .plexo, .powerload:
-            return max(480, geom.notchHeight + 450)
+            return max(360, geom.notchHeight + 320)
         case .phoneBridge:
-            return max(480, geom.notchHeight + 450)
+            return max(360, geom.notchHeight + 320)
         case .watcher:
-            return max(440, geom.notchHeight + 410)
+            return max(340, geom.notchHeight + 300)
         }
     }
 
