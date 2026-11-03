@@ -2,6 +2,16 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.0] — 2026-11-03
+
+### 1:1 Pixel-Perfect Apple Liquid Glass Implementation
+- **Exact Reference Layout & Optical Materials**:
+  - Unified persistent dark smoked charcoal liquid vessel (`#17191C`) with directional $-45^\circ$ specular sheen and razor specular rim (`#DDE8F0`, `#123B36`, `#C69B70`).
+  - **Permanent Connected Devices Header**: Fixed at top across all views. MagSafe 3 Charger with circular glowing emerald ring and live wattage telemetry; realme Buds Wireless / Bluetooth audio with earbuds case glyph and precision battery terminal gauge.
+  - **3-Slide Horizontal Utility Carousel**: Slide 1 (Productivity cyan illuminated capsule enclosing Clipboard & Dropper), Slide 2 (System Tools emerald illuminated capsule enclosing Scopa, Powerload, Phone Bridge), and Slide 3 (Watcher violet illuminated capsule). Flanked by organic wing chevrons and interactive glass pagination dots.
+  - **In-Place 3-Column Detail Expansion**: Adaptive expansion inside the single liquid vessel without popups. Rich Clipboard manager with category rail counts, live card feed with action buttons, landscape thumbnail preview, and 3D glass hero card with stat pills.
+  - **Bidirectional Dynamic Island IPC**: Unix socket integration (`/tmp/liquid_watcher.sock`) with Agent Guard for real-time task lifecycle tracking and lease status.
+
 ## [2.2.9] — 2026-11-03
 
 ### Apple Liquid Glass Production UI & Bidirectional Agent Guard Island IPC

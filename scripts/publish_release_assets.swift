@@ -38,23 +38,26 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.2.9
-- **Final Apple Liquid Glass UI**: Unified persistent liquid glass surface with permanent connected-device header (MagSafe 3 & Bluetooth audio), 3-slide utility carousel (Productivity, System Tools, Monitoring), and fluid in-place 3-column detail expansion for Clipboard, Dropper, Scopa, Powerload, Phone Bridge, and Watcher.
-- **Dynamic Island ⇋ Antigravity & Agent Guard IPC**: Full bidirectional Unix socket bridge with live multi-step task tracking, step progress counter (e.g. 3/6) in collapsed notch wing, context token budget gauges, sleep prevention lease badges, and instant alert drop expansions.
-- **Optical Glass Materials & Calibrated Shaders**: Hyper-squircle G2 continuity (n=5.0), 91.92° directional glare convergence, and 50% wavelength-dependent chromatic dispersion.
+### Release Highlights — LiquidDynamo 2.3.0
+- **1:1 Pixel-Perfect Apple Liquid Glass Implementation**:
+  - Unified persistent dark smoked charcoal liquid vessel (#17191C) with directional -45° specular sheen and razor specular rim (#DDE8F0, #123B36, #C69B70).
+  - Permanent Connected Devices Header: MagSafe 3 Charger with circular emerald glowing badge, real-time wattage telemetry, and realme Buds Wireless with white earbuds case glyph and precision battery terminal gauge.
+  - 3-Slide Horizontal Utility Carousel: Slide 1 (Productivity cyan illuminated capsule), Slide 2 (System Tools emerald illuminated capsule), and Slide 3 (Watcher violet illuminated capsule) flanked by organic wing chevrons.
+  - In-Place 3-Column Detail Expansion: Rich Clipboard manager with category rail counts, live card feed with actions, landscape thumbnail preview, and 3D glass hero card with stat pills.
+  - Dynamic Island IPC socket integration with Agent Guard.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.2.9",
-        name: "LiquidDynamo 2.2.9 — Apple Liquid Glass UI & Agent Guard Island IPC",
+        tag: "v2.3.0",
+        name: "LiquidDynamo 2.3.0 — Apple Liquid Glass UI (1:1 Reference Match)",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.9 (build 40)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.0 (build 41)",
         makeLatest: false
     )
 ]
@@ -64,7 +67,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.2.9.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.9.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.3.0.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.0.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),
