@@ -310,7 +310,7 @@ public struct UtilityCarouselView: View {
     @ViewBuilder
     private func powerloadCard(isActive: Bool) -> some View {
         let active = powerloadEngine.activeTasks.filter { $0.state == .downloading }.count
-        let queued = powerloadEngine.activeTasks.filter { $0.state == .pending || $0.state == .queued }.count
+        let queued = powerloadEngine.activeTasks.filter { $0.state == .queued }.count
         let subtitle = "\(active) Active · \(queued > 0 ? "\(queued) Queued" : "3 Queued")"
 
         utilityButton(
@@ -347,7 +347,7 @@ public struct UtilityCarouselView: View {
 
     @ViewBuilder
     private func watcherCard(isActive: Bool) -> some View {
-        let cpu = Int(HardwareSensorMonitor.shared.cachedCpuUsage)
+        let cpu = Int(SystemStatsService.shared.overallCPU)
         let cpuVal = cpu > 0 ? cpu : 18
         let subtitle = "System Monitor · CPU \(cpuVal)%"
 
@@ -522,3 +522,4 @@ public struct UtilityCarouselView: View {
         }
     }
 }
+

@@ -13,6 +13,17 @@ import AppKit
 import Combine
 import SwiftUI
 
+public enum ExpandedMode: Equatable {
+    case none
+    case clipboard
+    case dropper
+    case scopa
+    case powerload
+    case phoneBridge
+    case watcher
+    case device(String)
+}
+
 public struct LiquidUnifiedDetailContainerView: View {
     public let mode: ExpandedMode
     public var onDismiss: () -> Void
@@ -431,7 +442,7 @@ public struct LiquidUnifiedDetailContainerView: View {
                 Spacer()
 
                 Button {
-                    colorDropper.pickColor()
+                    colorDropper.sampleColor()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "eyedropper")
@@ -554,7 +565,7 @@ public struct LiquidUnifiedDetailContainerView: View {
                 Spacer()
 
                 Button {
-                    cleaner.scan()
+                    cleaner.scanAgain()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
@@ -935,3 +946,4 @@ public struct LiquidUnifiedDetailContainerView: View {
         .padding(.top, 2)
     }
 }
+
