@@ -38,26 +38,34 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.3.0
-- **1:1 Pixel-Perfect Apple Liquid Glass Implementation**:
-  - Unified persistent dark smoked charcoal liquid vessel (#17191C) with directional -45° specular sheen and razor specular rim (#DDE8F0, #123B36, #C69B70).
-  - Permanent Connected Devices Header: MagSafe 3 Charger with circular emerald glowing badge, real-time wattage telemetry, and realme Buds Wireless with white earbuds case glyph and precision battery terminal gauge.
-  - 3-Slide Horizontal Utility Carousel: Slide 1 (Productivity cyan illuminated capsule), Slide 2 (System Tools emerald illuminated capsule), and Slide 3 (Watcher violet illuminated capsule) flanked by organic wing chevrons.
-  - In-Place 3-Column Detail Expansion: Rich Clipboard manager with category rail counts, live card feed with actions, landscape thumbnail preview, and 3D glass hero card with stat pills.
-  - Dynamic Island IPC socket integration with Agent Guard.
+### Release Highlights — LiquidDynamo 2.3.1
+- **Isolated Slide-Specific Elements**:
+  - Carousel displays strictly only the elements of each slide: Slide 1 (Productivity: Clipboard & Dropper), Slide 2 (System Tools: Scopa, Powerload, Phone Bridge), Slide 3 (Watcher: System Monitor & Gauges).
+- **Dynamic Media Player First Slide**:
+  - Automatically shifts to Slide 0 dedicated to Now Playing media player with track details and playback controls whenever media is actively playing.
+- **Strictly Real Connected Device Telemetry**:
+  - Displays actual hardware information only: real adapter wattage and charger status via IOKit (MacBook battery state when unplugged) and strictly verified active Bluetooth audio peripherals.
+- **Anchored Wings During Liquid Expansion**:
+  - Flanking wings remain securely anchored at their physical notch positions during island expansion, giving a seamless morphing effect as the surface extends downward and retracts.
+- **Compact Island Expansion & Zero Detail Crashes**:
+  - Detail mode expansion height calibrated to double the resting height (~210-230pt) for comfortable ergonomics without screen encroachment.
+  - Eliminated crashes when opening utility details via complete environment object propagation.
+- **Preserved 2.2.8 Dynamic Island Alerts & Zero Git Errors**:
+  - Dynamic Island 2.2.8 alerts and notifications pop smoothly without suppression.
+  - Zero git error safety protocols enforced for all operations.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.3.0",
-        name: "LiquidDynamo 2.3.0 — Apple Liquid Glass UI (1:1 Reference Match)",
+        tag: "v2.3.1",
+        name: "LiquidDynamo 2.3.1 — Fluid Carousel, Media Player First-Slide & Anchored Wings",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.0 (build 41)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.1 (build 42)",
         makeLatest: false
     )
 ]
@@ -67,7 +75,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.3.0.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.0.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.3.1.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.1.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

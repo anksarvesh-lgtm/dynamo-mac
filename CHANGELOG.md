@@ -2,6 +2,27 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.1] — 2026-11-03
+
+### Adaptive Carousel, Media Player First-Slide, Anchored Wings & Compact Detail Expansion
+- **Isolated Slide-Specific Elements**:
+  - Carousel now strictly displays only the elements belonging to each respective slide.
+  - Slide 1: Productivity (Clipboard & Dropper).
+  - Slide 2: System Tools (Scopa, Powerload, Phone Bridge).
+  - Slide 3: Watcher (Live system monitor with gauges).
+- **Dynamic Media Player First Slide**:
+  - Automatically shifts to Slide 0 dedicated to Now Playing media with album art, track details, and playback controls whenever media is actively playing; standard utility slides seamlessly follow.
+- **Strictly Real Connected Device Telemetry**:
+  - Eliminated dummy fallback data: displays actual charger wattage and adapter names via IOKit (or MacBook battery state when unplugged), and strictly verified active Bluetooth audio peripherals.
+- **Anchored Wings During Liquid Expansion**:
+  - Flanking wings remain securely anchored at their physical notch positions during island expansion, giving a seamless morphing effect as the surface extends downward and retracts.
+- **Compact Island Expansion & Zero Detail Crashes**:
+  - Detail mode expansion height is calibrated to roughly double the resting island height (~210-230pt) for comfortable ergonomics without screen encroachment.
+  - Resolved environment object propagation across subviews to eliminate detail click crashes.
+- **Preserved 2.2.8 Dynamic Island Alerts & Zero Git Errors**:
+  - Ensured all 2.2.8 system alerts (volume, brightness, battery, etc.) and notifications pop smoothly without suppression.
+  - Integrated global and workspace zero-git-error safety enforcement.
+
 ## [2.3.0] — 2026-11-03
 
 ### 1:1 Pixel-Perfect Apple Liquid Glass Implementation
