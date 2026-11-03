@@ -1352,6 +1352,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func adjustWindowPosition(changeAlpha: Bool = false) {
         Defaults[.showOnAllDisplays] = true
         Defaults[.wingsBuiltInDisplayOnly] = false
+        ScreenAnchorProvider.shared.recalculateAnchors()
 
         let currentScreens = NSScreen.screens
         NSLog("🏝️ [adjustWindowPosition] Starting with \(currentScreens.count) screens: \(currentScreens.map { $0.localizedName })")

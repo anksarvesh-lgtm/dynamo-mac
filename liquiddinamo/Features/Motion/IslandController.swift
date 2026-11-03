@@ -895,25 +895,24 @@ public final class IslandController: ObservableObject {
 
     public func containsPointInVisibleShape(_ point: NSPoint, inWindow window: NSWindow) -> Bool {
         let screenPoint = window.convertPoint(toScreen: point)
+        guard let screen = window.screen ?? NSScreen.screens.first(where: { $0.frame.contains(screenPoint) }) ?? NSScreen.main else {
+            return false
+        }
+        let hitRects = NotchSafeAreaEngine.shared.collapsedWingHitRects(for: screen)
+        let inLeft = (Defaults[.leftWingMetric] != .none) && hitRects.leftWingRect.contains(screenPoint)
+        let inRight = (Defaults[.rightWingMetric] != .none) && hitRects.rightWingRect.contains(screenPoint)
+
         if state == .expanded || LiquidViewModel.shared.notchState == .open || state == .alertPop {
-            let targetRect = AppDelegate.shared?.targetFrame(for: window) ?? window.frame
-            let unionFrame = window.frame.union(targetRect)
-            return isMouseInHoverRegion(screenPoint) || unionFrame.contains(screenPoint)
+            let activeSize = targetSize.width > 0 ? targetSize : calculateDimensions(for: state)
+            let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
+            let centerX = screen.frame.minX + (screen.frame.width / 2.0)
+            let islandX = centerX - (activeSize.width / 2.0)
+            let islandY = screen.frame.maxY - activeSize.height
+            let visibleIslandRect = CGRect(x: islandX, y: islandY, width: activeSize.width, height: activeSize.height)
+
+            return visibleIslandRect.contains(screenPoint) || inLeft || inRight || isMouseInHoverRegion(screenPoint)
         } else {
-            // STEP C (Preferred approach):
-            // In collapsed states (.idle, .compact, .minimal), window.ignoresMouseEvents is kept false
-            // so SwiftUI .onHover and .onTapGesture can work natively. To prevent the wide window frame
-            // from stealing clicks or hover from underlying apps, menu bar items, and desktop windows,
-            // we restrict hit-testing strictly to the visible hardware notch rect and the active left/right
-            // wing drop rects. Any coordinate outside these tight bounds returns false (hitTest returns nil),
-            // allowing mouse events to pass cleanly straight through to whatever is underneath.
-            guard let screen = window.screen ?? NSScreen.screens.first(where: { $0.frame.contains(screenPoint) }) ?? NSScreen.main else {
-                return false
-            }
-            let hitRects = NotchSafeAreaEngine.shared.collapsedWingHitRects(for: screen)
             let inNotch = hitRects.notchRect.contains(screenPoint)
-            let inLeft = (Defaults[.leftWingMetric] != .none) && hitRects.leftWingRect.contains(screenPoint)
-            let inRight = (Defaults[.rightWingMetric] != .none) && hitRects.rightWingRect.contains(screenPoint)
             return inNotch || inLeft || inRight
         }
     }

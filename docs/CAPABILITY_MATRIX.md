@@ -29,3 +29,4 @@ This matrix defines the technical categorization and API boundary for all featur
 ## 2. Capability Registry Verification
 Implemented programmatically in [`liquiddinamo/Features/Common/CapabilityRegistry.swift`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/liquiddinamo/Features/Common/CapabilityRegistry.swift).
 Any feature not supported or lacking user authorization presents an informative, styled empty/unavailable state rather than crashing or displaying fabricated mock data.
+
