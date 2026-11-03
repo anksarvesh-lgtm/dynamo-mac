@@ -368,14 +368,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.black.opacity(0.60))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
-                    )
-            )
+            .liquidGlass(preset: .obsidianDark, cornerRadius: 20)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Connected devices")
         }
@@ -1024,14 +1017,10 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: 360)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.65))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.18), lineWidth: 0.75))
-        )
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 16)
     }
 
     // MARK: - Charger Info Row
@@ -1443,12 +1432,8 @@ typealias WrappingFlowLayout = CenteredFlowLayout
                 .frame(maxHeight: 220)
             }
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.65))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.18), lineWidth: 0.75))
-        )
+        .padding(12)
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 16)
     }
 
     @ViewBuilder
@@ -1796,21 +1781,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             .padding(.top, 2)
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.70))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.mint.opacity(0.40), Color.white.opacity(0.12)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.75
-                        )
-                )
-        )
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 16)
     }
 
     // MARK: - Category Dropdown Row
@@ -2063,14 +2034,7 @@ typealias WrappingFlowLayout = CenteredFlowLayout
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.70))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 0.75)
-                )
-        )
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 16)
     }
 
     @ViewBuilder

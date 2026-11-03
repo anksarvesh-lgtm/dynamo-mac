@@ -142,6 +142,7 @@ struct ShelfView: View {
             .padding(.bottom, 6)
         }
         .frame(width: 410, height: 105)
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 18)
         .contentShape(Rectangle())
         .onTapGesture { selection.clear() }
         .onAppear {

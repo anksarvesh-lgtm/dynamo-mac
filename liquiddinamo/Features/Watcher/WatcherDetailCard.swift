@@ -49,13 +49,9 @@ public struct WatcherDetailCard: View {
                 permissionView(session: session, details: details)
             }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: 360)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.65))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.18), lineWidth: 0.75))
-        )
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 16)
     }
 
     @ViewBuilder
@@ -212,13 +208,9 @@ public struct WatcherDetailCard: View {
             .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: 360)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.55))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 0.75))
-        )
+        .liquidGlass(preset: .studioLiquid, cornerRadius: 16)
     }
 }

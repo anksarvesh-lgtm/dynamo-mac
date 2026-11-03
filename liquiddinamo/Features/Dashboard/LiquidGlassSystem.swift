@@ -140,16 +140,16 @@ public struct LiquidGlassCardModifier: ViewModifier {
                 )
             }
 
-            // Internal light simulation / top specular sheen
+            // Directional specular glare sheen (Liquid Glass Studio -45° illumination)
             if !isReduceTransparency {
                 LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.08),
-                        Color.white.opacity(0.02),
-                        Color.clear
+                    stops: [
+                        .init(color: Color.white.opacity(0.16), location: 0.0),
+                        .init(color: Color.white.opacity(0.04), location: 0.35),
+                        .init(color: Color.clear, location: 0.70)
                     ],
-                    startPoint: .top,
-                    endPoint: .center
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
             }
 
@@ -204,6 +204,24 @@ public struct LiquidGlassCardModifier: ViewModifier {
                         lineWidth: 0.5
                     )
                     .padding(0.5)
+            )
+            .overlay(
+                // Chromatic dispersion rim (prismatic light splitting along beveled glass boundary)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.30), location: 0.00),
+                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.20), location: 0.28),
+                                .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.22), location: 0.62),
+                                .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.32), location: 1.00)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+                    .blendMode(.plusLighter)
             )
     }
 }
@@ -291,6 +309,24 @@ public struct LiquidGlassCapsuleModifier: ViewModifier {
                         ),
                         lineWidth: 0.8
                     )
+            )
+            .overlay(
+                // Chromatic dispersion rim (prismatic light splitting along beveled glass boundary)
+                Capsule()
+                    .strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.30), location: 0.00),
+                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.20), location: 0.28),
+                                .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.22), location: 0.62),
+                                .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.32), location: 1.00)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.75
+                    )
+                    .blendMode(.plusLighter)
             )
             .shadow(
                 color: Color.black.opacity(isHovered ? 0.25 : 0.12),

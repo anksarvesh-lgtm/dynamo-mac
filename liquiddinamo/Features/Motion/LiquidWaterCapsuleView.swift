@@ -203,15 +203,15 @@ public struct LiquidGlassWaterCapsuleBackground: View {
                 phaseOffset: phaseOffset
             )
 
-            // 3. Subtle upper-edge 3D curved glass gloss sheen (curved horizon reflection above water line)
+            // 3. Directional Glare Sheen (Liquid Glass Studio -45° illumination)
             LinearGradient(
                 stops: [
-                    .init(color: Color.white.opacity(0.18), location: 0.0),
-                    .init(color: Color.white.opacity(0.06), location: 0.35),
+                    .init(color: Color.white.opacity(0.24), location: 0.0),
+                    .init(color: Color.white.opacity(0.08), location: 0.35),
                     .init(color: Color.clear, location: 0.70)
                 ],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
 
             // 4. Selection or accent glow
@@ -225,8 +225,8 @@ public struct LiquidGlassWaterCapsuleBackground: View {
                 .strokeBorder(
                     LinearGradient(
                         colors: [
-                            isSelected ? accentColor.opacity(0.95) : Color.white.opacity(0.40),
-                            isSelected ? accentColor.opacity(0.40) : Color.white.opacity(0.15),
+                            isSelected ? accentColor.opacity(0.95) : Color.white.opacity(0.42),
+                            isSelected ? accentColor.opacity(0.40) : Color.white.opacity(0.16),
                             Color.white.opacity(0.05)
                         ],
                         startPoint: .top,
@@ -234,6 +234,23 @@ public struct LiquidGlassWaterCapsuleBackground: View {
                     ),
                     lineWidth: isSelected ? 1.2 : 0.8
                 )
+
+            // 6. Chromatic Dispersion Rim (Wavelength-dependent Prismatic Edge)
+            Capsule()
+                .strokeBorder(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color(red: 1.00, green: 0.40, blue: 0.50).opacity(0.32), location: 0.00),
+                            .init(color: Color(red: 1.00, green: 0.95, blue: 0.40).opacity(0.22), location: 0.30),
+                            .init(color: Color(red: 0.30, green: 0.95, blue: 0.70).opacity(0.25), location: 0.65),
+                            .init(color: Color(red: 0.35, green: 0.65, blue: 1.00).opacity(0.35), location: 1.00)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.75
+                )
+                .blendMode(.plusLighter)
         }
         .clipShape(Capsule())
         .shadow(color: Color.black.opacity(0.40), radius: 3, y: 1.5)
