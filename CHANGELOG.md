@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.2.9] — 2026-11-03
+
+### Apple Liquid Glass Production UI & Bidirectional Agent Guard Island IPC
+- **Final Apple Liquid Glass UI**: Unified persistent liquid glass surface with permanent connected-device header (`PermanentConnectedDevicesHeaderView`), 3-slide utility carousel (`UtilityCarouselView`: Productivity, System Tools, Monitoring), and fluid in-place 3-column detail expansion (`LiquidUnifiedDetailContainerView`, `LiquidUnifiedSurfaceView`).
+- **Dynamic Island ⇋ Antigravity & Agent Guard IPC**: Full bidirectional Unix socket bridge with live multi-step task tracking, step progress counter (e.g. `3/6`) in collapsed notch wings, context token budget gauges, sleep prevention lease badges, and instant alert drop expansions.
+- **Optical Glass Materials & Calibrated Shaders**: Hyper-squircle G2 continuity ($n=5.0$), $91.92^\circ$ directional glare convergence, and $50\%$ wavelength-dependent chromatic dispersion ($N_R=0.98, N_G=1.00, N_B=1.02$).
+- **Permanent Connected Devices Section**: Persistent MagSafe 3 live wattage indicator and realme Buds / Bluetooth audio card with battery level gauge.
+- **Adaptive Detail Expansion**: Clicking any utility expands within the single continuous liquid glass container into structured 3-column views with categories, feeds, and 3D preview hero cards.
+
 ## [2.2.8] — 2026-11-03
 
 ### Apple Liquid Glass Studio Optical Architecture & Visual Redesign

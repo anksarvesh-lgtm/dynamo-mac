@@ -38,24 +38,23 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.2.8
-- **Liquid Glass Studio Optical Architecture**: Complete visual redesign integrating Apple Liquid Glass optical physics — superellipse squircle curvature (n=5.0) for seamless G2 continuity, 91.92° directional glare convergence, and 50% wavelength-dependent chromatic dispersion (NR=0.98, NG=1.00, NB=1.02).
-- **Calibrated Studio Smoked Glass Preset**: Elegant warm-slate tint (RGBA: 102, 98, 98, 0.28) with 15.73pt soft drop shadow, specular glare sheen, and subtle inner refractive bevel.
-- **Redesigned HUD & Dropper Panels**: Expanded notch detail cards (devices, clipboard, Scopa cleaner, color dropper, Watcher) and shelf dropper surfaces all upgraded with calibrated liquid glass materials.
-- **Enhanced Prismatic Water Meniscus**: Fluid surface waves and bottom droplet contours now feature live chromatic dispersion rims with additive light blending.
+### Release Highlights — LiquidDynamo 2.2.9
+- **Final Apple Liquid Glass UI**: Unified persistent liquid glass surface with permanent connected-device header (MagSafe 3 & Bluetooth audio), 3-slide utility carousel (Productivity, System Tools, Monitoring), and fluid in-place 3-column detail expansion for Clipboard, Dropper, Scopa, Powerload, Phone Bridge, and Watcher.
+- **Dynamic Island ⇋ Antigravity & Agent Guard IPC**: Full bidirectional Unix socket bridge with live multi-step task tracking, step progress counter (e.g. 3/6) in collapsed notch wing, context token budget gauges, sleep prevention lease badges, and instant alert drop expansions.
+- **Optical Glass Materials & Calibrated Shaders**: Hyper-squircle G2 continuity (n=5.0), 91.92° directional glare convergence, and 50% wavelength-dependent chromatic dispersion.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.2.8",
-        name: "LiquidDynamo 2.2.8 — Liquid Glass Studio Redesign & Optical Refraction Shaders",
+        tag: "v2.2.9",
+        name: "LiquidDynamo 2.2.9 — Apple Liquid Glass UI & Agent Guard Island IPC",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.8 (build 39)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.9 (build 40)",
         makeLatest: false
     )
 ]
@@ -65,7 +64,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.2.8.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.8.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.2.9.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.9.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),
