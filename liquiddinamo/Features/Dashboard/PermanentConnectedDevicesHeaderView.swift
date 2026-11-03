@@ -49,65 +49,33 @@ public struct PermanentConnectedDevicesHeaderView: View {
         self.onSelectAudioDevice = onSelectAudioDevice
     }
 
-    // Resolve active or remembered audio device
-    private var primaryAudioDevice: DeviceIdentity? {
-        // 1. First look for active audio/headphone/earbud devices
-        if let active = deviceMonitor.sortedActiveDevices.first(where: {
-            $0.kind == .neckband || $0.kind == .headphones || $0.kind == .earbuds || $0.kind == .earphones || $0.kind == .airpods
-        }) {
-            return active
-        }
-        // 2. Check remembered audio devices from registry
-        if let remembered = memoryRegistry.entries.values.first(where: {
-            $0.kind == DeviceKind.neckband.rawValue ||
-            $0.kind == DeviceKind.headphones.rawValue ||
-            $0.kind == DeviceKind.earbuds.rawValue ||
-            $0.kind == DeviceKind.earphones.rawValue ||
-            $0.kind == DeviceKind.airpods.rawValue
-        }) {
-            return DeviceIdentity(
-                stableKey: remembered.stableKey,
-                kind: DeviceKind(rawValue: remembered.kind) ?? .headphones,
-                displayName: remembered.displayName,
-                vendor: "Saved Audio",
-                model: remembered.displayName,
-                connectionType: .bluetooth,
-                batteryPercentage: nil,
-                iconName: "headphones"
-            )
-        }
-        // 3. Fallback named representation conforming to realme Buds Wireless presence
-        return DeviceIdentity(
-            stableKey: "realme_buds_wireless",
-            kind: .headphones,
-            displayName: "realme Buds Wireless",
-            vendor: "realme",
-            model: "Buds Wireless",
-            connectionType: .bluetooth,
-            batteryPercentage: nil,
-            iconName: "headphones"
-        )
+    // Resolve strictly verified active connected device (audio, peripheral, etc.)
+    private var primaryConnectedDevice: DeviceIdentity? {
+        // Query only active devices verified by DeviceMonitor
+        return deviceMonitor.sortedActiveDevices.first(where: {
+            ($0.kind == .neckband || $0.kind == .headphones || $0.kind == .earbuds || $0.kind == .earphones || $0.kind == .airpods || $0.kind == .keyboard || $0.kind == .mouse || $0.kind == .trackpad) &&
+            deviceMonitor.activeDevices[$0.stableKey] != nil
+        })
     }
 
     private var isAudioConnected: Bool {
-        guard let dev = primaryAudioDevice else { return false }
-        return deviceMonitor.activeDevices[dev.stableKey] != nil || dev.batteryPercentage != nil
+        return primaryConnectedDevice != nil
     }
 
     public var body: some View {
         HStack(spacing: 8) {
-            // MARK: - Left Card: MagSafe 3 / Power Adapter
+            // MARK: - Left Card: MagSafe 3 / Power Adapter / Mac Battery
             chargerCard
                 .onHover { h in withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) { isHoveringCharger = h } }
                 .onTapGesture {
                     onSelectCharger?()
                 }
 
-            // MARK: - Right Card: Wireless / Wired Audio Device
+            // MARK: - Right Card: Verified Connected Bluetooth / Audio Device
             audioDeviceCard
                 .onHover { h in withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) { isHoveringAudio = h } }
                 .onTapGesture {
-                    onSelectAudioDevice?(primaryAudioDevice)
+                    onSelectAudioDevice?(primaryConnectedDevice)
                 }
         }
         .padding(.horizontal, 14)
@@ -119,26 +87,39 @@ public struct PermanentConnectedDevicesHeaderView: View {
         }
     }
 
-    // MARK: - MagSafe 3 Charger Card
+    // MARK: - MagSafe 3 / Power Adapter / Internal Battery Card (100% Real Hardware Telemetry)
     @ViewBuilder
     private var chargerCard: some View {
         let isPlugged = chargingService.isPluggedIn || batteryModel.isPluggedIn
         let isCharging = chargingService.isCharging || batteryModel.isCharging
-        let watts = chargingService.adapterWatts > 0 ? chargingService.adapterWatts : 32
-        let portDesc = chargingService.connectedPortDescription.contains("MagSafe") ? "MagSafe 3 Charger" : (isPlugged ? (chargingService.adapterName.isEmpty ? "Power Adapter" : chargingService.adapterName) : "MagSafe 3 Charger")
+        let watts = chargingService.adapterWatts
+        let portDesc: String = {
+            if isPlugged {
+                if chargingService.connectedPortDescription.contains("MagSafe") {
+                    return "MagSafe 3 Charger"
+                } else if !chargingService.adapterName.isEmpty {
+                    return chargingService.adapterName
+                } else {
+                    return "Power Adapter"
+                }
+            } else {
+                return "MacBook Battery"
+            }
+        }()
 
         let statusText: String = {
             if isCharging {
-                return "⚡ \(watts)W · Charging"
+                return watts > 0 ? "⚡ \(watts)W · Charging" : "⚡ Charging"
             } else if isPlugged {
-                return "⚡ \(watts)W · Plugged In"
+                return watts > 0 ? "⚡ \(watts)W · Plugged In" : "⚡ Plugged In"
             } else {
-                return "● \(Int(batteryModel.levelBattery))% · On Battery"
+                let bat = Int(batteryModel.levelBattery)
+                return "● \(bat)% · On Battery"
             }
         }()
 
         HStack(spacing: 10) {
-            // Circular Emerald Charging Badge
+            // Circular Charging / Battery Badge
             ZStack {
                 Circle()
                     .fill(isPlugged ? LiquidColorTokens.emerald.opacity(0.18) : Color.white.opacity(0.08))
@@ -154,13 +135,13 @@ public struct PermanentConnectedDevicesHeaderView: View {
                     )
                     .shadow(color: isPlugged ? LiquidColorTokens.emerald.opacity(0.35 + pulsePhase * 0.25) : .clear, radius: 6)
 
-                Image(systemName: "bolt.fill")
+                Image(systemName: isPlugged ? "bolt.fill" : "battery.100")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(isPlugged ? LiquidColorTokens.emerald : LiquidColorTokens.secondaryText)
                     .scaleEffect(isCharging ? (1.0 + pulsePhase * 0.08) : 1.0)
             }
 
-            // Name & Dynamic Charging Metric
+            // Name & Dynamic Metric
             VStack(alignment: .leading, spacing: 2) {
                 Text(portDesc)
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
@@ -191,28 +172,49 @@ public struct PermanentConnectedDevicesHeaderView: View {
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    // MARK: - Audio Device Card (realme Buds Wireless / AirPods)
+    // MARK: - Audio / Peripheral Device Card (Real Telemetry Only)
     @ViewBuilder
     private var audioDeviceCard: some View {
-        let dev = primaryAudioDevice
-        let isConn = isAudioConnected
-        let displayName = dev?.displayName ?? "realme Buds Wireless"
-        let batteryPct = dev?.batteryPercentage ?? (isConn ? 86 : nil)
+        let dev = primaryConnectedDevice
+        let isConn = (dev != nil)
+        let displayName = dev?.displayName ?? "Bluetooth Devices"
+        let batteryPct = dev?.batteryPercentage
 
         HStack(spacing: 10) {
-            // White Icon Inside Rounded Squircle Badge
+            // Icon Inside Rounded Squircle Badge
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.white.opacity(0.12))
+                    .fill(isConn ? Color.white.opacity(0.12) : Color.white.opacity(0.06))
                     .frame(width: 32, height: 32)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.white.opacity(0.28), lineWidth: 1.0)
+                            .stroke(isConn ? Color.white.opacity(0.28) : Color.white.opacity(0.10), lineWidth: 1.0)
                     )
 
-                Image(systemName: "earbuds.case.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.white)
+                if let kind = dev?.kind {
+                    switch kind {
+                    case .airpods, .earbuds:
+                        Image(systemName: "earbuds.case.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                    case .keyboard:
+                        Image(systemName: "applekeyboard")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                    case .mouse, .trackpad:
+                        Image(systemName: "magicmouse")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                    default:
+                        Image(systemName: "headphones")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                    }
+                } else {
+                    Image(systemName: "bluetooth")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
+                }
             }
 
             // Name & Battery / Status
@@ -228,7 +230,7 @@ public struct PermanentConnectedDevicesHeaderView: View {
                         .frame(width: 5, height: 5)
                         .shadow(color: isConn ? LiquidColorTokens.emerald.opacity(0.7) : .clear, radius: 2)
 
-                    Text(isConn ? "Connected" : "Disconnected")
+                    Text(isConn ? "Connected" : "No Devices Connected")
                         .font(.system(size: 9.5, weight: .semibold, design: .rounded))
                         .foregroundStyle(isConn ? LiquidColorTokens.emerald : LiquidColorTokens.mutedText)
 

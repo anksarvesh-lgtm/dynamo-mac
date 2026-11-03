@@ -47,8 +47,11 @@ public struct LiquidUnifiedSurfaceView: View {
                         toggleExpansion(.device("sim_magsafe"))
                     },
                     onSelectAudioDevice: { dev in
-                        let key = dev?.stableKey ?? "realme_buds_wireless"
-                        toggleExpansion(.device(key))
+                        if let key = dev?.stableKey {
+                            toggleExpansion(.device(key))
+                        } else {
+                            toggleExpansion(.device("bluetooth_library"))
+                        }
                     }
                 )
                 .frame(maxWidth: .infinity)
