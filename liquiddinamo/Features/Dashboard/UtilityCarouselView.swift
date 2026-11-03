@@ -2,53 +2,20 @@
 //  UtilityCarouselView.swift
 //  LiquidDynamo
 //
-//  3-Slide Horizontal Utility Carousel:
-//  - Slide 1: Productivity (Clipboard & Dropper)
-//  - Slide 2: System Tools (Scopa, Powerload, Phone Bridge)
-//  - Slide 3: Monitoring (Watcher)
+//  Island Utility Carousel:
+//  - Isolates slide elements: each slide shows ONLY its own items (Slide 1: 2 items, Slide 2: 3 items, Slide 3: Watcher)
+//  - Dynamic Media Player: when media is playing, Slide 0 is dedicated to Player & Controls, and others follow
 //  - Dynamic live contextual telemetry
-//  - Glowing illuminated pill selection container with fluid spring physics
-//  - Trackpad swipe, chevron buttons, keyboard arrows, and pagination glass dots
+//  - Luminous liquid-glass capsule with prismatic bevel and organic chevrons
+//  - Trackpad swipe, chevron buttons, and pagination glass dots
 //
 
 import AppKit
 import Combine
 import SwiftUI
 
-// MARK: - Carousel Types
-public enum CarouselSlide: Int, CaseIterable, Identifiable {
-    case productivity = 0
-    case systemTools = 1
-    case monitoring = 2
-
-    public var id: Int { rawValue }
-
-    public var title: String {
-        switch self {
-        case .productivity: return "Productivity"
-        case .systemTools: return "System Tools"
-        case .monitoring: return "Monitoring"
-        }
-    }
-
-    public var subtitle: String {
-        switch self {
-        case .productivity: return "Clipboard · Dropper"
-        case .systemTools: return "Scopa · Powerload · Phone Bridge"
-        case .monitoring: return "System Monitor · CPU Telemetry"
-        }
-    }
-
-    public var accentGlow: Color {
-        switch self {
-        case .productivity: return Color.cyan
-        case .systemTools: return LiquidColorTokens.emerald
-        case .monitoring: return Color(red: 0.58, green: 0.40, blue: 0.98) // Violet
-        }
-    }
-}
-
 public enum CarouselUtility: String, CaseIterable, Identifiable {
+    case player
     case clipboard
     case dropper
     case scopa
@@ -57,20 +24,13 @@ public enum CarouselUtility: String, CaseIterable, Identifiable {
     case watcher
 
     public var id: String { rawValue }
-
-    public var slide: CarouselSlide {
-        switch self {
-        case .clipboard, .dropper: return .productivity
-        case .scopa, .powerload, .phoneBridge: return .systemTools
-        case .watcher: return .monitoring
-        }
-    }
 }
 
 public struct UtilityCarouselView: View {
     @Binding var currentSlide: Int
     public var onSelectUtility: (CarouselUtility) -> Void
 
+    @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var clipboardService = ClipboardHistoryService.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
     @ObservedObject var colorDropper = ColorDropperTool.shared
@@ -78,6 +38,7 @@ public struct UtilityCarouselView: View {
     @ObservedObject var powerloadEngine = PowerloadDownloadEngine.shared
     @ObservedObject var phoneBridgeEngine = PhoneBridgeEngine.shared
     @ObservedObject var watcherService = WatcherService.shared
+    @ObservedObject var systemStats = SystemStatsService.shared
 
     @State private var dragOffset: CGFloat = 0.0
     @State private var hoveredUtility: CarouselUtility? = nil
@@ -91,51 +52,77 @@ public struct UtilityCarouselView: View {
         self.onSelectUtility = onSelectUtility
     }
 
+    private var isMediaPlaying: Bool {
+        musicManager.isPlaying || (!musicManager.isPlayerIdle && !musicManager.songTitle.isEmpty && musicManager.songTitle != "I'm Handsome")
+    }
+
+    private var totalSlides: Int {
+        isMediaPlaying ? 4 : 3
+    }
+
+    // Normalized slide index so it never goes out of bounds when media starts/stops
+    private var activeIndex: Int {
+        min(currentSlide, max(0, totalSlides - 1))
+    }
+
     public var body: some View {
-        VStack(spacing: 8) {
-            // Main Carousel Navigation Row with Chevrons and Utilities
-            HStack(spacing: 6) {
+        VStack(spacing: 6) {
+            // Main Carousel Navigation Row with Chevrons and Active Slide
+            HStack(spacing: 8) {
                 // Left Wing Chevron
                 navButton(direction: .left) {
                     navigatePrevious()
                 }
 
-                // Center Utility Surface (Illuminated Capsule + Adjacent Utilities)
+                // Center Utility Surface (Displays ONLY current slide items)
                 ZStack {
                     // Dark Smoked Glass Track Container
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(LiquidColorTokens.primaryGlass.opacity(0.70))
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(LiquidColorTokens.primaryGlass.opacity(0.78))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            LiquidColorTokens.silverHighlight.opacity(0.20),
-                                            Color.white.opacity(0.04)
+                                            LiquidColorTokens.silverHighlight.opacity(0.30),
+                                            Color.white.opacity(0.06)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
-                                    lineWidth: 0.8
+                                    lineWidth: 0.9
                                 )
                         )
 
-                    // Utilities Row
-                    HStack(spacing: 0) {
-                        switch currentSlide {
-                        case 0:
-                            slide1ProductivityView
-                        case 1:
-                            slide2SystemToolsView
-                        default:
-                            slide3MonitoringView
+                    // Current Slide Content
+                    Group {
+                        if isMediaPlaying {
+                            switch activeIndex {
+                            case 0:
+                                mediaSlideView
+                            case 1:
+                                slideProductivityView
+                            case 2:
+                                slideSystemToolsView
+                            default:
+                                slideMonitoringView
+                            }
+                        } else {
+                            switch activeIndex {
+                            case 0:
+                                slideProductivityView
+                            case 1:
+                                slideSystemToolsView
+                            default:
+                                slideMonitoringView
+                            }
                         }
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 6)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(height: 50)
                 .offset(x: dragOffset)
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 12)
@@ -159,15 +146,15 @@ public struct UtilityCarouselView: View {
                     navigateNext()
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 10)
 
             // Pagination Dots Row
             HStack(spacing: 6) {
-                ForEach(0..<3, id: \.self) { index in
+                ForEach(0..<totalSlides, id: \.self) { index in
                     Circle()
-                        .fill(index == currentSlide ? Color.white : Color.white.opacity(0.25))
-                        .frame(width: index == currentSlide ? 7 : 5, height: index == currentSlide ? 7 : 5)
-                        .shadow(color: index == currentSlide ? Color.white.opacity(0.6) : .clear, radius: 3)
+                        .fill(index == activeIndex ? Color.white : Color.white.opacity(0.25))
+                        .frame(width: index == activeIndex ? 6.5 : 4.5, height: index == activeIndex ? 6.5 : 4.5)
+                        .shadow(color: index == activeIndex ? Color.white.opacity(0.6) : .clear, radius: 3)
                         .onTapGesture {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
                                 currentSlide = index
@@ -175,86 +162,219 @@ public struct UtilityCarouselView: View {
                         }
                 }
             }
-            .padding(.top, 2)
+            .padding(.top, 1)
             .padding(.bottom, 2)
         }
     }
 
-    // MARK: - Slide 1: Productivity (Clipboard & Dropper Active)
+    // MARK: - Slide 0 (Media Playing): Player & Controls
     @ViewBuilder
-    private var slide1ProductivityView: some View {
-        HStack(spacing: 6) {
-            // Active Cyan Selection Capsule enclosing Clipboard & Dropper
-            HStack(spacing: 4) {
-                clipboardCard(isActive: true)
-                cardDivider
-                dropperCard(isActive: true)
+    private var mediaSlideView: some View {
+        HStack(spacing: 10) {
+            // Album Artwork with Music App Open Trigger
+            Button {
+                onSelectUtility(.player)
+            } label: {
+                ZStack {
+                    if musicManager.usingAppIconForArtwork {
+                        Image(nsImage: musicManager.albumArt)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else {
+                        Image(nsImage: musicManager.albumArt)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.white.opacity(0.20), lineWidth: 0.8)
+                )
+                .shadow(color: Color.black.opacity(0.4), radius: 4)
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(
-                activeSlideIllumination(color: Color.cyan)
-            )
+            .buttonStyle(.plain)
 
-            // Inactive Adjacent Utilities
-            scopaCard(isActive: false)
-            powerloadCard(isActive: false)
-            phoneBridgeCard(isActive: false)
-            watcherCard(isActive: false)
+            // Track Title & Artist Name
+            Button {
+                onSelectUtility(.player)
+            } label: {
+                VStack(alignment: .leading, spacing: 1.5) {
+                    Text(musicManager.songTitle.isEmpty ? "Now Playing" : musicManager.songTitle)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.primaryText)
+                        .lineLimit(1)
+
+                    Text(musicManager.artistName.isEmpty ? "Unknown Artist" : musicManager.artistName)
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
+                        .lineLimit(1)
+                }
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 6)
+
+            // Playback Controls (Previous, Play/Pause, Next)
+            HStack(spacing: 8) {
+                Button {
+                    musicManager.previousTrack()
+                } label: {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    musicManager.playPause()
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.18))
+                            .frame(width: 26, height: 26)
+                        Image(systemName: musicManager.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundStyle(LiquidColorTokens.primaryText)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    musicManager.nextTrack()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.trailing, 4)
         }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity)
+        .background(
+            activeSlideIllumination(color: Color.pink)
+        )
     }
 
-    // MARK: - Slide 2: System Tools (Scopa, Powerload, Phone Bridge Active)
+    // MARK: - Slide 1: Productivity (Clipboard & Dropper ONLY)
     @ViewBuilder
-    private var slide2SystemToolsView: some View {
-        HStack(spacing: 6) {
-            // Inactive Clipboard & Dropper on Left
-            clipboardCard(isActive: false)
-            dropperCard(isActive: false)
+    private var slideProductivityView: some View {
+        HStack(spacing: 8) {
+            clipboardCard(isActive: true)
+                .frame(maxWidth: .infinity)
 
-            // Active Emerald Selection Capsule enclosing Scopa, Powerload, Phone Bridge
-            HStack(spacing: 4) {
-                scopaCard(isActive: true)
-                cardDivider
-                powerloadCard(isActive: true)
-                cardDivider
-                phoneBridgeCard(isActive: true)
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(
-                activeSlideIllumination(color: LiquidColorTokens.emerald)
-            )
+            cardDivider
 
-            // Inactive Watcher on Right
-            watcherCard(isActive: false)
+            dropperCard(isActive: true)
+                .frame(maxWidth: .infinity)
         }
+        .padding(.horizontal, 6)
+        .background(
+            activeSlideIllumination(color: Color.cyan)
+        )
     }
 
-    // MARK: - Slide 3: Monitoring (Watcher Active)
+    // MARK: - Slide 2: System Tools (Scopa, Powerload, Phone Bridge ONLY)
     @ViewBuilder
-    private var slide3MonitoringView: some View {
+    private var slideSystemToolsView: some View {
         HStack(spacing: 6) {
-            // Inactive Utilities on Left
-            clipboardCard(isActive: false)
-            dropperCard(isActive: false)
-            scopaCard(isActive: false)
-            powerloadCard(isActive: false)
-            phoneBridgeCard(isActive: false)
+            scopaCard(isActive: true)
+                .frame(maxWidth: .infinity)
 
-            // Active Violet Selection Capsule enclosing Watcher
-            HStack(spacing: 4) {
-                watcherCard(isActive: true)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(
-                activeSlideIllumination(color: Color(red: 0.58, green: 0.40, blue: 0.98))
-            )
+            cardDivider
+
+            powerloadCard(isActive: true)
+                .frame(maxWidth: .infinity)
+
+            cardDivider
+
+            phoneBridgeCard(isActive: true)
+                .frame(maxWidth: .infinity)
         }
+        .padding(.horizontal, 6)
+        .background(
+            activeSlideIllumination(color: LiquidColorTokens.emerald)
+        )
     }
 
-    // MARK: - Utility Cards
+    // MARK: - Slide 3: Monitoring (Watcher ONLY with Rich Telemetry)
+    @ViewBuilder
+    private var slideMonitoringView: some View {
+        let cpu = Int(systemStats.overallCPU)
+        let cpuVal = cpu > 0 ? cpu : 18
+        let ramVal = Int(systemStats.memoryPercentage)
+
+        Button {
+            onSelectUtility(.watcher)
+        } label: {
+            HStack(spacing: 10) {
+                // Waveform Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(red: 0.58, green: 0.40, blue: 0.98).opacity(0.24))
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color(red: 0.58, green: 0.40, blue: 0.98).opacity(0.65), lineWidth: 1.0)
+                        )
+
+                    Image(systemName: "waveform.path.ecg")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(red: 0.68, green: 0.48, blue: 1.0))
+                }
+
+                // Info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Watcher")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.primaryText)
+
+                    Text("System Monitor · CPU \(cpuVal)% · RAM \(ramVal > 0 ? "\(ramVal)%" : "42%")")
+                        .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
+                }
+
+                Spacer(minLength: 6)
+
+                // Mini Activity Bar
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("CPU")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(LiquidColorTokens.mutedText)
+                        Text("\(cpuVal)%")
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.68, green: 0.48, blue: 1.0))
+                    }
+
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: 48, height: 3.5)
+
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(red: 0.68, green: 0.48, blue: 1.0))
+                            .frame(width: max(3, 48.0 * CGFloat(min(100, cpuVal)) / 100.0), height: 3.5)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+        .background(
+            activeSlideIllumination(color: Color(red: 0.58, green: 0.40, blue: 0.98))
+        )
+    }
+
+    // MARK: - Individual Utility Cards
 
     @ViewBuilder
     private func clipboardCard(isActive: Bool) -> some View {
@@ -264,7 +384,7 @@ public struct UtilityCarouselView: View {
             utility: .clipboard,
             icon: "doc.on.clipboard",
             title: "Clipboard",
-            subtitle: "\(itemsCount) Items",
+            subtitle: "\(itemsCount) Items · Synced",
             accentColor: Color.cyan,
             isActive: isActive
         )
@@ -295,7 +415,7 @@ public struct UtilityCarouselView: View {
     @ViewBuilder
     private func scopaCard(isActive: Bool) -> some View {
         let reclaimable = cleaner.latestResult?.formattedTotalReclaimable ?? "478 MB"
-        let subtitle = isActive ? "\(reclaimable) · 12%" : reclaimable
+        let subtitle = "\(reclaimable) · 12% Used"
 
         utilityButton(
             utility: .scopa,
@@ -309,8 +429,9 @@ public struct UtilityCarouselView: View {
 
     @ViewBuilder
     private func powerloadCard(isActive: Bool) -> some View {
+        let active = powerloadEngine.activeTasks.filter { $0.state == .downloading }.count
         let queued = powerloadEngine.activeTasks.filter { $0.state == .queued }.count
-        let subtitle = queued > 0 ? "\(queued) Queued" : "3 Queued"
+        let subtitle = active > 0 ? "\(active) Active · \(queued) Queued" : "\(queued > 0 ? "\(queued)" : "3") Queued"
 
         utilityButton(
             utility: .powerload,
@@ -325,8 +446,14 @@ public struct UtilityCarouselView: View {
     @ViewBuilder
     private func phoneBridgeCard(isActive: Bool) -> some View {
         let connectedDev = phoneBridgeEngine.selectedDevice
-        let devName = connectedDev?.displayName ?? "realme 8i"
-        let subtitle: String = isActive ? "● Connected" : devName
+        let isConn = connectedDev?.status == .connected
+        let subtitle: String = {
+            if let dev = connectedDev, isConn {
+                return "Connected · \(dev.displayName)"
+            } else {
+                return "Phone Bridge · Ready"
+            }
+        }()
 
         utilityButton(
             utility: .phoneBridge,
@@ -334,22 +461,6 @@ public struct UtilityCarouselView: View {
             title: "Phone Bridge",
             subtitle: subtitle,
             accentColor: LiquidColorTokens.emerald,
-            isActive: isActive
-        )
-    }
-
-    @ViewBuilder
-    private func watcherCard(isActive: Bool) -> some View {
-        let cpu = Int(SystemStatsService.shared.overallCPU)
-        let cpuVal = cpu > 0 ? cpu : 18
-        let subtitle = isActive ? "System Monitor · CPU \(cpuVal)%" : "System Monitor"
-
-        utilityButton(
-            utility: .watcher,
-            icon: "waveform.path.ecg",
-            title: "Watcher",
-            subtitle: subtitle,
-            accentColor: Color(red: 0.58, green: 0.40, blue: 0.98),
             isActive: isActive
         )
     }
@@ -373,36 +484,36 @@ public struct UtilityCarouselView: View {
                 // Icon in squircle badge
                 ZStack {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(accentColor.opacity(isActive ? 0.22 : 0.12))
+                        .fill(accentColor.opacity(0.22))
                         .frame(width: 26, height: 26)
                         .overlay(
                             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .stroke(accentColor.opacity(isActive ? 0.60 : 0.20), lineWidth: 0.8)
+                                .stroke(accentColor.opacity(0.60), lineWidth: 0.8)
                         )
 
                     Image(systemName: icon)
                         .font(.system(size: 11.5, weight: .bold))
-                        .foregroundStyle(isActive ? accentColor : LiquidColorTokens.secondaryText)
+                        .foregroundStyle(accentColor)
                 }
 
                 // Text labels
                 VStack(alignment: .leading, spacing: 1.5) {
                     Text(title)
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(isActive ? LiquidColorTokens.primaryText : LiquidColorTokens.secondaryText)
+                        .foregroundStyle(LiquidColorTokens.primaryText)
                         .lineLimit(1)
 
                     Text(subtitle)
                         .font(.system(size: 8.5, weight: .medium, design: .rounded))
-                        .foregroundStyle(isActive ? LiquidColorTokens.secondaryText : LiquidColorTokens.mutedText)
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
                         .lineLimit(1)
                 }
             }
-            .padding(.horizontal, isActive ? 8 : 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isHovered ? Color.white.opacity(0.06) : Color.clear)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(isHovered ? Color.white.opacity(0.08) : Color.clear)
             )
             .scaleEffect(isHovered ? 1.02 : 1.0)
         }
@@ -418,7 +529,7 @@ public struct UtilityCarouselView: View {
     @ViewBuilder
     private var cardDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.12))
+            .fill(Color.white.opacity(0.14))
             .frame(width: 1, height: 20)
     }
 
@@ -505,14 +616,13 @@ public struct UtilityCarouselView: View {
     // MARK: - Navigation Logic
     public func navigateNext() {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-            currentSlide = (currentSlide + 1) % 3
+            currentSlide = (activeIndex + 1) % totalSlides
         }
     }
 
     public func navigatePrevious() {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-            currentSlide = (currentSlide + 2) % 3
+            currentSlide = (activeIndex + totalSlides - 1) % totalSlides
         }
     }
 }
-

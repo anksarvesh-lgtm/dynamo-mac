@@ -15,6 +15,7 @@ import SwiftUI
 
 public enum ExpandedMode: Equatable {
     case none
+    case player
     case clipboard
     case dropper
     case scopa
@@ -52,6 +53,8 @@ public struct LiquidUnifiedDetailContainerView: View {
     public var body: some View {
         VStack(spacing: 8) {
             switch mode {
+            case .player:
+                playerDetailView
             case .clipboard:
                 clipboardDetailView
             case .dropper:
@@ -93,6 +96,115 @@ public struct LiquidUnifiedDetailContainerView: View {
                 )
                 .shadow(color: LiquidColorTokens.deepShadow.opacity(0.7), radius: 16, x: 0, y: 8)
         )
+    }
+
+    // =========================================================================
+    // MARK: - PLAYER DETAIL VIEW (Now Playing)
+    // =========================================================================
+    @ViewBuilder
+    private var playerDetailView: some View {
+        let music = MusicManager.shared
+        VStack(spacing: 8) {
+            // Header Row: Back button, Title, App open
+            HStack(spacing: 8) {
+                backButton
+
+                HStack(spacing: 6) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.pink)
+                    Text("Now Playing")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.primaryText)
+                }
+
+                Spacer()
+
+                Button {
+                    music.openMusicApp()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.forward.app")
+                        Text("Open App")
+                    }
+                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(LiquidColorTokens.secondaryText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.white.opacity(0.08)))
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Body: Album art + track info + controls
+            HStack(spacing: 12) {
+                // Album Art
+                Image(nsImage: music.albumArt)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.2), lineWidth: 0.8))
+                    .shadow(color: Color.black.opacity(0.4), radius: 6)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(music.songTitle.isEmpty ? "No Track Playing" : music.songTitle)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.primaryText)
+                        .lineLimit(1)
+
+                    Text(music.artistName.isEmpty ? "Tap play to start music" : music.artistName)
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(LiquidColorTokens.secondaryText)
+                        .lineLimit(1)
+
+                    // Scrubber progress bar
+                    let duration = max(1.0, music.songDuration)
+                    let progress = min(1.0, max(0.0, music.elapsedTime / duration))
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.14)).frame(height: 3)
+                        RoundedRectangle(cornerRadius: 2).fill(Color.pink).frame(width: 140 * CGFloat(progress), height: 3)
+                    }
+                    .frame(width: 140)
+                }
+
+                Spacer()
+
+                // Playback Controls
+                HStack(spacing: 10) {
+                    Button {
+                        music.previousTrack()
+                    } label: {
+                        Image(systemName: "backward.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(LiquidColorTokens.secondaryText)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        music.playPause()
+                    } label: {
+                        ZStack {
+                            Circle().fill(Color.white.opacity(0.20)).frame(width: 32, height: 32)
+                            Image(systemName: music.isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(Color.white)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        music.nextTrack()
+                    } label: {
+                        Image(systemName: "forward.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(LiquidColorTokens.secondaryText)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
     }
 
     // =========================================================================

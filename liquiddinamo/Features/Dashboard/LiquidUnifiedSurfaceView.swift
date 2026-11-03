@@ -59,6 +59,8 @@ public struct LiquidUnifiedSurfaceView: View {
                         currentSlide: $currentSlide,
                         onSelectUtility: { utility in
                             switch utility {
+                            case .player:
+                                toggleExpansion(.player)
                             case .clipboard:
                                 toggleExpansion(.clipboard)
                             case .dropper:
@@ -162,7 +164,7 @@ public struct LiquidUnifiedSurfaceView: View {
 
     private func toOrganicItem(_ mode: ExpandedMode) -> OrganicNotchExpandedItem {
         switch mode {
-        case .none: return .none
+        case .none, .player: return .none
         case .clipboard: return .clipboard
         case .dropper: return .dropper
         case .scopa: return .storageCleaner
