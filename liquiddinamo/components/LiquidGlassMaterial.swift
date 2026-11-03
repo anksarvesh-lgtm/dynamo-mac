@@ -16,6 +16,7 @@ import AppKit
 public enum LiquidGlassPreset: String, CaseIterable, Identifiable {
     case appleVision     // Ultra-clear crystal glass with subtle frosted backdrop
     case studioLiquid    // Liquid Glass Studio signature with directional glare and chromatic dispersion
+    case customStudio    // Calibrated Liquid Glass Studio preset (liquid-glass-2026-11-03T05-29-44.json)
     case obsidianDark    // Deep OLED optical black core with razor specular rim
     case prismaticWater  // Fluid aquatic refraction with gentle iridescent dispersion
 
@@ -25,6 +26,7 @@ public enum LiquidGlassPreset: String, CaseIterable, Identifiable {
         switch self {
         case .appleVision: return "Apple Vision Glass"
         case .studioLiquid: return "Studio Liquid Glass"
+        case .customStudio: return "Calibrated Studio Glass"
         case .obsidianDark: return "Obsidian Dark Glass"
         case .prismaticWater: return "Prismatic Water Glass"
         }
@@ -34,8 +36,9 @@ public enum LiquidGlassPreset: String, CaseIterable, Identifiable {
         switch self {
         case .appleVision:
             return Color.white.opacity(0.08)
-        case .studioLiquid:
-            return Color(red: 0.10, green: 0.15, blue: 0.25).opacity(0.22)
+        case .studioLiquid, .customStudio:
+            // Calibrated warm-slate smoked glass tint (R: 102, G: 98, B: 98, A: 0.28)
+            return Color(red: 102.0 / 255.0, green: 98.0 / 255.0, blue: 98.0 / 255.0).opacity(0.28)
         case .obsidianDark:
             return Color.black.opacity(0.65)
         case .prismaticWater:
@@ -46,7 +49,7 @@ public enum LiquidGlassPreset: String, CaseIterable, Identifiable {
     public var glareIntensity: Double {
         switch self {
         case .appleVision: return 0.55
-        case .studioLiquid: return 0.85
+        case .studioLiquid, .customStudio: return 0.938 // Calibrated glareFactor: 93.83%
         case .obsidianDark: return 0.60
         case .prismaticWater: return 0.75
         }
@@ -55,7 +58,7 @@ public enum LiquidGlassPreset: String, CaseIterable, Identifiable {
     public var dispersionOpacity: Double {
         switch self {
         case .appleVision: return 0.22
-        case .studioLiquid: return 0.38
+        case .studioLiquid, .customStudio: return 0.50 // Calibrated refDispersion: 50
         case .obsidianDark: return 0.18
         case .prismaticWater: return 0.45
         }
@@ -141,8 +144,8 @@ public struct LiquidGlassModifier: ViewModifier {
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: Color.black.opacity(0.24), radius: isHovered ? 14 : 9, x: 0, y: isHovered ? 8 : 4)
-            .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
+            .shadow(color: Color.black.opacity(0.15), radius: 15.73, x: 0, y: isHovered ? 10 : 6)
+            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
             .onHover { hovering in
                 guard isInteractive else { return }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
