@@ -605,11 +605,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stopExpandedEventMonitors()
         currentMonitorMode = .expanded
 
-        // Esc key closes the open dashboard
+        // Esc key closes the open dashboard or dismisses expanded utility detail back to carousel
         escKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             if event.keyCode == 53 { // Escape key
                 Task { @MainActor [weak self] in
-                    self?.vm.close()
+                    if IslandController.shared.activeOrganicItem != .none {
+                        withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
+                            IslandController.shared.activeOrganicItem = .none
+                        }
+                    } else {
+                        self?.vm.close()
+                    }
                 }
                 return nil
             }

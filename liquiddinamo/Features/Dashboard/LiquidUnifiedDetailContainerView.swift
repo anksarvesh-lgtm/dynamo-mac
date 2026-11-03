@@ -908,7 +908,7 @@ public struct LiquidUnifiedDetailContainerView: View {
             kind: isPower ? .charger : .headphones,
             displayName: isPower ? (realWatts != nil ? "MagSafe 3 Charger" : "MacBook Battery") : "Bluetooth Device",
             vendor: isPower ? "Apple" : "Peripheral",
-            model: isPower ? (realWatts != nil ? "\(realWatts!)W Adapter" : "Internal Battery") : "Audio",
+            model: isPower ? (realWatts.map { "\($0)W Adapter" } ?? "Internal Battery") : "Audio",
             connectionType: isPower ? .power : .bluetooth,
             batteryPercentage: realBatteryPct ?? 0,
             iconName: isPower ? (realWatts != nil ? "bolt.shield.fill" : "battery.100.bolt") : "headphones"
