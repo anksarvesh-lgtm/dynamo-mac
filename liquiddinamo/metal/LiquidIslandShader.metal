@@ -12,13 +12,13 @@ using namespace metal;
 // MARK: - Signed Distance Field Primitives
 
 // Signed distance to a 2D rounded box with individual center and half-extents.
-// Uses Apple superellipse (squircle n=4) corner geometry for G2 curvature continuity (liquid-glass-studio).
+// Uses Apple superellipse (squircle n=5.0) corner geometry for G2 curvature continuity (liquid-glass-studio preset).
 inline float sdRoundedBox(float2 p, float2 halfSize, float radius) {
     float r = clamp(radius, 0.0f, min(halfSize.x, halfSize.y));
     float2 q = abs(p) - halfSize + float2(r);
     if (q.x > 0.0f && q.y > 0.0f) {
-        float q4 = pow(q.x, 4.0f) + pow(q.y, 4.0f);
-        return pow(q4, 0.25f) - r;
+        float q5 = pow(q.x, 5.0f) + pow(q.y, 5.0f);
+        return pow(q5, 0.20f) - r;
     }
     return min(max(q.x, q.y), 0.0f) + length(max(q, 0.0f)) - r;
 }
@@ -247,24 +247,30 @@ inline float evaluateCompositeSDFWithWater(
 
     float effectiveBevel = bevelMask * notchHighlightSuppression;
 
-    // Prismatic chromatic dispersion (wavelength-dependent index of refraction)
-    float specR = pow(nDotH, tightPower * 0.94f) * lightingParams.x * effectiveBevel;
+    // Prismatic chromatic dispersion (wavelength-dependent index of refraction - calibrated 50% dispersion)
+    float specR = pow(nDotH, tightPower * 0.93f) * lightingParams.x * effectiveBevel;
     float specG = pow(nDotH, tightPower)         * lightingParams.x * effectiveBevel;
-    float specB = pow(nDotH, tightPower * 1.07f) * lightingParams.x * effectiveBevel;
+    float specB = pow(nDotH, tightPower * 1.08f) * lightingParams.x * effectiveBevel;
     float3 chromaticSpec = float3(specR, specG, specB);
 
     float broadSpec = pow(nDotH, 5.0f) * lightingParams.y * effectiveBevel;
 
-    // Fresnel rim refraction with chromatic dispersion
-    float fresnelR = pow(1.0f - normal.z, 2.7f) * lightingParams.z * effectiveBevel;
-    float fresnelG = pow(1.0f - normal.z, 3.0f) * lightingParams.z * effectiveBevel;
-    float fresnelB = pow(1.0f - normal.z, 3.4f) * lightingParams.z * effectiveBevel;
+    // Fresnel rim refraction with chromatic dispersion (calibrated hardness 0.95, power 5.0)
+    float fresnelBase = clamp(1.0f - normal.z, 0.0f, 1.0f);
+    float fresnelR = pow(fresnelBase, 2.6f) * lightingParams.z * effectiveBevel;
+    float fresnelG = pow(fresnelBase, 3.0f) * lightingParams.z * effectiveBevel;
+    float fresnelB = pow(fresnelBase, 3.5f) * lightingParams.z * effectiveBevel;
     float3 chromaticFresnel = float3(fresnelR, fresnelG, fresnelB);
 
-    // Directional Glass Glare with angular convergence (liquid-glass-studio)
-    float glareAngle = (atan2(normal.y, normal.x) - (M_PI_F * 0.25f)) * 2.0f;
-    float glareAngleFactor = clamp(pow(0.5f + sin(glareAngle) * 0.5f, 1.5f), 0.0f, 1.0f);
-    float3 glare = float3(1.0f, 1.0f, 1.0f) * (glareAngleFactor * 0.28f * effectiveBevel);
+    // Directional Glass Glare with angular convergence (liquid-glass-studio calibrated 91.92° angle & 2.1 convergence)
+    float angleBase = atan2(normal.y, normal.x);
+    float uGlareAngle = 91.92f * (M_PI_F / 180.0f); // 1.60428 rad
+    float glareAngle = (angleBase - (M_PI_F * 0.25f) + uGlareAngle) * 2.0f;
+    bool isFarSide = (glareAngle > M_PI_F * 1.5f && glareAngle < M_PI_F * 3.5f) || (glareAngle < -M_PI_F * 0.5f);
+    float sideFactor = isFarSide ? (1.2f * 0.80f) : 1.2f;
+    float rawGlare = (0.5f + sin(glareAngle) * 0.5f) * sideFactor * 0.9383f;
+    float glareAngleFactor = clamp(pow(max(0.0f, rawGlare), 2.1f), 0.0f, 1.0f);
+    float3 glare = float3(1.0f, 1.0f, 1.0f) * (glareAngleFactor * 0.35f * effectiveBevel);
 
     // 7. Meniscus Rim Light along the irregular water contour (stronger where curve is tighter)
     float meniscusIntensity = waterParams.w;
@@ -487,24 +493,30 @@ inline float evaluateBlobFieldSDFMetal(
     float nDotH = max(0.0f, dot(normal, halfVec));
     float tightPower = max(6.0f, lightDirAndTight.w);
 
-    // Prismatic chromatic dispersion on specular highlights
-    float specR = pow(nDotH, tightPower * 0.94f) * lightingParams.x * bevelMask * sourceRamp;
+    // Prismatic chromatic dispersion on specular highlights (calibrated 50% dispersion)
+    float specR = pow(nDotH, tightPower * 0.93f) * lightingParams.x * bevelMask * sourceRamp;
     float specG = pow(nDotH, tightPower)         * lightingParams.x * bevelMask * sourceRamp;
-    float specB = pow(nDotH, tightPower * 1.07f) * lightingParams.x * bevelMask * sourceRamp;
+    float specB = pow(nDotH, tightPower * 1.08f) * lightingParams.x * bevelMask * sourceRamp;
     float3 chromaticSpec = float3(specR, specG, specB);
 
     float broadSpec = pow(nDotH, 4.0f) * lightingParams.y * bevelMask * sourceRamp;
 
-    // Prismatic Fresnel rim reflection
-    float fresnelR = pow(1.0f - normal.z, 3.2f) * lightingParams.z * bevelMask;
-    float fresnelG = pow(1.0f - normal.z, 3.5f) * lightingParams.z * bevelMask;
-    float fresnelB = pow(1.0f - normal.z, 3.9f) * lightingParams.z * bevelMask;
+    // Prismatic Fresnel rim reflection (calibrated hardness 0.95, power 5.0)
+    float fresnelBase = clamp(1.0f - normal.z, 0.0f, 1.0f);
+    float fresnelR = pow(fresnelBase, 3.1f) * lightingParams.z * bevelMask;
+    float fresnelG = pow(fresnelBase, 3.5f) * lightingParams.z * bevelMask;
+    float fresnelB = pow(fresnelBase, 4.0f) * lightingParams.z * bevelMask;
     float3 chromaticFresnel = float3(fresnelR, fresnelG, fresnelB);
 
-    // Directional Glass Glare with angular convergence (liquid-glass-studio)
-    float glareAngle = (atan2(normal.y, normal.x) - (M_PI_F * 0.25f)) * 2.0f;
-    float glareAngleFactor = clamp(pow(0.5f + sin(glareAngle) * 0.5f, 1.5f), 0.0f, 1.0f);
-    float3 glare = float3(1.0f, 1.0f, 1.0f) * (glareAngleFactor * 0.25f * bevelMask * sourceRamp);
+    // Directional Glass Glare with angular convergence (liquid-glass-studio calibrated 91.92° angle & 2.1 convergence)
+    float angleBase = atan2(normal.y, normal.x);
+    float uGlareAngle = 91.92f * (M_PI_F / 180.0f); // 1.60428 rad
+    float glareAngle = (angleBase - (M_PI_F * 0.25f) + uGlareAngle) * 2.0f;
+    bool isFarSide = (glareAngle > M_PI_F * 1.5f && glareAngle < M_PI_F * 3.5f) || (glareAngle < -M_PI_F * 0.5f);
+    float sideFactor = isFarSide ? (1.2f * 0.80f) : 1.2f;
+    float rawGlare = (0.5f + sin(glareAngle) * 0.5f) * sideFactor * 0.9383f;
+    float glareAngleFactor = clamp(pow(max(0.0f, rawGlare), 2.1f), 0.0f, 1.0f);
+    float3 glare = float3(1.0f, 1.0f, 1.0f) * (glareAngleFactor * 0.32f * bevelMask * sourceRamp);
 
     // Meniscus rim highlight
     float meniscusRim = pow(max(0.0f, normal.y) * smoothstep(1.0f, 0.05f, s), 1.5f) * 1.2f * bevelMask;
