@@ -295,7 +295,7 @@ public struct UtilityCarouselView: View {
     @ViewBuilder
     private func scopaCard(isActive: Bool) -> some View {
         let reclaimable = cleaner.latestResult?.formattedTotalReclaimable ?? "478 MB"
-        let subtitle = "\(reclaimable) · 12%"
+        let subtitle = isActive ? "\(reclaimable) · 12%" : reclaimable
 
         utilityButton(
             utility: .scopa,
@@ -309,9 +309,8 @@ public struct UtilityCarouselView: View {
 
     @ViewBuilder
     private func powerloadCard(isActive: Bool) -> some View {
-        let active = powerloadEngine.activeTasks.filter { $0.state == .downloading }.count
         let queued = powerloadEngine.activeTasks.filter { $0.state == .queued }.count
-        let subtitle = "\(active) Active · \(queued > 0 ? "\(queued) Queued" : "3 Queued")"
+        let subtitle = queued > 0 ? "\(queued) Queued" : "3 Queued"
 
         utilityButton(
             utility: .powerload,
@@ -326,14 +325,8 @@ public struct UtilityCarouselView: View {
     @ViewBuilder
     private func phoneBridgeCard(isActive: Bool) -> some View {
         let connectedDev = phoneBridgeEngine.selectedDevice
-        let isConn = connectedDev?.status == .connected
-        let subtitle: String = {
-            if let dev = connectedDev, isConn {
-                return "Connected · \(dev.displayName)"
-            } else {
-                return "Connected · realme 8i"
-            }
-        }()
+        let devName = connectedDev?.displayName ?? "realme 8i"
+        let subtitle: String = isActive ? "● Connected" : devName
 
         utilityButton(
             utility: .phoneBridge,
@@ -349,13 +342,13 @@ public struct UtilityCarouselView: View {
     private func watcherCard(isActive: Bool) -> some View {
         let cpu = Int(SystemStatsService.shared.overallCPU)
         let cpuVal = cpu > 0 ? cpu : 18
-        let subtitle = "System Monitor · CPU \(cpuVal)%"
+        let subtitle = isActive ? "System Monitor · CPU \(cpuVal)%" : "System Monitor"
 
         utilityButton(
             utility: .watcher,
             icon: "waveform.path.ecg",
             title: "Watcher",
-            subtitle: isActive ? subtitle : "System Monitor",
+            subtitle: subtitle,
             accentColor: Color(red: 0.58, green: 0.40, blue: 0.98),
             isActive: isActive
         )
@@ -438,8 +431,8 @@ public struct UtilityCarouselView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            color.opacity(0.18),
-                            color.opacity(0.06)
+                            color.opacity(0.24),
+                            color.opacity(0.08)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -451,17 +444,17 @@ public struct UtilityCarouselView: View {
                 .strokeBorder(
                     LinearGradient(
                         stops: [
-                            .init(color: color.opacity(0.65), location: 0.0),
-                            .init(color: LiquidColorTokens.silverHighlight.opacity(0.35), location: 0.5),
-                            .init(color: color.opacity(0.15), location: 1.0)
+                            .init(color: color.opacity(0.85), location: 0.0),
+                            .init(color: Color.white.opacity(0.40), location: 0.45),
+                            .init(color: color.opacity(0.20), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1.0
+                    lineWidth: 1.1
                 )
         }
-        .shadow(color: color.opacity(0.25), radius: 8, x: 0, y: 2)
+        .shadow(color: color.opacity(0.35), radius: 10, x: 0, y: 1)
     }
 
     // MARK: - Navigation Chevron Buttons (< and >)
