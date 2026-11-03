@@ -38,24 +38,24 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.2.7
-- **External Wired Earphones & Headphones Showcase**: CoreAudio monitoring integrated into DeviceMonitor. Plugging in wired 3.5mm or USB-C earphones immediately showcases the device in the Dynamic Island with 3D models and audio routing.
-- **Purely Content-Driven Wing Sizing**: Left and right wings now adjust their sizes independently and dynamically based strictly on their measured intrinsic content width without static pre-default floors.
-- **Droplet Shape Margin Hardening**: Enhanced tip padding and geometry floors to eliminate clipping on rounded droplet curves.
-- **Seamless In-App Updates**: Full Sparkle appcast and release asset distribution for live in-app updating.
+### Release Highlights — LiquidDynamo 2.2.8
+- **Liquid Glass Studio Optical Architecture**: Complete visual redesign integrating Apple Liquid Glass optical physics — superellipse squircle curvature (n=5.0) for seamless G2 continuity, 91.92° directional glare convergence, and 50% wavelength-dependent chromatic dispersion (NR=0.98, NG=1.00, NB=1.02).
+- **Calibrated Studio Smoked Glass Preset**: Elegant warm-slate tint (RGBA: 102, 98, 98, 0.28) with 15.73pt soft drop shadow, specular glare sheen, and subtle inner refractive bevel.
+- **Redesigned HUD & Dropper Panels**: Expanded notch detail cards (devices, clipboard, Scopa cleaner, color dropper, Watcher) and shelf dropper surfaces all upgraded with calibrated liquid glass materials.
+- **Enhanced Prismatic Water Meniscus**: Fluid surface waves and bottom droplet contours now feature live chromatic dispersion rims with additive light blending.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.2.7",
-        name: "LiquidDynamo 2.2.7 — Wired Earphones Support & Adaptive Content-Driven Wings",
+        tag: "v2.2.8",
+        name: "LiquidDynamo 2.2.8 — Liquid Glass Studio Redesign & Optical Refraction Shaders",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.7 (build 38)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.2.8 (build 39)",
         makeLatest: false
     )
 ]
@@ -65,7 +65,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.2.7.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.7.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.2.8.dmg", desktop.appendingPathComponent("LiquidDynamo-2.2.8.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

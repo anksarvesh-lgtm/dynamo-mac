@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.2.8] — 2026-11-03
+
+### Apple Liquid Glass Studio Optical Architecture & Visual Redesign
+- **Superellipse Squircle Curvature ($n=5.0$)**: Upgraded `sdRoundedBox` SDF in `LiquidIslandShader.metal` from standard rounded boxes to a hyper-squircle exponent ($n=5.0$) for true G2 curvature continuity matching Liquid Glass Studio.
+- **Directional Glass Glare Convergence ($91.92^\circ$)**: Calibrated directional glass glare reflection with far-side detection ($0.80$ opposite factor), $0.9383$ glare factor, and $2.1$ convergence exponent across `liquidIsland` and `liquidBlobField`.
+- **Wavelength-Dependent Chromatic Dispersion ($50\%$)**: Implemented spectral light splitting along glass bevels ($N_R=0.98, N_G=1.00, N_B=1.02$) with calibrated $50\%$ dispersion exponents.
+- **Calibrated Studio Smoked Glass Preset**: Added `.customStudio` / updated `.studioLiquid` with warm-slate neutral tint (`RGBA: 102/255, 98/255, 98/255, 0.28`), $15.73\,\text{pt}$ soft drop shadow, inner refractive bevel, and additive prismatic dispersion rims.
+- **Upgraded UI Surfaces**: Transformed notch detail cards (connected devices, clipboard history, Scopa storage cleaner, color eyedropper, Watcher), droplet shelf surfaces, and water capsule indicators to utilize the new Liquid Glass material system.
+
 ## [2.2.7] — 2026-10-31
 
 ### Purely Content-Driven Wing Sizing & Adaptive Auto-Fit
