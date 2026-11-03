@@ -4,7 +4,8 @@
 //
 //  Master Liquid Unified Surface View:
 //  - Apple Liquid Glass Visual Language (Dark Smoked Charcoal #17191C, Specular Rim #DDE8F0, Teal #123B36)
-//  - Permanent Connected Devices Header fixed at top
+//  - One Continuous Liquid Glass Object unifying Left Wing, Central Dynamic Island, and Right Wing
+//  - Permanent Connected Devices Header fixed at top (Strictly verified real data only)
 //  - 3-Slide Horizontal Utility Carousel (Productivity, System Tools, Monitoring)
 //  - Adaptive In-Place Detail Expansion (Single continuous surface morphs into rich 3-column views)
 //  - Organic water-physics spring animations and notch anchor synchronization
@@ -29,35 +30,67 @@ public struct LiquidUnifiedSurfaceView: View {
 
     public var body: some View {
         let geom = safeArea.currentGeometry
+        let isNotched = geom.isNotched
+        let notchW = geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0
+        let notchH = geom.notchHeight
+        let hasConnectedDevices = PermanentConnectedDevicesHeaderView.hasAnyConnectedDevice
 
-        VStack(spacing: 0) {
-            // Physical Notch Exclusion Anchor (wrap seamlessly around hardware cutout)
-            if geom.isNotched {
-                Color.clear
-                    .frame(width: geom.rawNotchWidth, height: geom.rawNotchHeight + 6)
-            } else {
-                Color.clear
-                    .frame(height: 14)
-            }
+        ZStack(alignment: .top) {
+            // 1. Unified Continuous 5-Layer Optical Liquid Glass Backdrop
+            ContinuousLiquidIslandBackdrop(
+                isNotched: isNotched,
+                rawNotchWidth: notchW,
+                rawNotchHeight: notchH,
+                bottomCornerRadius: expandedMode == .none ? 26 : 28,
+                isHovered: isHovered
+            )
 
-            // Single Continuous Liquid Glass Container
-            VStack(spacing: 8) {
-                // 1. Permanent Connected Devices Header (MagSafe 3 & Audio / realme Buds)
-                PermanentConnectedDevicesHeaderView(
-                    onSelectCharger: {
-                        toggleExpansion(.device("sim_magsafe"))
-                    },
-                    onSelectAudioDevice: { dev in
-                        if let key = dev?.stableKey {
-                            toggleExpansion(.device(key))
-                        } else {
-                            toggleExpansion(.device("bluetooth_library"))
-                        }
+            // 2. Continuous Fluid Content Stack
+            VStack(spacing: 6) {
+                // Top Flanking Row (Notch Exclusion Zone + Left/Right Wings or Verified Connected Devices)
+                if isNotched {
+                    if hasConnectedDevices {
+                        PermanentConnectedDevicesHeaderView(
+                            onSelectCharger: {
+                                toggleExpansion(.device("sim_magsafe"))
+                            },
+                            onSelectAudioDevice: { dev in
+                                if let key = dev?.stableKey {
+                                    toggleExpansion(.device(key))
+                                } else {
+                                    toggleExpansion(.device("bluetooth_library"))
+                                }
+                            }
+                        )
+                        .padding(.top, 2)
+                    } else {
+                        // When 0 devices connected, notch cutout clearance allows carousel to shift up naturally
+                        Color.clear
+                            .frame(height: notchH + 2)
                     }
-                )
-                .frame(maxWidth: .infinity)
+                } else {
+                    // Non-notched display: Connected devices header if any, with smooth top margin
+                    if hasConnectedDevices {
+                        PermanentConnectedDevicesHeaderView(
+                            onSelectCharger: {
+                                toggleExpansion(.device("sim_magsafe"))
+                            },
+                            onSelectAudioDevice: { dev in
+                                if let key = dev?.stableKey {
+                                    toggleExpansion(.device(key))
+                                } else {
+                                    toggleExpansion(.device("bluetooth_library"))
+                                }
+                            }
+                        )
+                        .padding(.top, 4)
+                    } else {
+                        Color.clear
+                            .frame(height: 8)
+                    }
+                }
 
-                // 2. Adaptive Lower Body: Carousel OR Expanded Detail View
+                // Lower Body: Carousel OR Expanded Detail View (In-Place Morphing)
                 if expandedMode == .none {
                     UtilityCarouselView(
                         currentSlide: $currentSlide,
@@ -80,7 +113,7 @@ public struct LiquidUnifiedSurfaceView: View {
                             }
                         }
                     )
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 10)
                     .transition(
                         .asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
@@ -98,7 +131,7 @@ public struct LiquidUnifiedSurfaceView: View {
                         }
                     )
                     .environmentObject(vm)
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 10)
                     .transition(
                         .asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top)),
@@ -107,21 +140,23 @@ public struct LiquidUnifiedSurfaceView: View {
                     )
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 4)
-            .padding(.bottom, 12)
-            .background(
-                liquidSurfaceBackdrop
+            .padding(.bottom, 10)
+        }
+        .clipShape(
+            ContinuousLiquidIslandShape(
+                topEarRadius: 8.0,
+                bottomCornerRadius: expandedMode == .none ? 26 : 28,
+                isNotched: isNotched,
+                rawNotchWidth: notchW,
+                rawNotchHeight: notchH,
+                hasConnectedDevices: hasConnectedDevices
             )
-            .clipShape(
-                RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-            )
-            .shadow(color: LiquidColorTokens.deepShadow.opacity(0.85), radius: 24, x: 0, y: 12)
-            .shadow(color: Color.black.opacity(0.40), radius: 6, x: 0, y: 3)
-            .onHover { h in
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
-                    isHovered = h
-                }
+        )
+        .shadow(color: LiquidColorTokens.deepShadow.opacity(0.85), radius: 24, x: 0, y: 12)
+        .shadow(color: Color.black.opacity(0.40), radius: 6, x: 0, y: 3)
+        .onHover { h in
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+                isHovered = h
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -193,92 +228,4 @@ public struct LiquidUnifiedSurfaceView: View {
         case .device(let key): return .device(key)
         }
     }
-
-    // MARK: - Liquid Surface Backdrop (Apple Dark Liquid Glass)
-    @ViewBuilder
-    private var liquidSurfaceBackdrop: some View {
-        ZStack {
-            // Layer 1: Frosted depth base
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .fill(.ultraThinMaterial)
-
-            // Layer 2: Deep Smoked Charcoal (#17191C)
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .fill(LiquidColorTokens.primaryGlass.opacity(0.92))
-
-            // Layer 3: Internal Gradient (#24282D down to #090B0E)
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            LiquidColorTokens.secondaryGlass.opacity(0.60),
-                            LiquidColorTokens.deepShadow.opacity(0.90)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-
-            // Layer 4: Prismatic Optical Refraction (Teal #123B36 and Blue #14283F)
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            LiquidColorTokens.tealRefraction.opacity(0.40),
-                            LiquidColorTokens.blueRefraction.opacity(0.22),
-                            Color.clear
-                        ],
-                        center: .topLeading,
-                        startRadius: 10,
-                        endRadius: 360
-                    )
-                )
-
-            // Layer 5: Warm Champagne Environmental Highlight (Bottom Right)
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            LiquidColorTokens.champagneReflection.opacity(0.20),
-                            Color.clear
-                        ],
-                        center: .bottomTrailing,
-                        startRadius: 5,
-                        endRadius: 200
-                    )
-                )
-
-            // Layer 6: Directional Top Specular Sheen (-45° illumination)
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.white.opacity(isHovered ? 0.25 : 0.16), location: 0.0),
-                            .init(color: Color.white.opacity(0.05), location: 0.25),
-                            .init(color: Color.clear, location: 0.60)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-
-            // Layer 7: Razor Specular Rim (Silver #DDE8F0, Teal, Champagne #C69B70)
-            RoundedRectangle(cornerRadius: expandedMode == .none ? 26 : 28, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        stops: [
-                            .init(color: LiquidColorTokens.silverHighlight.opacity(isHovered ? 0.80 : 0.60), location: 0.0),
-                            .init(color: LiquidColorTokens.tealRefraction.opacity(0.45), location: 0.35),
-                            .init(color: Color.white.opacity(0.10), location: 0.65),
-                            .init(color: LiquidColorTokens.champagneReflection.opacity(0.55), location: 0.95),
-                            .init(color: LiquidColorTokens.silverHighlight.opacity(0.35), location: 1.0)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.1
-                )
-        }
-    }
 }
-

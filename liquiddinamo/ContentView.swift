@@ -615,9 +615,8 @@ struct ContentView: View {
                                 .frame(height: max(vm.effectiveClosedNotchHeight, vm.geometry.exclusionHeight))
                                 .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
                         } else {
-                            // Anchor wings flanking physical notch during expansion
-                            CollapsedLiveInfoWingsView()
-                                .islandCompactSwap(id: "wingsView")
+                            // In .home dashboard view, LiquidUnifiedSurfaceView contains the top wings area and island as ONE continuous liquid-glass object
+                            EmptyView()
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)

@@ -232,6 +232,7 @@
 		E5A000112E60000100000001 /* UtilityCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000112E60000100000002 /* UtilityCarouselView.swift */; };
 		E5A000122E60000100000001 /* LiquidUnifiedDetailContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000122E60000100000002 /* LiquidUnifiedDetailContainerView.swift */; };
 		E5A000132E60000100000001 /* LiquidUnifiedSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000132E60000100000002 /* LiquidUnifiedSurfaceView.swift */; };
+		E5A000142E60000100000001 /* ContinuousLiquidIslandShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000142E60000100000002 /* ContinuousLiquidIslandShape.swift */; };
 		E5A000022E60000100000001 /* DeviceMemoryRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000022E60000100000002 /* DeviceMemoryRegistry.swift */; };
 		E5A000032E60000100000001 /* HardwareSensorMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000032E60000100000002 /* HardwareSensorMonitor.swift */; };
 		E5A000042E60000100000001 /* ChargingIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A000042E60000100000002 /* ChargingIntelligenceService.swift */; };
@@ -586,6 +587,7 @@
 		E5A000112E60000100000002 /* UtilityCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityCarouselView.swift; sourceTree = "<group>"; };
 		E5A000122E60000100000002 /* LiquidUnifiedDetailContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidUnifiedDetailContainerView.swift; sourceTree = "<group>"; };
 		E5A000132E60000100000002 /* LiquidUnifiedSurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidUnifiedSurfaceView.swift; sourceTree = "<group>"; };
+		E5A000142E60000100000002 /* ContinuousLiquidIslandShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuousLiquidIslandShape.swift; sourceTree = "<group>"; };
 		E5A000022E60000100000002 /* DeviceMemoryRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceMemoryRegistry.swift; sourceTree = "<group>"; };
 		E5A000032E60000100000002 /* HardwareSensorMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSensorMonitor.swift; sourceTree = "<group>"; };
 		E5A000042E60000100000002 /* ChargingIntelligenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChargingIntelligenceService.swift; sourceTree = "<group>"; };
@@ -1365,6 +1367,7 @@
 				E5A000112E60000100000002 /* UtilityCarouselView.swift */,
 				E5A000122E60000100000002 /* LiquidUnifiedDetailContainerView.swift */,
 				E5A000132E60000100000002 /* LiquidUnifiedSurfaceView.swift */,
+				E5A000142E60000100000002 /* ContinuousLiquidIslandShape.swift */,
 			);
 			path = Dashboard;
 			sourceTree = "<group>";
@@ -1866,6 +1869,7 @@
 				E5A000112E60000100000001 /* UtilityCarouselView.swift in Sources */,
 				E5A000122E60000100000001 /* LiquidUnifiedDetailContainerView.swift in Sources */,
 				E5A000132E60000100000001 /* LiquidUnifiedSurfaceView.swift in Sources */,
+				E5A000142E60000100000001 /* ContinuousLiquidIslandShape.swift in Sources */,
 				E5A000022E60000100000001 /* DeviceMemoryRegistry.swift in Sources */,
 				E5A000032E60000100000001 /* HardwareSensorMonitor.swift in Sources */,
 				E5A000042E60000100000001 /* ChargingIntelligenceService.swift in Sources */,
