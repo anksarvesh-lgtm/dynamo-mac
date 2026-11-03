@@ -2,6 +2,24 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.2] — 2026-11-04
+
+### Continuous Liquid Glass Surface & Conditional Real Connected Devices
+- **One Continuous Liquid-Glass Surface**:
+  - Unified Left Wing, Central Dynamic Island, and Right Wing into one continuous, seamless liquid-glass object (`ContinuousLiquidIslandShape`, `ContinuousLiquidIslandBackdrop`).
+  - Implemented 5-layer optical smoked glass (`#17191C`, `#24282D`, `#090B0E`, `#123B36`, `#14283F`, `#00D982`, `#C69B70`, `#DDE8F0`) with AppKit `NSVisualEffectView` backdrop blur, internal depth gradients, chromatic caustics, and razor specular rim.
+  - Eliminated visual gaps, dividers, seams, and disconnected floating capsules; the central island visually emerges directly from the wings.
+- **Conditional Connected Devices Visibility**:
+  - Displays strictly genuine connected hardware verified via public Apple system APIs (IOKit power adapter presence and wattage, `DeviceMonitor` active connected peripherals).
+  - 0 devices connected: Section is completely hidden; carousel naturally moves up to the top without empty space.
+  - 1 device connected: Exactly 1 card displayed full width.
+  - 2+ devices connected: 2 balanced cards side-by-side flanking the physical notch.
+- **In-Place Detail Expansion**:
+  - Clicking any utility expands within the same shared continuous surface (~220-230pt) while flanking wings remain stationary at their screen coordinates.
+- **Crash-Free Navigation & Hierarchical Escape Handling**:
+  - Hierarchical Escape key handling: pressing Escape dismisses active expanded detail back to carousel overview first, then closes the island if already at overview.
+  - Removed all force unwraps across utility detail presentation pipelines.
+
 ## [2.3.1] — 2026-11-03
 
 ### Adaptive Carousel, Media Player First-Slide, Anchored Wings & Compact Detail Expansion

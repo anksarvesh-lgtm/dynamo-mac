@@ -38,34 +38,34 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.3.1
-- **Isolated Slide-Specific Elements**:
-  - Carousel displays strictly only the elements of each slide: Slide 1 (Productivity: Clipboard & Dropper), Slide 2 (System Tools: Scopa, Powerload, Phone Bridge), Slide 3 (Watcher: System Monitor & Gauges).
-- **Dynamic Media Player First Slide**:
-  - Automatically shifts to Slide 0 dedicated to Now Playing media player with track details and playback controls whenever media is actively playing.
-- **Strictly Real Connected Device Telemetry**:
-  - Displays actual hardware information only: real adapter wattage and charger status via IOKit (MacBook battery state when unplugged) and strictly verified active Bluetooth audio peripherals.
-- **Anchored Wings During Liquid Expansion**:
-  - Flanking wings remain securely anchored at their physical notch positions during island expansion, giving a seamless morphing effect as the surface extends downward and retracts.
-- **Compact Island Expansion & Zero Detail Crashes**:
-  - Detail mode expansion height calibrated to double the resting height (~210-230pt) for comfortable ergonomics without screen encroachment.
-  - Eliminated crashes when opening utility details via complete environment object propagation.
-- **Preserved 2.2.8 Dynamic Island Alerts & Zero Git Errors**:
-  - Dynamic Island 2.2.8 alerts and notifications pop smoothly without suppression.
-  - Zero git error safety protocols enforced for all operations.
+### Release Highlights — LiquidDynamo 2.3.2
+- **One Continuous Liquid-Glass Surface**:
+  - Unified Left Wing, Central Dynamic Island, and Right Wing into one unbroken, continuous liquid-glass object matching Apple's Liquid Glass visual language.
+  - Conforms seamlessly to physical notch cutout geometry using continuous Bezier curves without any gaps, visible seams, or disconnected floating capsules.
+- **Conditional Connected Devices Visibility**:
+  - Displays strictly genuine connected hardware verified via system data sources (IOKit charger & power adapter presence, DeviceMonitor active connected peripherals).
+  - 0 devices connected: Section is completely hidden; carousel naturally repositions upward with zero blank padding.
+  - 1 device connected: Exactly 1 card displayed full width.
+  - 2+ devices connected: 2 balanced cards side-by-side flanking the notch cutout.
+- **In-Place Detail Expansion**:
+  - Selecting any utility expands inside the same shared liquid surface (~220-230pt) while flanking wings remain anchored.
+  - Rich 3-column views for Clipboard, Dropper, Scopa, Powerload, Phone Bridge, Watcher, and Devices.
+- **Crash-Free Navigation & Hierarchical Escape Handling**:
+  - Hierarchical Escape key handling collapses active expanded detail back to carousel overview first, then closes the island if already at overview.
+  - Full null-safety checks and safe defaults across all utility navigation paths.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.3.1",
-        name: "LiquidDynamo 2.3.1 — Fluid Carousel, Media Player First-Slide & Anchored Wings",
+        tag: "v2.3.2",
+        name: "LiquidDynamo 2.3.2 — Continuous Liquid Glass Surface & Conditional Connected Devices",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.1 (build 42)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.2 (build 43)",
         makeLatest: false
     )
 ]
@@ -75,7 +75,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.3.1.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.1.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.3.2.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.2.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),
