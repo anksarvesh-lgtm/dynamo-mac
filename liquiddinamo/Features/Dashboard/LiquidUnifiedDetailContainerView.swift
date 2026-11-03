@@ -879,18 +879,45 @@ public struct LiquidUnifiedDetailContainerView: View {
     // MARK: - DEVICE DETAIL VIEW (MagSafe 3 / Bluetooth Audio)
     // =========================================================================
 
+    private func resolveDeviceIdentity(key: String) -> DeviceIdentity {
+        let isPower = key.contains("magsafe") || key.contains("power") || key.contains("battery")
+        var realBatteryPct: Int? = nil
+        var isCharging = false
+        var realWatts: Int? = nil
+
+        if isPower {
+            if let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+               let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef] {
+                for source in sources {
+                    if let desc = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any] {
+                        isCharging = (desc[kIOPSIsChargingKey as String] as? Bool) ?? false
+                        let cur = (desc[kIOPSCurrentCapacityKey as String] as? Int) ?? 0
+                        let max = (desc[kIOPSMaxCapacityKey as String] as? Int) ?? 100
+                        realBatteryPct = max > 0 ? Int((Double(cur) / Double(max)) * 100.0) : cur
+                    }
+                }
+            }
+            if let adapterDetails = IOPSCopyExternalPowerAdapterDetails()?.takeRetainedValue() as? [String: Any],
+               let w = adapterDetails[kIOPSPowerAdapterWattsKey as String] as? Int {
+                realWatts = w
+            }
+        }
+
+        return deviceMonitor.activeDevices[key] ?? DeviceIdentity(
+            stableKey: key,
+            kind: isPower ? .charger : .headphones,
+            displayName: isPower ? (realWatts != nil ? "MagSafe 3 Charger" : "MacBook Battery") : "Bluetooth Device",
+            vendor: isPower ? "Apple" : "Peripheral",
+            model: isPower ? (realWatts != nil ? "\(realWatts!)W Adapter" : "Internal Battery") : "Audio",
+            connectionType: isPower ? .power : .bluetooth,
+            batteryPercentage: realBatteryPct ?? 0,
+            iconName: isPower ? (realWatts != nil ? "bolt.shield.fill" : "battery.100.bolt") : "headphones"
+        )
+    }
+
     @ViewBuilder
     private func deviceDetailView(key: String) -> some View {
-        let dev = deviceMonitor.activeDevices[key] ?? DeviceIdentity(
-            stableKey: key,
-            kind: key.contains("magsafe") ? .charger : .headphones,
-            displayName: key.contains("magsafe") ? "MagSafe 3 Charger" : "realme Buds Wireless",
-            vendor: "Connected",
-            model: "Device",
-            connectionType: key.contains("magsafe") ? .power : .bluetooth,
-            batteryPercentage: 86,
-            iconName: key.contains("magsafe") ? "bolt.shield.fill" : "headphones"
-        )
+        let dev = resolveDeviceIdentity(key: key)
 
         VStack(spacing: 10) {
             HStack(spacing: 10) {

@@ -294,23 +294,74 @@ public struct WatcherDetailCard: View {
     }
 
     private var idleCard: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-
-            Text("Watcher: No active agent sessions")
-                .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Button("Simulate") {
-                watcher.simulateAgentActivity()
+        let stats = SystemStatsService.shared
+        let thermal = stats.thermalState
+        let thermalLabel: String = {
+            switch thermal {
+            case .nominal: return "Nominal"
+            case .fair: return "Fair"
+            case .serious: return "Serious"
+            case .critical: return "Critical"
+            @unknown default: return "Normal"
             }
-            .font(.system(size: 9, weight: .semibold))
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
+        }()
+
+        return VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color(red: 0.58, green: 0.40, blue: 0.98))
+
+                Text("System Monitor Telemetry")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                Text("Thermal: \(thermalLabel)")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2.5)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Capsule())
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+
+            HStack(spacing: 12) {
+                // CPU Metric Pill
+                HStack(spacing: 5) {
+                    Image(systemName: "cpu")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color.cyan)
+                    Text("CPU \(Int(stats.overallCPU))%")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Capsule())
+
+                // RAM Metric Pill
+                HStack(spacing: 5) {
+                    Image(systemName: "memorychip")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color.green)
+                    Text("RAM \(Int(stats.memoryPercentage))%")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Capsule())
+
+                Spacer()
+
+                Text("Active")
+                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.green)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)

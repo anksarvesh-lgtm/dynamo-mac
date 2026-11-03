@@ -364,7 +364,7 @@ struct ContentView: View {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
                         tintColor: Color.accentColor,
-                        dwellDuration: alert.dwellDuration ?? 2.0,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         VolumeLiveActivityView(onDismiss: { island.dismissAlert() })
@@ -373,8 +373,8 @@ struct ContentView: View {
                 } else if alert.id.contains("charging") || alert.id.contains("lowBattery") {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
-                        tintColor: alert.iconColor ?? Color.green,
-                        dwellDuration: alert.dwellDuration ?? 3.5,
+                        tintColor: alert.iconColor,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         BatteryLiveActivityView(
@@ -387,7 +387,7 @@ struct ContentView: View {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
                         tintColor: Color.orange,
-                        dwellDuration: alert.dwellDuration ?? 4.0,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         TimerLiveActivityView(onDismiss: { island.dismissAlert() })
@@ -396,8 +396,8 @@ struct ContentView: View {
                 } else if alert.id.contains("music") {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
-                        tintColor: alert.iconColor ?? Color.accentColor,
-                        dwellDuration: alert.dwellDuration ?? 4.0,
+                        tintColor: alert.iconColor,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         MediaLiveActivityView(onDismiss: { island.dismissAlert() })
@@ -407,7 +407,7 @@ struct ContentView: View {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
                         tintColor: Color.blue,
-                        dwellDuration: alert.dwellDuration ?? 4.0,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         CalendarLiveActivityView(customTitle: alert.title, customSubtitle: alert.subtitle, onDismiss: { island.dismissAlert() })
@@ -417,7 +417,7 @@ struct ContentView: View {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
                         tintColor: Color.cyan,
-                        dwellDuration: alert.dwellDuration ?? 3.5,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         ClipboardShelfLiveActivityView(onDismiss: { island.dismissAlert() })
@@ -426,7 +426,7 @@ struct ContentView: View {
                     LiveActivityTemplateView(
                         mode: .liquidDropletBloom,
                         tintColor: Color.blue,
-                        dwellDuration: alert.dwellDuration ?? 6.0,
+                        dwellDuration: alert.dwellDuration,
                         onDismiss: { island.dismissAlert() }
                     ) {
                         DisplayConnectedLiveActivityView(
