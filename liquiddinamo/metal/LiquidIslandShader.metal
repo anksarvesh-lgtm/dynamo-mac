@@ -11,10 +11,15 @@ using namespace metal;
 
 // MARK: - Signed Distance Field Primitives
 
-// Signed distance to a 2D rounded box with individual center and half-extents
+// Signed distance to a 2D rounded box with individual center and half-extents.
+// Uses Apple superellipse (squircle n=4) corner geometry for G2 curvature continuity (liquid-glass-studio).
 inline float sdRoundedBox(float2 p, float2 halfSize, float radius) {
     float r = clamp(radius, 0.0f, min(halfSize.x, halfSize.y));
     float2 q = abs(p) - halfSize + float2(r);
+    if (q.x > 0.0f && q.y > 0.0f) {
+        float q4 = pow(q.x, 4.0f) + pow(q.y, 4.0f);
+        return pow(q4, 0.25f) - r;
+    }
     return min(max(q.x, q.y), 0.0f) + length(max(q, 0.0f)) - r;
 }
 
@@ -232,7 +237,7 @@ inline float evaluateCompositeSDFWithWater(
         }
     }
 
-    // 6. 3D Lighting Calculations
+    // 6. 3D Lighting & Prismatic Liquid Glass Dispersion (liquid-glass-studio)
     float3 lightDir = normalize(float3(lightDirAndTight.x, lightDirAndTight.y, lightDirAndTight.z));
     float3 viewDir = float3(0.0f, 0.0f, 1.0f);
     float3 halfVec = normalize(lightDir + viewDir);
@@ -241,11 +246,25 @@ inline float evaluateCompositeSDFWithWater(
     float tightPower = max(4.0f, lightDirAndTight.w);
 
     float effectiveBevel = bevelMask * notchHighlightSuppression;
-    float tightSpec = pow(nDotH, tightPower) * lightingParams.x * effectiveBevel;
+
+    // Prismatic chromatic dispersion (wavelength-dependent index of refraction)
+    float specR = pow(nDotH, tightPower * 0.94f) * lightingParams.x * effectiveBevel;
+    float specG = pow(nDotH, tightPower)         * lightingParams.x * effectiveBevel;
+    float specB = pow(nDotH, tightPower * 1.07f) * lightingParams.x * effectiveBevel;
+    float3 chromaticSpec = float3(specR, specG, specB);
+
     float broadSpec = pow(nDotH, 5.0f) * lightingParams.y * effectiveBevel;
 
-    // Fresnel rim light (strongest at grazing angles along fluid perimeter, zero in flat interior)
-    float fresnel = pow(1.0f - normal.z, 3.0f) * lightingParams.z * effectiveBevel;
+    // Fresnel rim refraction with chromatic dispersion
+    float fresnelR = pow(1.0f - normal.z, 2.7f) * lightingParams.z * effectiveBevel;
+    float fresnelG = pow(1.0f - normal.z, 3.0f) * lightingParams.z * effectiveBevel;
+    float fresnelB = pow(1.0f - normal.z, 3.4f) * lightingParams.z * effectiveBevel;
+    float3 chromaticFresnel = float3(fresnelR, fresnelG, fresnelB);
+
+    // Directional Glass Glare with angular convergence (liquid-glass-studio)
+    float glareAngle = (atan2(normal.y, normal.x) - (M_PI_F * 0.25f)) * 2.0f;
+    float glareAngleFactor = clamp(pow(0.5f + sin(glareAngle) * 0.5f, 1.5f), 0.0f, 1.0f);
+    float3 glare = float3(1.0f, 1.0f, 1.0f) * (glareAngleFactor * 0.28f * effectiveBevel);
 
     // 7. Meniscus Rim Light along the irregular water contour (stronger where curve is tighter)
     float meniscusIntensity = waterParams.w;
@@ -276,9 +295,10 @@ inline float evaluateCompositeSDFWithWater(
 
     if (isReduceTransparency) {
         caustic = 0.0f;
-        tightSpec = 0.0f;
+        chromaticSpec = float3(0.0f);
         broadSpec = 0.0f;
-        fresnel = 0.0f;
+        chromaticFresnel = float3(0.0f);
+        glare = float3(0.0f);
         meniscusRim = 0.0f;
     }
 
@@ -303,21 +323,24 @@ inline float evaluateCompositeSDFWithWater(
 
     float effectiveAlpha = alpha * interiorAlpha;
 
-    // 10. Optical Black Glass Color Composition:
-    // Body interior has a glassy dark obsidian tint with specular reflections on the edge bevel.
+    // 10. Optical Liquid Glass Color Composition (liquid-glass-studio):
+    // Body interior has a glassy dark obsidian tint with chromatic dispersion reflections on the edge bevel.
     float3 rgb = float3(0.0f, 0.0f, 0.0f);
 
     float3 tint = float3(tintColor.rgb);
 
-    // Tight glossy specular highlight (clean white with gentle tint fringe)
-    float3 tightSpecColor = mix(float3(1.0f), tint, 0.25f) * tightSpec;
+    // Prismatic chromatic specular highlight (clean white core with subtle rainbow dispersion edge)
+    float3 tightSpecColor = mix(chromaticSpec, tint * specG, 0.20f);
     rgb += tightSpecColor;
 
     // Broad specular sheen along the bevel curve
     rgb += tint * broadSpec;
 
-    // Fresnel rim refraction
-    rgb += tint * fresnel;
+    // Prismatic Fresnel rim refraction
+    rgb += mix(chromaticFresnel, tint * fresnelG, 0.35f);
+
+    // Directional glass glare
+    rgb += glare;
 
     // Meniscus rim highlight following the organic water contour
     rgb += mix(float3(1.0f), tint, 0.35f) * meniscusRim;
@@ -456,7 +479,7 @@ inline float evaluateBlobFieldSDFMetal(
     // Within 10 to 14 points, smoothly blends to transparent glass.
     float sourceRamp = smoothstep(notchLipY, notchLipY + 14.0f, position.y);
 
-    // 5. 3D Lighting & Fresnel Water Optics
+    // 5. 3D Lighting & Prismatic Liquid Glass Optics (liquid-glass-studio)
     float3 lightDir = normalize(float3(lightDirAndTight.x, lightDirAndTight.y, lightDirAndTight.z));
     float3 viewDir = float3(0.0f, 0.0f, 1.0f);
     float3 halfVec = normalize(lightDir + viewDir);
@@ -464,11 +487,24 @@ inline float evaluateBlobFieldSDFMetal(
     float nDotH = max(0.0f, dot(normal, halfVec));
     float tightPower = max(6.0f, lightDirAndTight.w);
 
-    float tightSpec = pow(nDotH, tightPower) * lightingParams.x * bevelMask * sourceRamp;
+    // Prismatic chromatic dispersion on specular highlights
+    float specR = pow(nDotH, tightPower * 0.94f) * lightingParams.x * bevelMask * sourceRamp;
+    float specG = pow(nDotH, tightPower)         * lightingParams.x * bevelMask * sourceRamp;
+    float specB = pow(nDotH, tightPower * 1.07f) * lightingParams.x * bevelMask * sourceRamp;
+    float3 chromaticSpec = float3(specR, specG, specB);
+
     float broadSpec = pow(nDotH, 4.0f) * lightingParams.y * bevelMask * sourceRamp;
 
-    // Water Fresnel (IOR 1.333 -> F0 ~ 0.02)
-    float fresnel = pow(1.0f - normal.z, 3.5f) * lightingParams.z * bevelMask;
+    // Prismatic Fresnel rim reflection
+    float fresnelR = pow(1.0f - normal.z, 3.2f) * lightingParams.z * bevelMask;
+    float fresnelG = pow(1.0f - normal.z, 3.5f) * lightingParams.z * bevelMask;
+    float fresnelB = pow(1.0f - normal.z, 3.9f) * lightingParams.z * bevelMask;
+    float3 chromaticFresnel = float3(fresnelR, fresnelG, fresnelB);
+
+    // Directional Glass Glare with angular convergence (liquid-glass-studio)
+    float glareAngle = (atan2(normal.y, normal.x) - (M_PI_F * 0.25f)) * 2.0f;
+    float glareAngleFactor = clamp(pow(0.5f + sin(glareAngle) * 0.5f, 1.5f), 0.0f, 1.0f);
+    float3 glare = float3(1.0f, 1.0f, 1.0f) * (glareAngleFactor * 0.25f * bevelMask * sourceRamp);
 
     // Meniscus rim highlight
     float meniscusRim = pow(max(0.0f, normal.y) * smoothstep(1.0f, 0.05f, s), 1.5f) * 1.2f * bevelMask;
@@ -491,11 +527,12 @@ inline float evaluateBlobFieldSDFMetal(
     float3 tint = float3(tintColor.rgb);
     float3 rgb = float3(0.0f, 0.0f, 0.0f);
 
-    // Specular and Fresnel highlights
-    float3 tightSpecColor = mix(float3(1.0f), tint, 0.2f) * tightSpec;
+    // Specular and Fresnel highlights with prismatic chromatic dispersion
+    float3 tightSpecColor = mix(chromaticSpec, tint * specG, 0.20f);
     rgb += tightSpecColor;
     rgb += tint * broadSpec;
-    rgb += tint * fresnel;
+    rgb += mix(chromaticFresnel, tint * fresnelG, 0.35f);
+    rgb += glare;
     rgb += mix(float3(1.0f), tint, 0.3f) * meniscusRim;
 
     // Soft water caustics inside droplet
