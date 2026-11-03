@@ -170,6 +170,15 @@ public struct WatcherPillView: View {
 
         case .working(let tool):
             HStack(spacing: 4) {
+                if let sIdx = session.stepIndex, let sTot = session.stepTotal {
+                    Text("\(sIdx)/\(sTot)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(session.agentKind.themeColor.opacity(0.25)))
+                        .foregroundStyle(session.agentKind.themeColor)
+                }
+
                 Text(tool)
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Color.accentColor.opacity(0.95))

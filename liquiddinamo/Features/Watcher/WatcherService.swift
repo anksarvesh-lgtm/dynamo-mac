@@ -37,9 +37,7 @@ public final class WatcherService: ObservableObject {
     public let fallbackSocketPath: String = "/tmp/liquid_watcher.sock"
 
     private init() {
-        if Defaults[.enableWatcherIntegration] {
-            startServer()
-        }
+        startServer()
     }
 
     deinit {
@@ -49,7 +47,6 @@ public final class WatcherService: ObservableObject {
     // MARK: - Server Lifecycle
 
     public func startServer() {
-        guard Defaults[.enableWatcherIntegration] else { return }
         guard serverFD == -1 else { return }
 
         // Create socket
@@ -237,9 +234,23 @@ public final class WatcherService: ObservableObject {
         if let p = prompt { session.prompt = p }
         if let t = toolName { session.activeTool = t }
 
+        // Live Step & Context attributes
+        if let g = rawDict["goal"] as? String { session.goal = g }
+        if let sId = rawDict["step_id"] as? String { session.stepId = sId }
+        if let sTitle = rawDict["step_title"] as? String { session.stepTitle = sTitle }
+        if let sIdx = rawDict["step_index"] as? Int { session.stepIndex = sIdx }
+        if let sTot = rawDict["step_total"] as? Int { session.stepTotal = sTot }
+        if let prog = rawDict["progress"] as? Double { session.progress = prog }
+
+        if let ctx = rawDict["context"] as? [String: Any] {
+            if let acc = ctx["account"] as? String { session.accountInfo = acc }
+            if let awake = ctx["keep_awake"] as? String { session.keepAwakeInfo = awake }
+            if let tok = ctx["tokens"] as? String { session.tokenInfo = tok }
+        }
+
         switch eventName {
-        case "SessionStart":
-            session.state = .idle
+        case "SessionStart", "TaskStart":
+            session.state = .working(tool: session.stepTitle ?? "Starting Task")
 
         case "UserPromptSubmit":
             session.state = .thinking
@@ -257,6 +268,16 @@ public final class WatcherService: ObservableObject {
 
         case "PostToolUse", "PostToolUseFailure":
             session.state = .working(tool: toolName ?? "task")
+
+        case "StepCheckpoint":
+            let tool = session.stepTitle ?? (toolName ?? "Step Checkpoint")
+            session.state = .working(tool: tool)
+
+        case "AccountSwitch":
+            session.state = .working(tool: "Account Switched")
+
+        case "KeepAwakeChanged":
+            session.state = .working(tool: "Sleep Prevention")
 
         case "PermissionRequest":
             let tool = toolName ?? "Command"
@@ -278,6 +299,30 @@ public final class WatcherService: ObservableObject {
 
         default:
             session.state = .working(tool: eventName)
+        }
+
+        // Trigger Dynamic Island notification / alert popup if notification payload is present
+        if let notif = rawDict["notification"] as? [String: Any],
+           let title = notif["title"] as? String {
+            let sub = (notif["subtitle"] as? String) ?? (notif["body"] as? String)
+            let icon = (notif["iconName"] as? String) ?? agentKind.iconName
+            let dwell = (notif["dwellDuration"] as? Double) ?? 3.8
+            let kindStr = (notif["kind"] as? String) ?? "alert"
+
+            let notifPayload = AlertPayload(
+                id: "watcher.agent.\(UUID().uuidString)",
+                kind: .custom(title: title, subtitle: sub, icon: icon),
+                title: title,
+                subtitle: sub,
+                iconName: icon,
+                iconColor: agentKind.themeColor,
+                dwellDuration: dwell
+            )
+            if kindStr == "alert" {
+                IslandController.shared.showAlert(payload: notifPayload)
+            } else {
+                IslandController.shared.triggerEventExpansion(payload: notifPayload)
+            }
         }
 
         updateSession(session)

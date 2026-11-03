@@ -45,6 +45,14 @@ public struct WatcherDetailCard: View {
 
             toolsRow(session: session)
 
+            if let stepTitle = session.stepTitle, let sIdx = session.stepIndex, let sTot = session.stepTotal {
+                stepProgressView(session: session, stepTitle: stepTitle, index: sIdx, total: sTot)
+            }
+
+            if session.accountInfo != nil || session.keepAwakeInfo != nil || session.tokenInfo != nil {
+                contextBadgesView(session: session)
+            }
+
             if case .permissionRequested(_, let details) = session.state {
                 permissionView(session: session, details: details)
             }
@@ -121,6 +129,102 @@ public struct WatcherDetailCard: View {
                         .foregroundStyle(diff.additions > 0 ? Color.green : Color.red)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func stepProgressView(session: WatcherSession, stepTitle: String, index: Int, total: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                HStack(spacing: 4) {
+                    Image(systemName: "list.bullet.clipboard.fill")
+                        .font(.system(size: 8.5))
+                        .foregroundStyle(session.agentKind.themeColor)
+                    Text("Step \(index) of \(total)")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(session.agentKind.themeColor)
+                }
+
+                Spacer()
+
+                if let prog = session.progress {
+                    Text("\(Int(prog * 100))%")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+            }
+
+            Text(stepTitle)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white.opacity(0.95))
+                .lineLimit(2)
+
+            if let prog = session.progress {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.12))
+                        Capsule()
+                            .fill(session.agentKind.themeColor)
+                            .frame(width: max(4, geo.size.width * CGFloat(min(1.0, max(0.0, prog)))))
+                    }
+                }
+                .frame(height: 3.5)
+            }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 9)
+                .fill(Color.white.opacity(0.06))
+        )
+    }
+
+    @ViewBuilder
+    private func contextBadgesView(session: WatcherSession) -> some View {
+        HStack(spacing: 6) {
+            if let acc = session.accountInfo {
+                HStack(spacing: 3) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 8))
+                    Text(acc)
+                        .font(.system(size: 8.5, weight: .medium))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(Capsule().fill(Color.blue.opacity(0.2)))
+                .foregroundStyle(Color.blue.opacity(0.9))
+            }
+
+            if let awake = session.keepAwakeInfo {
+                HStack(spacing: 3) {
+                    Image(systemName: "cup.and.saucer.fill")
+                        .font(.system(size: 8))
+                    Text(awake)
+                        .font(.system(size: 8.5, weight: .medium))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(Capsule().fill(Color.orange.opacity(0.2)))
+                .foregroundStyle(Color.orange.opacity(0.9))
+            }
+
+            if let tok = session.tokenInfo {
+                HStack(spacing: 3) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 8))
+                    Text(tok)
+                        .font(.system(size: 8.5, weight: .medium))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(Capsule().fill(Color.white.opacity(0.1)))
+                .foregroundStyle(.white.opacity(0.8))
+            }
+
+            Spacer()
         }
     }
 

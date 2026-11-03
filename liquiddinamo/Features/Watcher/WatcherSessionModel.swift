@@ -71,7 +71,7 @@ public enum WatcherAgentKind: String, CaseIterable, Codable, Identifiable {
     public static func match(from raw: String) -> WatcherAgentKind {
         let clean = raw.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         if clean.contains("claude") { return .claudeCode }
-        if clean.contains("antigravity") || clean.contains("agy") { return .antigravity }
+        if clean.contains("antigravity") || clean.contains("agy") || clean.contains("agent-guard") || clean.contains("guard") { return .antigravity }
         if clean.contains("cursor") { return .cursor }
         if clean.contains("codex") { return .codex }
         if clean.contains("gemini") { return .geminiCLI }
@@ -139,6 +139,17 @@ public struct WatcherSession: Identifiable, Equatable {
     public var startedAt: Date
     public var lastActivityAt: Date
 
+    // Live Step Execution & Context
+    public var goal: String?
+    public var stepId: String?
+    public var stepTitle: String?
+    public var stepIndex: Int?
+    public var stepTotal: Int?
+    public var progress: Double?
+    public var accountInfo: String?
+    public var keepAwakeInfo: String?
+    public var tokenInfo: String?
+
     public init(
         id: String = UUID().uuidString,
         agentKind: WatcherAgentKind = .claudeCode,
@@ -149,7 +160,16 @@ public struct WatcherSession: Identifiable, Equatable {
         diffSummary: WatcherDiffSummary? = nil,
         terminalPID: pid_t? = nil,
         startedAt: Date = Date(),
-        lastActivityAt: Date = Date()
+        lastActivityAt: Date = Date(),
+        goal: String? = nil,
+        stepId: String? = nil,
+        stepTitle: String? = nil,
+        stepIndex: Int? = nil,
+        stepTotal: Int? = nil,
+        progress: Double? = nil,
+        accountInfo: String? = nil,
+        keepAwakeInfo: String? = nil,
+        tokenInfo: String? = nil
     ) {
         self.id = id
         self.agentKind = agentKind
@@ -161,6 +181,15 @@ public struct WatcherSession: Identifiable, Equatable {
         self.terminalPID = terminalPID
         self.startedAt = startedAt
         self.lastActivityAt = lastActivityAt
+        self.goal = goal
+        self.stepId = stepId
+        self.stepTitle = stepTitle
+        self.stepIndex = stepIndex
+        self.stepTotal = stepTotal
+        self.progress = progress
+        self.accountInfo = accountInfo
+        self.keepAwakeInfo = keepAwakeInfo
+        self.tokenInfo = tokenInfo
     }
 
     public var displayName: String {
