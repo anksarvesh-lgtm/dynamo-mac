@@ -38,24 +38,24 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.3.4 (Build 45)
-- **Subprocess Lifecycle & Orphan Prevention**: Hardened `mediaremote-adapter.pl` with explicit signal handlers (HUP, PIPE, TERM, INT) and a background parent process / STDIN EOF watcher thread. Attached parent Swift lifecycle to `NSApplication.willTerminateNotification` with clean process-group termination (`SIGTERM`/`SIGKILL`).
-- **CoreGraphics TIFF & Bitmap Serialization Guards**: Eliminated console error `CGImageDestinationFinalize failed for output type 'public.tiff'` by guarding all raster image conversions against zero-byte bitmaps and invalid CGImages across ClipboardHistory, ImageProcessing, QuickShare, and DeviceModelStore.
-- **MediaKeyInterceptor CGEvent Tap Repair**: Repaired Quartz event tap with dual-tier fallback (`.cghidEventTap` -> `.cgSessionEventTap`), attached to main RunLoop under `.commonModes`, and connected `showNotchOSD` reactive observation.
-- **Escape Key Dismissal & Hitbox Ergonomics**: Floating panels and dynamic island expanded views now reliably dismiss upon pressing `Escape` via both local and global key monitors. Added `.contentShape` to cards, capsules, and quick shortcuts for full edge-to-edge hit testing.
+### Release Highlights — LiquidDynamo 2.3.5 (Build 46)
+- **Eliminated Accidental Notch Bottom Hover Expansion**: Fixed a critical interaction bug where brushing or touching the bottom boundary of the hardware notch or floating pill immediately triggered full island expansion.
+- **Strict Hit-Testing & 6pt Bottom Deadzone**: Inset the hover trigger zone with a 6pt bottom deadzone in `isMouseInHoverRegion`, preventing grazes along the lower notch perimeter from firing hover events.
+- **180ms Intentional Dwell Sequencing**: Required an intentional 180ms cursor dwell before transitioning to `.expanded` on hover, completely eliminating accidental expansions during rapid screen-crossing mouse gestures.
+- **Zero Bottom Hit Spill**: Removed the 8pt downward padding in `NotchSafeAreaEngine.collapsedWingHitRects`, ensuring collapsed wing hit areas never protrude below the physical notch into user window content.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.3.4",
-        name: "LiquidDynamo 2.3.4 — Subprocess Lifecycle, Graphics Stability & Interaction Fixes",
+        tag: "v2.3.5",
+        name: "LiquidDynamo 2.3.5 — Notch Bottom Deadzone & Hover Dwell Intent Sequencing",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.4 (build 45)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.5 (build 46)",
         makeLatest: false
     )
 ]
@@ -65,7 +65,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.3.4.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.4.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.3.5.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.5.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

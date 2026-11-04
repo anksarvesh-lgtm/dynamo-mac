@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.5] — 2026-11-04
+
+### Notch Bottom Deadzone & Hover Dwell Intent Sequencing
+- **Eliminated Accidental Notch Bottom Hover Expansion**: Fixed a critical interaction bug where brushing or touching the lower perimeter of the hardware notch cutout or central pill caused disruptive, unwanted island expansion.
+- **Strict Hit-Testing & 6pt Bottom Deadzone**: Inset the interactive hover hit test in `IslandController.isMouseInHoverRegion` with a 6pt bottom deadzone (`minY = notchRect.minY + 6.0`), requiring the cursor to intentionally enter the notch body before registering hover.
+- **180ms Intentional Dwell Sequencing**: Added a 180ms hover intent dwell delay (`hoverIntentTask`) in `IslandController.onHoverEntered` before triggering expansion, completely filtering out transient mouse swipes and rapid cursor traversal.
+- **Zero Bottom Hit Spill in Wing Rects**: Removed the 8pt downward padding in `NotchSafeAreaEngine.collapsedWingHitRects`, ensuring collapsed wing hit areas stay strictly within `topY - notchH` and never protrude below the physical notch into user window content.
+- **Synchronized Activation Overlays**: Inset the activation zone overlay in `ContentView.swift` by 6pt and routed central pill hover through `IslandController` dwell sequencing.
+
 ## [2.3.4] — 2026-11-04
 
 ### Subprocess Lifecycle, Graphics Stability & Interaction Architecture
