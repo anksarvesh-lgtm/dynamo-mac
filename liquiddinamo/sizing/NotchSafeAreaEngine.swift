@@ -440,37 +440,39 @@ public final class NotchSafeAreaEngine: ObservableObject {
             // Drawn wings have a 7pt spacer offset (rawNotchWidth + 14 center spacer).
             // Left drop attaches from (notchRect.minX - 7 - leftW) to notchRect.minX
             // Right drop attaches from notchRect.maxX to (notchRect.maxX + 7 + rightW)
+            // Vertical bounds: Strictly flush with top screen edge down to notchH (zero bottom spill)
             let leftX = notchRect.minX - 7.0 - leftW
             leftWingRect = CGRect(
                 x: leftX - padding,
-                y: topY - notchH - padding,
-                width: leftW + 7.0 + (padding * 2.0),
-                height: notchH + (padding * 2.0)
+                y: topY - notchH,
+                width: leftW + 7.0 + padding,
+                height: notchH
             )
 
             let rightX = notchRect.maxX
             rightWingRect = CGRect(
-                x: rightX - padding,
-                y: topY - notchH - padding,
-                width: rightW + 7.0 + (padding * 2.0),
-                height: notchH + (padding * 2.0)
+                x: rightX,
+                y: topY - notchH,
+                width: rightW + 7.0 + padding,
+                height: notchH
             )
         } else {
             // Non-notched display: drops sit immediately flanking central island pill with 8pt gap
+            // Vertical bounds: Strictly flush with top screen edge down to notchH (zero bottom spill)
             let leftX = notchRect.minX - 8.0 - leftW
             leftWingRect = CGRect(
                 x: leftX - padding,
-                y: topY - notchH - padding,
-                width: leftW + (padding * 2.0),
-                height: notchH + (padding * 2.0)
+                y: topY - notchH,
+                width: leftW + padding,
+                height: notchH
             )
 
             let rightX = notchRect.maxX + 8.0
             rightWingRect = CGRect(
-                x: rightX - padding,
-                y: topY - notchH - padding,
-                width: rightW + (padding * 2.0),
-                height: notchH + (padding * 2.0)
+                x: rightX,
+                y: topY - notchH,
+                width: rightW + padding,
+                height: notchH
             )
         }
 

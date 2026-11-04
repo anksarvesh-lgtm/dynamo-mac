@@ -148,13 +148,14 @@ struct ContentView: View {
                 PowerloadUnderNotchProgressBar(isExpanded: isExpandedState)
                     .offset(y: isExpandedState ? -2 : 0)
             }
-            // Dedicated Activation Zone: Aligned strictly inside visible notch bounds
+            // Dedicated Activation Zone: Aligned strictly inside visible notch bounds with bottom deadzone
             .overlay(alignment: .top) {
                 if island.state != .expanded && vm.notchState != .open {
                     let geom = vm.geometry
                     let notchW = geom.hasPhysicalNotch ? (geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0) : 140.0
+                    let activationH = max(10, geom.notchHeight - 6)
                     Color.clear
-                        .frame(width: notchW, height: geom.notchHeight)
+                        .frame(width: max(0, notchW - 4), height: activationH)
                         .contentShape(Rectangle())
                         .onHover { hovering in
                             if hovering {
@@ -1292,10 +1293,10 @@ struct CollapsedLiveInfoWingsView: View {
             }
         }
         .onHover { hovering in
-            if Defaults[.openNotchOnHover] && hovering {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
-                    vm.open()
-                }
+            if hovering {
+                island.onHoverEntered()
+            } else {
+                island.onHoverExited()
             }
         }
     }

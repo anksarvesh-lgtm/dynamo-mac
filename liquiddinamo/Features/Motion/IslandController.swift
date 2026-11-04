@@ -827,7 +827,6 @@ public final class IslandController: ObservableObject {
 
     public func onHoverEntered() {
         hoverIntentTask?.cancel()
-        hoverIntentTask = nil
         isHovering = true
 
         guard state != .expanded else { return }
@@ -839,12 +838,24 @@ public final class IslandController: ObservableObject {
 
         guard Defaults[.openNotchOnHover] else { return }
 
-        // Opened via hover (not pinned) - expand immediately upon entering notch hitbox
-        self.isPinnedOpen = false
-        self.transitionTo(.expanded)
+        // Require an intentional hover dwell (180ms) before expanding on hover,
+        // preventing accidental trigger when the cursor rapidly grazes or touches the notch bottom.
+        hoverIntentTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard !Task.isCancelled else { return }
+            guard let self = self, self.isHovering else { return }
+            guard self.state != .expanded else { return }
+            guard Defaults[.openNotchOnHover] else { return }
+
+            self.isPinnedOpen = false
+            self.transitionTo(.expanded)
+        }
     }
 
     public func onHoverExited() {
+        hoverIntentTask?.cancel()
+        hoverIntentTask = nil
+
         if state == .alertPop {
             scheduleAlertDwell(duration: 0.5)
             return
@@ -1045,11 +1056,13 @@ public final class IslandController: ObservableObject {
         }
 
         if state != .expanded {
-            // STRICT HIT-TESTING: Exactly matches visible physical notch rectangle only.
-            // Zero proximity detection, zero hover radius, zero padding below or around notch.
-            let minX = notchRect.minX
-            let maxX = notchRect.maxX
-            let minY = notchRect.minY
+            // STRICT HIT-TESTING WITH BOTTOM DEADZONE:
+            // Inset bottom edge by 6pt so grazing or touching the notch bottom boundary
+            // never triggers accidental expansion. Cursor must be intentionally inside notch body.
+            let bottomDeadzone: CGFloat = 6.0
+            let minX = notchRect.minX + 2.0
+            let maxX = notchRect.maxX - 2.0
+            let minY = notchRect.minY + bottomDeadzone
             let maxY = topY + 1.0
 
             return screenPoint.x >= minX && screenPoint.x <= maxX && screenPoint.y >= minY && screenPoint.y <= maxY
