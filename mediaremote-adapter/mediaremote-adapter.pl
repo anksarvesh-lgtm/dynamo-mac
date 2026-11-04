@@ -255,6 +255,39 @@ if (defined shift @ARGV) {
   fail "Too many arguments";
 }
 
+$SIG{HUP} = sub { exit 0; };
+$SIG{PIPE} = sub { exit 0; };
+$SIG{TERM} = sub { exit 0; };
+$SIG{INT} = sub { exit 0; };
+
+my $parent_pid = getppid();
+if ($function_name eq "stream") {
+  eval {
+    require threads;
+    threads->create(sub {
+      $SIG{HUP} = sub { exit 0; };
+      $SIG{PIPE} = sub { exit 0; };
+      $SIG{TERM} = sub { exit 0; };
+      $SIG{INT} = sub { exit 0; };
+
+      while (1) {
+        if (getppid() != $parent_pid || getppid() == 1) {
+          exit 0;
+        }
+        my $rin = '';
+        vec($rin, fileno(STDIN), 1) = 1;
+        my $nfound = select($rin, undef, undef, 0.5);
+        if ($nfound > 0) {
+          my $res = sysread(STDIN, my $buf, 1024);
+          if (!defined $res || $res == 0) {
+            exit 0;
+          }
+        }
+      }
+    })->detach();
+  };
+}
+
 my $symbol = DynaLoader::dl_find_symbol($handle, "$symbol_name")
   or fail "Symbol '$symbol_name' not found in $framework";
 DynaLoader::dl_install_xsub("main::$function_name", $symbol);

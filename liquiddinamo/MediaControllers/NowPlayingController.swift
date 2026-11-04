@@ -66,8 +66,10 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     private let MRMediaRemoteSetRepeatModeFunction: @convention(c) (Int) -> Void
 
     private var process: Process?
+    private var stdinPipe: Pipe?
     private var pipeHandler: JSONLinesPipeHandler?
     private var streamTask: Task<Void, Never>?
+    private var terminationObserver: NSObjectProtocol?
 
     // MARK: - Initialization
     init?() {
@@ -96,26 +98,53 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         MRMediaRemoteSetRepeatModeFunction = unsafeBitCast(
             MRMediaRemoteSetRepeatModePointer, to: (@convention(c) (Int) -> Void).self)
 
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.terminateProcess()
+        }
+
         Task { await setupNowPlayingObserver() }
     }
 
     deinit {
-        streamTask?.cancel()
-        
-        if let pipeHandler = self.pipeHandler {
-            Task { await pipeHandler.close()
-            }
-        }
-        
-        if let process = self.process {
-            if process.isRunning {
-                process.terminate()
-                process.waitUntilExit()
-            }
-        }
+        terminateProcess()
+    }
 
-        self.process = nil
+    func terminateProcess() {
+        if let observer = terminationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            terminationObserver = nil
+        }
+        streamTask?.cancel()
+        streamTask = nil
+        
+        // Closing the stdin pipe signals the Perl adapter watcher thread to exit immediately
+        stdinPipe = nil
+
+        if let pipeHandler = self.pipeHandler {
+            Task { await pipeHandler.close() }
+        }
         self.pipeHandler = nil
+
+        if let proc = self.process {
+            if proc.isRunning {
+                let pid = proc.processIdentifier
+                proc.terminate()
+                kill(pid, SIGTERM)
+                kill(-pid, SIGTERM)
+                
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) {
+                    if proc.isRunning {
+                        kill(pid, SIGKILL)
+                        kill(-pid, SIGKILL)
+                    }
+                }
+            }
+        }
+        self.process = nil
     }
 
     // MARK: - Protocol Implementation
@@ -202,6 +231,10 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         
         let pipeHandler = JSONLinesPipeHandler()
         process.standardOutput = await pipeHandler.getPipe()
+        
+        let stdinPipe = Pipe()
+        process.standardInput = stdinPipe
+        self.stdinPipe = stdinPipe
         
         self.process = process
         self.pipeHandler = pipeHandler
