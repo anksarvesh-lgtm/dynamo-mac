@@ -94,6 +94,7 @@ if [ -d "$DIR/build/LiquidDynamo.app/Contents/MacOS" ]; then
     cp "$OUTPUT_BIN" "$DIR/build/LiquidDynamo.app/Contents/MacOS/LiquidDynamo"
     mkdir -p "$DIR/build/LiquidDynamo.app/Contents/Frameworks"
     cp "$BUNDLE_FRAMEWORKS"/*.dylib "$DIR/build/LiquidDynamo.app/Contents/Frameworks/"
+    cp "$DIR/mediaremote-adapter/mediaremote-adapter.pl" "$DIR/build/LiquidDynamo.app/Contents/Resources/mediaremote-adapter.pl" 2>/dev/null || true
 fi
 
 echo "==> Compilation complete! Output: $OUTPUT_BIN"

@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.4] — 2026-11-04
+
+### Subprocess Lifecycle, Graphics Stability & Interaction Architecture
+- **Subprocess Lifecycle & Orphan Prevention**: Hardened `mediaremote-adapter.pl` with explicit signal handlers (`HUP`, `PIPE`, `TERM`, `INT`) and a background parent process / STDIN EOF watcher thread. Attached parent Swift lifecycle to `NSApplication.willTerminateNotification` with clean process-group termination (`SIGTERM`/`SIGKILL`), ensuring zero orphan Perl processes remain upon termination or restart.
+- **CoreGraphics TIFF & Bitmap Serialization Guards**: Eliminated console error `CGImageDestinationFinalize failed for output type 'public.tiff'` by guarding all raster image conversions against zero-byte bitmaps and invalid CGImages across `ClipboardHistoryService`, `ImageProcessingService`, `QuickShareService`, `ProductImageProcessor`, and `DeviceModelStore`.
+- **MediaKeyInterceptor CGEvent Tap Repair**: Repaired Quartz event tap with dual-tier fallback (`.cghidEventTap` -> `.cgSessionEventTap`), attached to main RunLoop under `.commonModes`, and connected `Defaults[.showNotchOSD]` reactive observation in `LiquidViewCoordinator`.
+- **Escape Key Dismissal & Floating Panel Key Window**: Enabled dynamic `allowsKeyWindow` on floating `NSPanel` instances (`LiquidDynamoWindow` and `LiquidDynamoSkyLightWindow`) while expanded, allowing global and local Escape key monitors to immediately dismiss expanded detail views and close the notch dashboard.
+- **Card Hitbox Ergonomics**: Added `.contentShape` to cards, capsules, and quick shortcuts for full edge-to-edge hit testing across all interactive utility elements.
+
 ## [2.2.8] — 2026-11-03
 
 ### Apple Liquid Glass Studio Optical Architecture & Visual Redesign

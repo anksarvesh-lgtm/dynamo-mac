@@ -3,10 +3,15 @@ set -e
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
-VERSION="${VERSION:-2.2.8}"
+VERSION="${VERSION:-2.3.4}"
+BUILD_NUM="${BUILD_NUM:-45}"
 APP_PATH="$DIR/build/LiquidDynamo.app"
 OUTPUT_DIR="$HOME/Desktop"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
+
+echo "==> 0. Ensuring Info.plist versions ($VERSION build $BUILD_NUM)..."
+plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+plutil -replace CFBundleVersion -string "$BUILD_NUM" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 
 echo "==> 1. Codesigning $APP_PATH for version $VERSION..."
 codesign --force --deep --sign - --identifier "com.agrigence.liquiddynamo" -r='designated => identifier "com.agrigence.liquiddynamo"' --entitlements "$DIR/liquiddinamo/LiquidDynamo.entitlements" "$APP_PATH"
