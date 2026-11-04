@@ -54,3 +54,4 @@ flowchart TD
 | **Powerload Engine** | `liquiddinamo/Features/Powerload/` | Multi-stream network bonding and download acceleration. |
 | **Phone Bridge** | `liquiddinamo/Features/PhoneBridge/` | Android/iOS wireless connectivity, notifications, and file transfer. |
 | **Clipboard History** | `liquiddinamo/Features/Clipboard/` | Encrypted, privacy-first local clipboard ring buffer. |
+

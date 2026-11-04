@@ -17,3 +17,4 @@ All agents operating within this repository must adhere to the rules defined in:
 3. [`.agents/rules/ponytail.md`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/.agents/rules/ponytail.md) — Minimal, robust, senior developer implementations.
 4. [`.agents/rules/github-releases.md`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/.agents/rules/github-releases.md) — Safe version bump, tagging, and asset upload workflows.
 5. [`RULES.md`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/RULES.md) — Core project architecture and design guidelines.
+

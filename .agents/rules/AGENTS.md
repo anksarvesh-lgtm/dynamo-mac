@@ -17,3 +17,4 @@ Work
 Finish
 9. When task_status says the task is done, reply with 3 lines: what changed, what you tested, what is blocked.
 Never run denied commands. Never read or print secret files.
+

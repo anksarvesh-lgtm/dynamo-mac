@@ -94,3 +94,4 @@ Pressing `Esc` immediately dismisses any open organic detail view or collapses t
 - Synchronized across `LiquidDynamo.xcodeproj/project.pbxproj`, `liquiddinamo/Info.plist`, `install.sh`, `scripts/package_release_only.sh`, `scripts/publish_release_assets.swift`, and `CHANGELOG.md`.
 - Automated release packaging creates `LiquidDynamo-2.3.4.dmg`, `LiquidDynamo.dmg`, and `liquiddynamo.zip`.
 - Release publisher updates GitHub tags `v2.3.4` and `app` distributions via authenticated API calls.
+
