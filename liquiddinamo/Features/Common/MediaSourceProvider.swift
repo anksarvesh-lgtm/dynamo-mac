@@ -107,33 +107,37 @@ final class AppleMusicProvider: MediaSourceProvider {
     let sourceID: String = "com.apple.Music"
 
     func currentPlaybackState() async throws -> MediaSnapshot? {
-        let music = MusicManager.shared
-        guard !music.isPlayerIdle && !music.songTitle.isEmpty && music.songTitle != "I'm Handsome" else {
-            return nil
+        return await MainActor.run {
+            let music = MusicManager.shared
+            guard !music.isPlayerIdle && !music.songTitle.isEmpty && music.songTitle != "I'm Handsome" else {
+                return nil
+            }
+            return MediaSnapshot(
+                title: music.songTitle,
+                artist: music.artistName,
+                album: music.album,
+                isPlaying: music.isPlaying,
+                duration: music.songDuration,
+                position: music.elapsedTime,
+                sourceID: sourceID,
+                hasArtwork: music.albumArt != defaultImage
+            )
         }
-        return MediaSnapshot(
-            title: music.songTitle,
-            artist: music.artistName,
-            album: music.album,
-            isPlaying: music.isPlaying,
-            duration: music.songDuration,
-            position: music.elapsedTime,
-            sourceID: sourceID,
-            hasArtwork: music.albumArt != defaultImage
-        )
     }
 
     func perform(_ command: MediaCommand) async throws {
-        let music = MusicManager.shared
-        switch command {
-        case .play, .pause, .togglePlayPause:
-            music.playPause()
-        case .next:
-            music.nextTrack()
-        case .previous:
-            music.previousTrack()
-        case .seek(let pos):
-            music.seek(to: pos)
+        await MainActor.run {
+            let music = MusicManager.shared
+            switch command {
+            case .play, .pause, .togglePlayPause:
+                music.playPause()
+            case .next:
+                music.nextTrack()
+            case .previous:
+                music.previousTrack()
+            case .seek(let pos):
+                music.seek(to: pos)
+            }
         }
     }
 }
@@ -148,31 +152,35 @@ final class SpotifyProvider: MediaSourceProvider {
         guard NSRunningApplication.runningApplications(withBundleIdentifier: sourceID).first != nil else {
             return nil
         }
-        let music = MusicManager.shared
-        guard music.isPlaying else { return nil }
-        return MediaSnapshot(
-            title: music.songTitle,
-            artist: music.artistName,
-            album: music.album,
-            isPlaying: music.isPlaying,
-            duration: music.songDuration,
-            position: music.elapsedTime,
-            sourceID: sourceID,
-            hasArtwork: music.albumArt != defaultImage
-        )
+        return await MainActor.run {
+            let music = MusicManager.shared
+            guard music.isPlaying else { return nil }
+            return MediaSnapshot(
+                title: music.songTitle,
+                artist: music.artistName,
+                album: music.album,
+                isPlaying: music.isPlaying,
+                duration: music.songDuration,
+                position: music.elapsedTime,
+                sourceID: sourceID,
+                hasArtwork: music.albumArt != defaultImage
+            )
+        }
     }
 
     func perform(_ command: MediaCommand) async throws {
-        let music = MusicManager.shared
-        switch command {
-        case .play, .pause, .togglePlayPause:
-            music.playPause()
-        case .next:
-            music.nextTrack()
-        case .previous:
-            music.previousTrack()
-        case .seek(let pos):
-            music.seek(to: pos)
+        await MainActor.run {
+            let music = MusicManager.shared
+            switch command {
+            case .play, .pause, .togglePlayPause:
+                music.playPause()
+            case .next:
+                music.nextTrack()
+            case .previous:
+                music.previousTrack()
+            case .seek(let pos):
+                music.seek(to: pos)
+            }
         }
     }
 }

@@ -2,6 +2,24 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.3] — 2026-11-04
+
+### Infinite Auto-Update Loop Elimination & Surface Coordinate Refinements
+- **Infinite Auto-Update Loop Fix**:
+  - Eliminated root cause of repeated auto-downloads and installs: bundle `CFBundleShortVersionString` is now deterministically stamped into `Info.plist` during both CLI builds and DMG/ZIP packaging.
+  - Implemented anti-loop cooldown guard in `GitHubUpdateChecker`: if an update to the latest release version was already attempted recently within 30 minutes and the running app version has not changed, automatic download/relaunch is halted to protect system resources.
+  - Stored `LastAttemptedUpdateVersion` and `LastAttemptedUpdateTime` in `UserDefaults` prior to spawning atomic update scripts.
+  - Aligned `BundleInfos.swift` fallbacks to `2.3.3` (build `44`).
+- **Surface Coordinate & Clipping Refinements**:
+  - Refined `ContinuousLiquidIslandShape` to seamlessly fall back to continuous squircles when running on unnotched/external displays or narrow widths (< 210pt).
+  - Configured inner `clipShape` with outer `contentShape` on `LiquidUnifiedSurfaceView` to preserve the 1.1pt razor specular rim and prevent child view clipping.
+- **Dynamic Hardware State Reactivity**:
+  - Added direct observation of `ChargingIntelligenceService` and `DeviceMonitor` in `LiquidUnifiedSurfaceView` for instantaneous fluid morphing when chargers or Bluetooth peripherals connect/disconnect.
+  - Added `OrganicNotchExpandedItem.player` to enable in-place sizing and hierarchical Escape key dismissal for the media player view.
+- **Strict Swift Concurrency & Diagnostics Cleanup**:
+  - Fixed Sendable conformances across `DeviceMonitor` and `ClipboardEntry`.
+  - MainActor-isolated media automation calls in `MediaSourceProvider`.
+
 ## [2.3.2] — 2026-11-04
 
 ### Continuous Liquid Glass Surface & Conditional Real Connected Devices

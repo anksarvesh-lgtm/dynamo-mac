@@ -38,34 +38,34 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.3.2
-- **One Continuous Liquid-Glass Surface**:
-  - Unified Left Wing, Central Dynamic Island, and Right Wing into one unbroken, continuous liquid-glass object matching Apple's Liquid Glass visual language.
-  - Conforms seamlessly to physical notch cutout geometry using continuous Bezier curves without any gaps, visible seams, or disconnected floating capsules.
-- **Conditional Connected Devices Visibility**:
-  - Displays strictly genuine connected hardware verified via system data sources (IOKit charger & power adapter presence, DeviceMonitor active connected peripherals).
-  - 0 devices connected: Section is completely hidden; carousel naturally repositions upward with zero blank padding.
-  - 1 device connected: Exactly 1 card displayed full width.
-  - 2+ devices connected: 2 balanced cards side-by-side flanking the notch cutout.
-- **In-Place Detail Expansion**:
-  - Selecting any utility expands inside the same shared liquid surface (~220-230pt) while flanking wings remain anchored.
-  - Rich 3-column views for Clipboard, Dropper, Scopa, Powerload, Phone Bridge, Watcher, and Devices.
-- **Crash-Free Navigation & Hierarchical Escape Handling**:
-  - Hierarchical Escape key handling collapses active expanded detail back to carousel overview first, then closes the island if already at overview.
-  - Full null-safety checks and safe defaults across all utility navigation paths.
+### Release Highlights — LiquidDynamo 2.3.3
+- **Infinite Auto-Update Loop Elimination**:
+  - Eliminated root cause of repeated auto-downloads and installs: bundle `CFBundleShortVersionString` is now deterministically stamped into `Info.plist` during both CLI builds and DMG/ZIP packaging.
+  - Implemented anti-loop cooldown guard in `GitHubUpdateChecker`: if an update to the latest release version was already attempted recently within 30 minutes and the running app version has not changed, automatic download/relaunch is halted to protect system resources.
+  - Stored `LastAttemptedUpdateVersion` and `LastAttemptedUpdateTime` in `UserDefaults` prior to spawning atomic update scripts.
+  - Aligned `BundleInfos.swift` fallbacks to `2.3.3` (build `44`).
+- **Surface Coordinate & Clipping Refinements**:
+  - Refined `ContinuousLiquidIslandShape` to seamlessly fall back to continuous squircles when running on unnotched/external displays or narrow widths (< 210pt).
+  - Configured inner `clipShape` with outer `contentShape` on `LiquidUnifiedSurfaceView` to preserve the 1.1pt razor specular rim and prevent child view clipping.
+- **Dynamic Hardware State Reactivity**:
+  - Added direct observation of `ChargingIntelligenceService` and `DeviceMonitor` in `LiquidUnifiedSurfaceView` for instantaneous fluid morphing when chargers or Bluetooth peripherals connect/disconnect.
+  - Added `OrganicNotchExpandedItem.player` to enable in-place sizing and hierarchical Escape key dismissal for the media player view.
+- **Strict Swift Concurrency & Diagnostics Cleanup**:
+  - Fixed Sendable conformances across `DeviceMonitor` and `ClipboardEntry`.
+  - MainActor-isolated media automation calls in `MediaSourceProvider`.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.3.2",
-        name: "LiquidDynamo 2.3.2 — Continuous Liquid Glass Surface & Conditional Connected Devices",
+        tag: "v2.3.3",
+        name: "LiquidDynamo 2.3.3 — Auto-Updater Anti-Loop Guard & Surface Refinements",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.2 (build 43)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.3 (build 44)",
         makeLatest: false
     )
 ]
@@ -75,7 +75,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.3.2.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.2.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.3.3.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.3.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

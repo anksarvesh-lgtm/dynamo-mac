@@ -26,6 +26,7 @@ public enum OrganicNotchExpandedItem: Equatable {
     case powerload
     case phoneBridge
     case watcher
+    case player
 }
 
 public struct LiquidOrganicNotchView: View {
@@ -924,6 +925,9 @@ typealias WrappingFlowLayout = CenteredFlowLayout
 
         case .watcher:
             WatcherDetailCard()
+
+        case .player:
+            EmptyView()
         }
     }
 

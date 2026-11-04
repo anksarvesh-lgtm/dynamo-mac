@@ -94,6 +94,10 @@ if [ -d "$DIR/build/LiquidDynamo.app/Contents/MacOS" ]; then
     cp "$OUTPUT_BIN" "$DIR/build/LiquidDynamo.app/Contents/MacOS/LiquidDynamo"
     mkdir -p "$DIR/build/LiquidDynamo.app/Contents/Frameworks"
     cp "$BUNDLE_FRAMEWORKS"/*.dylib "$DIR/build/LiquidDynamo.app/Contents/Frameworks/"
+    if [ -f "$DIR/build/LiquidDynamo.app/Contents/Info.plist" ]; then
+        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.3.3" "$DIR/build/LiquidDynamo.app/Contents/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 2.3.3" "$DIR/build/LiquidDynamo.app/Contents/Info.plist"
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 44" "$DIR/build/LiquidDynamo.app/Contents/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 44" "$DIR/build/LiquidDynamo.app/Contents/Info.plist"
+    fi
 fi
 
 echo "==> Compilation complete! Output: $OUTPUT_BIN"

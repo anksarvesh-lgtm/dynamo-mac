@@ -309,8 +309,14 @@ public final class GitHubUpdateChecker: ObservableObject {
                 let releaseInfo = try await fetchLatestRelease()
                 self.lastCheckedDate = Date()
 
-                let currentVersion = Bundle.main.releaseVersionNumber ?? "2.0.0"
+                let currentVersion = Bundle.main.releaseVersionNumber ?? "2.3.3"
                 let latestVersion = releaseInfo.version
+
+                let defaults = UserDefaults.standard
+                let lastAttemptedVersion = defaults.string(forKey: "LastAttemptedUpdateVersion")
+                let lastAttemptTime = defaults.double(forKey: "LastAttemptedUpdateTime")
+                let nowTime = Date().timeIntervalSince1970
+                let timeSinceLastAttempt = nowTime - lastAttemptTime
 
                 if Self.isVersion(latestVersion, greaterThan: currentVersion) {
                     guard let targetURL = releaseInfo.downloadURL else {
@@ -325,16 +331,26 @@ public final class GitHubUpdateChecker: ObservableObject {
                     // Post update notification directly in the Dynamic Island
                     self.triggerIslandUpdateAlert(version: latestVersion)
 
-                    if effectiveAutoInstall {
+                    // Anti-loop guard: If this exact version was already attempted recently (< 1800s / 30m)
+                    // and running app version did not advance, do NOT loop-download and reinstall!
+                    let isLoopingAttempt = (lastAttemptedVersion == latestVersion && timeSinceLastAttempt < 1800)
+                    if effectiveAutoInstall && !isLoopingAttempt {
                         self.downloadAndInstallUpdate(from: targetURL)
+                    } else if isLoopingAttempt {
+                        NSLog("⚠️ [GitHubUpdateChecker] Auto-update to v%@ was recently installed or attempted (%.0fs ago). Halting automatic download loop.", latestVersion, timeSinceLastAttempt)
                     }
                 } else {
+                    // Running current or newer version: clear any pending attempt state
+                    if lastAttemptedVersion != nil {
+                        defaults.removeObject(forKey: "LastAttemptedUpdateVersion")
+                        defaults.removeObject(forKey: "LastAttemptedUpdateTime")
+                    }
                     self.isUpdateAvailable = false
                     self.status = .upToDate(currentVersion: currentVersion)
                 }
             } catch {
                 self.lastCheckedDate = Date()
-                let currentVersion = Bundle.main.releaseVersionNumber ?? "2.0.0"
+                let currentVersion = Bundle.main.releaseVersionNumber ?? "2.3.3"
                 if silent {
                     self.status = .upToDate(currentVersion: currentVersion)
                 } else {
@@ -828,6 +844,11 @@ public final class GitHubUpdateChecker: ObservableObject {
 
     private func spawnRelaunchScript(stagedAppURL: URL) throws {
         let pid = ProcessInfo.processInfo.processIdentifier
+
+        // Record attempted update version and timestamp to prevent repeated loop-installations
+        let targetVersion = latestVersionString.isEmpty ? "2.3.3" : latestVersionString
+        UserDefaults.standard.set(targetVersion, forKey: "LastAttemptedUpdateVersion")
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "LastAttemptedUpdateTime")
 
         // Determine destination target application path
         let targetAppURL: URL

@@ -39,7 +39,7 @@ print_banner() {
     echo -e "  ${CYAN}│${RESET}   ${BLUE}▄██████▄${RESET}   ${BOLD}${WHITE}LiquidDynamo for Mac${RESET}  ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}      ${EMERALD}▲${RESET}      ${BOLD}${WHITE}Agrigence Labs${RESET}        ${BRIGHT_GREEN}│${RESET}"
     echo -e "  ${CYAN}│${RESET}  ${CYAN}███${WHITE}╭──╮${CYAN}███${RESET}  ${MUTED}3D Organic Notch HUD${RESET}  ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}     ${ACCENT_GREEN}╱ ╲${RESET}     ${MUTED}Official Publisher Hub${RESET} ${BRIGHT_GREEN}│${RESET}"
     echo -e "  ${CYAN}│${RESET}  ${BLUE}███${WHITE}│💧│${BLUE}███${RESET}  ${MUTED}Dynamic Island Pill ${RESET}  ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}    ${MINT}╱ █ ╲${RESET}    ${CYAN}https://www.agrigence.in${RESET} ${BRIGHT_GREEN}│${RESET}"
-    echo -e "  ${CYAN}│${RESET}   ${BLUE}▀██████▀${RESET}   ${BOLD}${CYAN}v2.3.2 • macOS 14+${RESET}    ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}   ${EMERALD}▀▀▀ █ ▀▀▀${RESET}  ${DIM}Copyright © 2026 Agrigence${RESET}${BRIGHT_GREEN}│${RESET}"
+    echo -e "  ${CYAN}│${RESET}   ${BLUE}▀██████▀${RESET}   ${BOLD}${CYAN}v2.3.3 • macOS 14+${RESET}    ${CYAN}│${RESET}   ${BRIGHT_GREEN}│${RESET}   ${EMERALD}▀▀▀ █ ▀▀▀${RESET}  ${DIM}Copyright © 2026 Agrigence${RESET}${BRIGHT_GREEN}│${RESET}"
     echo -e "  ${CYAN}╰─────────────────────────────────────╯${RESET}   ${BRIGHT_GREEN}╰─────────────────────────────────────╯${RESET}"
     echo ""
     echo -e "   ${BOLD}${WHITE}LiquidDynamo — One-Line Enterprise Installer & Gatekeeper Bypass${RESET}"

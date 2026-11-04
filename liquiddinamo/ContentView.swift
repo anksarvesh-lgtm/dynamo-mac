@@ -1467,11 +1467,11 @@ struct CollapsedLiveInfoWingsView: View {
                 }
             }
         }
-        .onChange(of: leftWingMetric) { _ in
+        .onChange(of: leftWingMetric) { _, _ in
             self.reportDynamicWidth(geom: geom)
             startActiveServices()
         }
-        .onChange(of: rightWingMetric) { _ in
+        .onChange(of: rightWingMetric) { _, _ in
             self.reportDynamicWidth(geom: geom)
             startActiveServices()
         }
@@ -1479,13 +1479,13 @@ struct CollapsedLiveInfoWingsView: View {
             self.reportDynamicWidth(geom: geom)
             startActiveServices()
         }
-        .onChange(of: autoFitWings) { _ in
+        .onChange(of: autoFitWings) { _, _ in
             self.reportDynamicWidth(geom: geom)
         }
-        .onChange(of: wingWidth) { _ in
+        .onChange(of: wingWidth) { _, _ in
             self.reportDynamicWidth(geom: geom)
         }
-        .onChange(of: alwaysShowSideReadoutText) { _ in
+        .onChange(of: alwaysShowSideReadoutText) { _, _ in
             self.reportDynamicWidth(geom: geom)
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleSideReadoutDetails)) { notif in
@@ -1519,7 +1519,7 @@ struct CollapsedLiveInfoWingsView: View {
                 self.isRightDetailExpanded = false
             }
         }
-        .onChange(of: island.state) { newState in
+        .onChange(of: island.state) { _, newState in
             if newState == .expanded {
                 self.autoCollapseTask?.cancel()
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -1713,7 +1713,7 @@ struct CollapsedLiveInfoWingsView: View {
         HStack(spacing: 4) {
             Image(systemName: alert.iconName ?? "bell.fill")
                 .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(alert.iconColor ?? .accentColor)
+                .foregroundStyle(alert.iconColor)
             if let sub = alert.subtitle {
                 Text(sub)
                     .font(.system(size: 9, weight: .bold, design: .monospaced))

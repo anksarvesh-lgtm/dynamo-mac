@@ -20,6 +20,8 @@ public struct LiquidUnifiedSurfaceView: View {
     @ObservedObject var island = IslandController.shared
     @ObservedObject var motion = IslandMotion.shared
     @ObservedObject var safeArea = NotchSafeAreaEngine.shared
+    @ObservedObject var chargingService = ChargingIntelligenceService.shared
+    @ObservedObject var deviceMonitor = DeviceMonitor.shared
 
     @State private var currentSlide: Int = 0
     @State private var expandedMode: ExpandedMode = .none
@@ -28,12 +30,19 @@ public struct LiquidUnifiedSurfaceView: View {
 
     public init() {}
 
+    private var hasConnectedDevices: Bool {
+        let isPlugged = chargingService.isPluggedIn || BatteryStatusViewModel.shared.isPluggedIn
+        if isPlugged { return true }
+        return deviceMonitor.sortedActiveDevices.contains { dev in
+            dev.kind != .monitor && dev.kind != .androidPhone && !dev.displayName.contains("Built-in") && deviceMonitor.activeDevices[dev.stableKey] != nil
+        }
+    }
+
     public var body: some View {
         let geom = safeArea.currentGeometry
         let isNotched = geom.isNotched
         let notchW = geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0
         let notchH = geom.notchHeight
-        let hasConnectedDevices = PermanentConnectedDevicesHeaderView.hasAnyConnectedDevice
 
         ZStack(alignment: .top) {
             // 1. Unified Continuous 5-Layer Optical Liquid Glass Backdrop
@@ -141,8 +150,18 @@ public struct LiquidUnifiedSurfaceView: View {
                 }
             }
             .padding(.bottom, 10)
+            .clipShape(
+                ContinuousLiquidIslandShape(
+                    topEarRadius: 8.0,
+                    bottomCornerRadius: expandedMode == .none ? 26 : 28,
+                    isNotched: isNotched,
+                    rawNotchWidth: notchW,
+                    rawNotchHeight: notchH,
+                    hasConnectedDevices: hasConnectedDevices
+                )
+            )
         }
-        .clipShape(
+        .contentShape(
             ContinuousLiquidIslandShape(
                 topEarRadius: 8.0,
                 bottomCornerRadius: expandedMode == .none ? 26 : 28,
@@ -162,6 +181,7 @@ public struct LiquidUnifiedSurfaceView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .animation(.spring(response: 0.38, dampingFraction: 0.80), value: expandedMode)
         .animation(.spring(response: 0.35, dampingFraction: 0.78), value: currentSlide)
+        .animation(.spring(response: 0.38, dampingFraction: 0.80), value: hasConnectedDevices)
         .onAppear {
             syncStateFromIsland()
             withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
@@ -205,7 +225,8 @@ public struct LiquidUnifiedSurfaceView: View {
 
     private func toOrganicItem(_ mode: ExpandedMode) -> OrganicNotchExpandedItem {
         switch mode {
-        case .none, .player: return .none
+        case .none: return .none
+        case .player: return .player
         case .clipboard: return .clipboard
         case .dropper: return .dropper
         case .scopa: return .storageCleaner
@@ -219,6 +240,7 @@ public struct LiquidUnifiedSurfaceView: View {
     private func fromOrganicItem(_ item: OrganicNotchExpandedItem) -> ExpandedMode {
         switch item {
         case .none: return .none
+        case .player: return .player
         case .clipboard: return .clipboard
         case .dropper, .colorDropper: return .dropper
         case .storageCleaner: return .scopa

@@ -9,13 +9,13 @@ import SwiftUI
 
 extension Bundle {
     var releaseVersionNumber: String? {
-        return infoDictionary?["CFBundleShortVersionString"] as? String
+        return (infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.3.3"
     }
     var buildVersionNumber: String? {
-        return infoDictionary?["CFBundleVersion"] as? String
+        return (infoDictionary?["CFBundleVersion"] as? String) ?? "44"
     }
     var releaseVersionNumberPretty: String {
-        return "v\(releaseVersionNumber ?? "1.7.0")"
+        return "v\(releaseVersionNumber ?? "2.3.3")"
     }
     
     var iconFileName: String? {

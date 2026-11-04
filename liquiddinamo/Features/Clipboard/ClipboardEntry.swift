@@ -9,7 +9,7 @@ import AppKit
 import Foundation
 import SwiftUI
 
-public enum ClipboardType: String, Codable, CaseIterable {
+public enum ClipboardType: String, Codable, CaseIterable, Sendable {
     case text
     case image
     case file

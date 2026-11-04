@@ -51,7 +51,7 @@ public struct ContinuousLiquidIslandShape: Shape {
         var path = Path()
 
         // When not a physical notch, render a continuous Apple squircle lozenge
-        if !isNotched {
+        if !isNotched || rawNotchWidth <= 0 || rawNotchHeight <= 0 {
             let corner = min(rect.height / 2.0, bottomCornerRadius)
             path.addRoundedRect(in: rect, cornerSize: CGSize(width: corner, height: corner), style: .continuous)
             return path
@@ -74,9 +74,9 @@ public struct ContinuousLiquidIslandShape: Shape {
         let rBot = max(18.0, min(bottomCornerRadius, 30.0))
         let rWingTop: CGFloat = 16.0
 
-        // If height is only collapsed notch height, trace resting notch bridge
-        if rect.height <= notchH + 4.0 {
-            let corner = min(rect.height / 2.0, 16.0)
+        // If height is only collapsed notch height or width is too narrow for notch ears, trace smooth resting capsule
+        if rect.height <= notchH + 4.0 || rect.width < notchW + 30.0 {
+            let corner = min(rect.height / 2.0, min(16.0, bottomCornerRadius))
             path.addRoundedRect(in: rect, cornerSize: CGSize(width: corner, height: corner), style: .continuous)
             return path
         }

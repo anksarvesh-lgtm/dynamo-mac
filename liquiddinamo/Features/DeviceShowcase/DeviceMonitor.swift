@@ -19,7 +19,7 @@ import SwiftUI
 
 // MARK: - Device Models
 
-public enum DeviceKind: String, Codable, CaseIterable, Identifiable {
+public enum DeviceKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case airpods = "AirPods"
     case earbuds = "Earbuds"
     case earphones = "Earphones"
@@ -67,7 +67,7 @@ public enum DeviceKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-public enum ConnectionType: String, Codable, CaseIterable {
+public enum ConnectionType: String, Codable, CaseIterable, Sendable {
     case bluetooth = "Bluetooth"
     case storage = "Storage"
     case usb = "USB"
@@ -76,7 +76,7 @@ public enum ConnectionType: String, Codable, CaseIterable {
     case audioJack = "Audio Jack"
 }
 
-public struct DeviceIdentity: Identifiable, Equatable, Hashable {
+public struct DeviceIdentity: Identifiable, Equatable, Hashable, Sendable {
     public var id: String { stableKey }
     public let stableKey: String
     public let kind: DeviceKind

@@ -29,6 +29,10 @@
 	<false/>
 	<key>NSAppSleepDisabled</key>
 	<true/>
+	<key>CFBundleShortVersionString</key>
+	<string>2.3.3</string>
+	<key>CFBundleVersion</key>
+	<string>44</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>

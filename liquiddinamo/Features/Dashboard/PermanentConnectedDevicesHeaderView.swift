@@ -113,27 +113,30 @@ public struct PermanentConnectedDevicesHeaderView: View {
     public var body: some View {
         let cards = verifiedConnectedCards
 
-        // Rule: If 0 devices connected, completely hide section!
-        if cards.isEmpty {
-            EmptyView()
-        } else if cards.count == 1 {
-            // Rule: Exactly 1 card displayed full width
-            HStack(spacing: 0) {
-                renderCard(cards[0], isFullWidth: true)
+        Group {
+            // Rule: If 0 devices connected, completely hide section!
+            if cards.isEmpty {
+                EmptyView()
+            } else if cards.count == 1 {
+                // Rule: Exactly 1 card displayed full width
+                HStack(spacing: 0) {
+                    renderCard(cards[0], isFullWidth: true)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+                .onAppear { startPulse() }
+            } else {
+                // Rule: 2+ devices connected, display 2 balanced cards side-by-side
+                HStack(spacing: 8) {
+                    renderCard(cards[0], isFullWidth: false)
+                    renderCard(cards[1], isFullWidth: false)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 4)
+                .onAppear { startPulse() }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 4)
-            .onAppear { startPulse() }
-        } else {
-            // Rule: 2+ devices connected, display 2 balanced cards side-by-side
-            HStack(spacing: 8) {
-                renderCard(cards[0], isFullWidth: false)
-                renderCard(cards[1], isFullWidth: false)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 4)
-            .onAppear { startPulse() }
         }
+        .animation(.spring(response: 0.38, dampingFraction: 0.80), value: cards.count)
     }
 
     private func startPulse() {

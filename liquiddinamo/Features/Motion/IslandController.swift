@@ -130,7 +130,6 @@ public final class IslandController: ObservableObject {
     /// Current expanded detail item in LiquidOrganicNotchView (e.g. device popup, clipboard, dropper)
     @Published public var activeOrganicItem: OrganicNotchExpandedItem = .none {
         didSet {
-            let targetBefore = targetSize
             if activeOrganicItem != .none {
                 cancelHoverCollapse()
                 isPinnedOpen = true
@@ -663,7 +662,7 @@ public final class IslandController: ObservableObject {
             // Transient alerts only resize the container if no item is selected
             if hasAlert && activeOrganicItem == .none {
                 let estimatedW: CGFloat = {
-                    if let notif = LiveActivityCenter.shared.activeNotification {
+                    if LiveActivityCenter.shared.activeNotification != nil {
                         return 330.0
                     }
                     return activeExpandedAlert?.estimatedContentWidth ?? alertPayload?.estimatedContentWidth ?? 220.0
@@ -691,15 +690,12 @@ public final class IslandController: ObservableObject {
                 return CGSize(width: 580, height: min(max(480, geom.notchHeight + 450), screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .home {
                 let homeWidth = max(openNotchSize.width, 660)
-                let hasConnectedDevices = PermanentConnectedDevicesHeaderView.hasAnyConnectedDevice
                 switch activeOrganicItem {
                 case .none:
-                    let baseH = hasConnectedDevices ? (geom.notchHeight + 96) : (geom.notchHeight + 64)
-                    return CGSize(width: homeWidth, height: min(max(105, baseH), screenMaxH))
-                case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher:
-                    // In-place expansion: roughly double the resting island height (~220-230pt)
-                    let detailH = hasConnectedDevices ? (geom.notchHeight + 195) : (geom.notchHeight + 155)
-                    return CGSize(width: homeWidth, height: min(max(195, detailH), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(140, geom.notchHeight + 105), screenMaxH))
+                case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher, .player:
+                    // Compact expansion: roughly double the resting island height
+                    return CGSize(width: homeWidth, height: min(max(220, geom.notchHeight + 185), screenMaxH))
                 }
             }
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
@@ -732,7 +728,7 @@ public final class IslandController: ObservableObject {
         switch item {
         case .none:
             return max(140, geom.notchHeight + 105)
-        case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher:
+        case .clipboard, .dropper, .device, .storageCleaner, .colorDropper, .plexo, .powerload, .phoneBridge, .watcher, .player:
             return max(220, geom.notchHeight + 185)
         }
     }
@@ -907,7 +903,6 @@ public final class IslandController: ObservableObject {
 
         if state == .expanded || LiquidViewModel.shared.notchState == .open || state == .alertPop {
             let activeSize = targetSize.width > 0 ? targetSize : calculateDimensions(for: state)
-            let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
             let centerX = screen.frame.minX + (screen.frame.width / 2.0)
             let islandX = centerX - (activeSize.width / 2.0)
             let islandY = screen.frame.maxY - activeSize.height
