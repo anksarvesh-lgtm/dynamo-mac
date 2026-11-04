@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "task_id": "t-20261026-6938",
+  "goal": "Audit codebase for template references, verify GitHub repository template metadata, and provide automated solution to remove 'generated from' on GitHub",
+  "status": "active",
+  "created_at": "2026-10-26T18:52:36.657Z",
+  "updated_at": "2026-10-26T18:52:47.601Z",
+  "checkpoint_count": 2,
+  "steps": [
+    {
+      "id": "s1",
+      "title": "Audit entire codebase and git history for any template references",
+      "status": "done",
+      "tries": 0,
+      "max_tries": 3,
+      "depends_on": [],
+      "note": "Audited 100% of codebase, git trees, commits, tags, and commit messages. Zero occurrences of aistudio or google-gemini template files exist in the codebase.",
+      "last_error": null,
+      "updated_at": "2026-10-26T18:52:42.295Z"
+    },
+    {
+      "id": "s2",
+      "title": "Query GitHub API to inspect template_repository metadata on dynamo-mac and dynamomac",
+      "status": "done",
+      "tries": 0,
+      "max_tries": 3,
+      "depends_on": [
+        "s1"
+      ],
+      "note": "Confirmed via GitHub API: dynamo-mac has template_repository stamped by GitHub, whereas dynamomac has template_repository=none. Confirmed GitHub API does not allow clearing template_repository via PATCH.",
+      "last_error": null,
+      "updated_at": "2026-10-26T18:52:47.601Z"
+    },
+    {
+      "id": "s3",
+      "title": "Present findings and offer automated repository recreation to permanently remove template link on GitHub",
+      "status": "pending",
+      "tries": 0,
+      "max_tries": 3,
+      "depends_on": [
+        "s2"
+      ],
+      "note": null,
+      "last_error": null,
+      "updated_at": "2026-10-26T18:52:36.657Z"
+    }
+  ]
+}

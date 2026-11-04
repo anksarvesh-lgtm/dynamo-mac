@@ -57,6 +57,6 @@ build/
 *.zip
 
 
-# Agent Guard
+# Agent Guard runtime
 .agent/
 

@@ -136,3 +136,15 @@ This document outlines the core engineering guidelines, design constraints, and 
    - Commit the changes and push commits and tags to both remotes (`dynamo-mac` and `dynamomac`).
    - Run `swift scripts/publish_release_assets.swift` to publish the new GitHub Release with attached `.dmg` and `.zip` assets so users instantly receive the update prompt without manual intervention.
 
+---
+
+## 8. Agent Supervision & Brain Memory Protocols
+
+1. **Autonomous Supervision & Checkpoints**:
+   - Refer to [`AGENTS.md`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/AGENTS.md) and [`.agents/rules/AGENTS.md`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/.agents/rules/AGENTS.md) for strict agent execution rules.
+2. **Zero Git Errors**:
+   - Refer to [`.agents/rules/git-zero-errors.md`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/.agents/rules/git-zero-errors.md) for pre-flight state checks, safe committing, and atomic tag updates.
+3. **Agent Brain & Engineering Memory**:
+   - Refer to [`.agents/brain/`](file:///Users/sarvesh/Desktop/LiquidDynamo-1.9.2/.agents/brain/) for architecture diagrams, remediation records, and task ledgers.
+
+
