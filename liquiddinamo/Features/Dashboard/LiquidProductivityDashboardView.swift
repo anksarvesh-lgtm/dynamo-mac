@@ -765,6 +765,7 @@ public struct LiquidProductivityDashboardView: View {
                                     .lineLimit(1)
                             }
                             .frame(width: 48)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .help("Open \(app.name)")

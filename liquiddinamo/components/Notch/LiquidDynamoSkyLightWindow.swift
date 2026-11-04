@@ -111,6 +111,11 @@ class LiquidDynamoSkyLightWindow: NSPanel {
     
     private var observers: Set<AnyCancellable> = []
     
-    override var canBecomeKey: Bool { false }
+    public static var allowsKeyWindow: Bool = false
+    public var customCanBecomeKey: Bool = false
+
+    override var canBecomeKey: Bool {
+        customCanBecomeKey || Self.allowsKeyWindow
+    }
     override var canBecomeMain: Bool { false }
 }

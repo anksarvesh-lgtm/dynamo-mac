@@ -40,8 +40,11 @@ class LiquidDynamoWindow: NSPanel {
         hasShadow = false
     }
     
+    public static var allowsKeyWindow: Bool = false
+    public var customCanBecomeKey: Bool = false
+
     override var canBecomeKey: Bool {
-        false
+        customCanBecomeKey || Self.allowsKeyWindow
     }
     
     override var canBecomeMain: Bool {

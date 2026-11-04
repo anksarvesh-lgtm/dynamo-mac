@@ -218,6 +218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowScreenDidChangeObserver: Any?
     private var dragDetectors: [String: DragDetector] = [:] // UUID -> DragDetector
     private var escKeyMonitor: Any?
+    private var escKeyGlobalMonitor: Any?
     private var clickOutsideMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var backgroundActivityAssertion: NSObjectProtocol?
@@ -605,15 +606,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stopExpandedEventMonitors()
         currentMonitorMode = .expanded
 
-        // Esc key closes the open dashboard
+        LiquidDynamoWindow.allowsKeyWindow = true
+        LiquidDynamoSkyLightWindow.allowsKeyWindow = true
+
+        // Esc key closes the open dashboard or dismisses expanded detail view (Local Monitor)
         escKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             if event.keyCode == 53 { // Escape key
                 Task { @MainActor [weak self] in
-                    self?.vm.close()
+                    guard let self = self else { return }
+                    if IslandController.shared.activeOrganicItem != .none {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                            IslandController.shared.activeOrganicItem = .none
+                        }
+                    } else {
+                        self.vm.close()
+                    }
                 }
                 return nil
             }
             return event
+        }
+
+        // Global Esc key monitor so escape works even when floating panel does not hold key focus
+        escKeyGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            if event.keyCode == 53 { // Escape key
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    if self.vm.notchState == .open || IslandController.shared.state == .expanded {
+                        if IslandController.shared.activeOrganicItem != .none {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                                IslandController.shared.activeOrganicItem = .none
+                            }
+                        } else {
+                            self.vm.close()
+                        }
+                    }
+                }
+            }
         }
 
         // Local scroll monitor for expanded mode top-bar gestures
@@ -652,9 +681,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func stopExpandedEventMonitors() {
+        LiquidDynamoWindow.allowsKeyWindow = false
+        LiquidDynamoSkyLightWindow.allowsKeyWindow = false
+
         if let monitor = escKeyMonitor {
             NSEvent.removeMonitor(monitor)
             escKeyMonitor = nil
+        }
+        if let monitor = escKeyGlobalMonitor {
+            NSEvent.removeMonitor(monitor)
+            escKeyGlobalMonitor = nil
         }
         if let monitor = clickOutsideMonitor {
             NSEvent.removeMonitor(monitor)

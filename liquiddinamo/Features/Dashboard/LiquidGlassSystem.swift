@@ -72,6 +72,7 @@ public struct LiquidGlassCardModifier: ViewModifier {
         content
             .background(glassBackground)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(glassBordersAndLighting)
             .shadow(
                 color: Color.black.opacity(isHovered ? 0.22 : 0.15),
@@ -296,6 +297,7 @@ public struct LiquidGlassCapsuleModifier: ViewModifier {
                 }
             )
             .clipShape(Capsule())
+            .contentShape(Capsule())
             .overlay(
                 Capsule()
                     .strokeBorder(
