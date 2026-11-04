@@ -115,8 +115,8 @@ final class MediaKeyInterceptor: ObservableObject {
     // MARK: - Event Tap Lifecycle
     
     public func start(promptIfNeeded: Bool = false) async {
-        // Ensure user opted into hiding system OSD
-        let shouldHide = Defaults[.hideSystemOSD] || Defaults[.hudReplacement]
+        // Ensure user opted into hiding system OSD or showing notch OSD
+        let shouldHide = Defaults[.hideSystemOSD] || Defaults[.hudReplacement] || Defaults[.showNotchOSD]
         guard shouldHide else {
             stop()
             status = .disabled
@@ -134,36 +134,52 @@ final class MediaKeyInterceptor: ObservableObject {
             return
         }
         
-        // Try creating event tap
+        // Try creating event tap with dual-tier fallback (.cghidEventTap -> .cgSessionEventTap)
         if eventTap == nil {
             let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
             
             // Pass unretained self into the callback
             let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
             
-            eventTap = CGEvent.tapCreate(
+            let tapCallback: CGEventTapCallBack = { _, type, cgEvent, userInfo in
+                guard let userInfo = userInfo else {
+                    return Unmanaged.passRetained(cgEvent)
+                }
+                let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
+                
+                // Requirement 2: If the tap is disabled by timeout or user input, re-enable it immediately
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    DispatchQueue.main.async {
+                        interceptor.reEnableTap()
+                    }
+                    return Unmanaged.passRetained(cgEvent)
+                }
+                
+                return interceptor.handleEvent(cgEvent)
+            }
+            
+            var createdTap = CGEvent.tapCreate(
                 tap: .cghidEventTap,
                 place: .headInsertEventTap,
                 options: .defaultTap,
                 eventsOfInterest: mask,
-                callback: { _, type, cgEvent, userInfo in
-                    guard let userInfo = userInfo else {
-                        return Unmanaged.passRetained(cgEvent)
-                    }
-                    let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
-                    
-                    // Requirement 2: If the tap is disabled by timeout or user input, re-enable it immediately
-                    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                        DispatchQueue.main.async {
-                            interceptor.reEnableTap()
-                        }
-                        return Unmanaged.passRetained(cgEvent)
-                    }
-                    
-                    return interceptor.handleEvent(cgEvent)
-                },
+                callback: tapCallback,
                 userInfo: selfPtr
             )
+            
+            if createdTap == nil {
+                NSLog("⚠️ [MediaKeyInterceptor] .cghidEventTap creation failed, attempting .cgSessionEventTap fallback...")
+                createdTap = CGEvent.tapCreate(
+                    tap: .cgSessionEventTap,
+                    place: .headInsertEventTap,
+                    options: .defaultTap,
+                    eventsOfInterest: mask,
+                    callback: tapCallback,
+                    userInfo: selfPtr
+                )
+            }
+            
+            eventTap = createdTap
         }
         
         guard let tap = eventTap else {

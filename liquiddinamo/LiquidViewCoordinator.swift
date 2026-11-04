@@ -130,24 +130,26 @@ class LiquidViewCoordinator: ObservableObject {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                if Defaults[.hudReplacement] {
+                if Defaults[.hudReplacement] || Defaults[.hideSystemOSD] || Defaults[.showNotchOSD] {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 }
             }
         }
 
-        // Observe changes to hideSystemOSD and legacy hudReplacement
-        hudReplacementCancellable = Publishers.Merge(
+        // Observe changes to hideSystemOSD, legacy hudReplacement, and showNotchOSD
+        hudReplacementCancellable = Publishers.Merge3(
             Defaults.publisher(.hideSystemOSD).map { $0.newValue },
-            Defaults.publisher(.hudReplacement).map { $0.newValue }
+            Defaults.publisher(.hudReplacement).map { $0.newValue },
+            Defaults.publisher(.showNotchOSD).map { $0.newValue }
         )
-        .sink { [weak self] enabled in
+        .sink { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 self.hudEnableTask?.cancel()
                 self.hudEnableTask = nil
 
-                if enabled {
+                let shouldEnable = Defaults[.hideSystemOSD] || Defaults[.hudReplacement] || Defaults[.showNotchOSD]
+                if shouldEnable {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 } else {
                     MediaKeyInterceptor.shared.stop()
@@ -158,7 +160,7 @@ class LiquidViewCoordinator: ObservableObject {
         Task { @MainActor in
             helloAnimationRunning = firstLaunch
 
-            if Defaults[.hideSystemOSD] || Defaults[.hudReplacement] {
+            if Defaults[.hideSystemOSD] || Defaults[.hudReplacement] || Defaults[.showNotchOSD] {
                 await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
             }
         }
