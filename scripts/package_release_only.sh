@@ -3,7 +3,7 @@ set -e
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
-VERSION="${VERSION:-2.3.5}"
+VERSION="${VERSION:-2.3.6}"
 BUILD_NUM="${BUILD_NUM:-46}"
 APP_PATH="$DIR/build/LiquidDynamo.app"
 OUTPUT_DIR="$HOME/Desktop"

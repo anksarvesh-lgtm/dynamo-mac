@@ -148,14 +148,13 @@ struct ContentView: View {
                 PowerloadUnderNotchProgressBar(isExpanded: isExpandedState)
                     .offset(y: isExpandedState ? -2 : 0)
             }
-            // Dedicated Activation Zone: Aligned strictly inside visible notch bounds with bottom deadzone
+            // Dedicated Activation Zone: Aligned strictly inside visible notch bounds
             .overlay(alignment: .top) {
                 if island.state != .expanded && vm.notchState != .open {
                     let geom = vm.geometry
-                    let notchW = geom.hasPhysicalNotch ? (geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0) : 140.0
-                    let activationH = max(10, geom.notchHeight - 6)
-                    Color.clear
-                        .frame(width: max(0, notchW - 4), height: activationH)
+                    let notchW = geom.hasPhysicalNotch ? (geom.rawNotchWidth > 0 ? geom.rawNotchWidth : 180.0) : 160.0
+                    Color.black.opacity(0.0001)
+                        .frame(width: notchW, height: geom.notchHeight)
                         .contentShape(Rectangle())
                         .onHover { hovering in
                             if hovering {
@@ -166,6 +165,7 @@ struct ContentView: View {
                         }
                         .onTapGesture {
                             island.setExpanded(pin: true)
+                            vm.open(pinned: true)
                         }
                 }
             }
@@ -1288,6 +1288,7 @@ struct CollapsedLiveInfoWingsView: View {
         .frame(width: centralPillW, height: vm.effectiveClosedNotchHeight)
         .contentShape(Rectangle())
         .onTapGesture {
+            island.setExpanded(pin: true)
             withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
                 vm.open(pinned: true)
             }
@@ -1319,9 +1320,21 @@ struct CollapsedLiveInfoWingsView: View {
                             }
                             .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
 
-                            // Center Hardware Notch Area (Clear hole matching hardware cutout)
-                            Color.clear
-                                .frame(width: geom.rawNotchWidth + 14)
+                            // Center Hardware Notch Area: Click & hover activation overlay
+                            Color.black.opacity(0.0001)
+                                .frame(width: geom.rawNotchWidth + 14, height: vm.effectiveClosedNotchHeight)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    island.setExpanded(pin: true)
+                                    vm.open(pinned: true)
+                                }
+                                .onHover { hovering in
+                                    if hovering {
+                                        island.onHoverEntered()
+                                    } else {
+                                        island.onHoverExited()
+                                    }
+                                }
 
                             // Right Drop Container: Anchored flush to the notch right edge
                             HStack(spacing: 0) {

@@ -38,24 +38,25 @@ struct TargetRelease {
 }
 
 let releaseBody = """
-### Release Highlights — LiquidDynamo 2.3.5 (Build 46)
-- **Eliminated Accidental Notch Bottom Hover Expansion**: Fixed a critical interaction bug where brushing or touching the bottom boundary of the hardware notch or floating pill immediately triggered full island expansion.
-- **Strict Hit-Testing & 6pt Bottom Deadzone**: Inset the hover trigger zone with a 6pt bottom deadzone in `isMouseInHoverRegion`, preventing grazes along the lower notch perimeter from firing hover events.
-- **180ms Intentional Dwell Sequencing**: Required an intentional 180ms cursor dwell before transitioning to `.expanded` on hover, completely eliminating accidental expansions during rapid screen-crossing mouse gestures.
-- **Zero Bottom Hit Spill**: Removed the 8pt downward padding in `NotchSafeAreaEngine.collapsedWingHitRects`, ensuring collapsed wing hit areas never protrude below the physical notch into user window content.
+### Release Highlights — LiquidDynamo 2.3.6 (Build 47)
+- **Restored Robust Island Expansion**: Fixed a state-locking bug where `isHovering` remained `true` following a collapsed hover exit, which prevented subsequent hover events from triggering expansion.
+- **Immediate & Flawless Click Expansion**: Clicking anywhere inside the hardware notch or central floating pill immediately opens and pins the island (`IslandController`, `LiquidViewModel`, and `AppDelegate.vm`).
+- **Calibrated 80ms Intentional Dwell**: Replaced brittle long dwell sequencing with a responsive 80ms hover confirmation that effortlessly rejects rapid pass-through brush gestures while opening smoothly for deliberate hovers.
+- **Calibrated 2.0pt Bottom Boundary Guard**: Guarded the bottom 2.0pt border of the notch to prevent accidental activation when cursor passes underneath or navigates near the menu bar.
+- **Robust Multi-Display Screen Coordinate Matching**: Adjusted screen boundary lookup using coordinate insets to prevent nil screen detections when cursor reaches the top bezel edge.
 """
 
 let targetReleases: [TargetRelease] = [
     TargetRelease(
-        tag: "v2.3.5",
-        name: "LiquidDynamo 2.3.5 — Notch Bottom Deadzone & Hover Dwell Intent Sequencing",
+        tag: "v2.3.6",
+        name: "LiquidDynamo 2.3.6 — Restored Robust Island Expansion & Calibrated Notch Boundary",
         body: releaseBody,
         makeLatest: true
     ),
     TargetRelease(
         tag: "app",
         name: "LiquidDynamo Distribution Release",
-        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.5 (build 46)",
+        body: "Live distribution release for LiquidDynamo installer and direct updater.\nVersion: 2.3.6 (build 47)",
         makeLatest: false
     )
 ]
@@ -65,7 +66,7 @@ let projectDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let docsAssets = projectDir.appendingPathComponent("docs/assets", isDirectory: true)
 
 let assetsToUpload: [(name: String, path: URL, contentType: String)] = [
-    ("LiquidDynamo-2.3.5.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.5.dmg"), "application/x-apple-diskimage"),
+    ("LiquidDynamo-2.3.6.dmg", desktop.appendingPathComponent("LiquidDynamo-2.3.6.dmg"), "application/x-apple-diskimage"),
     ("LiquidDynamo.dmg", desktop.appendingPathComponent("LiquidDynamo.dmg"), "application/x-apple-diskimage"),
     ("liquiddynamo.zip", desktop.appendingPathComponent("liquiddynamo.zip"), "application/zip"),
     ("LiquidDynamo-Demo.gif", docsAssets.appendingPathComponent("demo.gif"), "image/gif"),

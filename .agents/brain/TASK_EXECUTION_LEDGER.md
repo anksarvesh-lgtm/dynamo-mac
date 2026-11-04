@@ -24,13 +24,13 @@ This document maintains the persistent history of engineering tasks executed und
   4. `s4` (done): Commit all synchronized code, brain artifacts, and rules.
   5. `s5` (done): Push main branch to GitHub origin and verify remote synchronization (commit `5cdc6d3`).
 
-### Task `t-20261104-6170`: Notch Bottom Hover Bug Fix & 2.3.5 Release
-- **Goal**: Fix notch bottom edge hover auto-expand bug, bump version to 2.3.5 (build 46), compile, package, publish release to GitHub, and clean build/temp artifacts.
+### Task `t-20261104-6170`: Notch Bottom Hover Bug Fix, Expansion Restoration & Release
+- **Goal**: Fix notch bottom edge hover auto-expand bug, restore robust island expansion, bump version to 2.3.6 (build 47), compile, package, publish release to GitHub, and clean build/temp artifacts.
 - **Checkpoints**:
   1. `s1` (done): Research and locate notch bottom hover auto-expansion trigger logic.
-  2. `s2` (done): Fix hover hit test bounds, bottom deadzone, and 180ms hover intent dwell.
-  3. `s3` (in_progress): Bump version to 2.3.5 (build 46) across project configs, scripts, and document in CHANGELOG.
-  4. `s4` (pending): Compile binary, package release DMG and ZIP, tag v2.3.5, and push to GitHub.
-  5. `s5` (pending): Publish GitHub release assets for v2.3.5 and distribution app release.
-  6. `s6` (pending): Verify remote repository has all data and clean temporary build artifacts safely.
+  2. `s2` (done): Fix hover hit test bounds, bottom deadzone, and hover intent dwell (`9526c02`).
+  3. `s3` (done): Bump version to 2.3.5 (build 46) across project configs, scripts, and document in CHANGELOG (`c195fc4`).
+  4. `s4` (done): Compile binary, package release DMG and ZIP, tag v2.3.5, and push to GitHub.
+  5. `s5` (done): Publish GitHub release assets for v2.3.5 and distribution app release.
+  6. `s6` (in_progress): Diagnose and fix expansion regression (`isHovering` state-lock bug), calibrate bottom boundary to 2.0pt, ensure instant click expansion, bump version to 2.3.6 (build 47), publish to GitHub, verify all data is safe on remote, and safely clean local build artifacts.
 

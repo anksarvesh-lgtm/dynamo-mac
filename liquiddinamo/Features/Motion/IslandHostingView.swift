@@ -87,7 +87,7 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
     public override func mouseDown(with event: NSEvent) {
         if IslandController.shared.state != .expanded {
             guard let window = self.window,
-                  let screen = window.screen ?? NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main else {
+                  let screen = window.screen ?? NSScreen.screens.first(where: { $0.frame.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation) }) ?? NSScreen.main else {
                 super.mouseDown(with: event)
                 return
             }
@@ -103,6 +103,8 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
             } else if hitRects.notchRect.contains(screenPoint) {
                 // Clicking the physical notch area explicitly opens and pins the dashboard
                 IslandController.shared.setExpanded(pin: true)
+                LiquidViewModel.shared.open(pinned: true)
+                AppDelegate.shared?.vm.open(pinned: true)
                 return
             }
         } else {

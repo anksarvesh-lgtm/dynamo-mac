@@ -2,6 +2,15 @@
 
 All notable changes, bug fixes, and feature enhancements in LiquidDynamo are documented in this file.
 
+## [2.3.6] — 2026-11-04
+
+### Restored Robust Island Expansion & Calibrated Notch Boundary
+- **Restored Robust Island Expansion**: Fixed a state-locking bug in `IslandController.onHoverExited` where `isHovering` remained permanently `true` because `guard state == .expanded` exited before resetting hover state during collapsed interactions. Resetting `isHovering = false` unconditionally unlocks all subsequent hover events.
+- **Immediate & Flawless Click Expansion**: Clicking anywhere inside the hardware notch or central floating pill immediately opens and pins the island (`IslandController`, `LiquidViewModel`, and `AppDelegate.vm`).
+- **Calibrated 80ms Intentional Dwell**: Replaced brittle 180ms delay with a responsive 80ms hover confirmation that effortlessly rejects rapid pass-through brush gestures while opening smoothly for deliberate hovers.
+- **Calibrated 2.0pt Bottom Boundary Guard**: Guarded the bottom 2.0pt border of the notch in `isMouseInHoverRegion` to prevent accidental activation when cursor passes underneath or navigates near the menu bar.
+- **Robust Multi-Display Screen Coordinate Matching**: Adjusted screen boundary lookup using coordinate insets to prevent nil screen detections when cursor reaches the top bezel edge.
+
 ## [2.3.5] — 2026-11-04
 
 ### Notch Bottom Deadzone & Hover Dwell Intent Sequencing

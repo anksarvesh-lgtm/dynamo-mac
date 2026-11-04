@@ -826,9 +826,6 @@ public final class IslandController: ObservableObject {
     // MARK: - Hover Intent & Grace Sequencing
 
     public func onHoverEntered() {
-        hoverIntentTask?.cancel()
-        isHovering = true
-
         guard state != .expanded else { return }
 
         if state == .alertPop {
@@ -838,10 +835,13 @@ public final class IslandController: ObservableObject {
 
         guard Defaults[.openNotchOnHover] else { return }
 
-        // Require an intentional hover dwell (180ms) before expanding on hover,
-        // preventing accidental trigger when the cursor rapidly grazes or touches the notch bottom.
+        isHovering = true
+        hoverIntentTask?.cancel()
+
+        // Responsive hover intent: 80ms dwell confirms deliberate mouse hover
+        // while rejecting accidental brush/flick gestures
         hoverIntentTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 180_000_000)
+            try? await Task.sleep(nanoseconds: 80_000_000)
             guard !Task.isCancelled else { return }
             guard let self = self, self.isHovering else { return }
             guard self.state != .expanded else { return }
@@ -855,6 +855,7 @@ public final class IslandController: ObservableObject {
     public func onHoverExited() {
         hoverIntentTask?.cancel()
         hoverIntentTask = nil
+        isHovering = false
 
         if state == .alertPop {
             scheduleAlertDwell(duration: 0.5)
@@ -869,10 +870,7 @@ public final class IslandController: ObservableObject {
         guard !LiquidViewModel.shared.isBatteryPopoverActive else { return }
         guard !SharingStateManager.shared.preventNotchClose else { return }
 
-        isHovering = false
-
         // Grace delay before collapsing so smooth cursor movement across boundaries never abruptly shrinks or collapses
-        hoverIntentTask?.cancel()
         hoverIntentTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 350_000_000)
             guard !Task.isCancelled else { return }
@@ -943,7 +941,7 @@ public final class IslandController: ObservableObject {
             // we restrict hit-testing strictly to the visible hardware notch rect and the active left/right
             // wing drop rects. Any coordinate outside these tight bounds returns false (hitTest returns nil),
             // allowing mouse events to pass cleanly straight through to whatever is underneath.
-            guard let screen = window.screen ?? NSScreen.screens.first(where: { $0.frame.contains(screenPoint) }) ?? NSScreen.main else {
+            guard let screen = window.screen ?? NSScreen.screens.first(where: { $0.frame.insetBy(dx: -2, dy: -2).contains(screenPoint) }) ?? NSScreen.main else {
                 return false
             }
             let hitRects = NotchSafeAreaEngine.shared.collapsedWingHitRects(for: screen)
@@ -1024,7 +1022,7 @@ public final class IslandController: ObservableObject {
     }
 
     public func isMouseInHoverRegion(_ screenPoint: NSPoint) -> Bool {
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(screenPoint) }) ?? NSScreen.main else {
+        guard let screen = NSScreen.screens.first(where: { $0.frame.insetBy(dx: -2, dy: -2).contains(screenPoint) }) ?? NSScreen.main else {
             return false
         }
         let screenFrame = screen.frame
@@ -1050,19 +1048,19 @@ public final class IslandController: ObservableObject {
             let notchCenterX = (!geom.notchRect.isEmpty) ? (screenFrame.origin.x + geom.notchRect.midX) : screenFrame.midX
             notchRect = CGRect(x: notchCenterX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         } else {
-            let notchW: CGFloat = 140.0
+            let notchW: CGFloat = 160.0
             let notchH: CGFloat = 32.0
             notchRect = CGRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         }
 
         if state != .expanded {
-            // STRICT HIT-TESTING WITH BOTTOM DEADZONE:
-            // Inset bottom edge by 6pt so grazing or touching the notch bottom boundary
-            // never triggers accidental expansion. Cursor must be intentionally inside notch body.
-            let bottomDeadzone: CGFloat = 6.0
-            let minX = notchRect.minX + 2.0
-            let maxX = notchRect.maxX - 2.0
-            let minY = notchRect.minY + bottomDeadzone
+            // Guard bottom border against accidental grazing (2.0pt deadzone):
+            // When moving mouse up or down near menu bar or window headers,
+            // grazing the bottom 2.0pt border must not trigger hover expansion.
+            let bottomGuard: CGFloat = 2.0
+            let minX = notchRect.minX
+            let maxX = notchRect.maxX
+            let minY = notchRect.minY + bottomGuard
             let maxY = topY + 1.0
 
             return screenPoint.x >= minX && screenPoint.x <= maxX && screenPoint.y >= minY && screenPoint.y <= maxY
