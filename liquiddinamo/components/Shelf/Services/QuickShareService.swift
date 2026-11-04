@@ -51,7 +51,7 @@ class QuickShareService: ObservableObject {
 
         for svc in services {
             let title = svc.title
-            let imgData = svc.image.tiffRepresentation
+            let imgData = svc.image.safeTIFFRepresentation
             let supportsRawText = svc.canPerform(withItems: ["Test Text"])
             let provider = QuickShareProvider(id: title, imageData: imgData, supportsRawText: supportsRawText)
             if !providers.contains(provider) {

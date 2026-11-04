@@ -465,11 +465,10 @@ public final class ClipboardHistoryService: ObservableObject {
         image.draw(in: NSRect(origin: .zero, size: newSize), from: NSRect(origin: .zero, size: image.size), operation: .copy, fraction: 1.0)
         newImage.unlockFocus()
 
-        guard let tiff = newImage.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff) else {
-            return image.tiffRepresentation
-        }
-        return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) ?? image.tiffRepresentation
+        return newImage.safeJPEGRepresentation(compressionFactor: 0.85)
+            ?? newImage.safeTIFFRepresentation
+            ?? image.safeJPEGRepresentation(compressionFactor: 0.85)
+            ?? image.safeTIFFRepresentation
     }
 
     // MARK: - Actions
@@ -490,7 +489,7 @@ public final class ClipboardHistoryService: ObservableObject {
             }
         case .image:
             if let data = entry.imageData, let img = NSImage(data: data) {
-                if let tiff = img.tiffRepresentation {
+                if let tiff = img.safeTIFFRepresentation {
                     pb.setData(tiff, forType: .tiff)
                 }
                 pb.setData(data, forType: .png)

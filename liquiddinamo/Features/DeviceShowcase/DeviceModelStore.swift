@@ -177,9 +177,7 @@ public actor DeviceModelStore {
         if let previewData = previewData {
             try? previewData.write(to: previewURL, options: .atomic)
         } else if let previewImage = previewImage,
-                  let tiff = previewImage.tiffRepresentation,
-                  let bitmap = NSBitmapImageRep(data: tiff),
-                  let pngData = bitmap.representation(using: .png, properties: [:]) {
+                  let pngData = previewImage.safePNGRepresentation() {
             try? pngData.write(to: previewURL, options: .atomic)
         }
 

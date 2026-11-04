@@ -15,6 +15,100 @@ import CoreImage.CIFilterBuiltins
 
 extension NSImage {
 
+    /// Safely extracts a non-empty `CGImage` from this `NSImage`, verifying valid raster dimensions.
+    public var safeCGImage: CGImage? {
+        guard size.width > 0, size.height > 0 else { return nil }
+        var proposedRect = CGRect(origin: .zero, size: size)
+        guard let cg = cgImage(forProposedRect: &proposedRect, context: nil, hints: nil),
+              cg.width > 0, cg.height > 0 else {
+            return nil
+        }
+        return cg
+    }
+
+    /// Safely provides an `NSBitmapImageRep` with non-zero dimensions without triggering
+    /// `CGImageDestinationFinalize failed for output type 'public.tiff'`.
+    public var safeBitmapRepresentation: NSBitmapImageRep? {
+        // 1. Check existing representations for a valid raster bitmap
+        for rep in representations {
+            if let bitmap = rep as? NSBitmapImageRep,
+               bitmap.pixelsWide > 0,
+               bitmap.pixelsHigh > 0 {
+                return bitmap
+            }
+        }
+
+        // 2. If no valid NSBitmapImageRep exists, render from verified CGImage
+        if let cg = safeCGImage {
+            return NSBitmapImageRep(cgImage: cg)
+        }
+
+        // 3. Fallback: try drawing into a dedicated bitmap context
+        guard size.width > 0, size.height > 0 else { return nil }
+        let width = max(1, Int(ceil(size.width)))
+        let height = max(1, Int(ceil(size.height)))
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: width * 4,
+            bitsPerPixel: 32
+        ) else { return nil }
+
+        NSGraphicsContext.saveGraphicsState()
+        let context = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current = context
+        draw(in: NSRect(x: 0, y: 0, width: width, height: height),
+             from: .zero,
+             operation: .copy,
+             fraction: 1.0)
+        NSGraphicsContext.restoreGraphicsState()
+
+        return (rep.pixelsWide > 0 && rep.pixelsHigh > 0) ? rep : nil
+    }
+
+    /// Safely serializes to TIFF data without triggering CoreGraphics empty destination errors.
+    public var safeTIFFRepresentation: Data? {
+        guard let rep = safeBitmapRepresentation else { return nil }
+        return rep.tiffRepresentation
+    }
+
+    /// Safely serializes to PNG data without triggering CoreGraphics empty destination errors.
+    public func safePNGRepresentation() -> Data? {
+        guard let rep = safeBitmapRepresentation else { return nil }
+        return rep.representation(using: .png, properties: [:])
+    }
+
+    /// Safely serializes to JPEG data without triggering CoreGraphics empty destination errors.
+    public func safeJPEGRepresentation(compressionFactor: Double = 0.85) -> Data? {
+        guard let rep = safeBitmapRepresentation else { return nil }
+        return rep.representation(using: .jpeg, properties: [.compressionFactor: compressionFactor])
+    }
+
+    /// Generates a thumbnail Data using CGImageSource or fallback to safe PNG.
+    public func safeThumbnailData(maxPixelSize: CGFloat) -> Data? {
+        guard let sourceData = safePNGRepresentation() else { return nil }
+        guard let imageSource = CGImageSourceCreateWithData(sourceData as CFData, nil) else {
+            return sourceData
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
+            return sourceData
+        }
+        let rep = NSBitmapImageRep(cgImage: thumbnail)
+        return rep.representation(using: .png, properties: [:]) ?? sourceData
+    }
+
     
     func averageColor(completion: @escaping (NSColor?) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {

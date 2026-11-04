@@ -47,9 +47,7 @@ public final class AndroidThumbnailCache: ObservableObject {
 
         Task.detached(priority: .background) {
             let fileURL = dir.appendingPathComponent(safeKey)
-            if let tiff = image.tiffRepresentation,
-               let rep = NSBitmapImageRep(data: tiff),
-               let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75]) {
+            if let data = image.safeJPEGRepresentation(compressionFactor: 0.75) {
                 try? data.write(to: fileURL)
             }
             Self.pruneDiskDirectory(dir, maxDiskBytes: maxDisk)

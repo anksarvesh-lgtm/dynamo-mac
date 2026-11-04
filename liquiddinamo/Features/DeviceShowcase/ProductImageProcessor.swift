@@ -68,9 +68,7 @@ public final class ProductImageProcessor {
         targetSize: CGFloat = 1024,
         padding: CGFloat = 72
     ) async throws -> ProcessedProductImage {
-        guard let tiff = inputImage.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let cgImage = bitmap.cgImage else {
+        guard let cgImage = inputImage.safeCGImage else {
             throw ProductImageProcessorError.invalidSourceImage
         }
 
@@ -217,9 +215,7 @@ public final class ProductImageProcessor {
 
         canvas.unlockFocus()
 
-        guard let tiff = canvas.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff),
-              let pngData = rep.representation(using: .png, properties: [:]) else {
+        guard let pngData = canvas.safePNGRepresentation() else {
             return nil
         }
 

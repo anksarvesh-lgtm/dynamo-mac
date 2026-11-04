@@ -85,9 +85,7 @@ final class ImageProcessingService {
         let originalName = url.deletingPathExtension().lastPathComponent
         let newName = "\(originalName)_no_bg.png"
         
-        guard let pngData = processedImage.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: pngData),
-              let finalData = bitmap.representation(using: .png, properties: [:]) else {
+        guard let finalData = processedImage.safePNGRepresentation() else {
             throw ImageProcessingError.saveFailed
         }
         
@@ -167,8 +165,7 @@ final class ImageProcessingService {
     }
     
     private func convertToFormat(_ image: NSImage, format: ImageConversionOptions.ImageFormat, quality: Double) throws -> Data? {
-        guard let tiffData = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData) else {
+        guard let bitmap = image.safeBitmapRepresentation else {
             return nil
         }
         
@@ -189,7 +186,7 @@ final class ImageProcessingService {
             return bitmap.representation(using: .bmp, properties: [:])
         case .heic:
             // HEIC requires using CIContext
-            guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            guard let cgImage = image.safeCGImage else {
                 return nil
             }
             let ciImage = CIImage(cgImage: cgImage)
