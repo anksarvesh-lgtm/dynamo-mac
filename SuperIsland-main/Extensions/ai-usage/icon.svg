@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- outer ring -->
+  <circle cx="64" cy="64" r="44" stroke="white" stroke-width="8" fill="none" opacity="0.2"></circle>
+
+  <!-- usage arc -->
+  <path d="M64 20
+           A44 44 0 0 1 108 64" stroke="white" stroke-width="8" stroke-linecap="round" fill="none"></path>
+
+  <!-- AI text -->
+  <text x="64" y="74" text-anchor="middle" font-size="34" font-family="SF Pro, Inter, system-ui" fill="white" font-weight="600">
+    AI
+  </text>
+
+</svg>

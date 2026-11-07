@@ -1,0 +1,13 @@
+# SwiftPM
+.build/
+.swiftpm/
+*.xcodeproj
+xcuserdata/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Packaging scratch (the .dmg itself is committed on purpose)
+dist/NotchIsland.app/
+dist/dmg-root/

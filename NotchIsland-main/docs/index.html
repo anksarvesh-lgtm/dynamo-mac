@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NotchIsland — Your notch, now a Dynamic Island</title>
+<meta name="description" content="NotchIsland turns the MacBook notch into a Dynamic Island: Now Playing from any app or browser, a notification shade, live activities, a ⌥ Space launcher, timer, calendar, shelf and more. Free and open source for macOS 13+.">
+<meta property="og:title" content="NotchIsland">
+<meta property="og:description" content="Your MacBook notch, now a Dynamic Island. Free, open source, macOS 13+.">
+<meta property="og:image" content="https://edwardrem.github.io/NotchIsland/assets/icon.png">
+<meta property="og:type" content="website">
+<meta name="author" content="Rufaro Edward Mutepfa">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #000;
+    --bg-2: #0a0a0c;
+    --fg: #f5f5f7;
+    --muted: #a1a1a6;
+    --faint: #6e6e73;
+    --line: rgba(255,255,255,.08);
+    --card: rgba(255,255,255,.045);
+    --card-hover: rgba(255,255,255,.07);
+    --g1: #7dd3fc; --g2: #c084fc; --g3: #fb7185;
+    --radius: 22px;
+    --max: 1120px;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font);
+    font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  .wrap { width: min(var(--max), 100% - 40px); margin: 0 auto; }
+  @media (max-width: 600px) { .wrap { width: calc(100% - 32px); } }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px);
+    background: rgba(0,0,0,.6); border-bottom: 1px solid var(--line);
+  }
+  .nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -.01em; }
+  .brand img { width: 28px; height: 28px; }
+  .nav nav { display: flex; gap: 26px; font-size: 14px; color: var(--muted); }
+  .nav nav a:hover { color: var(--fg); }
+  .nav nav .gh { color: var(--fg); }
+  @media (max-width: 720px) { .nav nav a:not(.gh) { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; padding: 92px 0 0; text-align: center; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -40% -20% auto; height: 120%; pointer-events: none;
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(125,211,252,.16), transparent 70%),
+      radial-gradient(40% 40% at 30% 20%, rgba(192,132,252,.12), transparent 70%),
+      radial-gradient(40% 40% at 70% 20%, rgba(251,113,133,.10), transparent 70%);
+  }
+  .eyebrow {
+    position: relative; display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; color: var(--muted);
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.03);
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 10px #34d399; }
+  h1 {
+    position: relative; margin: 22px auto 18px; max-width: 14ch;
+    font-size: clamp(42px, 7.2vw, 84px); line-height: 1.02; font-weight: 700; letter-spacing: -.035em;
+  }
+  .grad {
+    background: linear-gradient(92deg, var(--g1), var(--g2) 55%, var(--g3)); -webkit-background-clip: text;
+    background-clip: text; color: transparent;
+  }
+  .lede { position: relative; margin: 0 auto; max-width: 58ch; color: var(--muted); font-size: clamp(17px, 2vw, 21px); }
+  .cta { position: relative; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 34px 0 10px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 22px; border-radius: 999px;
+    font-weight: 600; font-size: 16px; letter-spacing: -.01em; transition: transform .15s ease, background .15s ease;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--fg); color: #000; }
+  .btn.primary:hover { background: #fff; }
+  .btn.primary small { font-weight: 500; color: #555; font-size: 13px; }
+  .btn.ghost { border: 1px solid rgba(255,255,255,.16); color: var(--fg); background: rgba(255,255,255,.04); }
+  .btn.ghost:hover { background: rgba(255,255,255,.08); }
+  .btn svg { width: 18px; height: 18px; }
+  .fineprint { position: relative; color: var(--faint); font-size: 13px; margin: 0; }
+  .fineprint a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ---------- "display" frames that hold the island screenshots ---------- */
+  .display {
+    position: relative; overflow: hidden; border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08);
+    background:
+      radial-gradient(120% 90% at 20% 110%, #2b1a5e 0%, transparent 60%),
+      radial-gradient(90% 80% at 85% 100%, #0f3d5c 0%, transparent 60%),
+      radial-gradient(60% 50% at 60% 30%, #3a1c3f 0%, transparent 70%),
+      linear-gradient(180deg, #121018 0%, #07070a 100%);
+  }
+  .display::after {  /* menu-bar hint */
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 24px;
+    background: linear-gradient(180deg, rgba(0,0,0,.35), transparent);
+  }
+  .display .island { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 2; }
+  .display .island img { width: 100%; height: auto; }
+  .hero .display { margin: 56px auto 0; aspect-ratio: 4 / 3; max-width: 1040px; }
+  .hero .display .island { width: 40%; }
+  @media (max-width: 900px) { .hero .display { aspect-ratio: 2 / 3; } .hero .display .island { width: 80%; } }
+
+  /* ---------- sections ---------- */
+  section { padding: 110px 0 0; }
+  .kicker { color: var(--g2); font-weight: 600; font-size: 14px; letter-spacing: .02em; text-transform: uppercase; margin: 0 0 10px; }
+  h2 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 14px; font-weight: 700; max-width: 22ch; }
+  .sub { color: var(--muted); max-width: 60ch; margin: 0 0 42px; font-size: 18px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 24px 22px;
+    transition: background .2s ease, transform .2s ease;
+  }
+  .card:hover { background: var(--card-hover); transform: translateY(-2px); }
+  .card .ico {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 16px;
+    background: linear-gradient(135deg, rgba(125,211,252,.22), rgba(192,132,252,.22)); color: #dbeafe;
+  }
+  .card .ico svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  kbd { font-family: var(--font); font-size: .85em; padding: 1px 7px; border-radius: 6px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.12); }
+  p code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; }
+
+  /* ---------- states gallery ---------- */
+  .states { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
+  .state { grid-column: span 2; }
+  .state.big { grid-column: span 3; }
+  .state .display { aspect-ratio: 16 / 9; border-radius: 18px; }
+  .state .display .island { width: 86%; }
+  .state .display.narrow .island { width: 72%; }
+  .state.big .display { aspect-ratio: 3 / 2; }
+  .state.big .display.hover .island { width: 60%; }
+  .state.big .display.wide .island { width: 90%; }
+  @media (max-width: 900px) {
+    .states { grid-template-columns: 1fr; }
+    .state, .state.big { grid-column: auto; }
+    .state .display { aspect-ratio: 16 / 9; } .state .display .island { width: 80%; }
+    .state.big .display.hover .island { width: 56%; } .state.big .display.wide .island { width: 92%; }
+  }
+  .state figcaption { margin: 12px 4px 0; }
+  .state figcaption b { display: block; font-size: 15px; letter-spacing: -.01em; }
+  .state figcaption span { color: var(--muted); font-size: 14px; }
+  figure { margin: 0; }
+
+  /* ---------- install ---------- */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; counter-reset: step; }
+  .step { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px 22px 22px; }
+  .step::before {
+    counter-increment: step; content: counter(step);
+    display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; margin-bottom: 14px;
+    background: var(--fg); color: #000; font-weight: 700; font-size: 14px;
+  }
+  .step h3 { margin: 0 0 6px; font-size: 17px; }
+  .step p { margin: 0; color: var(--muted); font-size: 15px; }
+  .note {
+    margin-top: 18px; padding: 16px 18px; border-radius: 16px; font-size: 15px; color: var(--muted);
+    background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.25);
+  }
+  .note b { color: #fde68a; }
+
+  /* ---------- open source ---------- */
+  .split { display: grid; grid-template-columns: 1.1fr .9fr; gap: 36px; align-items: center; }
+  @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+  pre {
+    margin: 0; padding: 18px 20px; border-radius: 16px; overflow-x: auto;
+    background: #0d0d10; border: 1px solid var(--line); font: 13.5px/1.6 var(--mono); color: #e5e7eb;
+  }
+  pre .c { color: var(--faint); }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  .badge { font-size: 13px; color: var(--muted); padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+
+  /* ---------- author ---------- */
+  .author {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: center;
+    background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 28px;
+  }
+  .author .avatar {
+    width: 84px; height: 84px; border-radius: 50%; padding: 3px;
+    background: linear-gradient(135deg, var(--g1), var(--g2), var(--g3));
+  }
+  .author .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #111; border: 3px solid #000; }
+  .author h3 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.02em; }
+  .author .role { margin: 0 0 8px; color: var(--g2); font-weight: 600; font-size: 14px; }
+  .author p { margin: 0; color: var(--muted); font-size: 15px; max-width: 56ch; }
+  .author .links { display: flex; flex-direction: column; gap: 10px; }
+  .author .btn { height: 42px; font-size: 14px; padding: 0 16px; }
+  .author .btn.linkedin { background: #0a66c2; color: #fff; }
+  .author .btn.linkedin:hover { background: #1b74cc; }
+  @media (max-width: 760px) {
+    .author { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+    .author .links { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  }
+
+  footer { margin-top: 120px; padding: 36px 0 calc(36px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); color: var(--faint); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a:hover { color: var(--fg); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .rise { opacity: 0; transform: translateY(14px); animation: rise .7s cubic-bezier(.2,.7,.2,1) forwards; }
+    .rise.d1 { animation-delay: .08s } .rise.d2 { animation-delay: .16s } .rise.d3 { animation-delay: .24s } .rise.d4 { animation-delay: .34s }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="assets/icon.png" alt="" width="28" height="28"> NotchIsland</a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#states">Screens</a>
+      <a href="#install">Install</a>
+      <a href="#author">About</a>
+      <a class="gh" href="https://github.com/Edwardrem/NotchIsland">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow rise"><span class="dot"></span> Free · Open source · macOS 13+ · Apple silicon</span>
+      <h1 class="rise d1">Your notch, <span class="grad">now a Dynamic Island.</span></h1>
+      <p class="lede rise d2">NotchIsland lives inside the MacBook notch and grows out of it: what's playing, what just arrived, what's charging, what's next. One black surface, flush with the bezel, that only shows up when it has something to say.</p>
+      <div class="cta rise d3">
+        <a class="btn primary" href="https://github.com/Edwardrem/NotchIsland/raw/main/dist/NotchIsland.dmg" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Download for Mac <small>.dmg · v1.3.2 · 2.0 MB</small>
+        </a>
+        <a class="btn ghost" href="https://github.com/Edwardrem/NotchIsland">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <p class="fineprint rise d3">MIT licensed · no accounts, no analytics · updates itself from <a href="https://github.com/Edwardrem/NotchIsland/releases">GitHub Releases</a></p>
+
+      <div class="display rise d4" aria-label="The NotchIsland shade open under the notch">
+        <div class="island"><img src="assets/shade.png" alt="The shade: clock, quick toggles, a running timer, the next calendar event with a Join button, Now Playing with transport and volume, a shelf of files, clipboard history and notifications grouped by app"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <p class="kicker">Live, where you're already looking</p>
+      <h2>Everything that matters right now, right under the notch.</h2>
+      <p class="sub">Hover for a glance, click for the full shade, press <kbd>⌥</kbd> <kbd>Space</kbd> to launch anything. The island stays true black so it blends with the bezel and disappears when it's idle.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
+          <h3>Now Playing, from anywhere</h3>
+          <p>The TV app, Music, Podcasts, QuickTime Player, Spotify, VLC and whatever is playing in Safari or any Chromium browser: Chrome, Brave, Edge, Arc, Vivaldi, Opera. Anything that publishes to Control Center shows up, no permission needed. Every app, and every browser tab with media, is its own source; the island follows the stream that started last and lets you switch with a tap. Artwork in the ear, bouncing bars while it plays, a scrubber, transport and the system volume slider.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+          <h3>A real notification shade</h3>
+          <p>Banners drop out of the notch, then collect in a shade grouped by app with history, Clear and Clear All. Private messages stay on your Mac: it reads Notification Center's own store.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+          <h3>Live activities</h3>
+          <p>Charger in or out, low battery, volume changes, AirPods connecting with left, right and case battery, downloads with real progress, a finished timer. Long-running ones shrink into a ring in the ear.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
+          <h3><kbd>⌥</kbd> <kbd>Space</kbd> launcher</h3>
+          <p>Fuzzy app search ranked by what you open most, Spotlight file search, a calculator, unit conversion and quick actions like lock, sleep or dark mode. The hotkey is swallowed, so nothing else hears it.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg></div>
+          <h3>Timer and next event</h3>
+          <p>Pomodoro presets with a countdown ring in the ear and a chime at the end. Your next calendar event sits in the shade with a one-tap Join for Zoom, Meet, Teams and friends.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 7h14l2 6v6H3v-6z"/></svg></div>
+          <h3>Shelf</h3>
+          <p>Drag files onto the notch to park them. Drag them back out into any app later, open them, or AirDrop the whole shelf in one go.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <h3>Quick toggles and Focus</h3>
+          <p>Dark Mode, Keep Awake, Wi-Fi and a camera check for calls. The Focus tile mirrors the system, lighting up with “Do Not Disturb” or whatever mode you're in.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div>
+          <h3>Mic, camera, Focus indicators</h3>
+          <p>Small coloured marks beside the notch tell you when the microphone or camera is live, when a Focus is on and when the display is being kept awake.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h3>Private by design</h3>
+          <p>No account, no server, no analytics. Everything is read from your own Mac. The one network request is a daily look at GitHub Releases for a new version, which sends nothing about you and can be switched off.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="states">
+    <div class="wrap">
+      <p class="kicker">One surface, many states</p>
+      <h2>It only grows as much as it needs to.</h2>
+      <p class="sub">Idle, the island is just the notch. Everything below flows out of it with the same width and the same black, so the notch and whatever drops down always read as one thing.</p>
+      <div class="states">
+        <figure class="state">
+          <div class="display narrow"><div class="island"><img src="assets/compact.png" alt="Compact: album art on the left ear, bouncing level bars on the right"></div></div>
+          <figcaption><b>Compact</b><span>Artwork and level bars in the ears while something plays.</span></figcaption>
+        </figure>
+        <figure class="state">
+          <div class="display"><div class="island"><img src="assets/activity.png" alt="Live activity: AirPods Pro connected with left, right and case battery"></div></div>
+          <figcaption><b>Live activity</b><span>AirPods, charger, volume, downloads: a short HUD, then gone.</span></figcaption>
+        </figure>
+        <figure class="state">
+          <div class="display"><div class="island"><img src="assets/banner.png" alt="A Messages banner dropping out of the notch"></div></div>
+          <figcaption><b>Banner</b><span>Notifications drop in from the notch. Tap to open, swipe on.</span></figcaption>
+        </figure>
+        <figure class="state big">
+          <div class="display hover"><div class="island"><img src="assets/hover.png" alt="Hover: clock and date, a Do Not Disturb chip, battery, unread bell, Now Playing and the last message"></div></div>
+          <figcaption><b>Hover</b><span>A glance: clock, Focus, battery, unread count, timer, event, media.</span></figcaption>
+        </figure>
+        <figure class="state big">
+          <div class="display wide"><div class="island"><img src="assets/launcher.png" alt="Launcher: typing 5 km to mi shows the conversion result"></div></div>
+          <figcaption><b>Launcher</b><span>Apps, files, maths, units and actions from <kbd>⌥</kbd> <kbd>Space</kbd>.</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <p class="kicker">Install</p>
+      <h2>Up and running in a minute.</h2>
+      <p class="sub">NotchIsland is a tiny, self-contained app. It needs macOS 13 Ventura or later and a Mac with Apple silicon (every notched MacBook has one).</p>
+      <div class="steps">
+        <div class="step">
+          <h3>Download and drag</h3>
+          <p>Open <a href="https://github.com/Edwardrem/NotchIsland/raw/main/dist/NotchIsland.dmg">NotchIsland.dmg</a> and drag NotchIsland into Applications. It runs as a menu bar app, with no Dock icon.</p>
+        </div>
+        <div class="step">
+          <h3>Open it the first time</h3>
+          <p>macOS will say it "could not verify NotchIsland is free of malware": the app is not notarized. On macOS 15 and later click <b>Done</b>, then System Settings → Privacy &amp; Security → scroll to "NotchIsland was blocked" → <b>Open Anyway</b>. On macOS 13 and 14, right-click NotchIsland in Applications → <b>Open</b>. Or in Terminal: <code>xattr -dr com.apple.quarantine /Applications/NotchIsland.app</code></p>
+        </div>
+        <div class="step">
+          <h3>Grant what you use</h3>
+          <p>Full Disk Access for notifications: System Settings → Privacy &amp; Security → Full Disk Access → turn on NotchIsland (click + and pick it from Applications if it is not listed), then relaunch. The island shows a hint until then; click it to jump there. Accessibility for the hotkey is asked on first launch, Automation the first time a player is read, Calendar and Camera when you first use them. Settings → Permissions shows the state of each.</p>
+        </div>
+        <div class="step">
+          <h3>Stay current</h3>
+          <p>That is the last download. NotchIsland checks GitHub once a day and tells you in the island when a new version is out. Settings → Updates shows what's new, and <b>Update Now</b> installs it in place: it keeps every permission you granted and never shows the Gatekeeper dialog, since nothing goes through a browser.</p>
+        </div>
+      </div>
+      <div class="note"><b>Why the extra click?</b> Only apps notarized through a paid Apple Developer ID open silently. NotchIsland is free and open source and signed with its own certificate, so Gatekeeper asks you to confirm the first launch, once. The DMG includes a "Read me first" with the same steps. You can also build it yourself in under a minute: see below.</div>
+      <div class="note"><b>Allowed in System Settings but not working?</b> macOS ties each permission to the build that asked for it. A grant made to an earlier version with a different signature stays switched on in the list but no longer applies, and flipping it changes nothing. Since 1.1.1 NotchIsland clears such entries on its first launch after an update and asks again; if a row in Settings → Permissions still carries the orange <i>was granted to an earlier build</i> mark, click <b>Reset…</b> next to it and allow it again. Entries with a terminal icon are leftovers from a development build.</div>
+    </div>
+  </section>
+
+  <section id="source">
+    <div class="wrap split">
+      <div>
+        <p class="kicker">Open source</p>
+        <h2>Swift, SwiftUI and nothing else.</h2>
+        <p class="sub" style="margin-bottom:0">One Swift package, no dependencies, MIT licensed. Clone it, run it, read every line that touches your notifications. Issues and pull requests are welcome.</p>
+        <div class="badges">
+          <span class="badge">Swift 5.9</span><span class="badge">SwiftUI + AppKit</span><span class="badge">macOS 13+</span><span class="badge">MIT</span><span class="badge">No dependencies</span>
+        </div>
+      </div>
+      <pre><span class="c"># run from source</span>
+git clone https://github.com/Edwardrem/NotchIsland.git
+cd NotchIsland
+swift run
+
+<span class="c"># or build the .app and .dmg yourself</span>
+scripts/make-dmg.sh 1.3.2</pre>
+    </div>
+  </section>
+
+  <section id="author">
+    <div class="wrap">
+      <p class="kicker">About the maker</p>
+      <h2>Built by Rufaro Edward Mutepfa.</h2>
+      <p class="sub">NotchIsland started as a small itch: the notch takes up space on every MacBook, so it may as well earn it. It is built and maintained in the open.</p>
+      <div class="author">
+        <div class="avatar"><img src="https://github.com/Edwardrem.png?size=200" alt="Rufaro Edward Mutepfa" width="84" height="84" loading="lazy"></div>
+        <div>
+          <h3>Rufaro Edward Mutepfa</h3>
+          <p class="role">Creator and maintainer of NotchIsland</p>
+          <p>If NotchIsland saves you a glance at the menu bar, say hello. If something is off, open an issue on GitHub and it will get looked at.</p>
+        </div>
+        <div class="links">
+          <a class="btn linkedin" href="https://www.linkedin.com/in/rufaro-mutepfa-0a64b810a/" rel="me noopener" target="_blank">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0z"/></svg>
+            Connect on LinkedIn
+          </a>
+          <a class="btn ghost" href="https://github.com/Edwardrem" rel="me noopener" target="_blank">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+            @Edwardrem on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 <a href="https://www.linkedin.com/in/rufaro-mutepfa-0a64b810a/">Rufaro Edward Mutepfa</a> · MIT License</span>
+    <span><a href="https://github.com/Edwardrem/NotchIsland">Source</a> · <a href="https://github.com/Edwardrem/NotchIsland/issues">Issues</a> · <a href="https://github.com/Edwardrem/NotchIsland/releases">Releases</a> · <a href="https://www.linkedin.com/in/rufaro-mutepfa-0a64b810a/">LinkedIn</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

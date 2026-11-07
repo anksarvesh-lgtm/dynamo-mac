@@ -1,0 +1,479 @@
+//
+//  NotchViewModel.swift
+//  ClaudeIsland
+//
+//  State management for the dynamic island
+//
+
+import AppKit
+import Combine
+import SwiftUI
+
+enum NotchStatus: Equatable {
+    case closed
+    case opened
+    case popping
+}
+
+enum NotchOpenReason {
+    case click
+    case hover
+    case notification
+    case boot
+    case unknown
+}
+
+enum NotchContentType: Equatable {
+    case instances
+    case menu
+    case chat(SessionState)
+    case question(SessionState)
+    case plugin(String)  // plugin ID
+    case completion(CompletionEntry)      // Completion Panel — spec §5.6
+
+    var id: String {
+        switch self {
+        case .instances: return "instances"
+        case .menu: return "menu"
+        case .chat(let session): return "chat-\(session.sessionId)"
+        case .question(let session): return "question-\(session.sessionId)"
+        case .plugin(let pluginId): return "plugin-\(pluginId)"
+        case .completion(let entry): return "completion-\(entry.id)"
+        }
+    }
+}
+
+@MainActor
+class NotchViewModel: ObservableObject {
+    // MARK: - Published State
+
+    @Published var status: NotchStatus = .closed
+    @Published var openReason: NotchOpenReason = .unknown
+    @Published var contentType: NotchContentType = .instances
+    @Published var isHovering: Bool = false
+
+    /// Session counts for dynamic panel sizing
+    @Published var sessionCount: Int = 0
+    @Published var activeSessionCount: Int = 0
+    @Published var isInstancesExpanded: Bool = false
+
+    // MARK: - Dependencies
+
+    private let screenSelector = ScreenSelector.shared
+    private let soundSelector = SoundSelector.shared
+
+    // MARK: - Geometry
+
+    let geometry: NotchGeometry
+    let spacing: CGFloat = 12
+    let hasPhysicalNotch: Bool
+    let screenID: String
+
+    /// Current expansion width from NotchView (synced for hit testing)
+    @Published var currentExpansionWidth: CGFloat = 240
+
+    var deviceNotchRect: CGRect { geometry.deviceNotchRect }
+    var screenRect: CGRect { geometry.screenRect }
+    var windowHeight: CGFloat { geometry.windowHeight }
+
+    /// Height contributed by inline report content inside the notch menu.
+    /// Now always `.hidden` since stats moved to an external plugin.
+    @Published var dailyReportState: DailyReportState = .hidden
+
+    /// Discrete height buckets for the daily report card. Hard-coded
+    /// instead of measured via GeometryReader / PreferenceKey to avoid
+    /// feedback loops between content size and window size.
+    enum DailyReportState: Equatable {
+        case hidden       // Card is not shown (no activity or not loaded)
+        case loading      // First-launch scan, shows the neon cat
+        case collapsed    // Hero line + context line only
+        case expandedDay  // Hero + day details (pills + breakdowns)
+        case expandedWeek // Hero + week details (sparkline + highlights + ...)
+
+        var height: CGFloat {
+            switch self {
+            case .hidden:       return 0
+            case .loading:      return 80
+            case .collapsed:    return 118
+            case .expandedDay:  return 230
+            case .expandedWeek: return 400
+            }
+        }
+    }
+
+    /// Dynamic opened size based on content type
+    var openedSize: CGSize {
+        switch contentType {
+        case .chat:
+            // Chat view: width fixed, height is max (actual height adapts to content)
+            return CGSize(
+                width: min(screenRect.width * 0.5, 600),
+                height: 580
+            )
+        case .menu:
+            // Lean notch menu — now that all the toggles/pickers moved to
+            // the floating SystemSettings window, the menu is just:
+            //   PairPhoneRow + SystemSettingsRow
+            // The report card height varies (hidden / loading / collapsed /
+            // expanded), so we add its dailyReportState.height onto a small
+            // base that covers the header, two rows, and padding.
+            let baseHeight: CGFloat = 200
+            return CGSize(
+                width: min(screenRect.width * 0.4, 480),
+                height: baseHeight + dailyReportState.height
+            )
+        case .question:
+            // Question view: moderate width, height adapts to question count
+            return CGSize(
+                width: min(screenRect.width * 0.4, 480),
+                height: 320
+            )
+        case .plugin(let pluginId):
+            // Default budget for plugins that don't declare a preferred size
+            // (48% of screen width capped at 620, 78% of height capped at 780).
+            let defaultSize = CGSize(
+                width: min(screenRect.width * 0.48, 620),
+                height: min(screenRect.height * 0.78, 780)
+            )
+            // Let a plugin request a smaller (or slightly larger) panel via
+            // Info.plist: MioPluginPreferredWidth / MioPluginPreferredHeight.
+            // The hint is already sanity-clamped by NativePluginManager; we
+            // still clip to the actual display so a plugin can't escape the
+            // user's screen.
+            if let hint = NativePluginManager.shared.plugin(id: pluginId)?.preferredPanelSize {
+                return CGSize(
+                    width: min(hint.width, screenRect.width * 0.95),
+                    height: min(hint.height, screenRect.height * 0.95)
+                )
+            }
+            return defaultSize
+        case .instances:
+            let baseHeight: CGFloat = 120
+            let perSession: CGFloat = 100
+            let contentHeight = baseHeight + CGFloat(sessionCount) * perSession
+            // ≤4 sessions: fit content + room for buddy; >4: capped unless expanded
+            let compactMax: CGFloat = 360
+            let expandedMax: CGFloat = min(screenRect.height * 0.65, 600)
+            let height: CGFloat
+            if sessionCount <= 4 {
+                height = min(contentHeight, expandedMax)
+            } else {
+                height = isInstancesExpanded ? expandedMax : compactMax
+            }
+            return CGSize(
+                width: min(screenRect.width * 0.4, 480),
+                height: max(height, 200)
+            )
+        case .completion(let entry):
+            switch entry.variant {
+            case .claudeStop:
+                return CGSize(width: min(screenRect.width * 0.5, 600), height: 214)
+            case .subagentDone(let subagents):
+                let rowHeight: CGFloat = 28
+                let padding: CGFloat = 120
+                return CGSize(
+                    width: min(screenRect.width * 0.5, 600),
+                    height: min(CGFloat(subagents.count) * rowHeight + padding, 500)
+                )
+            case .pendingTool:
+                return CGSize(width: min(screenRect.width * 0.5, 600), height: 200)
+            }
+        }
+    }
+
+    // MARK: - Animation
+
+    var animation: Animation {
+        .easeOut(duration: 0.25)
+    }
+
+    // MARK: - Private
+
+    private var cancellables = Set<AnyCancellable>()
+    private let events = EventMonitors.shared
+    private var hoverTimer: DispatchWorkItem?
+
+    // MARK: - Initialization
+
+    init(deviceNotchRect: CGRect, screenRect: CGRect, windowHeight: CGFloat, hasPhysicalNotch: Bool, screenID: String) {
+        self.screenID = screenID
+        self.geometry = NotchGeometry(
+            deviceNotchRect: deviceNotchRect,
+            screenRect: screenRect,
+            windowHeight: windowHeight
+        )
+        self.hasPhysicalNotch = hasPhysicalNotch
+        setupEventHandlers()
+        observeSelectors()
+
+        // Listen for plugin open requests (from plugin header buttons etc.)
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("com.codeisland.openPlugin"), object: nil, queue: .main) { [weak self] notification in
+            guard let pluginId = notification.userInfo?["pluginId"] as? String else { return }
+            Task { @MainActor in
+                self?.notchOpen(reason: .hover)
+                self?.showPlugin(pluginId)
+            }
+        }
+    }
+
+    private func observeSelectors() {
+        screenSelector.$isPickerExpanded
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        soundSelector.$isPickerExpanded
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Event Handling
+
+    private func setupEventHandlers() {
+        events.mouseLocation
+            .throttle(for: .milliseconds(50), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] location in
+                self?.handleMouseMove(location)
+            }
+            .store(in: &cancellables)
+
+        events.mouseDown
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleMouseDown()
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Whether we're in chat mode (sticky behavior)
+    private var isInChatMode: Bool {
+        if case .chat = contentType { return true }
+        return false
+    }
+
+    /// The chat session we're viewing (persists across close/open)
+    private var currentChatSession: SessionState?
+
+    /// Pull the user's saved horizontal offset, clamped against the
+    /// current screen + visible notch width so a value persisted on
+    /// a wider external display doesn't push hit-testing off-screen
+    /// when the smaller built-in is the active one. Mirrors the same
+    /// clamp NotchView applies for `.offset(x:)` rendering.
+    private var currentHorizontalOffset: CGFloat {
+        let geo = NotchCustomizationStore.shared.customization.geometry(for: screenID)
+        let runtime: CGFloat = status == .opened ? openedSize.width : (geometry.deviceNotchRect.width + currentExpansionWidth)
+        return NotchHardwareDetector.clampedHorizontalOffset(
+            storedOffset: geo.horizontalOffset,
+            runtimeWidth: runtime,
+            screenWidth: geometry.screenRect.width
+        )
+    }
+
+    private func handleMouseMove(_ location: CGPoint) {
+        // While the user is in live edit mode, the notch is locked
+        // closed and may not auto-open from hover. The live edit
+        // overlay panel handles its own clicks; the notch itself
+        // should be inert so opening the chat panel doesn't blow
+        // away the alignment of the dashed editing frame.
+        if NotchCustomizationStore.shared.isEditing {
+            isHovering = false
+            hoverTimer?.cancel()
+            hoverTimer = nil
+            return
+        }
+        let offset = currentHorizontalOffset
+        let inNotch = geometry.isPointInNotch(
+            location,
+            expansionWidth: currentExpansionWidth,
+            horizontalOffset: offset
+        )
+        let inOpened = status == .opened && geometry.isPointInOpenedPanel(
+            location,
+            size: openedSize,
+            horizontalOffset: offset
+        )
+
+        let newHovering = inNotch || inOpened
+
+        // Only update if changed to prevent unnecessary re-renders
+        guard newHovering != isHovering else { return }
+
+        isHovering = newHovering
+
+        // Cancel any pending hover timer
+        hoverTimer?.cancel()
+        hoverTimer = nil
+
+        // Start hover timer to auto-expand after configured delay
+        if isHovering && (status == .closed || status == .popping) {
+            let delay = NotchCustomizationStore.shared.customization.hoverSpeed.delay
+            if delay <= 0 {
+                // Instant: expand immediately
+                notchOpen(reason: .hover)
+            } else {
+                let workItem = DispatchWorkItem { [weak self] in
+                    guard let self = self, self.isHovering else { return }
+                    self.notchOpen(reason: .hover)
+                }
+                hoverTimer = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+            }
+        }
+    }
+
+    private func handleMouseDown() {
+        // Same lock-out as mouseMove — clicks on the notch (or anywhere
+        // else) should not open the panel while live edit is active.
+        // The live edit panel has its own click routing.
+        if NotchCustomizationStore.shared.isEditing {
+            return
+        }
+        let location = NSEvent.mouseLocation
+
+        let offset = currentHorizontalOffset
+        switch status {
+        case .opened:
+            // Close if click is outside the panel content area
+            if geometry.isPointOutsidePanel(location, size: openedSize, horizontalOffset: offset) {
+                notchClose()
+                repostClickAt(location)
+            }
+        case .closed, .popping:
+            if geometry.isPointInNotch(location, expansionWidth: currentExpansionWidth, horizontalOffset: offset) {
+                notchOpen(reason: .click)
+            }
+        }
+    }
+
+    /// Re-posts a mouse click at the given screen location so it reaches windows behind us
+    private func repostClickAt(_ location: CGPoint) {
+        // Small delay to let the window's ignoresMouseEvents update
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            // Convert to CGEvent coordinate system (screen coordinates with Y from top-left)
+            guard let screen = NSScreen.main else { return }
+            let screenHeight = screen.frame.height
+            let cgPoint = CGPoint(x: location.x, y: screenHeight - location.y)
+
+            // Save cursor position — CGEvent.post(tap: .cghidEventTap)
+            // physically warps the cursor to mouseCursorPosition.
+            let savedCursorPos = CGEvent(source: nil)?.location
+
+            // Create and post mouse down event
+            if let mouseDown = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseDown,
+                mouseCursorPosition: cgPoint,
+                mouseButton: .left
+            ) {
+                mouseDown.post(tap: .cghidEventTap)
+            }
+
+            // Create and post mouse up event
+            if let mouseUp = CGEvent(
+                mouseEventSource: nil,
+                mouseType: .leftMouseUp,
+                mouseCursorPosition: cgPoint,
+                mouseButton: .left
+            ) {
+                mouseUp.post(tap: .cghidEventTap)
+            }
+
+            // Restore cursor position to prevent unintended cursor jump
+            if let savedCursorPos {
+                CGWarpMouseCursorPosition(savedCursorPos)
+                CGAssociateMouseAndMouseCursorPosition(1)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    /// Whether the current open was triggered by user action (should steal focus)
+    var shouldActivateOnOpen: Bool = false
+
+    func notchOpen(reason: NotchOpenReason = .unknown) {
+        openReason = reason
+        // Only steal focus when user explicitly clicked
+        shouldActivateOnOpen = (reason == .click)
+        status = .opened
+
+        // Don't restore chat on notification - show instances list instead
+        if reason == .notification {
+            currentChatSession = nil
+            return
+        }
+
+        // Spec §1 (Completion Panel v2): instances list / chat = manual
+        // user action only. Hover should NOT auto-restore a previous chat
+        // session — that produced the "old chat detail pops up" regression
+        // the user flagged during smoke. Only .click explicitly restores
+        // a saved chat; hover goes to instances list (default contentType).
+        guard reason == .click else { return }
+
+        // Restore chat session if we had one open before (click only)
+        if let chatSession = currentChatSession {
+            // Avoid unnecessary updates if already showing this chat
+            if case .chat(let current) = contentType, current.sessionId == chatSession.sessionId {
+                return
+            }
+            contentType = .chat(chatSession)
+        }
+    }
+
+    func notchClose() {
+        // Save chat session before closing if in chat mode
+        if case .chat(let session) = contentType {
+            currentChatSession = session
+        }
+        status = .closed
+        contentType = .instances
+    }
+
+    func notchPop() {
+        guard status == .closed else { return }
+        status = .popping
+    }
+
+    func notchUnpop() {
+        guard status == .popping else { return }
+        status = .closed
+    }
+
+    func toggleMenu() {
+        contentType = contentType == .menu ? .instances : .menu
+    }
+
+    func showPlugin(_ pluginId: String) {
+        contentType = .plugin(pluginId)
+    }
+
+    func showChat(for session: SessionState) {
+        // Avoid unnecessary updates if already showing this chat
+        if case .chat(let current) = contentType, current.sessionId == session.sessionId {
+            return
+        }
+        contentType = .chat(session)
+    }
+
+    func showQuestion(for session: SessionState) {
+        // Avoid unnecessary updates if already showing this question
+        if case .question(let current) = contentType, current.sessionId == session.sessionId {
+            return
+        }
+        contentType = .question(session)
+    }
+
+    /// Go back to instances list and clear saved chat state
+    func exitChat() {
+        currentChatSession = nil
+        contentType = .instances
+    }
+
+    /// Perform boot animation: expand briefly then collapse
+    func performBootAnimation() {
+        notchOpen(reason: .boot)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self, self.openReason == .boot else { return }
+            self.notchClose()
+        }
+    }
+}

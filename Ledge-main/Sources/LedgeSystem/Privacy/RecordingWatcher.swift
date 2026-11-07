@@ -1,0 +1,788 @@
+import CoreAudio
+import CoreMediaIO
+import Foundation
+import os
+
+/// Whether anything is currently recording.
+public struct RecordingState: Equatable, Sendable {
+    public var camera: Bool
+    public var microphone: Bool
+
+    /// Which video devices are running, by their system unique IDs.
+    ///
+    /// Identity rather than a count, because the only honest way for Ledge to
+    /// keep quiet about its own self-view is to name the device it opened and
+    /// report every other one exactly as before. A count cannot do that: it
+    /// cannot tell whether the camera that just started is Ledge's or
+    /// somebody else's, and it is wrong in both directions — hiding another
+    /// application's camera that started first, or announcing Ledge's own as
+    /// a stranger's when a preview is closed and reopened quickly.
+    ///
+    /// What it still cannot answer: whether a *second* application is reading
+    /// the same device Ledge is. macOS reports a device as running, not who
+    /// is reading it. In that one case Ledge stays quiet and macOS's own
+    /// indicator is the one that speaks.
+    public var cameraIDs: Set<String>
+
+    public init(
+        camera: Bool = false,
+        microphone: Bool = false,
+        cameraIDs: Set<String>? = nil
+    ) {
+        self.camera = camera
+        self.microphone = microphone
+        // A test that says "a camera is on" without naming it gets a stand-in
+        // identity, so the arithmetic above still has something to subtract.
+        self.cameraIDs = cameraIDs ?? (camera ? ["unnamed.camera"] : [])
+    }
+
+    public var isActive: Bool { camera || microphone }
+}
+
+/// Where recording state comes from.
+@MainActor
+public protocol RecordingSource: AnyObject {
+    func current() -> RecordingState
+    /// `@Sendable` because the watcher notices changes on its own queue.
+    /// It is nonetheless **always called on the main actor** — the watcher
+    /// hands it across through a mailbox that delivers there — so a caller may
+    /// assume that isolation.
+    func startWatching(_ onChange: @escaping @Sendable () -> Void)
+    func stopWatching()
+}
+
+/// Reads camera and microphone use from CoreAudio and CoreMediaIO.
+///
+/// Both are public frameworks, and *querying* a device's running state neither
+/// starts a capture session nor triggers a TCC prompt — Ledge can tell that the
+/// camera is on without ever being allowed to see through it.
+///
+/// Event-driven wherever possible: each device gets a property listener, with a
+/// slow safety poll behind it because a device that appears while watching would
+/// otherwise never be listened to. The CoreAudio idioms here are the same ones
+/// `VolumeController` already uses.
+@MainActor
+public final class SystemRecordingSource: RecordingSource {
+
+    private nonisolated static let log = Logger(subsystem: "com.egemert.ledge", category: "privacy")
+
+    /// Registration, device enumeration and reconciliation all happen here.
+    /// The queue handed to CoreAudio governs where callbacks arrive, not where
+    /// an Add or Remove runs, so this work would otherwise sit on the main
+    /// actor in front of the interface.
+    private let queue = DispatchQueue(label: "com.egemert.ledge.privacy")
+
+    private nonisolated(unsafe) var audioListeners: [AudioListener] = []
+    /// Keyed by process object, so a change in the process list can keep the
+    /// listeners it already has instead of replacing all of them. The audio
+    /// process list changes whenever any app starts or stops playing anything,
+    /// which is often; rebuilding the whole fleet each time was a registration
+    /// storm in its own right.
+    private nonisolated(unsafe) var processListeners: [AudioObjectID: AudioListener] = [:]
+    private nonisolated(unsafe) var cmioListeners: [AudioListener] = []
+    private var poll: DispatchSourceTimer?
+
+    /// How often the safety poll re-checks the device trees. A minute in the
+    /// app; tests shorten it so the timer path can actually be exercised —
+    /// waiting a real minute is why the isolation trap above went unnoticed.
+    private let pollInterval: TimeInterval
+    /// Only ever touched on `queue`. The safety poll used to read it from a
+    /// main-queue timer while a start or stop wrote it here, which
+    /// `nonisolated(unsafe)` and `MainActor.assumeIsolated` do nothing to
+    /// synchronise — the timer now runs on `queue` like everything else.
+    private nonisolated(unsafe) var onChange: (() -> Void)?
+
+    /// Bumped on every start and stop. The HAL can deliver a callback it had
+    /// already queued after a stop, so the session a callback was registered
+    /// with is what disqualifies it — cancellation cannot reach CoreAudio's
+    /// own queue.
+    private nonisolated(unsafe) var generation = 0
+    /// One pending reconcile of the process list, and one pending notification,
+    /// rather than a task per callback. The audio process list changes whenever
+    /// any app starts or stops a sound.
+    private nonisolated(unsafe) var reconcilePending = false
+    private nonisolated(unsafe) var notifyPending = false
+
+    /// When the last sweep ran, and whether anything waiting for the next one
+    /// needs the camera re-read.
+    ///
+    /// The window below is a *rate limit*, not a delay: the first event after a
+    /// quiet spell sweeps immediately, and only a burst is collapsed into one
+    /// pass at the end of the window. Trailing-edge-only coalescing at 50ms
+    /// meant a machine churning audio process objects — a browser with several
+    /// tabs making noise will do a few a second — could ask for twenty sweeps a
+    /// second, each one a full enumeration with two round-trips to coreaudiod
+    /// per object. Measured at 6.3ms a sweep with 32 objects live and 19.5ms
+    /// with 57, which is how an idle app came to sit at five percent of a core.
+    private nonisolated(unsafe) var lastSweepAt: DispatchTime?
+    private nonisolated(unsafe) var pendingNeedsCamera = false
+
+    /// The shortest gap between two sweeps. A microphone indicator does not
+    /// need twenty readings a second; it needs the first one quickly, which
+    /// the leading edge gives it.
+    ///
+    /// Derived from `pollInterval` rather than fixed, for the same reason that
+    /// is injectable: a test that shortens the poll so the timer path can
+    /// actually be exercised would otherwise find its ticks swallowed by a
+    /// window longer than the interval it chose. Half a second in the app.
+    private nonisolated let coalesceWindow: TimeInterval
+
+    /// One outstanding main-actor delivery, with the session re-checked there.
+    private struct Tick: Sendable, Equatable {}
+    private let mailbox = MainMailbox<Tick>(isEqual: { _, _ in false })
+
+    /// Which lifecycle command is the latest, so a stop cannot be overtaken by
+    /// a start already queued behind it.
+    private let lifecycle = OSAllocatedUnfairLock(initialState: 0)
+
+    public convenience init() {
+        self.init(pollInterval: 60)
+    }
+
+    init(pollInterval: TimeInterval, sweep: (@Sendable () -> RecordingState)? = nil) {
+        self.pollInterval = pollInterval
+        self.coalesceWindow = min(0.5, pollInterval / 2)
+        self.injectedSweep = sweep
+    }
+
+    /// Stands in for the hardware sweep, in tests.
+    private nonisolated let injectedSweep: (@Sendable () -> RecordingState)?
+
+    // MARK: - Reading
+
+    /// The last reading, and which session it belongs to.
+    ///
+    /// The session is part of the cache, under the same lock, because the sweep
+    /// behind a reading takes milliseconds and a stop can land in the middle of
+    /// one. Checking the session *after* writing the value let an old sweep
+    /// finish and repopulate the cache a stopped — or restarted — watch had
+    /// just cleared, so the previous session's camera state came back.
+    ///
+    /// `activeSession` nil means stopped: nothing may publish, and `current()`
+    /// has nothing to say.
+    private struct Cache {
+        var activeSession: Int?
+        var value: RecordingState?
+    }
+
+    private nonisolated let cache = OSAllocatedUnfairLock(initialState: Cache())
+
+    /// What is recording, as of the last reading.
+    ///
+    /// A lock and a copy. The sweep behind it never runs on the main actor —
+    /// not even for the first answer: the watch takes an initial reading on
+    /// its own queue as soon as its listeners are armed and announces it
+    /// through the mailbox, so the first state arrives as a change like any
+    /// other. Until then this says nothing is recording, which is the quiet
+    /// answer rather than a guess.
+    public func current() -> RecordingState {
+        cache.withLock { $0.value } ?? RecordingState()
+    }
+
+    /// Opens a session for publication, with nothing in it. Atomic: a sweep
+    /// from the previous session cannot land between the clear and the
+    /// activation.
+    private nonisolated func activateCache(session: Int) {
+        cache.withLock { $0 = Cache(activeSession: session, value: nil) }
+    }
+
+    /// Closes the cache to every session and empties it.
+    private nonisolated func deactivateCache() {
+        cache.withLock { $0 = Cache() }
+    }
+
+    /// Tests: puts a known state in the cache for a session, so the clearing
+    /// paths can be checked without a camera or a microphone in use.
+    func setCachedStateForTesting(_ state: RecordingState?, session: Int? = nil) {
+        cache.withLock { c in
+            if let session { c.activeSession = session }
+            c.value = state
+        }
+    }
+
+    /// Tests: which session may publish, if any.
+    var activeCacheSessionForTesting: Int? { cache.withLock { $0.activeSession } }
+
+    /// Tests: posts the notification an audio property listener would, so the
+    /// coalescing can be driven without a machine busy enough to churn audio
+    /// process objects.
+    func notifyChangedForTesting(includeCamera: Bool = false) {
+        queue.async { [self] in
+            notifyChanged(session: generation, includeCamera: includeCamera)
+        }
+    }
+
+    /// Sweeps the hardware and publishes the result, if the session that asked
+    /// for it is still the live one.
+    ///
+    /// - Returns: whether the reading was published. A false means the session
+    ///   ended while the sweep was running, and nothing — not the cache, not a
+    ///   callback — may carry it any further.
+    @discardableResult
+    nonisolated func reconcileState(session: Int, includeCamera: Bool = true) -> Bool {
+        // An audio-only pass keeps the camera reading it already has. A process
+        // starting to capture says nothing about the webcam, and the CMIO
+        // enumeration is the slower half of a sweep — paying for it on every
+        // audio event is most of what made a busy Mac expensive. A session with
+        // nothing cached yet still reads both: a missing answer is not an answer.
+        let knownCamera: Set<String>? = includeCamera ? nil : cache.withLock { c in
+            c.activeSession == session ? c.value?.cameraIDs : nil
+        }
+        let state = sweepHardware(knownCameras: knownCamera)
+        // Recorded here rather than at the one call site that coalesces, so
+        // every sweep counts towards the rate limit however it was reached.
+        // The opening reading of a session is taken directly, and leaving it
+        // unrecorded let the first event after it sweep again immediately.
+        lastSweepAt = DispatchTime.now()
+        // The session is checked *with* the write, under one lock. Checking it
+        // first and writing after leaves exactly the window this closes.
+        return cache.withLock { c in
+            guard c.activeSession == session else { return false }
+            c.value = state
+            return true
+        }
+    }
+
+    /// The reading itself. Injectable so a test can hold a sweep open across a
+    /// stop without a camera or a microphone in use.
+    private nonisolated func sweepHardware(knownCameras: Set<String>? = nil) -> RecordingState {
+        if let injectedSweep { return injectedSweep() }
+        let holders = Self.inputHolders()
+        logHoldersIfChanged(holders)
+        let cameras = knownCameras ?? Self.runningCameraIDs()
+        return RecordingState(
+            camera: !cameras.isEmpty,
+            microphone: Self.microphoneHeld(by: holders),
+            cameraIDs: cameras
+        )
+    }
+
+    /// The holder set as it was last logged, so an unchanged one says nothing.
+    /// Behind a lock: the logging now happens on the watch's queue.
+    private nonisolated let loggedHolders = OSAllocatedUnfairLock<Set<String>>(initialState: [])
+
+    /// Names who holds the microphone, when that changes.
+    ///
+    /// The indicator is only as trustworthy as the thing it points at, and a
+    /// wrong one is worth being able to diagnose from a log rather than a
+    /// guess. Hashed: these are process identities on the user's machine.
+    private nonisolated func logHoldersIfChanged(_ holders: [String]) {
+        let current = Set(holders)
+        let changed = loggedHolders.withLock { last -> Bool in
+            guard last != current else { return false }
+            last = current
+            return true
+        }
+        guard changed else { return }
+        guard !current.isEmpty else {
+            Self.log.debug("privacy: nothing holds the microphone")
+            return
+        }
+        let excluded = current.filter { Self.isSystemSpeech($0) }
+        Self.log.debug("""
+            privacy: microphone held by \(current.sorted().joined(separator: ", "), privacy: .private(mask: .hash))             counted=\(current.count - excluded.count, privacy: .public)             speech=\(excluded.count, privacy: .public)
+            """)
+    }
+
+    /// Whether any of these holders is worth an indicator.
+    ///
+    /// Everything except the system's own speech input counts. Dictation is
+    /// the system transcribing for the user, at the user's own keystroke, and
+    /// the menu bar already says so while it runs; a second indicator in the
+    /// notch reports the user to themselves. Ledge shows nothing for
+    /// dictation — not a dictation state, and not a microphone state *because*
+    /// of dictation.
+    ///
+    /// A filter rather than a short circuit: dictation running does not excuse
+    /// an app recording at the same time, and that app still lights the dot.
+    nonisolated static func microphoneHeld(by holders: [String]) -> Bool {
+        holders.contains { !isSystemSpeech($0) }
+    }
+
+    /// Whether this bundle identifier is the system's own speech input.
+    ///
+    /// Apple's own identifiers only. A third-party app with "speech" in its
+    /// name is an app recording you, and is reported as one. The processes
+    /// that actually hold the input for dictation are not documented anywhere,
+    /// so the match is by family rather than by a list of exact ids — which
+    /// `logHoldersIfChanged` is for: read the names back from a real session.
+    ///
+    /// **Siri and the assistant are deliberately in here**, not an accident of
+    /// a loose pattern. On a Mac with "Hey Siri" enabled, the keyword detector
+    /// holds the input permanently: counted, it would light the microphone dot
+    /// for ever and the indicator would mean nothing. macOS shows its own
+    /// indicator while Siri is actually listening to a request, which is the
+    /// part worth seeing, and it does not need a second one from Ledge. The
+    /// cost of this choice, stated plainly: an app that asked the *system* to
+    /// transcribe for it is not counted either.
+    nonisolated static func isSystemSpeech(_ bundleID: String) -> Bool {
+        guard bundleID.hasPrefix("com.apple.") else { return false }
+        let name = bundleID.lowercased()
+        return name.contains("speech")
+            || name.contains("dictation")
+            || name.contains("siri")
+            || name.contains("assistant")
+    }
+
+    private nonisolated static func isAnyCameraRunning() -> Bool {
+        !runningCameraIDs().isEmpty
+    }
+
+    /// Which video devices are running right now, by unique ID.
+    ///
+    /// The same enumeration as before plus one string read per running
+    /// device — a Mac has two or three of them — and that string is what
+    /// lets Ledge keep quiet about the camera it opened itself without
+    /// keeping quiet about anybody else's.
+    ///
+    /// A device whose ID cannot be read still counts, under a name made from
+    /// its object ID: a camera Ledge cannot name is one it cannot claim.
+    nonisolated static func runningCameraIDs() -> Set<String> {
+        var running: Set<String> = []
+        for device in videoDevices() where isVideoDeviceRunning(device) {
+            running.insert(videoDeviceID(device) ?? "cmio.\(device)")
+        }
+        return running
+    }
+
+    /// A video device's system-wide unique ID — the same string
+    /// `AVCaptureDevice.uniqueID` reports for it.
+    private nonisolated static func videoDeviceID(_ device: CMIOObjectID) -> String? {
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceUID),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        guard CMIOObjectHasProperty(device, &address) else { return nil }
+        var uid: CFString? = nil
+        var used: UInt32 = 0
+        let status = withUnsafeMutablePointer(to: &uid) { pointer in
+            CMIOObjectGetPropertyData(
+                device, &address, 0, nil,
+                UInt32(MemoryLayout<CFString?>.size), &used, pointer
+            )
+        }
+        guard status == noErr, let uid else { return nil }
+        return uid as String
+    }
+
+    /// A cheap trigger for the expensive answer.
+    ///
+    /// Sweeping every audio process to see whether any is recording measures at
+    /// ~13ms — far too much to poll often, which is why a microphone starting
+    /// could go a minute unnoticed. The *device* has a running-somewhere
+    /// property that is one read and has a listener, but it cannot be trusted
+    /// on its own: a duplex device (AirPods, a USB headset) reports running
+    /// during mere playback, which is what lit the dot for music before.
+    ///
+    /// So it is used as a doorbell rather than an answer. It fires, and the
+    /// per-process sweep decides. Cheap when nothing is happening, immediate
+    /// when something is.
+    private nonisolated func armInputDeviceListener(session: Int) {
+        guard let device = Self.defaultInputDevice() else { return }
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceIsRunningSomewhere,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectHasProperty(device, &address) else { return }
+        let listener = AudioListener(object: device, address: address, queue: queue) { [weak self] in
+            self?.notifyChanged(session: session)
+        }
+        if let listener { audioListeners.append(listener) }
+    }
+
+    nonisolated static func defaultInputDevice() -> AudioObjectID? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var device = AudioObjectID(0)
+        var size = UInt32(MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device
+        ) == noErr, device != 0 else { return nil }
+        return device
+    }
+
+    // MARK: - CoreAudio
+
+    /// The bundle identifiers of everything currently holding the input.
+    ///
+    /// Logged when the set changes, which is how the identifier for a feature
+    /// Apple documents nowhere gets discovered: use it once, read it back.
+    ///
+    /// Read per *process*, not per device.
+    /// `kAudioDevicePropertyDeviceIsRunningSomewhere` is device-wide: a duplex
+    /// device (AirPods, USB headset) reports "running" during mere playback,
+    /// which lit the mic dot whenever music played to a headset. The process
+    /// object's `IsRunningInput` is scoped to actual capture, and skipping our
+    /// own pid keeps any future in-process audio work from lighting our own
+    /// dot.
+    ///
+    /// The raw list, unfiltered: `microphoneHeld(by:)` is the one place that
+    /// decides which of these is worth an indicator, so the two readings
+    /// cannot drift apart.
+    public nonisolated static func inputHolders() -> [String] {
+        processObjects()
+            .filter { isProcessRecordingInput($0) && processPID($0) != getpid() }
+            .map { bundleID($0) ?? "(unnamed)" }
+    }
+
+    nonisolated static func bundleID(_ object: AudioObjectID) -> String? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioProcessPropertyBundleID,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectHasProperty(object, &address) else { return nil }
+        var size = UInt32(MemoryLayout<CFString?>.size)
+        var value: CFString?
+        let status = withUnsafeMutablePointer(to: &value) { pointer in
+            AudioObjectGetPropertyData(object, &address, 0, nil, &size, pointer)
+        }
+        guard status == noErr else { return nil }
+        return value as String?
+    }
+
+    nonisolated static func processObjects() -> [AudioObjectID] {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyProcessObjectList,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size
+        ) == noErr, size > 0 else { return [] }
+
+        var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &ids
+        ) == noErr else { return [] }
+        return ids
+    }
+
+    private nonisolated static func isProcessRecordingInput(_ object: AudioObjectID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioProcessPropertyIsRunningInput,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectHasProperty(object, &address) else { return false }
+        var running: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        let status = AudioObjectGetPropertyData(object, &address, 0, nil, &size, &running)
+        return status == noErr && running != 0
+    }
+
+    private nonisolated static func processPID(_ object: AudioObjectID) -> pid_t {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioProcessPropertyPID,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var pid: pid_t = -1
+        var size = UInt32(MemoryLayout<pid_t>.size)
+        guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &pid) == noErr else { return -1 }
+        return pid
+    }
+
+    // MARK: - CoreMediaIO
+
+    nonisolated static func videoDevices() -> [CMIOObjectID] {
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        var size: UInt32 = 0
+        guard CMIOObjectGetPropertyDataSize(
+            CMIOObjectID(kCMIOObjectSystemObject), &address, 0, nil, &size
+        ) == noErr, size > 0 else { return [] }
+
+        var ids = [CMIOObjectID](repeating: 0, count: Int(size) / MemoryLayout<CMIOObjectID>.size)
+        var used: UInt32 = 0
+        guard CMIOObjectGetPropertyData(
+            CMIOObjectID(kCMIOObjectSystemObject), &address, 0, nil, size, &used, &ids
+        ) == noErr else { return [] }
+        return ids
+    }
+
+    private nonisolated static func isVideoDeviceRunning(_ device: CMIOObjectID) -> Bool {
+        var address = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+        )
+        guard CMIOObjectHasProperty(device, &address) else { return false }
+        var running: UInt32 = 0
+        var used: UInt32 = 0
+        let status = CMIOObjectGetPropertyData(
+            device, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &used, &running
+        )
+        return status == noErr && running != 0
+    }
+
+    // MARK: - Watching
+
+    public func startWatching(_ onChange: @escaping @Sendable () -> Void) {
+        stopWatching()
+        let command = lifecycle.withLock { c -> Int in c &+= 1; return c }
+        let session = mailbox.open { _ in MainActor.assumeIsolated { onChange() } }
+        // Opened for this session before any listener is armed, so a reading
+        // taken by the previous one cannot land in it.
+        activateCache(session: session)
+        queue.async { [self] in
+            guard lifecycle.withLock({ $0 }) == command else { return }
+            self.onChange = onChange
+            generation = session
+
+            // The process-object list changes as apps appear and leave the
+            // audio system; each change reconciles the per-process listeners
+            // below so a recorder launched later is still watched.
+            let listAddress = AudioObjectPropertyAddress(
+                mSelector: kAudioHardwarePropertyProcessObjectList,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            let system = AudioObjectID(kAudioObjectSystemObject)
+            let listListener = AudioListener(
+                object: system, address: listAddress, queue: queue
+            ) { [weak self] in
+                self?.noteProcessListChanged(session: session)
+            }
+            if let listListener { audioListeners.append(listListener) }
+
+            armProcessListeners(Self.processObjects())
+            armInputDeviceListener(session: session)
+
+            for device in Self.videoDevices() {
+                var address = CMIOObjectPropertyAddress(
+                    mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                    mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+                    mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+                )
+                guard CMIOObjectHasProperty(device, &address) else { continue }
+                let listener = AudioListener(
+                    cmioObject: device, address: address, queue: queue
+                ) { [weak self] in
+                    self?.notifyChanged(session: session)
+                }
+                if let listener { cmioListeners.append(listener) }
+            }
+
+            Self.log.debug("""
+                privacy: watching \(self.audioListeners.count, privacy: .public) mic + \
+                \(self.cmioListeners.count, privacy: .public) camera properties
+                """)
+
+            // The first reading, taken here — on this queue, with the
+            // listeners already armed, so nothing that starts recording in the
+            // meantime is missed — and announced like any other change. The
+            // main actor never sweeps the HAL, and a provider switched on
+            // again cannot answer from the previous session.
+            guard reconcileState(session: session) else { return }
+            guard lifecycle.withLock({ $0 }) == command else { return }
+            mailbox.post(Tick(), generation: session)
+        }
+
+        // A camera or microphone plugged in after this point has no listener, so
+        // a slow poll backstops the event path. Deliberately slow: this is a
+        // safety net, not the mechanism. Each tick re-enumerates both device
+        // trees — measured at ~13ms of main-thread work per tick, which at a
+        // 15s period was still a sixth of the whole app's idle cost, spent to
+        // notice a webcam being plugged in.
+        //
+        // A minute, with half a minute of leeway so it almost always rides
+        // along with another wake-up. The property listeners are what actually
+        // report a camera or microphone starting; this only has to catch a
+        // device tree that changed shape without telling anyone, and being a
+        // minute late to notice a newly plugged-in webcam costs nothing.
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(
+            deadline: .now() + pollInterval,
+            repeating: pollInterval,
+            leeway: .milliseconds(Int(max(0.05, pollInterval / 2) * 1000))
+        )
+        // `@Sendable` is load-bearing, not decoration.
+        //
+        // `setEventHandler` takes a closure that is *not* Sendable, so one
+        // written inline here inherits this method's MainActor isolation. That
+        // was true and harmless while this timer ran on the main queue. Moving
+        // it to `queue` made the inherited isolation a lie, and Swift checks:
+        // the first tick tripped a runtime isolation assertion and took the
+        // whole app down with SIGTRAP. Sixty seconds after watching started,
+        // so it looked like a crash out of nowhere.
+        //
+        // Declaring the closure `@Sendable` is what stops it inheriting the
+        // isolation it cannot honour.
+        let tick: @Sendable () -> Void = { [weak self] in
+            // On `queue`, so the callback state it reads is the state this
+            // object owns rather than a copy raced from another thread.
+            self?.notifyChanged(session: session)
+        }
+        timer.setEventHandler(handler: tick)
+        timer.resume()
+        poll = timer
+    }
+
+    /// The process list changed. Sets a flag and asks for one pass; it does not
+    /// create work per callback.
+    private nonisolated func noteProcessListChanged(session: Int) {
+        // Already on `queue`: this is the queue the listener was registered with.
+        guard session == generation, onChange != nil else { return }
+        guard !reconcilePending else { return }
+        reconcilePending = true
+        // The same window as a sweep. The process list churns hardest exactly
+        // when it is least informative — objects that arrive and vanish before
+        // a listener can be attached to them — and re-walking it twenty times a
+        // second to learn that costs more than the answer is worth.
+        queue.asyncAfter(deadline: .now() + .nanoseconds(Int(coalesceWindow * 1_000_000_000))) { [self] in
+            reconcilePending = false
+            guard session == generation, onChange != nil else { return }
+            reconcileProcessListeners()
+            // A process list change is an audio fact; the camera is unaffected.
+            notifyChanged(session: session, includeCamera: false)
+        }
+    }
+
+    /// Tells the caller something happened, at most once per coalescing window
+    /// and at most one delivery outstanding on the main actor.
+    private nonisolated func notifyChanged(session: Int, includeCamera: Bool = true) {
+        guard session == generation, onChange != nil else { return }
+        // Asked for by anything in this window, honoured by the one sweep that
+        // serves it: an audio event arriving behind a camera event must not
+        // downgrade the pass that was already going to re-read the camera.
+        if includeCamera { pendingNeedsCamera = true }
+        guard !notifyPending else { return }
+        // Leading edge when the last sweep is older than the window, so the
+        // first event after a quiet spell is answered at once; otherwise at the
+        // end of the window, which is what bounds a storm.
+        let now = DispatchTime.now()
+        let window = UInt64(coalesceWindow * 1_000_000_000)
+        let since = lastSweepAt.map { now.uptimeNanoseconds &- $0.uptimeNanoseconds }
+        let delay = (since.map { $0 < window ? window &- $0 : 0 }) ?? 0
+        notifyPending = true
+        queue.asyncAfter(deadline: now + .nanoseconds(Int(delay))) { [self] in
+            notifyPending = false
+            let needsCamera = pendingNeedsCamera
+            pendingNeedsCamera = false
+            guard session == generation, onChange != nil else { return }
+            // The expensive part happens here, on this queue, and the main
+            // actor is handed a finished answer. One reconcile per coalescing
+            // window, exactly as before — no task per callback.
+            //
+            // A reading from a session that ended while the sweep ran is
+            // discarded, and announces nothing: it is neither the truth nor
+            // this watch's business any more.
+            guard reconcileState(session: session, includeCamera: needsCamera) else { return }
+            // The session is checked again at the far end: a stop cannot reach
+            // a hop already enqueued on the main queue.
+            mailbox.post(Tick(), generation: session)
+        }
+    }
+
+    /// One `IsRunningInput` listener per current audio process, so a capture
+    /// starting while the device is already running (music to the same
+    /// headset) still fires an event instead of waiting for the safety poll.
+    /// Adds a listener for any audio process in `objects` that has none yet.
+    ///
+    /// Takes the snapshot as an argument rather than enumerating: a reconcile
+    /// needs exactly one enumeration, and asking twice could see two different
+    /// lists and act on the wrong one.
+    private nonisolated func armProcessListeners(_ objects: [AudioObjectID]) {
+        let session = generation
+        for object in objects where processListeners[object] == nil {
+            var address = AudioObjectPropertyAddress(
+                mSelector: kAudioProcessPropertyIsRunningInput,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            guard AudioObjectHasProperty(object, &address) else { continue }
+            let listener = AudioListener(
+                object: object, address: address, queue: queue
+            ) { [weak self] in
+                // An audio process starting or stopping capture cannot have
+                // changed the webcam, so this pass does not re-enumerate it.
+                self?.notifyChanged(session: session, includeCamera: false)
+            }
+            if let listener { processListeners[object] = listener }
+        }
+    }
+
+    /// Follows the process list: drops what has gone, adds what is new, and
+    /// leaves the rest alone.
+    ///
+    /// The list changes whenever any app touches audio, so this runs often. It
+    /// used to unregister every process listener and register them all again
+    /// each time — which, with removal silently failing, is precisely how a
+    /// listener list grows into the hundreds of thousands. Even with removal
+    /// working, replacing a fleet to learn that one member joined is work
+    /// nobody asked for.
+    private nonisolated func reconcileProcessListeners() {
+        guard onChange != nil else { return }
+        // One enumeration for the whole pass.
+        let snapshot = Self.processObjects()
+        let live = Set(snapshot)
+        for object in processListeners.keys where !live.contains(object) {
+            processListeners.removeValue(forKey: object)
+        }
+        armProcessListeners(snapshot)
+    }
+
+    public func stopWatching() {
+        _ = lifecycle.withLock { c -> Int in c &+= 1; return c }
+        poll?.cancel()
+        poll = nil
+        // Synchronously, not on the queue: a provider switched off and on
+        // again asks `current()` immediately, and a clear queued behind the
+        // teardown let it answer with the previous session's camera and
+        // microphone state until the next poll an entire minute later.
+        // Atomically: no session may publish, and nothing is left to read.
+        deactivateCache()
+        loggedHolders.withLock { $0 = [] }
+        // Disqualifies anything already on its way to main.
+        mailbox.close()
+        queue.async { [self] in
+            // Anything the HAL had already queued is now from a dead session.
+            generation &+= 1
+            // Each registration is owned by its listener object, so dropping
+            // the collections is what takes them all off.
+            audioListeners.removeAll()
+            processListeners.removeAll()
+            cmioListeners.removeAll()
+            reconcilePending = false
+            notifyPending = false
+            lastSweepAt = nil
+            pendingNeedsCamera = false
+            onChange = nil
+        }
+    }
+
+    deinit {
+        poll?.cancel()
+    }
+}
+
+/// Fixed state, for tests.
+@MainActor
+public final class StubRecordingSource: RecordingSource {
+    private var value: RecordingState
+    private var onChange: (() -> Void)?
+
+    public init(value: RecordingState = RecordingState()) {
+        self.value = value
+    }
+
+    public func current() -> RecordingState { value }
+
+    public func set(_ value: RecordingState) {
+        self.value = value
+        onChange?()
+    }
+
+    public func startWatching(_ onChange: @escaping () -> Void) { self.onChange = onChange }
+    public func stopWatching() { onChange = nil }
+}

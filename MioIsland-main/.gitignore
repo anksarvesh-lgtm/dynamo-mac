@@ -1,0 +1,66 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# User-specific Xcode files
+xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# CocoaPods
+Pods/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Sparkle signing keys (NEVER commit these!)
+.sparkle-keys/
+
+# Release artifacts
+releases/
+
+# Xcode backup
+*.xcodeproj.backup/
+CLAUDE.md
+CodeIsland-v1.6.0.zip
+.certificates/
+
+# Superpowers
+.superpowers/
+
+# Release zips
+CodeIsland-v*.zip
+MioIsland-v*.zip
+MioIsland-v*.dmg
+
+# Node
+package-lock.json
+landing/node_modules/
+
+# Claude Code worktrees
+.claude/worktrees/
+worktree-agent-*/
+
+# Internal docs / spec drafts (not part of public repo)
+docs/superpowers/
+docs/specs/

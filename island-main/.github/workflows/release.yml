@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 0.2.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: v
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then V="${{ github.event.inputs.version }}"; else V="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Build universal Island.app
+        run: scripts/build-release.sh "${{ steps.v.outputs.version }}"
+
+      - name: Package zip + dmg
+        run: scripts/package-release.sh
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.v.outputs.version }}"
+          NOTES=$(cat <<'MD'
+          ## Install
+
+          1. Download **Island.dmg** (or Island.zip) and drag **Island** to Applications.
+          2. Island is open source and not notarized (no paid Apple Developer account), so the first launch needs one extra step:
+             **System Settings → Privacy & Security → scroll to “Island was blocked…” → Open Anyway**, then confirm.
+          3. Island lives in the notch and the menu bar (capsule icon). No Dock icon.
+
+          See [DISTRIBUTION.md](https://github.com/${{ github.repository }}/blob/main/DISTRIBUTION.md) for details and checksum verification.
+          MD
+          )
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/Island.zip dist/Island.dmg dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" dist/Island.zip dist/Island.dmg dist/SHA256SUMS.txt --title "Island $TAG" --notes "$NOTES"
+          fi

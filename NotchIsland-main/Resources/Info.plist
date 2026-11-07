@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>NotchIsland</string>
+	<key>CFBundleExecutable</key>
+	<string>NotchIsland</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.notchisland.app</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>NotchIsland</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Rufaro Edward Mutepfa · MIT License</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>NotchIsland talks to Music, Spotify, VLC, Safari and Chromium browsers to show and control what is playing.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>NotchIsland shows your next event and its meeting link in the island.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>NotchIsland shows your next event and its meeting link in the island.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>NotchIsland can show a quick camera check in the island before a call.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>NotchIsland shows an indicator when the microphone is in use.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>NotchIsland shows AirPods and other Bluetooth devices connecting, with their battery level.</string>
+</dict>
+</plist>

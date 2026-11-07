@@ -1,0 +1,67 @@
+{
+  "sections": [
+    {
+      "title": "Team",
+      "fields": [
+        {
+          "type": "text",
+          "key": "favoriteTeam",
+          "label": "Favorite team (FIFA code, e.g. USA, BRA, ARG)",
+          "placeholder": "USA",
+          "default": ""
+        },
+        {
+          "type": "toggle",
+          "key": "favoriteOnlyAlerts",
+          "label": "Kickoff/full-time alerts only for my team",
+          "default": false
+        }
+      ]
+    },
+    {
+      "title": "Alerts",
+      "fields": [
+        {
+          "type": "toggle",
+          "key": "notifyGoals",
+          "label": "Notify on goals",
+          "default": true
+        },
+        {
+          "type": "toggle",
+          "key": "notifyKickoff",
+          "label": "Notify at kickoff",
+          "default": true
+        },
+        {
+          "type": "toggle",
+          "key": "notifyFullTime",
+          "label": "Notify at full-time",
+          "default": true
+        },
+        {
+          "type": "toggle",
+          "key": "playSound",
+          "label": "Play notification sound",
+          "default": true
+        }
+      ]
+    },
+    {
+      "title": "Data",
+      "fields": [
+        {
+          "type": "picker",
+          "key": "livePoll",
+          "label": "Live score refresh",
+          "options": [
+            { "label": "Every 15 seconds", "value": "15" },
+            { "label": "Every 30 seconds", "value": "30" },
+            { "label": "Every 60 seconds", "value": "60" }
+          ],
+          "default": "30"
+        }
+      ]
+    }
+  ]
+}

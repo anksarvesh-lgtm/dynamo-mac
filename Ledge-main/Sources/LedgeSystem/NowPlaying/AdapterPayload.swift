@@ -1,0 +1,245 @@
+import Foundation
+import LedgeCore
+
+/// One JSON line emitted by `LedgeMediaAdapter`.
+///
+/// Deliberately separate from `NowPlayingSnapshot` and completely pure: no
+/// subprocess, no AppKit, no clock of its own. That makes the whole decode path
+/// — which is the part most likely to break when Apple changes a key — testable
+/// against captured fixture lines.
+public struct AdapterPayload: Decodable, Equatable, Sendable {
+
+    public enum Kind: String, Decodable, Sendable {
+        case hello
+        case now
+        case heartbeat
+    }
+
+    public var adapter: Int?
+    public var ok: Bool?
+    public var kind: Kind?
+    /// When the helper built this line, epoch seconds.
+    public var t: Double?
+
+    /// `nil` means nothing is loaded at all. `false` means loaded but paused.
+    public var playing: Bool?
+    public var title: String?
+    public var artist: String?
+    public var album: String?
+    public var duration: Double?
+    public var elapsed: Double?
+    /// The instant `elapsed` was measured, epoch seconds. Without this the
+    /// position would freeze between updates.
+    public var elapsedAt: Double?
+    public var rate: Double?
+    public var trackID: String?
+
+    public var bundleID: String?
+    public var parentBundleID: String?
+    public var displayName: String?
+    public var pid: Int?
+
+    /// `"audio"`, `"video"`, or absent. Only the players that bother to set
+    /// the system's media type report anything here — a browser sends nothing,
+    /// which is why `MediaKind.resolve` exists.
+    public var mediaType: String?
+
+    /// The system's own word that this has no end: a broadcast, a radio
+    /// station, a match being played right now. Absent for anything that has
+    /// never had to say.
+    public var live: Bool?
+
+    public var artworkID: String?
+    /// The type of `artwork`'s bytes, read off the bytes by the adapter. Rides
+    /// only on the line that carries them.
+    public var artworkMIME: String?
+    /// The cover, at most 512 px on its longest side. Base64 on the wire,
+    /// decoded with the rest of the line — off the main actor, by
+    /// `AdapterLineReader`. Sent only on the first line naming its
+    /// `artworkID`, so most lines omit it.
+    public var artwork: Data?
+
+    /// Whether this line carries playable metadata rather than a handshake,
+    /// a heartbeat, or an explicit "nothing is loaded".
+    public var describesTrack: Bool {
+        kind == .now && playing != nil && !(title ?? "").isEmpty
+    }
+
+    /// Turns the line into a snapshot, projecting the elapsed time forward to
+    /// `now`.
+    ///
+    /// The projection is what lets a *pull*-based `NowPlayingSource` sit on top
+    /// of a *push* stream: MediaRemote reports the position once, stamped with
+    /// the moment it was measured, so a cached value replayed verbatim would
+    /// freeze the scrub bar. Extrapolating from the stamp gives a fresh, correct
+    /// position on every poll from a single stale event.
+    ///
+    /// - Parameter resolveApp: supplies a display name for a pid when the
+    ///   helper could not name the app. Injected so this file never needs
+    ///   AppKit.
+    public func snapshot(
+        at now: Double,
+        resolveApp: (Int) -> (name: String, bundleID: String)? = { _ in nil }
+    ) -> NowPlayingSnapshot? {
+        guard describesTrack else { return nil }
+
+        let resolved = pid.flatMap(resolveApp)
+        // The *parent* first: a browser reports its media through a helper
+        // process (`com.apple.WebKit.GPU`), and every question worth asking
+        // about the owner — which app is this, is it the one covering the
+        // screen, what should the card be called — is a question about Safari.
+        let bundle = parentBundleID ?? bundleID ?? resolved?.bundleID
+        guard let bundle, !bundle.isEmpty else { return nil }
+
+        let name = displayName ?? resolved?.name ?? bundle
+        let total = max(0, duration ?? 0)
+        let playbackRate = rate ?? (playing == true ? 1 : 0)
+
+        var position = max(0, elapsed ?? 0)
+        if let elapsedAt, playbackRate > 0 {
+            // A stamp in the future (clock skew) must not rewind the bar.
+            let delta = max(0, now - elapsedAt)
+            position += delta * playbackRate
+        }
+        if total > 0 { position = min(position, total) }
+
+        return NowPlayingSnapshot(
+            title: title ?? "",
+            artist: artist ?? "",
+            album: album ?? "",
+            isPlaying: playing ?? false,
+            elapsed: position,
+            duration: total,
+            appName: name,
+            appBundleID: bundle,
+            // The player's own identity for the item, and the metadata key
+            // when it gives none. Never the artwork.
+            //
+            // The artwork digest used to stand in here, and it made a cover
+            // into a song. A cover arriving a poll late, or being replaced
+            // with a better one, became a track change: the art turned and the
+            // transport's optimistic state was cleared for a song that had not
+            // moved. And the other way round, two songs from one album share a
+            // cover and so became one song — which is how a paused track could
+            // inherit the previous one's retirement and never appear at all.
+            trackKey: trackID.map { TrackKey.identified($0, by: bundle) },
+            artworkID: artworkID,
+            artworkData: artwork,
+            // The system's word when it gives one. When it does not, a thing
+            // that is playing with no duration at all has no end to show, and
+            // whether that is a broadcast or a stream of unknown length makes
+            // no difference to how it should be drawn.
+            isLive: live ?? (total <= 0 && playing == true),
+            kind: MediaKind.resolve(
+                reported: mediaType.flatMap(MediaKind.init(rawValue:)),
+                bundleID: bundle,
+                duration: total
+            )
+        )
+    }
+}
+
+/// Splits a byte stream into newline-delimited lines.
+///
+/// A pipe hands over arbitrary chunks — half a line, three lines, a line split
+/// mid-UTF8 — so the reader cannot assume one read is one message.
+public struct LineBuffer: Sendable {
+
+    /// Beyond this a single line is assumed to be corrupt and dropped, rather
+    /// than growing the buffer without limit.
+    public static let maximumLineLength = 8 * 1024 * 1024
+
+    private var pending = Data()
+    /// Set while discarding an over-long line, so its tail is not mistaken for
+    /// the start of the next one.
+    private var discarding = false
+
+    public init() {}
+
+    /// Appends a chunk and returns whatever complete lines it finished.
+    ///
+    /// Only the bytes that just arrived are searched: what is pending is known
+    /// to hold no newline, or it would already have been a line. Searching the
+    /// whole pending buffer again for every chunk made the cost quadratic in
+    /// the line's length — a browser's five-megabyte video artwork arrives in
+    /// three hundred chunks and took 0.7 to 2.6 seconds of main-thread time,
+    /// long enough for macOS to switch off the media-key tap.
+    public mutating func append(_ chunk: Data) -> [Data] {
+        var lines: [Data] = []
+        var start = chunk.startIndex
+
+        while let newline = Self.firstNewline(in: chunk, from: start) {
+            if discarding {
+                discarding = false
+            } else {
+                pending.append(chunk[start..<newline])
+                if !pending.isEmpty { lines.append(pending) }
+            }
+            pending = Data()
+            start = newline + 1
+        }
+
+        if !discarding { pending.append(chunk[start...]) }
+        if pending.count > Self.maximumLineLength {
+            pending = Data()
+            discarding = true
+        }
+        return lines
+    }
+
+    /// `memchr`, because `Data.firstIndex(of:)` goes through the generic
+    /// collection path one byte at a time — about 3 ns a byte, against a
+    /// fraction of that here.
+    private static func firstNewline(in chunk: Data, from start: Data.Index) -> Data.Index? {
+        chunk.withUnsafeBytes { raw -> Data.Index? in
+            let offset = start - chunk.startIndex
+            guard offset < raw.count, let base = raw.baseAddress else { return nil }
+            guard let hit = memchr(base + offset, 0x0A, raw.count - offset) else { return nil }
+            return chunk.startIndex + (UnsafeRawPointer(hit) - base)
+        }
+    }
+}
+
+/// The covers the adapter has sent, by artwork id.
+///
+/// The adapter sends an image's bytes once and afterwards names it by id
+/// alone, and it remembers several ids, not one: a video in Safari has two
+/// images, a frame and a poster, and flips between them while it plays.
+/// Carrying the last cover forward is not enough for that — a line naming the
+/// poster would have been shown with the frame. So each id's bytes are kept
+/// here, and a line that names an id without bytes is given that id's own.
+///
+/// Holds more entries than the adapter remembers ids
+/// (`LedgeArtworkRecentCapacity`, 4) and ages them the same way — a line
+/// naming an id counts as a use on both sides — so an id the adapter will not
+/// resend is always still here.
+struct AdapterCoverCache: Sendable {
+
+    static let capacity = 8
+
+    private struct Cover: Sendable {
+        let id: String
+        let bytes: Data
+        let mime: String?
+    }
+
+    /// Newest first.
+    private var covers: [Cover] = []
+
+    /// Records the line's cover if it carries one, or fills it in if it names
+    /// one already held. A line naming no id comes back untouched.
+    mutating func fill(_ payload: AdapterPayload) -> AdapterPayload {
+        guard let id = payload.artworkID else { return payload }
+        var filled = payload
+        let held = covers.firstIndex { $0.id == id }.map { covers.remove(at: $0) }
+        if let bytes = payload.artwork {
+            covers.insert(Cover(id: id, bytes: bytes, mime: payload.artworkMIME), at: 0)
+        } else if let held {
+            covers.insert(held, at: 0)
+            filled.artwork = held.bytes
+            filled.artworkMIME = held.mime
+        }
+        if covers.count > Self.capacity { covers.removeLast(covers.count - Self.capacity) }
+        return filled
+    }
+}

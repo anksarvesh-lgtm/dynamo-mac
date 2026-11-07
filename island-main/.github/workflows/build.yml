@@ -1,0 +1,41 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version || true
+          swiftc --version
+
+      - name: Unit tests + app self-test
+        run: scripts/test.sh
+
+      - name: Release build (universal)
+        run: scripts/build-release.sh "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Package
+        run: scripts/package-release.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Island-${{ github.sha }}
+          path: |
+            dist/Island.zip
+            dist/Island.dmg
+            dist/SHA256SUMS.txt
+          retention-days: 14

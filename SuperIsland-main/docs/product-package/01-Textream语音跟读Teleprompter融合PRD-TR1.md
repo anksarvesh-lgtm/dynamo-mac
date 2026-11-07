@@ -1,0 +1,287 @@
+# Textream 语音跟读 Teleprompter 融合 PRD-TR1
+
+## 基本信息
+
+- 子项目：SuperIsland
+- 归属：Productivity / Teleprompter
+- 任务类型：A 新需求
+- 标注版本：20260607
+- 需求来源：将 f/textream 的语音跟读能力融合到 SuperIsland 现有 Teleprompter 模块
+- 授权说明：本需求会参考并迁移 f/textream 的 MIT 许可能力，后续 PR 描述中保留 Textream attribution
+
+## 本次范围
+
+本次只做 MVP 融合：保留 SuperIsland 现有 notch/island 窗口系统和 Teleprompter 入口，在现有 Teleprompter 模块中新增 Classic 定速滚动与 Word Tracking 语音跟读两种模式。暂不纳入 PPTX notes 导入、Director Mode、远程浏览器控制、外接屏/Sidecar 输出、Textream 独立主窗口、Textream URL scheme 和 Textream 文件格式。
+
+## 功能点 1：启用 Teleprompter 时完成语音权限预授权
+
+### 1. 业务目的
+
+让用户在打开 Teleprompter 能力时提前完成语音跟读所需的权限准备，避免开始朗读后才被权限弹窗打断。该功能解决的是 Word Tracking 首次使用体验断裂的问题：用户启用模块后，系统应立即引导其完成麦克风与 Speech Recognition 授权，后续播放时直接进入倒计时或朗读状态。
+
+### 2. 使用者
+
+使用者是开启 SuperIsland Teleprompter 的 Mac 用户，尤其是直播、演示、录课、访谈和播客场景中需要跟读脚本的人。适用角色包括普通使用者、演示者、主播和内容创作者。不适用角色是未启用 Teleprompter 模块、只使用 Battery/Now Playing/Calendar 等其他模块的用户。
+
+### 3. 触发
+
+触发页面是 Settings 的 Productivity 分组。触发元素是 Teleprompter 开关，计划标注 `data-annotation-id="teleprompter-module-toggle"`。用户将 Teleprompter 开关从关闭切换为开启时，系统立即检查并请求麦克风权限与 Speech Recognition 权限。若用户重新打开应用且权限已经授权，开启动作不再重复弹出系统授权。
+
+### 4. 流程
+
+1. 用户进入 Settings -> Modules/Productivity。
+2. 用户打开 Teleprompter 开关。
+3. 系统保存 Teleprompter enabled 状态。
+4. 系统检查麦克风授权状态。
+5. 麦克风状态为未决定时，系统激活 SuperIsland 并立即发出麦克风授权请求；已拒绝或受限时引导用户打开系统设置。
+6. Speech Recognition 状态为未决定时，系统激活 SuperIsland 并立即发出系统授权请求，不依赖用户再点击应用内授权按钮；已拒绝或受限时引导用户打开系统设置。
+7. 系统根据 macOS 实际返回的授权状态刷新权限行；如果系统按队列依次呈现弹窗，界面不得把后一个权限请求隐藏到手动按钮之后。
+8. 用户在 Teleprompter 已开启后切换到 Word Tracking 模式时，系统再次按当前状态触发缺失权限请求。
+9. 授权完成后，用户可继续编辑脚本、选择模式并播放。
+
+### 5. 规则
+
+- 启用 Teleprompter 时必须触发语音跟读权限检查，不等到点击播放。
+- 选择 Word Tracking 模式时必须触发缺失权限检查，不等到点击播放。
+- 麦克风和 Speech Recognition 都是 Word Tracking 必需权限。
+- Classic 模式不依赖麦克风，但本次 MVP 的启用动作仍按 Teleprompter 模块整体能力进行预授权。
+- 已授权权限不得重复打扰用户。
+- 权限状态为未决定时必须尝试弹系统授权；权限状态为已拒绝或受限时不得假装会再次弹窗，必须展示打开系统设置的路径。
+- 麦克风授权和 Speech Recognition 授权需要在启用、启动或进入设置页的自动路径中主动发起；macOS 可按系统弹窗队列依次呈现，但应用不得要求用户额外点击授权按钮才发起第二个请求。
+- 用户拒绝权限时，Teleprompter 模块仍可保持开启，但 Word Tracking 播放必须显示不可用状态或错误提示。
+- 权限文案要使用 SuperIsland 品牌，不沿用 Textream 品牌。
+- 如果系统权限状态无法同步获取，界面需要在应用重新激活或再次进入设置时刷新状态。
+
+### 6. 边界
+
+- 空脚本：权限流程仍可完成，但播放按钮不能开始朗读。
+- 权限被拒绝：保留 Teleprompter 开启状态，Word Tracking 不启动，用户可改用 Classic 模式。
+- 权限受限：展示受限状态并引导系统设置。
+- 权限已被用户处理过：macOS 不会重复弹系统授权，界面必须说明当前状态并提供系统设置入口。
+- 用户关闭 Teleprompter：停止正在进行的语音识别和播放状态。
+- 网络异常：本功能不依赖网络，网络异常不影响权限和本地识别流程。
+- 多次快速切换开关：不得创建重复授权流程或重复识别会话。
+
+### 7. 数据
+
+- 前端 state 字段：`teleprompterEnabled`、`microphonePermissionStatus`、`speechRecognitionPermissionStatus`、`teleprompterPermissionError`、`permissionRequestInFlight`。
+- 持久化字段：Teleprompter enabled 状态沿用现有模块开关存储。
+- 系统能力：macOS 麦克风授权、macOS Speech Recognition 授权。
+- 接口：本阶段不新增网络接口；只使用本机系统授权能力。
+
+### 8. 验收
+
+- [ ] 用户开启 Teleprompter 时会立即触发麦克风与 Speech Recognition 权限检查。
+- [ ] 用户选择 Word Tracking 模式时会立即触发缺失的麦克风与 Speech Recognition 权限检查。
+- [ ] 首次未决定权限会弹系统授权；已拒绝权限会打开或引导系统设置，不再误导用户等待弹窗。
+- [ ] 用户已授权时不会再次弹授权提示。
+- [ ] 用户拒绝权限后，Word Tracking 播放不可用且有清晰提示。
+- [ ] 用户拒绝权限后，Classic 模式仍可用于定速滚动。
+- [ ] 权限文案中不出现 Textream 品牌。
+- [ ] 关闭 Teleprompter 会停止正在进行的语音识别。
+
+## 功能点 2：Teleprompter 支持 Classic 与 Word Tracking 模式
+
+### 1. 业务目的
+
+让 SuperIsland Teleprompter 同时支持无需麦克风的定速滚动和基于语音识别的跟读高亮，覆盖不同演示场景。Classic 适合无需逐字跟踪、只想稳定滚动脚本的用户；Word Tracking 适合希望文字跟着朗读进度移动并突出当前内容的用户。点击开始后，系统必须把口播稿模块真实呈现出来，用户不应只触发后台播放状态却仍停留在其他 tab、Home 或 compact 不可见状态。
+
+### 2. 使用者
+
+使用者是已启用 Teleprompter 的 Mac 用户。适用角色包括演示者、主播、主持人、采访者、播客录制者和临时需要读稿的用户。不适用角色是没有脚本内容、未启用 Teleprompter 或只需要系统状态展示的用户。
+
+### 3. 触发
+
+触发页面是 Teleprompter 的脚本编辑窗口与 Settings 的 Productivity 分组。触发元素包括脚本编辑入口 `data-annotation-id="teleprompter-edit-script-button"`、样式设置控件 `data-annotation-id="teleprompter-style-controls"`、语音语言控件 `data-annotation-id="teleprompter-speech-locale-control"`、模式选择控件 `data-annotation-id="teleprompter-listening-mode-control"`、播放/暂停控件 `data-annotation-id="teleprompter-play-control"`。用户选择模式、语音语言或样式后，该配置用于下一次播放。
+
+### 4. 流程
+
+1. 用户打开 Teleprompter 脚本编辑窗口。
+2. 用户输入或粘贴脚本文本。
+3. 用户选择 Classic 或 Word Tracking。
+4. 用户设置字号、对齐、滚动速度；Word Tracking 模式下可选择语音识别语言。
+5. 用户保存脚本并回到 island。
+6. 用户点击播放。
+7. 系统先将 island 聚焦并呈现到 Teleprompter 模块，再执行现有倒计时。
+8. 如果 island 当前是 compact 或其他模块，系统自动打开 expanded Teleprompter 视图并保持可见。
+9. 如果 island 当前是 full expanded，系统自动选择 Teleprompter tab，不停留在 Home 或其他模块 tab。
+10. Classic 模式按设置速度定速滚动。
+11. Word Tracking 模式启动语音识别并根据朗读进度推进高亮。
+12. 用户点击暂停时，当前模式对应的滚动或识别同时暂停。
+13. 用户点击重置时，脚本进度回到开头。
+
+### 5. 规则
+
+- 模式选择必须持久化，下一次打开仍使用上次选择。
+- Classic 模式沿用现有定速滚动和滚轮校准能力。
+- Word Tracking 模式必须依赖脚本文本、麦克风权限和 Speech Recognition 权限。
+- 播放前脚本为空时不能启动任何模式。
+- 切换模式时不清空脚本。
+- 播放中切换模式时，需要先停止当前播放/识别，再按新模式等待用户重新播放。
+- 现有倒计时体验保留，两种模式都从倒计时结束后进入播放。
+- 点击播放后，island 必须默认展示 Teleprompter 模块，不能停留在其他模块、Home、不可见 compact 状态或仅后台更新状态。
+- 点击播放触发呈现时，需要取消会导致 Teleprompter 立即收起的自动 dismiss 逻辑，保证用户能看到倒计时、脚本和播放状态。
+- full expanded 状态下点击播放，必须选择 Teleprompter tab；非 full expanded 状态下点击播放，必须打开 expanded Teleprompter 视图。
+- 字号、对齐、滚动速度和语音语言必须可在脚本编辑体验中直接调整并持久化。
+- 在 Teleprompter 字幕稿展示区域内，双指纵向滚动必须调整字幕稿位置，不得触发 island 模块切换或 full expanded tab 切换。
+- 触控板手势一旦在本次 gesture 内被判定为纵向滚动，就必须整段锁定为纵向，不得因为后续向下回滚、惯性滚动或横向噪声残留而切换模块/tab。
+- 外层 island 或 full expanded 的双指横向滑动必须保持原有顺滑切换手感；只要横向明确占优且未被纵向轴锁定，就应快速触发模块/tab 切换，不得因为轻微纵向抖动变钝。
+- 同一次双指横向滑动只能触发一次模块/tab 切换，切换步长固定为相邻一个模块或 tab；手势结束后的惯性滚动不得继续触发连跳。
+
+### 6. 边界
+
+- 空数据：脚本为空时 compact 状态显示无脚本，播放不可用。
+- 数量限制：MVP 不引入多页脚本，单次只读取当前脚本文本。
+- 重复：重复点击播放不会创建多个滚动计时器或多个语音识别任务。
+- 权限：Word Tracking 权限不足时不能启动识别；Classic 不受影响。
+- 网络异常：两种模式都不依赖外部网络。
+- 长文本：长脚本需要保持滚动和高亮流畅，不应撑破 island 布局。
+- 手势冲突：字幕稿区域的纵向滚动优先级高于外层 island/tab 切换手势；只有明确横向占优且未被纵向轴锁定的触控板手势才可切换模块。
+- 横向手感：外层 island/tab 切换不能为了保护纵向滚动而把横向判定门槛调得过高；轻微斜向手势仍应在横向占优时顺滑切换。
+- 横向步进：一次双指左右滑动只允许从当前 tab 切到前一个或后一个 tab，不得因为触控板惯性或连续 scrollWheel 事件一次跳过多个 tab。
+- 方向反转：用户先向上滚动再向下滚动时仍属于同一纵向滚动意图，外层 tab 切换不得利用纵向 delta 抵消后的横向残留触发。
+- 呈现冲突：如果其他模块刚触发 HUD 或 auto-dismiss，点击 Teleprompter 播放后以 Teleprompter 播放呈现优先，避免开始后看不到口播稿。
+
+### 7. 数据
+
+- 前端 state 字段：`scriptText`、`listeningMode`、`isPlaying`、`countdownValue`、`resetToken`、`scrollSpeed`、`fontSize`、`textAlignmentIndex`、`speechLocale`、`recognizedCharCount`、`teleprompterError`、`currentState`、`activeModule`、`fullExpandedSelectedTab`。
+- 持久化字段：脚本文本、滚动速度、字体大小、文本对齐、模式选择、语音识别语言。
+- 系统能力：Word Tracking 使用本机 Speech Recognition 和麦克风输入。
+- 接口：不新增后端接口；不启用 Textream 的远程 HTTP/WebSocket 服务。
+
+### 8. 验收
+
+- [ ] 用户可在 Teleprompter 设置或脚本编辑体验中选择 Classic / Word Tracking。
+- [ ] 用户可在脚本编辑体验中调整字号、对齐、滚动速度和 Word Tracking 语音语言。
+- [ ] 用户点击播放后，island 默认展示并呈现 Teleprompter 模块，用户能看到倒计时、脚本和播放控件。
+- [ ] 用户在其他模块、Home 或 compact 状态点击开始后，会自动切到可见的 Teleprompter 视图。
+- [ ] 用户在字幕稿区域双指向上/向下滑动时，字幕稿滚动，不切换到其他模块或 tab。
+- [ ] 用户在字幕稿区域双指向上后再向下滑动，仍只滚动字幕稿，不切换 tab。
+- [ ] 用户在外层 island 或 full expanded 区域双指左右滑动时，仍能顺滑切换模块或 tab。
+- [ ] 用户在外层 island 或 full expanded 区域双指左右滑动一次时，只切换到相邻一个模块或 tab。
+- [ ] Classic 模式保持现有定速滚动、暂停、重置、滚轮校准能力。
+- [ ] Word Tracking 模式能在权限完整时启动语音识别。
+- [ ] 切换模式不会清空脚本文本。
+- [ ] 播放中不会出现重复计时器或重复语音识别任务。
+- [ ] 本次 MVP 不出现 PPTX、Director Mode、远程浏览器或外接屏入口。
+
+## 功能点 3：Word Tracking 在 island 内展示单词级跟读高亮
+
+### 1. 业务目的
+
+让用户朗读时能在 SuperIsland 的 Teleprompter 中看到当前进度，降低读稿走神和丢句风险。该功能的目标不是创建独立提词器应用，而是在 SuperIsland 现有 island 展示区域内，把脚本拆成词流并根据语音识别进度高亮已读/当前内容。识别反馈必须足够灵敏：用户正常朗读后应尽快看到听音状态、最近识别文本和进度变化，而不是长时间停留在等待状态。
+
+### 2. 使用者
+
+使用者是选择 Word Tracking 模式并准备朗读脚本的 Teleprompter 用户。适用角色包括演讲者、主播、采访者、主持人和录制者。不适用角色是使用 Classic 模式的用户、未授权语音权限的用户和未输入脚本的用户。
+
+### 3. 触发
+
+触发页面是 SuperIsland 的 compact、expanded 和 full expanded Teleprompter 展示区域。触发元素是 Teleprompter 展示面 `data-annotation-id="teleprompter-word-tracking-surface"`、语音状态/错误提示 `data-annotation-id="teleprompter-speech-status"`、播放/暂停控件 `data-annotation-id="teleprompter-play-control"`。当用户在 Word Tracking 模式点击播放且倒计时完成后，词流开始根据朗读进度更新。
+
+### 4. 流程
+
+1. 用户准备好脚本并选择 Word Tracking。
+2. 用户点击播放。
+3. 系统执行倒计时。
+4. 倒计时结束后，系统启动语音识别。
+5. 系统将用户输入的脚本原始排版作为 Word Tracking 展示来源，保留换行、空行和段落结构。
+6. 系统将脚本转换为适合口播识别的匹配文本，并保持识别进度与原始展示位置可对齐。
+7. 用户朗读时，系统根据 partial result、最近识别文本和脚本匹配结果计算已读字符进度。
+8. 系统在状态区呈现正在听音、音量输入、最近听到的短文本和当前识别进度。
+9. island 中已读文字和未读文字形成视觉区分。
+10. 当前内容保持在可读区域内；同一视觉行内只更新高亮，识别进入下一视觉行时才按行滚动。
+11. 用户暂停时，语音识别停止或挂起，显示停留在当前进度。
+12. 用户重置时，进度和高亮回到脚本开头。
+
+### 5. 规则
+
+- 词流需要支持英文、数字、标点和常见 CJK 文本的合理拆分。
+- 语音识别结果只能推动进度前进，不能因为一次低置信结果大幅跳错。
+- 识别匹配需要优先使用 partial result，允许短语级、字符级和 CJK 文本的容错匹配，避免正常朗读时因为标点、空格、轻微错字或分词差异而完全不推进。
+- 识别诊断需要区分“系统转写文本”和“稿件匹配结果”：如果系统转写内容与用户实际说话明显不一致，状态区应暴露最近转写；如果转写正确但稿件未推进，状态区应暴露匹配弱或未命中。
+- 匹配算法需要以当前位置附近窗口为主，避免远处相似短语抢占进度；大跨度跳转必须有更强确认，小跨度推进可以更灵敏。
+- 如果麦克风已经有输入但脚本进度未推进，状态区必须展示最近听到的文本和输入状态，帮助用户判断是音量、语言选择还是脚本匹配问题。
+- 正常朗读时进度更新应尽量跟随最近一次有效 partial result，不需要等待最终识别结果。
+- 已读、当前、未读状态必须清晰，但不能破坏 SuperIsland 现有深色 island 视觉。
+- Word Tracking 展示必须保留用户在脚本编辑框中输入的换行、空行和段落结构；用户一行一句输入时，island 中也应按一行一句展示，不得压平成单段。
+- CJK 文本展示不得为了识别而在每个字之间插入额外空格；识别匹配可以内部折叠空白，但展示层必须回到原始脚本位置。
+- 识别匹配的空白折叠不得降低朗读跟随效果；识别进度映射回原始展示文本后，高亮、行锚点和完成状态都必须保持正确。
+- CJK 句子不得把整行当成一个已完成单词处理；当用户只读到句首短片段时，高亮只能推进到该片段附近，不得因前缀匹配或长上下文提示把完整句子提前标为已读。
+- 语音识别上下文提示不得向系统注入中文长句或整行脚本；可以提供当前位置附近 2-6 字短片段辅助识别，但不得诱导系统在用户只读句首时自动补全后文并造成跳行。
+- 当系统一次返回过长的 CJK 转写候选时，Word Tracking 应截断为小步推进，而不是完全拒绝或一次吃完整句；用户应看到进度稳定移动且不超前整行。
+- CJK 当前高亮必须表示“刚读到的最后一个字或片段”，不得把识别边界后的下一个未读字提前标成当前高亮，避免用户看到同一内容先被预高亮、读到后又再次高亮。
+- Word Tracking 自动滚动必须按当前识别词所在的视觉行推进；同一行内识别到更多文字时不得持续上滚，只能更新高亮状态。
+- 识别进入下一视觉行后，系统才允许滚动到新的行锚点；滚动后未识别内容必须继续保留在可视区域内，不能把后续稿件全部隐藏到上方或下方。
+- 识别异常时必须停止推进并展示错误提示。
+- 识别已产出转写但高亮未推进时，状态区应展示最近听到的短文本，帮助用户判断是语言、脚本匹配还是麦克风问题。
+- 点击重置必须清除语音识别进度、音频状态和滚动位置。
+- Word Tracking 不使用 Textream 独立 notch overlay，必须渲染在 SuperIsland 现有 Teleprompter 展示中。
+
+### 6. 边界
+
+- 空数据：无脚本时不展示词流，仍显示添加脚本提示。
+- 数量限制：长文本需要自动滚动，不能让 compact 或 expanded 布局溢出。
+- 重复：重复播放不能重复安装音频输入监听或重复创建识别任务。
+- 权限：权限不足时不启动词流推进，只显示不可用状态。
+- 网络异常：语音跟读依赖本地系统能力，不因网络断开失败。
+- 识别超时：系统需要恢复或重启识别会话，用户不应看到播放状态假死。
+- 低音量或输入设备异常：需要在状态区显示等待声音或输入过低，不应让用户误以为已经识别但没有匹配。
+- 系统转写不准：状态区展示最近转写文本，用户可据此调整语言、输入设备或系统语音识别设置。
+- 稿件匹配不准：状态区展示弱匹配/未命中状态，进度不得大幅乱跳。
+- 语言选择不匹配：状态区保留最近听到的文本和错误/弱匹配状态，用户可回到语言控件调整。
+- 换行与空行：脚本中包含多行、空行或段落分隔时，Word Tracking 仍需按用户输入的排版展示；识别层不得因为这些空白导致匹配明显变慢、错位或提前滚动。
+- 中英文混排：英文单词、数字、标点、中文连续句子和换行混用时，高亮位置必须与显示文本一致，不得出现识别文本推进但岛上跳到错误行的情况。
+
+### 7. 数据
+
+- 前端 state 字段：`words`、`wordTrackingDisplayText`、`speechMatchingText`、`recognizedCharCount`、`totalCharCount`、`audioLevels`、`inputLevel`、`lastSpokenText`、`matchConfidenceLabel`、`isListening`、`speechError`、`recognitionProgressText`、`wordTrackingResetToken`。
+- 持久化字段：模式选择、脚本文本和视觉设置；识别进度不持久化。
+- 系统能力：macOS Speech Recognition partial results、麦克风音频输入。
+- 接口：本阶段不新增远程浏览器接口，不暴露 Director Mode 协议。
+
+### 8. 验收
+
+- [ ] Word Tracking 模式下，用户朗读后 island 内文字能随进度高亮。
+- [ ] Word Tracking 模式下，脚本编辑框中一行一句、空行或段落分隔的输入会在 island 中保留原样展示，不被压平成单段。
+- [ ] Word Tracking 模式下，保留换行后正常朗读仍能稳定推进识别，高亮位置与原始展示文本一致，不提前跳行。
+- [ ] Word Tracking 模式下，中文连续文本不会被展示成字间强制空格，朗读识别仍可逐步高亮。
+- [ ] Word Tracking 模式下，用户读到“红灯”等中文句首短词时，只高亮已读片段附近，不会提前高亮完整句子或跳到下一行。
+- [ ] Word Tracking 模式下，中文识别不会因为防超前策略完全停住；系统返回较长中文 partial result 时，进度按小步稳定推进。
+- [ ] Word Tracking 模式下，中文当前高亮不指向下一个未读字；用户读到哪里，高亮只落在已读边界内，不出现先预高亮再二次高亮。
+- [ ] Word Tracking 模式下，同一视觉行内识别进度增加时只更新高亮，不触发连续上滚。
+- [ ] Word Tracking 模式下，识别进入下一视觉行时才滚动，且滚动后未识别文字仍可见。
+- [ ] Word Tracking 模式下，用户正常朗读后能快速看到听音状态、最近听到文本和识别进度变化。
+- [ ] 麦克风有声音但脚本不匹配时，状态区能呈现最近听到文本，而不是只显示等待。
+- [ ] 系统转写不准时，状态区能展示最近转写内容，便于用户判断不是滚动逻辑问题。
+- [ ] 转写正确但稿件未推进时，状态区能展示弱匹配/未命中，且文本进度不乱跳。
+- [ ] 暂停后高亮停在当前进度，重置后回到开头。
+- [ ] 识别失败或权限不足时有可见错误状态。
+- [ ] compact、expanded、full expanded 不出现文字重叠或布局溢出。
+- [ ] Textream 的独立 overlay/window 不进入 SuperIsland。
+- [ ] 长文本滚动时，播放控件仍可点击。
+
+### 9. UI 视觉
+
+Word Tracking 的高亮应延续 SuperIsland 现有深色半透明 island 风格。已读文字使用更高不透明度，未读文字使用较低不透明度，当前朗读附近内容保持在视觉中心或易读区域。不得引入大面积新色块、营销式卡片或独立提词器窗口；控件尺寸、图标重量、间距应贴近现有 Teleprompter 控件。
+
+## 附录：不进入本次 MVP 的能力
+
+- PPTX presenter notes 导入
+- `.textream` 文件保存与打开
+- Director Mode 远程编辑
+- BrowserServer 远程浏览器展示
+- 外接屏/Sidecar/镜像模式
+- Textream 独立 App 主窗口
+- Textream URL scheme 和 macOS Service 入口
+
+## 附录：计划标注 ID
+
+- `teleprompter-module-toggle`：Settings 中 Teleprompter 模块开关
+- `teleprompter-edit-script-button`：Settings 中 Edit Script 按钮
+- `teleprompter-style-controls`：脚本编辑窗口中的字号、对齐和速度控件
+- `teleprompter-speech-locale-control`：Word Tracking 的语音识别语言控件
+- `teleprompter-listening-mode-control`：Classic / Word Tracking 模式选择控件
+- `teleprompter-play-control`：island 中播放/暂停控件
+- `teleprompter-word-tracking-surface`：Word Tracking 词流展示区域
+- `teleprompter-speech-status`：语音权限、识别状态或错误提示

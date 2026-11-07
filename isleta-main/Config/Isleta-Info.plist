@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>de</string>
+		<string>fr</string>
+		<string>es</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2.8.0</string>
+	<key>CFBundleVersion</key>
+	<string>2.8.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Isleta asks your music app what’s playing so it can show the current track in the island when Isleta starts. Live updates need no permission.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Isleta shows your AirPods and other Bluetooth audio devices in the island when they connect, with the charge left in them. Nothing about your devices leaves your Mac.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Isleta reads your upcoming events so it can show what’s next in the island. Your events are never stored, never sent anywhere, and never written to Isleta’s logs.</string>
+	<key>NSFocusStatusUsageDescription</key>
+	<string>Isleta checks whether a Focus is on so it can stay quiet when you have asked your Mac for quiet. It never changes your Focus, and it never records it.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Timothy Murphy. Released under the MIT License.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Isleta uses your location to show the weather where you are. You can type a city instead — and either way, your location is only ever sent to Apple’s weather service.</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/idevtim/isleta/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>TDnC5yMZcwQ8x4jjkJFyxK7yJF+z34NhMk4BanAiij0=</string>
+</dict>
+</plist>

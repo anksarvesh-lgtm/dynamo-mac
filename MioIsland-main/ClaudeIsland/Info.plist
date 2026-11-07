@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Mio Island</string>
+    <key>CFBundleDisplayName</key>
+    <string>Mio Island</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright 2026. All rights reserved.</string>
+
+    <key>SUFeedURL</key>
+    <string>https://miomioos.github.io/MioIsland/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>XzmsCyH9tALFSPHRD/P5D5/r7MNV3loKYyOxZMEXblg=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Mio Island reads Now Playing info from music apps (Spotify, Apple Music, Google Chrome) via AppleScript to show the current track in your notch. Mio Island 通过 AppleScript 读取 Spotify、Apple Music、Chrome 等音乐播放器的当前曲目信息，在刘海区域显示。</string>
+
+</dict>
+</plist>

@@ -1,0 +1,15 @@
+*/build-intel/**
+build-intel/
+build-intel/**
+build-intel/*
+*.xcodeproj
+xcuserdata/
+build/
+DerivedData/
+.env
+.DS_Store
+*.xcworkspace
+*.swp
+*~
+Extensions/whatsapp-web/provider/node_modules/
+tmp/*

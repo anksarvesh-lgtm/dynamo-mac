@@ -1,0 +1,49 @@
+{
+  "id": "mintConsole",
+  "displayName": "Mint Console",
+  "previewIdleLabelEN": "Idle",
+  "previewIdleLabelZH": "空闲",
+  "prefersUppercasePreviewLabel": false,
+  "tokens": {
+    "chrome": {
+      "background": { "hex": "D9FFF1" },
+      "overlay": { "hex": "C3F5E4" },
+      "border": { "hex": "17352B" }
+    },
+    "text": {
+      "primary": { "hex": "0D1F18" },
+      "secondary": { "hex": "26463B" },
+      "muted": { "hex": "4D6B61" },
+      "inverse": { "hex": "FFFFFF" }
+    },
+    "status": {
+      "idle": { "hex": "0D1F18" },
+      "working": { "hex": "0F766E" },
+      "needsYou": { "hex": "B45309" },
+      "error": { "hex": "B91C1C" },
+      "done": { "hex": "15803D" },
+      "thinking": { "hex": "6D28D9" }
+    },
+    "badges": {
+      "agentText": { "hex": "0D1F18" },
+      "agentFill": { "hex": "BFF2E1" },
+      "terminalText": { "hex": "0D1F18" },
+      "terminalFill": { "hex": "AFEAD5" },
+      "subduedText": { "hex": "26463B" },
+      "subduedFill": { "hex": "C3F5E4" }
+    },
+    "usage": {
+      "text": { "hex": "0D1F18" },
+      "track": { "hex": "9DDDC6" },
+      "fill": { "hex": "0D1F18" },
+      "border": { "hex": "17352B" }
+    },
+    "chat": {
+      "bodyText": { "hex": "0D1F18" },
+      "secondaryText": { "hex": "26463B" },
+      "bubbleText": { "hex": "0D1F18" },
+      "bubbleFill": { "hex": "BFF2E1" },
+      "assistantDot": { "hex": "0D1F18" }
+    }
+  }
+}

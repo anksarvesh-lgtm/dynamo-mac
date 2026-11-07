@@ -1,0 +1,944 @@
+import LedgeCore
+import SwiftUI
+
+/// The compact presentation: content sits in the two "ears" either side of the
+/// cutout, and the middle is left empty because there is physical hardware
+/// behind it. This is what makes a peek read as the notch itself widening
+/// rather than a window appearing under it.
+public struct CompactEarsView: View {
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.weatherUnits) private var weatherUnits
+    @Environment(\.chargeChangeAnimation) private var chargeChangeOverride
+
+    private let audioLevels: () -> [Double]
+
+    /// While anything is detached beside the island, the trailing ear yields —
+    /// iOS's split look: the main island carries only its leading content, and
+    /// the satellite owns the right.
+    private let trailingHidden: Bool
+
+    private let activity: Activity
+    private let cutoutWidth: CGFloat
+    private let inset: CGFloat
+    /// Horizontal nudges for each ear's content; positive moves toward the
+    /// cutout. Clamped so a hand-edited value cannot push content offscreen.
+    private let leadingOffset: CGFloat
+    private let trailingOffset: CGFloat
+
+    /// The song whose cover the music ears last wore, so the next song can
+    /// borrow it while its own is on the way — see `EarCover`.
+    @State private var wornCover: EarCover?
+    @State private var coverHold: Task<Void, Never>?
+
+    public init(activity: Activity, cutoutWidth: CGFloat, inset: CGFloat,
+        audioLevels: @escaping () -> [Double] = { [] },
+        trailingHidden: Bool = false,
+        leadingOffset: CGFloat = 0,
+        trailingOffset: CGFloat = 0) {
+        self.activity = activity
+        self.cutoutWidth = cutoutWidth
+        self.inset = inset
+        self.audioLevels = audioLevels
+        self.trailingHidden = trailingHidden
+        self.leadingOffset = leadingOffset.isFinite ? min(max(leadingOffset, -24), 24) : 0
+        self.trailingOffset = trailingOffset.isFinite ? min(max(trailingOffset, -24), 24) : 0
+    }
+
+    /// How far the content sits toward the cutout, beyond wherever the user's
+    /// own nudge puts it.
+    ///
+    /// A narrower ear centres its content in less room, which moves the glyph
+    /// inward by half the loss and eats the other half of the outer margin.
+    /// This gives that half back: the whole of a narrowing comes out of the
+    /// gap beside the cutout, and the distance from the shape's outer edge to
+    /// the glyph is the same at 48 as it was at 52. Zero for anybody whose
+    /// ears are at or above the reference width.
+    private var inwardNudge: CGFloat {
+        max(0, (NotchLayout.referenceEarWidth - NotchLayout.hudEarWidth) / 2)
+    }
+
+    public var body: some View {
+        // The ears divide whatever is left either side of the cutout, rather
+        // than taking a fixed width that knows nothing about the gutters.
+        HStack(spacing: 0) {
+            // Each ear swaps its own content. The `ZStack` lets the outgoing and
+            // incoming cards overlap for the length of the dissolve — as plain
+            // `HStack` children they would briefly be two siblings and shove the
+            // layout sideways in the middle of the transition.
+            ZStack {
+                leading
+                    .id(activity.id)
+                    .transition(Motion.earSwap(reduced: reduceMotion))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .offset(x: leadingOffset + inwardNudge)
+
+            // Reserved space for the physical cutout. Nothing may draw here.
+            Color.clear.frame(width: cutoutWidth)
+
+            ZStack {
+                trailing
+                    .id(activity.id)
+                    .transition(Motion.earSwap(reduced: reduceMotion))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .offset(x: -(trailingOffset + inwardNudge))
+        }
+        .padding(.horizontal, inset)
+        .onAppear { coverChanged() }
+        .onChange(of: coverIdentity) { _, _ in coverChanged() }
+        .onDisappear {
+            coverHold?.cancel()
+            coverHold = nil
+        }
+        // Driven by identity: a now-playing card republishes every second, and
+        // animating on the whole activity would restart this on every tick.
+        .animation(Motion.earContent, value: activity.id)
+        .animation(Motion.earContent, value: trailingHidden)
+        // Charging starting or stopping refreshes the same card in place, so
+        // the swap above never runs. Both ears follow it on one beat, from
+        // here rather than inside each: the readout's ear re-centres a row
+        // that has grown a ring, and only an animation this far out moves
+        // the row as well as what is in it.
+        .animation(chargeChange, value: isCharging)
+        // Glyph and readout are one activity: a single element, the way the
+        // level HUD's ears read, instead of VoiceOver landing on an unlabelled
+        // image and then a bare "24°".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    /// What the two ears say together, as VoiceOver reads them: the kind first,
+    /// then whatever the trailing ear draws, spelled out.
+    private var accessibilityDescription: String {
+        func percent(_ fraction: Double) -> String {
+            "\(Int((min(max(fraction, 0), 1) * 100).rounded())) percent"
+        }
+        switch activity.payload {
+        case .nowPlaying(let payload):
+            let state = payload.isPlaying ? "Now playing" : "Paused"
+            return [state, payload.title, payload.artist].filter { !$0.isEmpty }.joined(separator: ", ")
+        case .device(let payload):
+            if let lowest = payload.orderedLevels.map(\.level).min() {
+                return "\(payload.name), battery \(percent(lowest))"
+            }
+            guard let connected = payload.isConnected else { return payload.name }
+            return "\(payload.name), \(connected ? "connected" : "disconnected")"
+        case .power(let payload):
+            return "\(payload.isCharging ? "Charging" : "Battery"), \(percent(payload.percentage))"
+        case .focus(let payload):
+            return "\(payload.name), Focus \(payload.isActive ? "On" : "Off")"
+        case .event(let payload):
+            return payload.hasEvent
+                ? "Calendar, \(payload.title), \(ActivityCardView.relative(payload.startsIn))"
+                : "Calendar, no events today"
+        case .message(let payload):
+            return payload.body.isEmpty ? payload.title : "\(payload.title), \(payload.body)"
+        case .weather(let payload):
+            let degrees = WeatherUnits.displayDegrees(celsius: payload.temperatureCelsius, units: weatherUnits)
+            return "Weather, \(degrees) degrees, \(payload.condition)"
+        case .timer(let payload):
+            return payload.mode == .stopwatch
+                ? "Stopwatch, \(TimerCardView.clock(payload.remaining))"
+                : "Timer, \(TimerCardView.clock(payload.remaining)) remaining"
+        case .shelf(let payload):
+            return "Shelf, \(payload.items.count == 1 ? "1 item" : "\(payload.items.count) items")"
+        case .privacy(let payload):
+            return "\(payload.title) in use"
+        case .keyboard(let payload):
+            if payload.code == "⇪" {
+                return "Caps Lock \(payload.symbolName == "capslock.fill" ? "on" : "off")"
+            }
+            return "Keyboard layout, \(payload.name)"
+        case .levels(let payload):
+            return payload.isMuted ? "Levels, muted" : "Levels, volume \(percent(payload.volume))"
+        case .notes(let payload):
+            return payload.notes.count == 1 ? "1 note" : "\(payload.notes.count) notes"
+        case .keepAwake(let payload):
+            switch payload.phase {
+            case .ready:
+                return "\(KeepAwakeCopy.title), ready"
+            // A hold with no end has no remainder and no "until". Spoken off
+            // `payload.remaining`, which is zero for one, this said "zero
+            // seconds left" about a session that had only just begun.
+            case .running where payload.isIndefinite:
+                return "\(KeepAwakeCopy.title), \(KeepAwakeCopy.on.lowercased())"
+            case .running:
+                return "\(KeepAwakeCopy.title), "
+                    + "\(KeepAwakeCardView.spoken(payload.remaining)) left, "
+                    + KeepAwakeCopy.runningUntil(payload.until).lowercased()
+            case .finished(let reason):
+                return "\(KeepAwakeCopy.title), "
+                    + KeepAwakeCopy.finished(reason, at: payload.until,
+                                             floor: payload.batteryFloor,
+                                             lidClosed: payload.lidClosed)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var leading: some View {
+        if case .nowPlaying(let payload) = activity.payload {
+            // Album art in the ear, so the resting companion reads as "music",
+            // not a generic note glyph.
+            let cover = shownCover(for: payload)
+            NowPlayingThumbnail(payload: cover, accent: cover.accent.color)
+                // Twenty, and two and a half points nearer the outer edge.
+                //
+                // Centred content in a 48pt ear puts a 22pt tile 15pt from the
+                // shape's edge, which reads heavier than the rhythm glyph
+                // opposite it. A smaller tile alone would only move it further
+                // in — a centred thing gains half of whatever it gives up on
+                // each side — so the offset pays that back and a point more.
+                // Only the tile: the ear's other tenants are their own size in
+                // their own place.
+                //
+                // The half point is a whole pixel on a Retina panel, and it is
+                // what puts the tile at 13.5 from the edge — the same distance
+                // the rhythm glyph keeps on the other side.
+                .frame(width: 20, height: 20)
+                .offset(x: -2.5)
+        } else if case .device = activity.payload, symbolName.contains("airpods") {
+            // Apple's own AirPods artwork — the official SF Symbol for the exact
+            // model — drawn large with a soft top-lit gradient, the way the
+            // system's pairing UI presents it.
+            Image(systemName: symbolName)
+                .font(.system(size: 21, weight: .regular))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white, Color(white: 0.72)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+                .shadow(color: .black.opacity(0.4), radius: 1, y: 0.5)
+        } else if LedgeSymbol.isCustom(symbolName) {
+            // A glyph Apple does not ship. Sized to sit level with the SF
+            // Symbols beside it rather than to its own bounding box.
+            BluetoothGlyph()
+                .foregroundStyle(accent)
+                .frame(height: 15)
+                .padding(.horizontal, 6)
+        } else if case .keyboard(let payload) = activity.payload, payload.code == "⇪" {
+            // Caps lock: the *identity* stays put on the left — the same
+            // glyph whichever way the key went — and the right ear carries
+            // the state. Two ears, two jobs.
+            Image(systemName: "capslock.fill")
+                .font(.cardTitle)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 6)
+        } else if case .timer(let payload) = activity.payload,
+                  payload.mode != .stopwatch, payload.total > 0, !payload.isFinished {
+            // A countdown gets the dial; a stopwatch has no total to empty and
+            // keeps its glyph.
+            TimerDial(remaining: 1 - payload.progress, tint: accent)
+                .padding(.horizontal, 6)
+        } else if case .keepAwake = activity.payload {
+            // The cup, and no dial. Keep Awake rests here only while it is
+            // running, and what it is running towards is not progress anyone
+            // watches — the trailing ear carries the only number worth having.
+            Image(systemName: symbolName)
+                .font(.cardTitle)
+                .foregroundStyle(accent)
+                .padding(.horizontal, 6)
+        } else if case .weather = activity.payload {
+            // The system's own multicolor weather rendering — the yellow sun,
+            // the grey cloud, the blue rain — instead of a flat accent-tinted
+            // template. This is exactly the glyph iOS's status surfaces draw.
+            Image(systemName: symbolName)
+                .symbolRenderingMode(.multicolor)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(accent)
+                .shadow(color: .black.opacity(0.25), radius: 0.5, y: 0.5)
+                .padding(.horizontal, 5)
+        } else if case .event = activity.payload {
+            // The Calendar app's own visual identity: today's number in red
+            // on a white rounded tile — unmistakably "calendar", where the
+            // flat glyph read as clip-art.
+            CalendarDayTile()
+        } else if case .power = activity.payload {
+            // The battery dissolving into the bolt when charging starts in
+            // place, rather than cutting to it: a plain cross-fade, for the
+            // reason the level HUD gives for its own glyph.
+            Image(systemName: symbolName)
+                .font(.cardTitle)
+                .foregroundStyle(accent)
+                .padding(.horizontal, 6)
+                .contentTransition(.opacity)
+        } else {
+            Image(systemName: symbolName)
+                .font(.cardTitle)
+                .foregroundStyle(accent)
+                .padding(.horizontal, 6)
+        }
+    }
+
+    @ViewBuilder
+    private var trailing: some View {
+        if trailingHidden {
+            // Keep the ear's full footprint: the row stays symmetric so the
+            // leading side cannot re-flow by a point, and the vacated region
+            // is clipped away by the shape's trailing inset regardless.
+            Color.clear
+                .frame(width: 22, height: 14)
+                .transition(Motion.earSwap(reduced: reduceMotion))
+        } else {
+            trailingContent
+                .transition(Motion.earSwap(reduced: reduceMotion))
+        }
+    }
+
+    @ViewBuilder
+    private var trailingContent: some View {
+        switch activity.payload {
+        case .nowPlaying(let payload):
+            // The colour belongs to the cover on the tile, held and faded with
+            // it; whether the bars move is still this song's own state.
+            let cover = shownCover(for: payload)
+            MiniWaveform(isAnimating: payload.isPlaying, tint: cover.accent.color, levels: audioLevels)
+                .animation(Motion.medium, value: cover.accent)
+        case .device(let payload):
+            // The battery as a ring: the charged arc drawn thicker than the
+            // track. For multi-cell devices (AirPods: case/left/right) the lowest
+            // cell is shown — it is the one that dies first.
+            // Battery when the device reports one, and nothing at all when it
+            // does not. Plenty of hardware never tells macOS its level — a
+            // NuPhy keyboard reports `battery={}` — and standing a coloured dot
+            // in the battery's place implies a reading that does not exist. The
+            // glyph and the name already say "connected".
+            if let lowest = payload.orderedLevels.map(\.level).min() {
+                BatteryRing(level: lowest)
+            } else if let status = payload.statusText, !status.isEmpty {
+                // Nothing to charge, but something to say: a switch's state, or
+                // where sound has just gone.
+                switch payload.statusStyle {
+                case .badge:
+                    // The same badge Caps Lock wears, for the same reason: a
+                    // switch's state has to be readable in a glance and
+                    // unmistakable between two rapid toggles.
+                    Text(status.uppercased())
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(payload.isConnected == true ? Color.green : .white.opacity(0.6))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule().fill(
+                                payload.isConnected == true
+                                    ? Color.green.opacity(0.25) : .white.opacity(0.12)
+                            )
+                        )
+                case .plain:
+                    Text(status)
+                        .font(.cardLabel)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+            }
+        case .power(let payload):
+            // Plugging in gets the charge-flash ring; running on battery keeps
+            // the plain readout (red when it is time to find a cable).
+            // Single-line always: "100%" beside the ring is at the ear's
+            // limit, and a wrapped percentage read as two stacked digits.
+            //
+            // One percentage either way, with the ring arriving beside it, so
+            // charging starting in place moves the number over rather than
+            // swapping one label for another twelve points along.
+            HStack(spacing: 4) {
+                if payload.isCharging {
+                    BatteryRing(level: max(payload.percentage, 0.02))
+                        .transition(Motion.earSwap(reduced: reduceMotion))
+                }
+                Text("\(Int((payload.percentage * 100).rounded()))%")
+                    .font(.cardCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(!payload.isCharging && payload.percentage < 0.2 ? .red : .white.opacity(0.9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        case .event(let payload):
+            // A quiet day has no countdown; "now" for a card with no event
+            // read as a meeting starting.
+            // The card's "in 1h 59m" is too wide for the ear at full size, so
+            // the "in " goes — the countdown alone still reads as a countdown
+            // beside the calendar tile — and what remains may shrink rather
+            // than wrap onto a second line.
+            if payload.hasEvent {
+                Text(Self.earCountdown(payload.startsIn))
+                    .font(.cardCaption)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        case .weather(let payload):
+            Text("\(WeatherUnits.displayDegrees(celsius: payload.temperatureCelsius, units: weatherUnits))°")
+                .font(.cardCaption)
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        case .timer(let payload):
+            // The countdown itself, so a glance at the ear is enough — and in
+            // the timer's own colour rather than white, which is how iOS sets
+            // it: the two ears then read as one instrument, the dial and its
+            // number, instead of a coloured ornament beside a white label.
+            // Orange for work, green for a break, because that is the pairing
+            // the rest of the app already uses.
+            Text(TimerCardView.clock(payload.remaining))
+                .font(.cardCaption)
+                .monospacedDigit()
+                .foregroundStyle(accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        case .shelf(let payload):
+            Text("\(payload.items.count)")
+                .font(.cardLabel)
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.9))
+        case .keyboard(let payload):
+            if payload.code == "⇪" {
+                // The state as a badge: green ON, quiet OFF — readable in a
+                // glance, unmistakable in a row of rapid toggles.
+                let isOn = payload.symbolName == "capslock.fill"
+                Text(isOn ? "ON" : "OFF")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(isOn ? Color.green : .white.opacity(0.6))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule().fill(isOn ? Color.green.opacity(0.25) : .white.opacity(0.12))
+                    )
+            } else {
+                // The two-letter code is the whole point of the layout card:
+                // it is the one thing macOS's own menu-bar flag makes hard to
+                // read at a glance.
+                Text(payload.code)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+        case .notes(let payload):
+            // Notes never rest in the ears, so this is only ever reached while a
+            // card is on its way out. The count is the one thing that reads at
+            // this size.
+            Text("\(payload.notes.count)")
+                .font(.cardCaption)
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+        case .levels(let payload):
+            // The volume at last publish — a snapshot, like the glyph itself.
+            // Muted reads as a slash, not as the level it would return to.
+            Text(payload.isMuted ? "—" : "\(Int((payload.volume * 100).rounded()))%")
+                .font(.cardCaption)
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        case .privacy(let payload):
+            // The dots themselves, in Apple's colours — green camera, amber mic.
+            HStack(spacing: 5) {
+                if payload.cameraActive {
+                    Circle().fill(.green).frame(width: 7, height: 7)
+                }
+                if payload.micActive {
+                    Circle().fill(.orange).frame(width: 7, height: 7)
+                }
+            }
+        case .focus(let payload):
+            // A Focus change reads as "On"/"Off" beside the mode's glyph.
+            Text(payload.isActive ? "On" : "Off")
+                .font(.cardLabel)
+                .foregroundStyle(.white.opacity(0.9))
+        case .message:
+            connectionDot
+        case .keepAwake(let payload):
+            // The time left, in Keep Awake's own tan rather than white, so the
+            // two ears read as one instrument the way the timer's do.
+            if payload.isRunning {
+                Text(SatelliteContent.keepAwakeLabel(
+                    remaining: payload.isIndefinite ? nil : payload.remaining))
+                    .font(.cardCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+    }
+
+    // MARK: - The cover the music ears wear
+
+    private func incomingCover() -> EarCover? {
+        guard case .nowPlaying(let payload) = activity.payload else { return nil }
+        return EarCover(player: activity.id, payload: payload)
+    }
+
+    /// What decides the cover. Not the whole payload: that changes every
+    /// second with the position.
+    private var coverIdentity: EarCover.Identity? { incomingCover()?.identity }
+
+    /// The payload whose cover and colour the ears draw: this one, or the
+    /// last song's while this one's cover is on its way.
+    private func shownCover(for payload: NowPlayingPayload) -> NowPlayingPayload {
+        let incoming = EarCover(player: activity.id, payload: payload)
+        guard let worn = wornCover, EarCover.mayStandIn(worn, for: incoming) else { return payload }
+        return worn.payload
+    }
+
+    private func coverChanged() {
+        guard let incoming = incomingCover() else { return }
+        if let worn = wornCover, EarCover.mayStandIn(worn, for: incoming) {
+            // Bounded from the first song that came without a cover, and not
+            // restarted by the next one: skipping through several such songs
+            // must not keep the old cover up indefinitely.
+            guard coverHold == nil else { return }
+            coverHold = Task { @MainActor in
+                try? await Task.sleep(for: EarCover.hold)
+                guard !Task.isCancelled else { return }
+                coverHold = nil
+                // Nothing came. The placeholder is the honest answer now,
+                // faded in rather than cut.
+                withAnimation(Motion.medium) { wornCover = nil }
+            }
+            return
+        }
+        coverHold?.cancel()
+        coverHold = nil
+        wornCover = incoming
+    }
+
+    /// The card's relative countdown with its "in " prefix dropped: "1h 59m",
+    /// "15m", "now". Only the ear uses this — the card keeps the full phrase.
+    static func earCountdown(_ seconds: TimeInterval) -> String {
+        let full = ActivityCardView.relative(seconds)
+        return full.hasPrefix("in ") ? String(full.dropFirst(3)) : full
+    }
+
+    private var connectionDot: some View {
+        Circle()
+            .fill(accent)
+            .frame(width: 6, height: 6)
+    }
+
+    /// Whether the power card on show is charging. False for every other card.
+    private var isCharging: Bool {
+        if case .power(let payload) = activity.payload { payload.isCharging } else { false }
+    }
+
+    /// How the power ears follow charging starting or stopping under a card
+    /// that stays put. The ears' own swap timing, or a short ease without the
+    /// spring's travel when motion is reduced, the way the island opens.
+    private var chargeChange: Animation {
+        chargeChangeOverride ?? (reduceMotion ? .easeInOut(duration: 0.18) : Motion.earContent)
+    }
+
+    private var symbolName: String {
+        switch activity.payload {
+        case .nowPlaying(let payload): payload.isPlaying ? "music.note" : "pause.fill"
+        case .device(let payload): payload.symbolName
+        case .power(let payload): payload.isCharging ? "bolt.fill" : "battery.25"
+        case .focus(let payload): payload.symbolName
+        case .event: "calendar"
+        case .message(let payload): payload.symbolName
+        case .weather(let payload): payload.symbolName
+        case .timer(let payload):
+            payload.mode == .stopwatch ? "stopwatch" : (payload.isBreak ? "cup.and.saucer.fill" : "timer")
+        case .shelf: "tray.full.fill"
+        case .privacy(let payload):
+            payload.cameraActive ? "video.fill" : "mic.fill"
+        case .keyboard(let payload): payload.symbolName ?? "keyboard"
+        case .levels: "slider.horizontal.3"
+        case .notes: "note.text"
+        case .keepAwake: "cup.and.saucer"
+        }
+    }
+
+    private var accent: Color {
+        switch activity.payload {
+        case .nowPlaying(let payload): payload.accent.color
+        case .event(let payload): payload.accent.color
+        case .power(let payload): payload.percentage < 0.2 ? .red : .green
+        case .device(let payload): payload.isApple ? .cyan : .white
+        case .focus: .focusAccent
+        case .message: .orange
+        case .weather(let payload): payload.isDay ? .yellow : .indigo
+        case .timer(let payload): payload.isBreak ? .green : .orange
+        case .shelf: .teal
+        case .privacy(let payload):
+            payload.cameraActive ? .green : .orange
+        case .keyboard: .white
+        case .levels: .white
+        case .notes: .yellow
+        case .keepAwake: KeepAwakeCardView.tint
+        }
+    }
+}
+
+/// Today's day number on a white rounded tile — the Calendar app icon's
+/// language, sized for the ear. Live via a minute timeline, so a card left
+/// resting across midnight ticks over with the day.
+struct CalendarDayTile: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            Text("\(Calendar.current.component(.day, from: context.date))")
+                .font(.cardSmallFigure)
+                .monospacedDigit()
+                .foregroundStyle(.red)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5.5, style: .continuous)
+                        .fill(.white)
+                )
+        }
+    }
+}
+
+/// Battery as a ring, styled like Apple's own compact indicators: a faint track
+/// with a thin monochrome fill arc. White when healthy, red only when low — the
+/// colour, not the thickness, carries the warning, which reads far less toy-like
+/// than a fat green arc.
+/// The countdown as a dial: a ring that empties as the time runs out, with a
+/// hand at the arc's end.
+///
+/// This is the shape iOS gives a running timer in the Dynamic Island, and it
+/// earns the ear for the same reason it earns the island: a glyph says "this is
+/// a timer" once and then says it forever, while a dial says how much is left
+/// every time it is glanced at, and moves — which is what makes the notch read
+/// as something that is running rather than something that is displayed.
+///
+/// The hand is what separates it from an ordinary progress ring. It sits at the
+/// end of the remaining arc, so the two agree, and it is the part the eye
+/// catches at this size: at 15 points a ring losing 1/300th of its arc a second
+/// is still, and a hand sweeping the same distance is not.
+struct TimerDial: View {
+
+    /// How much time is left, from 1 at the start to 0 at the end.
+    let remaining: Double
+
+    let tint: Color
+
+    /// Never quite empty while it runs: a dial with no arc at all reads as
+    /// finished a few seconds before it is.
+    private var fraction: Double { min(max(remaining, 0.015), 1) }
+
+    var body: some View {
+        ZStack {
+            // The full round it has to run, dimmed — the same hue rather than a
+            // grey, which is what keeps the pair reading as one object.
+            Circle().stroke(tint.opacity(0.3), lineWidth: 2.5)
+
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                // From twelve o'clock, clockwise, like every clock face.
+                .rotationEffect(.degrees(-90))
+
+            // The hand, at the arc's end.
+            Capsule()
+                .fill(tint)
+                .frame(width: 1.8, height: 5.5)
+                // Grown from the centre outwards, then turned to the angle:
+                // anchoring at the bottom is what makes the rotation a sweep
+                // around the middle rather than a spin in place.
+                .offset(y: -2.75)
+                .rotationEffect(.degrees(360 * fraction))
+        }
+        .frame(width: 15, height: 15)
+        .animation(Motion.slow, value: fraction)
+    }
+}
+
+struct BatteryRing: View {
+    let level: Double
+
+    private var tint: Color {
+        level < 0.2 ? .red : .green
+    }
+
+    var body: some View {
+        // Activity-ring proportions: track and fill share one generous width,
+        // the track being the same hue dimmed — that equal-weight look is what
+        // reads as Apple, not a hairline arc.
+        ZStack {
+            Circle().stroke(tint.opacity(0.25), lineWidth: 3)
+            Circle()
+                .trim(from: 0, to: max(0.02, min(level, 1)))
+                .stroke(tint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(Motion.slow, value: level)
+        }
+        .frame(width: 16, height: 16)
+        .padding(2)
+    }
+}
+
+/// What the music ears wear: one song's tile and the colour its bars take.
+///
+/// A new song is published the moment its title is known, and its cover —
+/// with the colour taken from it — a fetch later: about 0.15 s cold, and over
+/// a second when the re-read behind the fetch goes through a script. Drawn as
+/// it came, that was three hard states for one song: the old cover, a grey
+/// note with grey bars, then the new cover. The ears carry no title, so the
+/// old cover may stand in for a while, and the change is one cross-fade.
+struct EarCover {
+    let player: ActivityID
+    let payload: NowPlayingPayload
+
+    /// How long the last cover may stand in for a song with none yet. Long
+    /// enough for a cover behind a scripted re-read (up to about 1.4 s);
+    /// short enough that a song with no cover of its own settles on the
+    /// placeholder soon after it starts.
+    static let hold: Duration = .milliseconds(1500)
+
+    struct Identity: Equatable {
+        let player: ActivityID
+        let song: String
+        let cover: String?
+        let hasCover: Bool
+        let accent: AccentColor
+    }
+
+    var song: String { payload.itemKey ?? "\(payload.title)\u{1F}\(payload.artist)" }
+    var hasCover: Bool { payload.artworkData != nil }
+
+    var identity: Identity {
+        Identity(player: player, song: song, cover: payload.artworkKey,
+                 hasCover: hasCover, accent: payload.accent)
+    }
+
+    /// Whether `worn` may stand in for `incoming`: the same player, another
+    /// song, and only while that song has no cover of its own. A song that
+    /// loses its cover, or a different player, gets the placeholder at once.
+    static func mayStandIn(_ worn: EarCover, for incoming: EarCover) -> Bool {
+        worn.player == incoming.player && worn.hasCover && !incoming.hasCover
+            && worn.song != incoming.song
+    }
+}
+
+/// The tiny album-art tile shown in the companion ear. Falls back to a tinted
+/// gradient with a note when the player exposes no artwork.
+struct NowPlayingThumbnail: View {
+    let payload: NowPlayingPayload
+    let accent: Color
+
+    @State private var decoded: (key: String, image: NSImage)?
+
+    private var image: NSImage? {
+        guard let data = payload.artworkData else { return nil }
+        // The byte count rides along in the fallback key: with no artworkKey,
+        // consecutive same-titled tracks (radio streams) otherwise kept
+        // serving the previous track's decoded cover.
+        let key = payload.artworkKey ?? "\(payload.title)-\(data.count)"
+        if let decoded, decoded.key == key { return decoded.image }
+        guard let img = NSImage(data: data) else { return nil }
+        Task { @MainActor in decoded = (key, img) }
+        return img
+    }
+
+    /// Which face is up: a cover by its key, or the placeholder.
+    private var faceKey: String? {
+        guard let data = payload.artworkData else { return nil }
+        return payload.artworkKey ?? "\(payload.title)-\(data.count)"
+    }
+
+    var body: some View {
+        ZStack {
+            // Each face keyed and faded, so a cover changing — a new song's
+            // arriving, or the placeholder taking over — is one cross-fade,
+            // the same with Reduce Motion.
+            if let image {
+                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
+                    .id(faceKey)
+                    .transition(Motion.coverSwap)
+            } else {
+                ZStack {
+                    // The ear's own black under the tint, so the placeholder
+                    // is opaque: a cover it fades in over must not show
+                    // through and then vanish at the end.
+                    Color.black
+                    LinearGradient(
+                        colors: [accent.opacity(0.6), accent.opacity(0.25)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "music.note")
+                        .font(.cardCaption)
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .transition(Motion.coverSwap)
+            }
+        }
+        .animation(Motion.medium, value: faceKey)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+        )
+    }
+}
+
+/// Six bars that bounce while something is playing.
+///
+/// Deliberately not driven by real audio: capturing system audio costs a TCC
+/// prompt for a decorative animation, which is the worst permission-to-value
+/// trade in the project. Driving it from `isPlaying` gives essentially the same
+/// perceived result.
+struct MiniWaveform: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.waveformAnimationsEnabled) private var animationsEnabled
+    let isAnimating: Bool
+    let tint: Color
+    /// Synthesized band levels from `LevelSimulator` — musical motion seeded
+    /// by the track, never a recording. Empty keeps the plain sine sway, which
+    /// is what the bars fall back to with the equalizer switched off.
+    var levels: () -> [Double] = { [] }
+
+    private static let phases: [Double] = [0.0, 0.4, 0.75, 0.2, 0.6, 0.95]
+
+    /// Height from a live band level, nil when no levels are available. The
+    /// ramp amplitude still applies so starting and stopping stays soft.
+    private func liveHeight(_ live: [Double], index: Int, amplitude: Double) -> CGFloat? {
+        guard live.count > index, amplitude > 0 else { return nil }
+        let level = live[index]
+        guard level.isFinite else { return nil }
+        return 3 + CGFloat(min(max(level, 0), 1) * amplitude) * 11
+    }
+
+    /// How long the bars take to rise or settle when playback starts or stops.
+    /// The card's equalizer uses the same ramp, so the two are one motif.
+    static let rampDuration: TimeInterval = 0.28
+
+    /// The six heights to draw.
+    ///
+    /// One shape throughout. Pausing used to drop the live levels and let the
+    /// fallback sine take over for the whole settle, so the bars did not sink
+    /// from where they were — they jumped to a different pattern first and
+    /// sank from *there*. Measured at a fixed clock: 4.42 pt immediately
+    /// before the pause, 13.49 pt on the first frame after it. Whatever was
+    /// last drawn is what settles now, and only the amplitude moves.
+    func heights(at date: Date, amplitude amount: Double) -> [CGFloat] {
+        let live = allowsMotion ? levels() : []
+        let bars = Self.phases.enumerated().map { index, phase in
+            liveHeight(live, index: index, amplitude: amount)
+                ?? height(at: date.timeIntervalSinceReferenceDate, phase: phase, amplitude: amount)
+        }
+        return bars
+    }
+
+    /// When `isAnimating` last changed, so the ramp can be computed from the
+    /// drawing clock.
+    @State private var changedAt: Date = .distantPast
+
+    /// The stop-ramp gets a finite budget, then the frame task is cancelled.
+    @State private var parked = true
+    @State private var parkTask: Task<Void, Never>?
+
+    private var allowsMotion: Bool { animationsEnabled && !reduceMotion }
+
+    var body: some View {
+        // Kept running through the ramp even once playback has stopped —
+        // stopping the clock the instant music stops is what made the bars
+        // snap flat. It parks itself as soon as the ramp is done, so an idle
+        // companion still costs nothing.
+        FixedRateClock(
+            isActive: allowsMotion && (isAnimating || !parked),
+            interval: .milliseconds(50)
+        ) { date in
+            let amount = allowsMotion ? amplitude(at: date) : 0
+            WaveformBars(
+                heights: heights(at: date, amplitude: amount),
+                tint: tint, barWidth: 2.5, spacing: 2, height: 14
+            )
+        }
+        .onChange(of: isAnimating) { _, playing in
+            changedAt = Date()
+            parkTask?.cancel()
+            parked = !allowsMotion
+            if playing {
+                parkTask = nil
+            } else if allowsMotion {
+                // Park just past the ramp's end; flipping the state is itself
+                // the render that lets `paused` finally read true.
+                parkTask = Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(Self.rampDuration + 0.05))
+                    guard !Task.isCancelled else { return }
+                    parked = true
+                }
+            }
+        }
+        .onChange(of: allowsMotion) { _, allowed in
+            if !allowed {
+                parkTask?.cancel()
+                parkTask = nil
+                parked = true
+            }
+        }
+        .onDisappear {
+            parkTask?.cancel()
+            parkTask = nil
+            parked = true
+        }
+    }
+
+    /// 0 when stopped, 1 while playing, eased across the ramp in between.
+    ///
+    /// Derived from the drawing clock rather than driven by `withAnimation`:
+    /// the heights are computed inside the closure, and state read there arrives
+    /// at its final value immediately rather than interpolated — so an animation
+    /// modifier could not smooth it.
+    private func amplitude(at date: Date) -> Double {
+        Self.rampAmplitude(since: changedAt, at: date, rising: isAnimating)
+    }
+
+    /// The ramp itself, shared with the card's equalizer.
+    static func rampAmplitude(since changedAt: Date, at date: Date, rising: Bool) -> Double {
+        let progress = min(max(date.timeIntervalSince(changedAt) / rampDuration, 0), 1)
+        // Smoothstep, so the bars ease away instead of sliding linearly to flat.
+        let eased = progress * progress * (3 - 2 * progress)
+        return rising ? eased : 1 - eased
+    }
+
+    private func height(at time: TimeInterval, phase: Double, amplitude: Double) -> CGFloat {
+        guard amplitude > 0 else { return 3 }
+        let wave = sin((time * 3.4) + phase * .pi * 2)
+        return 3 + CGFloat((wave + 1) / 2) * 11 * amplitude
+    }
+}
+
+/// One dot per activity, filled for the selected one. Only shown when there is
+/// more than one, so a single activity gets no chrome.
+public struct PageDots: View {
+
+    private let count: Int
+    private let selectedIndex: Int
+
+    public init(count: Int, selectedIndex: Int) {
+        self.count = count
+        self.selectedIndex = selectedIndex
+    }
+
+    public var body: some View {
+        if count > 1 {
+            HStack(spacing: 5) {
+                ForEach(0..<count, id: \.self) { index in
+                    Circle()
+                        .fill(.white.opacity(index == selectedIndex ? 0.85 : 0.25))
+                        .frame(width: 5, height: 5)
+                }
+            }
+        }
+    }
+}
+
+private struct ChargeChangeAnimationKey: EnvironmentKey {
+    static let defaultValue: Animation? = nil
+}
+
+extension EnvironmentValues {
+    /// Stands in for the power ears' timing when charging starts or stops.
+    /// Nil in the app. A test holds the change part-way with it, so what it
+    /// sees does not depend on when the run loop gets round to drawing.
+    var chargeChangeAnimation: Animation? {
+        get { self[ChargeChangeAnimationKey.self] }
+        set { self[ChargeChangeAnimationKey.self] = newValue }
+    }
+}

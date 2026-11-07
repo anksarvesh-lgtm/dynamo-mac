@@ -1,0 +1,492 @@
+import AppKit
+import AVFoundation
+import SwiftUI
+import Carbon.HIToolbox
+import Combine
+import Speech
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let linearExtensionID = "superisland.linear-mentions"
+    private static let linearOAuthStoreKey = "extensions.\(linearExtensionID).store.oauth"
+    private static let lastFmExtensionID = "superisland.lastfm-scrobbler"
+    private static let lastFmOAuthStoreKey = "extensions.\(lastFmExtensionID).store.oauth"
+    private var islandWindowController: IslandWindowController?
+    private var onboardingWindowController: OnboardingWindowController?
+    private var updateWindowController: UpdateWindowController?
+    private var updateCancellable: AnyCancellable?
+    private var statusItem: NSStatusItem?
+    private var menuBarDefaultsObserver: NSObjectProtocol?
+    private var powerStateObserver: NSObjectProtocol?
+    private var quitHotkeyMonitor: Any?
+    private var didBootstrapApp = false
+    private static var fallbackSettingsWindowController: NSWindowController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Analytics.start()
+        Analytics.track("app_launched", properties: [
+            "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "build": Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+        ])
+
+        registerURLHandler()
+        installQuitHotkeyMonitor()
+
+        // defaults write com.workview.SuperIsland "debug.alwaysShowOnboarding" -bool true
+        let shouldShowOnboarding = !AppState.shared.onboardingCompleted || AppState.shared.debugAlwaysShowOnboarding
+        if shouldShowOnboarding {
+            showOnboardingIfNeeded()
+        } else {
+            bootstrapApp()
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Ensure the agents-status Python subprocess exits with us so port 7823
+        // is released cleanly and no orphan is inherited by launchd.
+        AgentsStatusBridge.shared.stop()
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        AppState.shared.setAppActive(true)
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        AppState.shared.setAppActive(false)
+    }
+
+    deinit {
+        if let quitHotkeyMonitor {
+            NSEvent.removeMonitor(quitHotkeyMonitor)
+        }
+        if let powerStateObserver {
+            NotificationCenter.default.removeObserver(powerStateObserver)
+        }
+    }
+
+    private func bootstrapApp() {
+        guard !didBootstrapApp else { return }
+        didBootstrapApp = true
+        setupIslandWindow()
+        applyMenuBarVisibility()
+        observeMenuBarSetting()
+        observePowerState()
+        initializeManagers()
+    }
+
+    private func showOnboardingIfNeeded() {
+        applyMenuBarVisibility()
+        observeMenuBarSetting()
+
+        // LSUIElement apps can't reliably bring windows to the front.
+        // Temporarily become a regular app so the onboarding window appears.
+        NSApp.setActivationPolicy(.regular)
+
+        guard onboardingWindowController == nil else {
+            onboardingWindowController?.show()
+            return
+        }
+
+        onboardingWindowController = OnboardingWindowController { [weak self] in
+            self?.completeOnboarding()
+        } onOpenSettings: {
+            Self.showSettingsWindow()
+        }
+        onboardingWindowController?.show()
+    }
+
+    private func completeOnboarding() {
+        AppState.shared.onboardingCompleted = true
+        onboardingWindowController?.close()
+        onboardingWindowController = nil
+
+        // Revert to agent app (no dock icon) now that onboarding is done.
+        NSApp.setActivationPolicy(.accessory)
+        bootstrapApp()
+    }
+
+    // MARK: - Manager Initialization
+
+    private func initializeManagers() {
+        let state = AppState.shared
+
+        // Eagerly initialize all enabled managers so they start monitoring
+        if state.nowPlayingEnabled { _ = NowPlayingManager.shared }
+        if state.volumeHUDEnabled { _ = VolumeManager.shared }
+        if state.batteryEnabled { _ = BatteryManager.shared }
+        if state.connectivityEnabled {
+            _ = WiFiManager.shared
+            if PermissionsManager.shared.check(.bluetooth) {
+                _ = BluetoothManager.shared
+            }
+        }
+        if state.calendarEnabled, PermissionsManager.shared.check(.calendar) {
+            _ = CalendarManager.shared
+        }
+        if state.weatherEnabled {
+            _ = WeatherManager.shared
+        }
+        if state.notificationsEnabled {
+            _ = NotificationManager.shared
+        }
+        if state.teleprompterEnabled {
+            _ = TeleprompterManager.shared
+            let permissions = PermissionsManager.shared
+            if permissions.microphoneAuthorizationStatus() == .notDetermined ||
+                permissions.speechRecognitionAuthorizationStatus() == .notDetermined {
+                permissions.requestTeleprompterWordTrackingAccess()
+            }
+        }
+
+        let extensions = ExtensionManager.shared
+        extensions.discoverExtensions()
+        extensions.activateDiscoveredExtensions()
+        rebuildStatusMenu()
+        state.refreshEnergyState()
+
+        UpdateChecker.shared.checkIfDue()
+        observeUpdateState()
+    }
+
+    private func observeUpdateState() {
+        updateCancellable = UpdateChecker.shared.$checkState
+            .compactMap { state -> (String, URL, URL?)? in
+                if case .updateAvailable(let version, let releaseURL, let downloadURL) = state {
+                    return (version, releaseURL, downloadURL)
+                }
+                return nil
+            }
+            .first()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] version, releaseURL, downloadURL in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    self?.showUpdateDialog(version: version, releaseURL: releaseURL, downloadURL: downloadURL)
+                }
+            }
+    }
+
+    private func showUpdateDialog(version: String, releaseURL: URL, downloadURL: URL?) {
+        let controller = UpdateWindowController(version: version, releaseURL: releaseURL, downloadURL: downloadURL)
+        updateWindowController = controller
+        controller.show()
+    }
+
+    private func registerURLHandler() {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleIncomingURL(event:replyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    private func installQuitHotkeyMonitor() {
+        guard quitHotkeyMonitor == nil else { return }
+
+        quitHotkeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            QuitHotkeyGuard.shouldBlock(event) ? nil : event
+        }
+    }
+
+    @objc
+    private func handleIncomingURL(event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor?) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else {
+            return
+        }
+
+        handleOAuthCallback(url: url)
+    }
+
+    private func handleOAuthCallback(url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == "superisland",
+              components.host?.lowercased() == "auth",
+              components.path.lowercased() == "/callback" else {
+            return
+        }
+
+        var queryItems: [String: String] = [:]
+        for item in components.queryItems ?? [] {
+            queryItems[item.name.lowercased()] = item.value ?? ""
+        }
+
+        let provider = queryItems["provider"]?.lowercased() ?? ""
+        let routing: (extensionID: String, storeKey: String, label: String)?
+        switch provider {
+        case "linear":
+            routing = (Self.linearExtensionID, Self.linearOAuthStoreKey, "Linear")
+        case "lastfm":
+            routing = (Self.lastFmExtensionID, Self.lastFmOAuthStoreKey, "Last.fm")
+        default:
+            routing = nil
+        }
+        guard let routing else {
+            return
+        }
+
+        let accessToken = queryItems["access_token"]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !accessToken.isEmpty else {
+            ExtensionLogger.shared.log(routing.extensionID, .warning, "Received \(routing.label) OAuth callback without access token")
+            return
+        }
+
+        let expiresIn = Int(queryItems["expires_in"] ?? "") ?? 0
+        var payload: [String: Any] = [
+            "provider": provider,
+            "accessToken": accessToken,
+            "access_token": accessToken,
+            "tokenType": queryItems["token_type"] ?? "Bearer",
+            "token_type": queryItems["token_type"] ?? "Bearer",
+            "expiresIn": expiresIn,
+            "expires_in": expiresIn,
+            "scope": queryItems["scope"] ?? "",
+            "receivedAt": Int(Date().timeIntervalSince1970),
+            "callbackURL": url.absoluteString
+        ]
+
+        if let username = queryItems["username"], !username.isEmpty {
+            payload["username"] = username
+        }
+        if let name = queryItems["name"], !name.isEmpty, payload["username"] == nil {
+            payload["username"] = name
+        }
+
+        if provider == "lastfm" {
+            if let apiKey = queryItems["api_key"], !apiKey.isEmpty {
+                payload["apiKey"] = apiKey
+                payload["api_key"] = apiKey
+            }
+            if let apiSecret = queryItems["api_secret"], !apiSecret.isEmpty {
+                payload["apiSecret"] = apiSecret
+                payload["api_secret"] = apiSecret
+            }
+        }
+
+        UserDefaults.standard.set(payload as NSDictionary, forKey: routing.storeKey)
+        UserDefaults.standard.synchronize()
+
+        let extensions = ExtensionManager.shared
+        if extensions.runtimes[routing.extensionID] == nil {
+            extensions.activate(extensionID: routing.extensionID)
+        }
+        extensions.scheduleImmediateRefresh(extensionID: routing.extensionID)
+        ExtensionLogger.shared.log(routing.extensionID, .info, "Stored \(routing.label) OAuth token from callback")
+    }
+
+    // MARK: - Island Window
+
+    private func setupIslandWindow() {
+        islandWindowController = IslandWindowController()
+        islandWindowController?.showIsland()
+    }
+
+    // MARK: - Menu Bar
+
+    private func applyMenuBarVisibility() {
+        if AppState.shared.showMenuBarIcon {
+            installStatusItem()
+        } else {
+            removeStatusItem()
+        }
+    }
+
+    private func installStatusItem() {
+        guard statusItem == nil else { return }
+
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+
+        if let button = item.button {
+            button.image = NSImage(systemSymbolName: Constants.menuBarIconName, accessibilityDescription: "SuperIsland")
+        }
+
+        item.menu = buildStatusMenu()
+        statusItem = item
+    }
+
+    private func rebuildStatusMenu() {
+        guard let item = statusItem else { return }
+        item.menu = buildStatusMenu()
+    }
+
+    private func buildStatusMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(makeMenuItem(title: "Now Playing", action: #selector(showNowPlaying)))
+        menu.addItem(makeMenuItem(title: "Battery", action: #selector(showBattery)))
+        menu.addItem(NSMenuItem.separator())
+
+        let modulesItem = NSMenuItem(title: "Modules", action: nil, keyEquivalent: "")
+        let modulesMenu = NSMenu()
+
+        for module in ModuleType.allCases {
+            let moduleItem = NSMenuItem(title: module.displayName, action: #selector(toggleModule(_:)), keyEquivalent: "")
+            moduleItem.target = self
+            moduleItem.representedObject = module.rawValue
+            moduleItem.state = AppState.shared.isModuleEnabled(module) ? .on : .off
+            moduleItem.image = NSImage(systemSymbolName: module.iconName, accessibilityDescription: module.displayName)
+            modulesMenu.addItem(moduleItem)
+        }
+
+        let extensionModules = ExtensionManager.shared.installed
+            .filter { !$0.capabilities.notificationFeed }
+
+        if !extensionModules.isEmpty {
+            modulesMenu.addItem(.separator())
+            for manifest in extensionModules {
+                let extensionItem = NSMenuItem(title: manifest.name, action: #selector(toggleExtension(_:)), keyEquivalent: "")
+                extensionItem.target = self
+                extensionItem.representedObject = manifest.id
+                extensionItem.state = ExtensionManager.shared.runtimes[manifest.id] != nil ? .on : .off
+                extensionItem.image = menuIconImage(for: manifest)
+                modulesMenu.addItem(extensionItem)
+            }
+        }
+
+        modulesItem.submenu = modulesMenu
+        menu.addItem(modulesItem)
+
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(makeMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(makeMenuItem(title: "Quit SuperIsland", action: #selector(quitApp), keyEquivalent: "q"))
+        return menu
+    }
+
+    @MainActor
+    private func menuIconImage(for manifest: ExtensionManifest) -> NSImage? {
+        guard let image = manifest.iconImage?.copy() as? NSImage else { return nil }
+        image.isTemplate = false
+        image.size = NSSize(width: 16, height: 16)
+        return image
+    }
+
+    private func removeStatusItem() {
+        guard let item = statusItem else { return }
+        NSStatusBar.system.removeStatusItem(item)
+        statusItem = nil
+    }
+
+    private func observeMenuBarSetting() {
+        guard menuBarDefaultsObserver == nil else { return }
+        menuBarDefaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.applyMenuBarVisibility()
+                ModuleRefreshScheduler.shared.refreshScheduling()
+                ExtensionManager.shared.syncRuntimeEnergyState()
+            }
+        }
+    }
+
+    private func observePowerState() {
+        guard powerStateObserver == nil else { return }
+        powerStateObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name.NSProcessInfoPowerStateDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                AppState.shared.refreshEnergyState()
+            }
+        }
+    }
+
+    private func makeMenuItem(title: String, action: Selector, keyEquivalent: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        item.target = self
+        return item
+    }
+
+    // MARK: - Menu Actions
+
+    @objc private func showNowPlaying() {
+        AppState.shared.showHUD(module: .nowPlaying, autoDismiss: false)
+    }
+
+    @objc private func showBattery() {
+        AppState.shared.showHUD(module: .battery, autoDismiss: false)
+    }
+
+    @objc private func toggleModule(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let module = ModuleType(rawValue: rawValue) else { return }
+
+        let newState = !AppState.shared.isModuleEnabled(module)
+        switch module {
+        case .nowPlaying: AppState.shared.nowPlayingEnabled = newState
+        case .volumeHUD: AppState.shared.volumeHUDEnabled = newState
+        case .battery: AppState.shared.batteryEnabled = newState
+        case .shelf: AppState.shared.shelfEnabled = newState
+        case .connectivity: AppState.shared.connectivityEnabled = newState
+        case .calendar: AppState.shared.calendarEnabled = newState
+        case .weather: AppState.shared.weatherEnabled = newState
+        case .notifications: AppState.shared.notificationsEnabled = newState
+        case .teleprompter:
+            AppState.shared.teleprompterEnabled = newState
+            if newState {
+                PermissionsManager.shared.requestTeleprompterWordTrackingAccess()
+            }
+        }
+        sender.state = newState ? .on : .off
+        rebuildStatusMenu()
+    }
+
+    @objc private func toggleExtension(_ sender: NSMenuItem) {
+        guard let extensionID = sender.representedObject as? String else { return }
+
+        if ExtensionManager.shared.runtimes[extensionID] != nil {
+            ExtensionManager.shared.disableByUser(extensionID: extensionID)
+        } else {
+            ExtensionManager.shared.activate(extensionID: extensionID)
+        }
+
+        sender.state = ExtensionManager.shared.runtimes[extensionID] != nil ? .on : .off
+        rebuildStatusMenu()
+    }
+
+    @objc private func openSettings() {
+        // NSStatusItem menu actions run while the menu is still tracking.
+        // Defer window presentation to the next runloop tick so it reliably appears.
+        DispatchQueue.main.async {
+            Self.showSettingsWindow()
+        }
+    }
+
+    static func showSettingsWindow() {
+        // Avoid opening the SwiftUI Settings scene via AppKit selectors in menu-bar mode.
+        // macOS may reject those calls with a "use SettingsLink" warning.
+        showFallbackSettingsWindow()
+    }
+
+    private static func showFallbackSettingsWindow() {
+        if let window = fallbackSettingsWindowController?.window {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let rootView = SettingsView()
+            .environmentObject(AppState.shared)
+        let hostingController = NSHostingController(rootView: rootView)
+
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "SuperIsland Settings"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 960, height: 680))
+        window.minSize = NSSize(width: 800, height: 560)
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        fallbackSettingsWindowController = NSWindowController(window: window)
+        fallbackSettingsWindowController?.showWindow(nil)
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
+    }
+}

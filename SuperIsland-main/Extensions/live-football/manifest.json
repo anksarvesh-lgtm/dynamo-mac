@@ -1,0 +1,25 @@
+{
+  "id": "superisland.live-football",
+  "name": "Live Football",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "main": "index.js",
+  "author": {
+    "name": "Shobhit"
+  },
+  "description": "Live World Cup 2026 scores with country flags, goal celebrations, and the full fixture list.",
+  "icon": "icon.svg",
+  "license": "MIT",
+  "categories": ["sports"],
+  "permissions": ["storage", "network", "notifications"],
+  "capabilities": {
+    "compact": true,
+    "expanded": true,
+    "fullExpanded": true,
+    "minimalCompact": true,
+    "backgroundRefresh": true,
+    "settings": true
+  },
+  "refreshInterval": 1.0,
+  "activationTriggers": ["manual", "timer"]
+}
