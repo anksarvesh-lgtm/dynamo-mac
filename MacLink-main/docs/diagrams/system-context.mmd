@@ -1,0 +1,77 @@
+flowchart TB
+
+    subgraph ANDROID["ANDROID COMPANION APPLICATION"]
+        A1["Android Touchscreen"]
+        A2["Touch Input Capture"]
+        A3["Multi-Touch Recognition"]
+        A4["Gesture State Machine"]
+        A5["Local Haptic Engine"]
+        A6["Input Event Processor"]
+        A7["Network Transport"]
+        A8["Android Settings & Storage"]
+        A9["Connection Manager"]
+
+        A1 --> A2
+        A2 --> A3
+        A3 --> A4
+        A4 --> A5
+        A4 --> A6
+        A6 --> A7
+        A8 --> A3
+        A8 --> A5
+        A9 --> A7
+    end
+
+    subgraph NETWORK["SECURE LOCAL NETWORK"]
+        N1["Bonjour / mDNS Discovery"]
+        N2["Device Pairing"]
+        N3["Authenticated TLS Session"]
+        N4["WebSocket Event Transport"]
+        N5["Heartbeat & Recovery"]
+    end
+
+    subgraph MAC["MAC COMPANION APPLICATION"]
+        M1["Network Receiver"]
+        M2["Session Authentication"]
+        M3["Event Validator"]
+        M4["Input Event Queue"]
+        M5["Remote Input Controller"]
+        M6["Core Graphics CGEvent"]
+        M7["macOS Input System"]
+        
+        M8["Native Trackpad Monitor"]
+        M9["Magic Mouse Monitor"]
+        M10["AppKit Gesture Engine"]
+        M11["Force Touch & Haptic Controller"]
+        M12["Global Input Monitor"]
+        
+        M13["Gesture Action Router"]
+        M14["Settings & Configuration"]
+        M15["Live Diagnostics"]
+        
+        M1 --> M2
+        M2 --> M3
+        M3 --> M4
+        M4 --> M5
+        M5 --> M6
+        M6 --> M7
+        
+        M8 --> M10
+        M9 --> M10
+        M10 --> M13
+        M11 --> M13
+        M12 --> M13
+        M14 --> M13
+        M13 --> M15
+    end
+
+    A7 <-->|"Encrypted WebSocket"| N4
+    N1 --> N2 --> N3 --> N4
+    N4 --> M1
+    N5 -.-> A9
+    N5 -.-> M1
+
+    style ANDROID fill:#e9f4ff,stroke:#4389c7,color:#142b42
+    style NETWORK fill:#f3f0ff,stroke:#9272c9,color:#30204d
+    style MAC fill:#eaf5ec,stroke:#52936b,color:#173a23
+

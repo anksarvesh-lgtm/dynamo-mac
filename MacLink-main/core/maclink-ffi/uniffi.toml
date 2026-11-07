@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MPL-2.0
+[bindings.kotlin]
+package_name = "app.maclink.core"
+cdylib_name = "maclink_ffi"

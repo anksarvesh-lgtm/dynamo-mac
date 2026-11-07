@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  QT_VERSION: "6.12.0"
+  CORE_CRATES: -p maclink-protocol -p maclink-core -p maclink-ffi -p maclink-cli -p xtask
+
+jobs:
+  core:
+    name: Core (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --locked $CORE_CRATES --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked $CORE_CRATES
+
+  desktop-macos:
+    name: macOS Desktop App
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          cache: true
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git
+      - name: Clippy
+        run: cargo clippy --locked -p maclink-desktop --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked -p maclink-desktop
+      - name: Release build
+        run: cargo build --locked --release -p maclink-desktop
+      - name: Bundle MacLink.app
+        run: ./desktop/packaging/macos/build-app.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: maclink-macos-arm64
+          path: dist/*.zip
+          retention-days: 14
+
+  android:
+    name: Android App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain and the Android targets
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-linux-android x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "16111833"
+          packages: "platforms;android-37.0 ndk;30.0.16248370"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Unit tests and debug build
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - uses: actions/upload-artifact@v7
+        with:
+          name: maclink-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  policy:
+    name: Licenses and dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Dependency policy (licenses, advisories, sources)
+        uses: EmbarkStudios/cargo-deny-action@v2

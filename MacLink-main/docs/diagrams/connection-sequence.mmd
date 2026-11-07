@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+
+    participant Android
+    participant Discovery as Bonjour / NSD
+    participant Mac
+    participant Pairing as Pairing Manager
+    participant Security as Authentication
+    participant Session as WebSocket Session
+
+    Android->>Discovery: Discover available Macs
+    Discovery-->>Android: Return advertised devices
+    Android->>Mac: Request pairing
+    Mac->>Pairing: Generate pairing challenge
+    Pairing-->>Android: QR / one-time code
+    Android->>Pairing: Confirm pairing
+    Pairing->>Security: Validate credentials
+    Security->>Session: Establish secure session
+    Session-->>Android: Connected
+    Session-->>Mac: Authenticated device
+
+    loop Active session
+        Android->>Session: Input event / heartbeat
+        Session-->>Mac: Validated input
+        Mac-->>Session: Acknowledgement / status
+    end
+
+    alt Connection interruption
+        Session-->>Android: Connection failure
+        Android->>Discovery: Attempt rediscovery
+        Discovery-->>Android: Mac available
+        Android->>Session: Reconnect and authenticate
+    else User disconnects
+        Android->>Session: Disconnect
+        Session->>Mac: Release all held inputs
+        Session-->>Android: Session closed
+    end
+

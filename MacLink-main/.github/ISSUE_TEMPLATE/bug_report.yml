@@ -1,0 +1,47 @@
+name: Bug report
+description: Something doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. MacLink is in beta development. Please check
+        existing issues first. Security issues go through SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and hardware
+      placeholder: macOS 15.0 Sequoia, Apple Silicon (M1/M2/M3/M4) or Intel
+  - type: input
+    id: phone
+    attributes:
+      label: Phone model and Android version
+      placeholder: Pixel 9, Android 15/16
+  - type: input
+    id: versions
+    attributes:
+      label: MacLink versions
+      description: Mac app and Android app version.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        Mac app logs can be found in ~/Library/Logs/MacLink. Please redact any personal info.
+      render: text

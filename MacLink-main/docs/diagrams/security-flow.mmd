@@ -1,0 +1,20 @@
+flowchart TD
+
+    A["Android Pairing Request"] --> B["Mac Pairing Manager"]
+    B --> C["Pairing Challenge"]
+    C --> D["User Confirmation"]
+    D --> E["Credential Exchange"]
+    E --> F["Authenticated Session"]
+
+    F --> G["Encrypted WebSocket"]
+    G --> H["Session Validation"]
+    H --> I["Sequence Validation"]
+    I --> J["Message Schema Validation"]
+    J --> K["Event Type Allowlist"]
+    K --> L["Remote Input Execution"]
+
+    H --> X["Reject Invalid Session"]
+    I --> Y["Reject Replay"]
+    J --> Z["Reject Malformed Message"]
+    K --> W["Reject Unsupported Commands"]
+

@@ -1,0 +1,5 @@
+{
+  "summary":  "Full native build plan for MacLink desktop (macOS Swift/Rust/CXX-Qt/Qt6) and Android companion (Kotlin/Compose/Rust NDK/UniFFI) with exact commands, architecture breakdown, signing, and packaging workflows.",
+  "updatedAt":  "2026-11-01T17:07:47.001471Z",
+  "userFacing":  true
+}

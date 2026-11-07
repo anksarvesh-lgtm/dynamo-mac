@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The languages the app offers, for Android 13's per-app language (the system's
+  App languages screen) and Settings > Appearance > Language (AppLanguage.languages,
+  which must match). Only complete translations go here: a language still being
+  translated (on Weblate, say) stays out until it's done. LocalesTest checks both.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="de" />
+    <locale android:name="zh-CN" />
+</locale-config>

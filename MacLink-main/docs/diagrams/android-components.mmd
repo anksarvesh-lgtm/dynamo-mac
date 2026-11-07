@@ -1,0 +1,107 @@
+flowchart TB
+
+    subgraph PRESENTATION["PRESENTATION LAYER — JETPACK COMPOSE"]
+        UI1["Dashboard"]
+        UI2["Full-screen Touchpad"]
+        UI3["Device Discovery"]
+        UI4["Gesture Settings"]
+        UI5["Haptic Settings"]
+        UI6["Diagnostics"]
+    end
+
+    subgraph INPUT["TOUCH INPUT LAYER"]
+        I1["MotionEvent Capture"]
+        I2["Pointer ID Manager"]
+        I3["Coordinate Normalizer"]
+        I4["Touch History"]
+        I5["Touch Lifecycle Manager"]
+    end
+
+    subgraph GESTURE["GESTURE RECOGNITION LAYER"]
+        G1["Single Finger Recognizer"]
+        G2["Two Finger Recognizer"]
+        G3["Three Finger Recognizer"]
+        G4["Four Finger Recognizer"]
+        G5["Swipe Recognizer"]
+        G6["Pinch Recognizer"]
+        G7["Rotation Recognizer"]
+        G8["Drag Recognizer"]
+        G9["Gesture Classifier"]
+    end
+
+    subgraph HAPTICS["LOCAL HAPTIC ENGINE"]
+        H1["Haptic Event Router"]
+        H2["Haptic Profile Manager"]
+        H3["Device Capability Detector"]
+        H4["Vibration Effect Controller"]
+        H5["Haptic Rate Limiter"]
+        H6["Android Vibrator API"]
+    end
+
+    subgraph NETWORK["NETWORK ENGINE"]
+        N1["Input Event Serializer"]
+        N2["Movement Coalescer"]
+        N3["WebSocket Client"]
+        N4["Connection Manager"]
+        N5["Session Authentication"]
+        N6["Retry & Recovery"]
+    end
+
+    subgraph DATA["DATA AND CONFIGURATION"]
+        D1["DataStore"]
+        D2["Pairing Information"]
+        D3["Gesture Mappings"]
+        D4["Sensitivity Settings"]
+        D5["Haptic Profiles"]
+    end
+
+    subgraph SYSTEM["ANDROID SYSTEM"]
+        S1["Android Touchscreen"]
+        S2["Vibration Hardware"]
+        S3["Local Wi-Fi"]
+    end
+
+    UI2 --> I1
+    S1 --> I1
+    I1 --> I2 --> I3 --> I4 --> I5
+
+    I5 --> G1
+    I5 --> G2
+    I5 --> G3
+    I5 --> G4
+
+    G1 --> G9
+    G2 --> G9
+    G3 --> G9
+    G4 --> G9
+    G5 --> G9
+    G6 --> G9
+    G7 --> G9
+    G8 --> G9
+
+    G9 --> H1
+    G9 --> N1
+
+    H1 --> H2 --> H3 --> H4 --> H5 --> H6
+    H6 --> S2
+
+    N1 --> N2 --> N3
+    N3 --> N4 --> N5
+    N5 --> N6
+    N3 --> S3
+
+    D1 --> D2
+    D1 --> D3
+    D1 --> D4
+    D1 --> D5
+
+    D3 -.-> G9
+    D4 -.-> I3
+    D5 -.-> H2
+
+    UI1 --> N4
+    UI3 --> N4
+    UI4 --> D1
+    UI5 --> D1
+    UI6 --> N4
+

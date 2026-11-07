@@ -1,0 +1,1383 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="app_name">MacLink</string>
+
+    <!-- Pairing -->
+    <string name="pair_title">Mit deinem PC koppeln</string>
+    <string name="pair_show_title">Smartphone oder Tablet koppeln</string>
+    <string name="pair_show_hint">Öffne MacLink auf deinem anderen Smartphone oder Tablet, tippe auf „Koppeln“ und scanne diesen Code.</string>
+    <string name="pair_show_qr_desc">Kopplungscode für ein anderes Smartphone oder Tablet</string>
+    <string name="action_show_code">Stattdessen Smartphone oder Tablet koppeln</string>
+    <string name="pair_scan_hint">Öffne MacLink auf deinem PC und richte die Kamera auf den angezeigten Code. Ein anderes Smartphone oder Tablet zeigt seinen Code unter „Smartphone oder Tablet koppeln“.</string>
+    <string name="pair_nearby_title">In der Nähe koppeln</string>
+    <string name="pair_nearby_hint">Öffne MacLink auf deinem PC und lass den Kopplungsbildschirm geöffnet. Er erscheint dann hier.</string>
+    <string name="pair_looking">Suche nach PCs…</string>
+    <string name="pair_joining">Koppeln…</string>
+    <string name="pair_connecting">%1$s wird verbunden…</string>
+    <string name="pair_waiting">Warte auf %1$s…</string>
+    <string name="pair_check_code">Code prüfen</string>
+    <string name="pair_compare_hint">Stelle sicher, dass %1$s denselben Code anzeigt. Das verhindert, dass sich jemand dazwischenschaltet.</string>
+    <string name="pair_done_title">Gekoppelt</string>
+    <string name="pair_done">%1$s ist mit diesem Gerät gekoppelt.</string>
+    <string name="pair_failed_title">Kopplung fehlgeschlagen</string>
+    <string name="pair_failed_rejected">Die Codes stimmten nicht überein, daher wurde nichts gekoppelt.</string>
+    <string name="pair_failed_declined">Die Kopplung wurde auf einem der Geräte abgelehnt.</string>
+    <string name="pair_failed_expired">Der Code ist abgelaufen. Lass dir auf deinem PC einen neuen anzeigen.</string>
+    <string name="pair_failed_unreachable">Der PC konnte nicht erreicht werden. Stelle sicher, dass beide Geräte im selben Netzwerk sind.</string>
+    <string name="pair_failed_other">Das ist kein MacLink-Kopplungscode oder etwas ist schiefgelaufen.</string>
+    <string name="your_pc">dein PC</string>
+    <string name="camera_permission_needed">MacLink benötigt die Kamera, um den Kopplungscode zu scannen. Es wird nichts aufgenommen.</string>
+
+    <!-- Home -->
+    <string name="home_title">Startseite</string>
+    <string name="link_online">Verbunden</string>
+    <string name="link_online_rtt">Verbunden · %1$d ms</string>
+    <string name="link_usb">Über USB</string>
+    <string name="link_usb_rtt">Über USB · %1$d ms</string>
+    <string name="link_away">Unterwegs verbunden</string>
+    <string name="link_connecting">Wird verbunden…</string>
+    <string name="link_offline_seen">Offline · zuletzt gesehen %1$s</string>
+    <string name="link_offline_now">Offline · gerade eben gesehen</string>
+    <string name="link_never">Noch nicht verbunden</string>
+    <string name="battery_level">%1$d%%</string>
+    <string name="battery_charging">%1$d%% · lädt</string>
+    <string name="ringing_title">%1$s lässt dein Gerät klingeln</string>
+    <string name="ringing_title_unknown">Dein PC lässt dein Gerät klingeln</string>
+    <string name="connected">Verbunden</string>
+    <string name="not_connected">Nicht verbunden</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_mode">Modus</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_more">Mehr</string>
+    <string name="settings_dynamic_color">Farben aus Hintergrundbild</string>
+    <string name="settings_dynamic_color_hint">Farben deines Hintergrundbilds verwenden.</string>
+    <string name="settings_devices">PCs</string>
+    <string name="settings_about">Info</string>
+    <string name="settings_notifications">Benachrichtigungen</string>
+    <string name="notifications_title">Benachrichtigungen auf deinem PC anzeigen</string>
+    <string name="notifications_on">Ein: Benachrichtigungen erscheinen auf deinen gekoppelten PCs, wo du darauf antworten und sie verwerfen kannst.</string>
+    <string name="notifications_off">MacLink benötigt Benachrichtigungszugriff, um die Benachrichtigungen dieses Geräts auf deinem PC anzuzeigen.</string>
+    <string name="notifications_restricted">Schalter ausgegraut? Öffne „App-Info“, tippe auf ⋮, wähle „Eingeschränkte Einstellungen zulassen“ und versuche es erneut.</string>
+    <string name="action_allow">Erlauben</string>
+    <string name="clip_share_label">An PC senden</string>
+    <string name="channel_transfers">Dateiübertragungen</string>
+    <string name="channel_received">Empfangene Dateien</string>
+    <string name="channel_pc_media">Medien auf deinem PC</string>
+    <string name="media_on">%1$s auf %2$s</string>
+    <string name="media_play">Wiedergabe</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_next">Nächster Titel</string>
+    <string name="media_previous">Vorheriger Titel</string>
+    <string name="action_send_files">Dateien senden</string>
+    <string name="action_send_folder">Ordner senden</string>
+    <string name="input_service_label">MacLink: Steuerung vom PC</string>
+    <string name="input_service_description">Ermöglicht es Maus und Tastatur deines PCs, auf diesem Gerät zu tippen, zu wischen und zu schreiben, während du den Bildschirm mit einem gekoppelten PC teilst. Es werden keine anderen Inhalte gelesen.</string>
+    <string name="settings_control">Steuerung vom PC</string>
+    <string name="control_title">Maus und Tastatur deines PCs verwenden</string>
+    <string name="control_on">Ein: Solange dein Bildschirm auf deinem PC angezeigt wird, kannst du von dort aus tippen, wischen und schreiben.</string>
+    <string name="control_off">Tippe, wische und schreibe von deinem PC aus, während er diesen Bildschirm anzeigt. Aktiviere MacLink in den Bedienungshilfen.</string>
+    <string name="dnd_access_title">Bitte nicht stören und Lautlos-Modus</string>
+    <string name="dnd_access_on">Ein: Dein PC kann „Bitte nicht stören“ ein- oder ausschalten und den Klingelton lautlos stellen.</string>
+    <string name="dnd_access_off">Erlaube deinem PC, „Bitte nicht stören“ ein- oder auszuschalten und den Klingelton lautlos zu stellen.</string>
+    <string name="write_settings_title">Bildschirmhelligkeit</string>
+    <string name="write_settings_on">Ein: Dein PC kann die Bildschirmhelligkeit dieses Geräts anpassen.</string>
+    <string name="write_settings_off">Erlaube deinem PC, die Bildschirmhelligkeit dieses Geräts anzupassen.</string>
+    <string name="local_network_title">Deinen PC in diesem Netzwerk erreichen</string>
+    <string name="local_network_text">Android fragt nach, bevor eine App mit Geräten in deinem Netzwerk kommuniziert. MacLink benötigt dies, um deinen PC zu erreichen.</string>
+    <string name="channel_elevated">Einrichtung für Kabelloses Debugging</string>
+    <string name="elevated_title">Echte Touch- und Tasteneingabe (Kabelloses Debugging)</string>
+    <string name="elevated_not_set_up">Echtzeit-Toucheingabe, alle Tasten sowie Stummschalten, Halten und Ziffernblock bei Anrufen direkt vom PC. Nutzt das Android-eigene Kabellose Debugging.</string>
+    <string name="elevated_waiting">Warte auf Kabelloses Debugging. Aktiviere es in den Entwickleroptionen.</string>
+    <string name="elevated_starting">Wird gestartet…</string>
+    <string name="elevated_running">Ein: Maus und Tastatur deines PCs funktionieren wie ein echter Touchscreen und eine echte Tastatur.</string>
+    <string name="elevated_failed">Start fehlgeschlagen. Prüfe, ob Kabelloses Debugging aktiviert ist, und versuche es erneut.</string>
+    <string name="elevated_not_paired">Das Gerät hat die Kopplung mit MacLink vergessen. Richte sie erneut ein.</string>
+    <string name="elevated_set_up">Einrichten</string>
+    <string name="elevated_use_root">Root verwenden</string>
+    <string name="elevated_root_hint">Dieses Gerät ist gerootet, daher kann der erweiterte Modus stattdessen über Root starten: ohne Kopplung, und er ist nach einem Neustart oder ohne WLAN von selbst wieder da. Er erhält dieselben Berechtigungen wie beim Kabellosen Debugging.</string>
+    <string name="elevated_running_root">Ein (über Root): Maus und Tastatur deines PCs funktionieren wie ein echter Touchscreen und eine echte Tastatur.</string>
+    <string name="elevated_root_failed">Root-Zugriff wurde nicht gewährt oder dein Root-Manager kann den MacLink-Helfer nicht als Shell-Benutzer starten. Du kannst ihn stattdessen über Kabelloses Debugging einrichten.</string>
+    <string name="elevated_turn_off">Ausschalten</string>
+    <string name="elevated_try_again">Erneut versuchen</string>
+    <string name="elevated_steps_title">Kabelloses Debugging einrichten</string>
+    <string name="elevated_steps">Einmalcodes in Benachrichtigungen, die Android als vertraulich ausblendet, erreichen damit ebenfalls deinen PC.\n\n1. Entwickleroptionen aktivieren: Tippe in „Einstellungen › Über das Telefon“ 7-mal auf „Build-Nummer“.\n2. Aktiviere in den Entwickleroptionen „Kabelloses Debugging“ (im WLAN), öffne es und tippe auf „Gerät mit Kopplungscode koppeln“.\n3. Gib den 6-stelligen Code in die Benachrichtigung von MacLink ein, ohne den Code-Dialog zu schließen.</string>
+    <string name="elevated_open_developer">Entwickleroptionen öffnen</string>
+    <string name="elevated_pair_title">MacLink mit Kabellosem Debugging koppeln</string>
+    <string name="elevated_pair_text">Tippe in „Kabelloses Debugging“ auf „Gerät mit Kopplungscode koppeln“ und gib den Code anschließend hier ein.</string>
+    <string name="elevated_pair_action">Code eingeben</string>
+    <string name="elevated_pair_hint">6-stelliger Kopplungscode</string>
+    <string name="elevated_pairing">Koppeln…</string>
+    <string name="elevated_no_dialog">Der Kopplungscode wird nicht angezeigt. Tippe in „Kabelloses Debugging“ auf „Gerät mit Kopplungscode koppeln“ und gib ihn dann hier ein.</string>
+    <string name="elevated_wrong_code">Dieser Code hat nicht funktioniert. Prüfe ihn und gib ihn erneut ein.</string>
+    <string name="channel_mirroring">Bildschirmspiegelung</string>
+    <string name="channel_mirror_requests">Anfragen zur Bildschirmspiegelung</string>
+    <string name="mirror_request_title">%1$s möchte deinen Bildschirm sehen</string>
+    <string name="mirror_request_text">Tippe zum Teilen. Du kannst die Übertragung jederzeit beenden.</string>
+    <string name="mirror_sharing">Bildschirm wird mit %1$s geteilt</string>
+    <string name="action_stop">Beenden</string>
+    <plurals name="app_windows_title">
+        <item quantity="one">%1$d App ist in einem Fenster auf einem PC geöffnet</item>
+        <item quantity="other">%1$d Apps sind in Fenstern auf einem PC geöffnet</item>
+    </plurals>
+    <string name="app_windows_text">Angezeigt auf %1$s. Sie laufen hier unabhängig neben deinem Gerätebildschirm.</string>
+    <string name="action_close_all">Alle schließen</string>
+    <string name="settings_calls_and_contacts">Anrufe, Kontakte und Nachrichten</string>
+    <string name="sms_title">SMS am PC schreiben</string>
+    <string name="sms_on">Ein: Unterhaltungen erscheinen auf deinem PC, wo du SMS lesen und senden kannst.</string>
+    <string name="sms_off">Lies und sende SMS an deinem PC. Benötigt Zugriff auf Nachrichten und Kontakte.</string>
+    <string name="calls_title">Anrufe auf deinem PC</string>
+    <string name="calls_on">Ein: Dein PC zeigt eingehende und letzte Anrufe an und kann Anrufe starten oder annehmen.</string>
+    <string name="calls_off">Sieh am PC, wer anruft, und starte oder nimm Anrufe an. Der Ton bleibt auf dem Gerät. Benötigt Zugriff auf Telefon, Anrufliste und Kontakte.</string>
+    <string name="contacts_title">Kontakte auf deinem PC</string>
+    <string name="contacts_on">Ein: Deine Kontakte stehen in „Anrufe“ und „Nachrichten“ auf deinem PC zur Verfügung.</string>
+    <string name="contacts_off">Durchsuche Kontakte und rufe vom PC aus an oder schreibe Nachrichten. Benötigt Zugriff auf Kontakte.</string>
+    <string name="settings_photos">Fotos und Videos</string>
+    <string name="photos_title">Fotos und Videos auf deinem PC</string>
+    <string name="photos_on">Ein: Deine Fotos, Screenshots und Videos sind auf deinem PC verfügbar.</string>
+    <string name="photos_partial">Nur ausgewählte Fotos sind freigegeben. Erlaube alle, um deine gesamte Galerie am PC zu durchsuchen.</string>
+    <string name="photos_off">Durchsuche Fotos und Videos auf deinem PC und erhalte neue Screenshots sofort. Benötigt Zugriff auf Fotos und Videos.</string>
+    <string name="action_select_photos">Alle erlauben</string>
+    <string name="transfer_too_many">Dieser Ordner enthält zu viele Dateien, um sie auf einmal zu senden.</string>
+    <string name="transfers_title">Übertragungen</string>
+    <string name="transfer_sending">Sende an %1$s</string>
+    <string name="transfer_receiving">Empfange von %1$s</string>
+    <string name="transfer_waiting">Warte auf %1$s</string>
+    <string name="transfer_pause">Pause</string>
+    <string name="transfer_resume">Fortsetzen</string>
+    <string name="transfer_paused_progress">Pausiert · %1$s / %2$s</string>
+    <string name="transfer_received_from">Von %1$s · in Download/MacLink</string>
+    <string name="transfer_sent_to">Gesendet an %1$s</string>
+    <string name="transfer_cancelled">Abgebrochen</string>
+    <string name="transfer_denied">%1$s nimmt keine Dateien von diesem Gerät an.</string>
+    <string name="transfer_unreachable">%1$s konnte nicht erreicht werden.</string>
+    <string name="transfer_no_space">Nicht genügend Speicherplatz vorhanden.</string>
+    <string name="transfer_failed_integrity">Integritätsprüfung der Datei fehlgeschlagen; Teildatei zum Fortsetzen behalten</string>
+    <string name="transfer_failed">Die Übertragung ist fehlgeschlagen.</string>
+    <string name="transfer_nothing">Diese Dateien können nicht geöffnet werden.</string>
+    <string name="transfer_off_for">Dateiübertragungen sind für %1$s deaktiviert.</string>
+    <string name="transfer_pick_pc">An welchen PC senden?</string>
+    <string name="clip_tile_label">Zwischenablage senden</string>
+    <string name="action_send_clipboard">Zwischenablage senden</string>
+    <string name="clip_sent_to">Gesendet an %1$s</string>
+    <string name="clip_no_pc">Momentan ist kein PC verbunden.</string>
+    <string name="clip_off_for">Die Zwischenablage ist für %1$s deaktiviert.</string>
+    <string name="clip_too_large">Das ist zu viel Text, um ihn auf einmal zu senden.</string>
+    <string name="clip_private">Der kopierte Inhalt wurde von der App als vertraulich markiert und daher nicht gesendet.</string>
+    <string name="clip_empty">Die Zwischenablage enthält weder Text noch Bild.</string>
+    <string name="clip_image_too_large">Dieses Bild ist zu groß zum Senden.</string>
+    <string name="clip_image_unreadable">Dieses Bild kann nicht gelesen werden.</string>
+    <string name="clip_image_unsupported">Aktualisiere MacLink auf %1$s, um Bilder dorthin zu senden.</string>
+    <string name="clip_nothing_shared">Es gibt keinen Text zum Senden.</string>
+    <string name="clipboard_history_title">Zwischenablageverlauf</string>
+    <string name="clipboard_history_subtitle">Deine letzten 50 Einträge mit deinen PCs, verschlüsselt auf diesem Gerät gespeichert.</string>
+    <string name="clipboard_history_just_now">gerade eben</string>
+    <string name="clipboard_history_empty">Noch nichts vorhanden. Mit deinen PCs geteilte Einträge erscheinen hier.</string>
+    <string name="clipboard_history_search">Zwischenablageverlauf durchsuchen</string>
+    <string name="clipboard_history_no_match">Keine Treffer für „%1$s“.</string>
+    <string name="clipboard_history_from">Von %1$s</string>
+    <string name="clipboard_history_sent_to">Gesendet an %1$s</string>
+    <string name="clipboard_history_pinned">Angeheftet</string>
+    <string name="clipboard_history_image">Bild</string>
+    <string name="clipboard_history_copy">Kopieren</string>
+    <string name="clipboard_history_copied">In die Zwischenablage kopiert</string>
+    <string name="clipboard_history_pin">Anheften</string>
+    <string name="clipboard_history_unpin">Lösen</string>
+    <string name="clipboard_history_delete">Löschen</string>
+    <string name="clipboard_history_clear">Verlauf löschen</string>
+    <string name="clipboard_history_done">Fertig</string>
+    <string name="settings_clipboard_title">Zwischenablage</string>
+    <string name="settings_clipboard_suggestions">Aktionen für kopierten Text vorschlagen</string>
+    <string name="settings_clipboard_suggestions_hint">Aktionen für Text von deinem PC vorschlagen: Links öffnen, Karten, Anrufe, Sendungsverfolgung und E-Mail.</string>
+    <string name="settings_clipboard_history">Zwischenablageverlauf speichern</string>
+    <string name="settings_clipboard_history_hint">Speichert die letzten 50 Einträge verschlüsselt auf diesem Gerät. Passwörter und Einmalcodes werden niemals gespeichert.</string>
+    <string name="clip_received_from">Kopiert von %1$s</string>
+    <string name="clip_action_open">Öffnen</string>
+    <string name="clip_action_maps">In Karten öffnen</string>
+    <string name="clip_action_call">Anrufen</string>
+    <string name="clip_action_track">Verfolgen</string>
+    <string name="clip_action_email">E-Mail</string>
+    <string name="background_title">Im Hintergrund erreichbar bleiben</string>
+    <string name="background_text">Android pausiert MacLink, um Akku zu sparen, sodass dein PC es nicht erreichen kann. Erlaube die Ausführung im Hintergrund.</string>
+    <string name="background_on">Verbindung im Hintergrund erlaubt</string>
+    <string name="settings_background_title">Hintergrund &amp; Akku</string>
+    <string name="settings_run_in_background">Im Hintergrund ausführen</string>
+    <string name="settings_run_in_background_hint">Hält dieses Gerät für deinen PC erreichbar. Wenn ausgeschaltet, verbindet sich MacLink nur, solange die App geöffnet ist, und die Benachrichtigung wird ausgeblendet.</string>
+    <string name="home_background_off_title">Hintergrundverbindung ist aus</string>
+    <string name="home_background_off_text">MacLink verbindet sich nur, solange die App geöffnet ist. Schalte sie ein, damit dieses Gerät für deinen PC erreichbar bleibt.</string>
+    <string name="battery_open_oem_settings">Akkueinstellungen</string>
+    <string name="battery_guide_samsung">Auf Samsung: Öffne „App-Info › Akku › Nicht eingeschränkt“ und stelle unter „Gerätewartung › Akku › Grenzen der Hintergrundnutzung“ sicher, dass MacLink nie in den Standby versetzt wird.</string>
+    <string name="battery_guide_xiaomi">Auf Xiaomi / HyperOS / MIUI: Aktiviere „Autostart“ für MacLink und wähle unter „App-Info › Energiesparmodus“ die Option „Keine Beschränkungen“.</string>
+    <string name="battery_guide_oneplus">Auf OnePlus / OxygenOS: Öffne „App-Info › Akkunutzung“ und aktiviere „Hintergrundaktivität zulassen“ sowie „Automatischen Start zulassen“.</string>
+    <string name="battery_guide_oppo_realme">Auf Oppo / Realme: Öffne „App-Info › Akkunutzung“ und aktiviere „Hintergrundaktivität zulassen“ sowie „Automatischen Start zulassen“.</string>
+    <string name="battery_guide_vivo">Auf Vivo / Funtouch / OriginOS: Öffne „App-Info › Akku“, wähle „Nicht eingeschränkt (Hoher Hintergrundstromverbrauch)“ und erlaube „Autostart“.</string>
+    <string name="battery_guide_huawei">Auf Huawei / Honor: Öffne „App-Start“ (Telefonmanager), deaktiviere „Automatisch verwalten“ für MacLink und lasse „Auto-Start“, „Sekundärer Start“ und „Im Hintergrund ausführen“ aktiviert.</string>
+    <string name="battery_guide_pixel">Auf Pixel: Öffne „App-Info › App-Akkunutzung“, tippe auf „Hintergrundnutzung zulassen“ und wähle „Uneingeschränkt“.</string>
+    <string name="action_manage">Verwalten</string>
+    <string name="action_app_info">App-Info</string>
+    <string name="theme_hive">Wabe</string>
+    <string name="hive_invite_title">Probiere „Wabe“, das neue Design</string>
+    <string name="hive_invite_text">Honig auf Anthrazit oder warmem Wachs, mit einer lebendigen Bienenwabe im Hintergrund der App. Jederzeit in den Einstellungen änderbar.</string>
+    <string name="hive_invite_try">Wabe ausprobieren</string>
+    <string name="hive_invite_dismiss">Jetzt nicht</string>
+    <string name="settings_comb_motion">Animierte Wabe</string>
+    <string name="settings_comb_motion_hint">Die Bienenwabe atmet und pulsiert sanft. Bei aktivierter Option „Animationen entfernen“ oder im Energiesparmodus bleibt sie ruhig.</string>
+    <string name="theme_bloom">Blüte</string>
+    <string name="theme_graphite">Graphit</string>
+    <string name="mode_system">System</string>
+    <string name="mode_light">Hell</string>
+    <string name="mode_dark">Dunkel</string>
+    <string name="about_version">MacLink %1$s</string>
+    <string name="unpair_title">%1$s entkoppeln?</string>
+    <string name="unpair_text">Beide Geräte vergessen einander. Du kannst sie jederzeit erneut koppeln.</string>
+    <string name="core_failed">MacLink konnte nicht starten: %1$s</string>
+    <string name="key_recovery_title">Sicherheitsschlüssel konnte nicht entsperrt werden</string>
+    <string name="key_recovery_description">Der gespeicherte Schlüssel Ihres Telefons stimmt nicht mehr überein. Sie müssen erneut mit Ihrem Mac koppeln.</string>
+    <string name="key_recovery_reset_button">Zurücksetzen und erneut koppeln</string>
+    <string name="key_recovery_copy_button">Details kopieren</string>
+    <string name="key_recovery_confirm_title">Sicherheitsschlüssel zurücksetzen?</string>
+    <string name="key_recovery_confirm_message">Dadurch wird der unlesbare Schlüssel archiviert und bestehende Kopplungen auf Ihrem Telefon werden gelöscht. Eine neue Geräteidentität wird erstellt. Sie müssen dieses Telefon auf Ihrem Mac entfernen und erneut koppeln.</string>
+    <string name="key_recovery_confirm_action">Zurücksetzen &amp; koppeln</string>
+    <string name="key_recovery_copied_toast">Fehlerdetails in Zwischenablage kopiert</string>
+
+    <!-- Actions -->
+    <string name="action_pair">Koppeln</string>
+    <string name="action_pair_nearby">Stattdessen in der Nähe koppeln</string>
+    <string name="action_scan_instead">Stattdessen Code scannen</string>
+    <string name="action_codes_match">Codes stimmen überein</string>
+    <string name="action_codes_differ">Stimmen nicht überein</string>
+    <string name="action_try_again">Erneut versuchen</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_allow_camera">Kamerazugriff erlauben</string>
+    <string name="action_ring_pc">PC anklingeln</string>
+    <string name="action_stop_ringing">Klingeln beenden</string>
+    <string name="action_stop_service">Ausschalten</string>
+    <string name="action_turn_on">Einschalten</string>
+    <string name="action_ring_device">Anklingeln</string>
+    <string name="peer_kind_phone">Smartphone</string>
+    <string name="peer_kind_tablet">Tablet</string>
+    <string name="action_unpair">Entkoppeln</string>
+    <string name="action_pair_new">Weiteren PC koppeln</string>
+    <string name="action_refresh">Aktualisieren</string>
+    <string name="action_update">Aktualisieren</string>
+    <string name="update_title">MacLink %1$s ist verfügbar</string>
+    <string name="update_text">Hol dir die neuesten Verbesserungen und Fehlerbehebungen.</string>
+    <string name="update_downloading">Wird heruntergeladen…</string>
+    <string name="update_downloading_progress">Wird heruntergeladen · %1$s von %2$s</string>
+    <string name="update_waiting_network">Warte auf eine Verbindung. Der Download wird dort fortgesetzt, wo er unterbrochen wurde.</string>
+    <string name="update_installing">Wird installiert. Android bittet dich möglicherweise um Bestätigung.</string>
+    <string name="update_not_allowed">Erlaube MacLink, Updates zu installieren. Das Update wird fortgesetzt, sobald du zurückkehrst.</string>
+    <string name="update_damaged">Der Download war beschädigt und wurde daher nicht installiert. Versuche es erneut.</string>
+    <string name="update_offline">Das Update konnte nicht heruntergeladen werden. Versuche es erneut, sobald du online bist.</string>
+    <string name="update_install_failed">Android hat das Update nicht installiert. Versuche es erneut.</string>
+    <string name="update_whats_new">Neuigkeiten</string>
+    <string name="update_check">Nach Updates suchen</string>
+    <string name="update_checking">Suche nach Updates…</string>
+    <string name="update_up_to_date_version">MacLink %1$s ist auf dem neuesten Stand.</string>
+    <string name="update_current_version">Du verwendest MacLink %1$s.</string>
+    <string name="update_check_failed">Suche nach Updates fehlgeschlagen. Prüfe deine Internetverbindung.</string>
+    <string name="action_lock_pc">PC sperren</string>
+    <string name="action_sleep_pc">Energie sparen</string>
+    <string name="action_wake_pc">Aufwecken</string>
+    <string name="action_more">Weitere Aktionen</string>
+    <string name="action_less">Weniger Aktionen</string>
+    <string name="wake_waking">%1$s wird aufgeweckt…</string>
+    <string name="wake_timeout_title">%1$s ist noch nicht aufgewacht</string>
+    <string name="wake_timeout_text">Prüfe Folgendes:\n• Wake-on-LAN ist im BIOS/UEFI sowie in den Windows-Einstellungen des Netzwerkadapters aktiviert (Energieverwaltung und „Aktivierungsfunktion über Magic Packet“).\n• %1$s ist per LAN-Kabel verbunden, falls er heruntergefahren war (Aufwecken über WLAN funktioniert aus dem ausgeschalteten Zustand selten).\n• Dieses Gerät befindet sich im selben Netzwerk wie %1$s.</string>
+    <string name="wake_not_ready">Verbinde dich einmal mit %1$s, damit dieses Gerät seine Netzwerkadresse lernt.</string>
+    <string name="pc_locked">%1$s ist gesperrt.</string>
+    <string name="pc_sleeping">%1$s wechselt in den Energiesparmodus.</string>
+    <string name="pc_actions_off">Sperren und Energiesparmodus sind für dieses Gerät auf %1$s deaktiviert.</string>
+    <string name="channel_links">Links von deinem PC</string>
+    <!-- Play on phone: what a PC plays, streamed to the phone. -->
+    <string name="watch_offer_title">Von %1$s ansehen</string>
+    <string name="watch_offer_untitled">Aktuelle Wiedergabe auf deinem PC</string>
+    <string name="watch_back_10">10 Sekunden zurück</string>
+    <string name="watch_forward_10">10 Sekunden vor</string>
+    <string name="watch_seek">Position</string>
+    <string name="watch_file_failed">Dieses Video konnte nicht abgespielt werden.</string>
+    <string name="watch_offer_action">Ansehen</string>
+    <string name="watch_from">Von %1$s</string>
+    <string name="watch_close">Schließen</string>
+    <string name="link_from">Link von %1$s</string>
+    <string name="link_opened_on">Auf %1$s geöffnet</string>
+    <string name="link_pick_pc">Auf welchem PC öffnen?</string>
+    <string name="channel_pc_tasks">Aufgaben auf deinem PC</string>
+    <string name="channel_pc_tasks_running">Laufende Aufgaben auf deinem PC</string>
+    <string name="task_running_on">Läuft auf %1$s</string>
+
+    <!-- Notifications -->
+    <string name="channel_connection">Verbindung</string>
+    <string name="channel_ringing">Mein Gerät finden</string>
+    <string name="notification_connected_to">Verbunden mit %1$s</string>
+    <string name="notification_connected_many">Mit %1$d PCs verbunden</string>
+    <plurals name="notification_connected_pcs">
+        <item quantity="one">Mit %1$d PC verbunden</item>
+        <item quantity="other">Mit %1$d PCs verbunden</item>
+    </plurals>
+    <string name="notification_waiting">Warte auf deinen PC</string>
+    <string name="notification_not_paired">Noch nicht mit einem PC gekoppelt</string>
+    <plurals name="transfer_files">
+        <item quantity="one">%1$d Datei</item>
+        <item quantity="other">%1$d Dateien</item>
+    </plurals>
+    <plurals name="transfer_items">
+        <item quantity="one">%1$d Element</item>
+        <item quantity="other">%1$d Elemente</item>
+    </plurals>
+
+    <!-- Remote input (touchpad, air mouse, keyboard, voice typing & presentation) -->
+    <string name="action_remote_pc">PC steuern</string>
+    <string name="action_back">Zurück</string>
+    <string name="settings_remote">Deinen PC steuern</string>
+    <string name="settings_touchpad_sensitivity">Touchpad-Geschwindigkeit</string>
+    <string name="settings_touchpad_sensitivity_value">%1$.1f×</string>
+    <string name="remote_mode_touchpad">Touchpad</string>
+    <string name="remote_mode_air">Air-Maus</string>
+    <string name="remote_mode_presentation">Präsentation</string>
+    <string name="remote_touchpad_hint">Ziehen zum Bewegen · Tippen zum Klicken · Zwei Finger für Rechtsklick oder Scrollen · Doppeltippen und halten zum Ziehen</string>
+    <string name="remote_air_hold">Halten, um auf %1$s zu zielen</string>
+    <string name="remote_air_active">Bewegt sich auf %1$s · Gerät neigen oder zum Klicken tippen</string>
+    <string name="remote_air_hint">Fläche halten und Gerät neigen, um den Zeiger zu bewegen · Zum Klicken tippen · Loslassen zum Stoppen</string>
+    <string name="remote_air_no_gyro_title">Kein Gyroskop in diesem Gerät</string>
+    <string name="remote_air_no_gyro_text">Die Air-Maus nutzt ein Gyroskop, um der Neigung deines Geräts zu folgen. Verwende stattdessen den Touchpad-Modus.</string>
+    <string name="remote_left_click">Links</string>
+    <string name="remote_right_click">Rechts</string>
+    <string name="remote_middle_click">Mitte</string>
+    <string name="remote_keyboard">Tastatur</string>
+    <string name="remote_type_placeholder">Auf %1$s tippen…</string>
+    <string name="remote_dictate">Diktieren</string>
+    <string name="remote_dictate_stop">Stopp</string>
+    <string name="remote_dictate_hint">Tippe oder halte „Diktieren“, um auf %1$s zu sprechen</string>
+    <string name="remote_dictate_listening">Höre zu für %1$s…</string>
+    <string name="remote_dictate_typing">Tippe auf %1$s…</string>
+    <string name="remote_dictate_typed">Auf %1$s eingegeben: „%2$s“</string>
+    <string name="remote_dictate_no_recognizer">Auf diesem Gerät ist keine Spracherkennung installiert.</string>
+    <string name="remote_dictate_no_speech">Nichts verstanden. Tippe oder halte „Diktieren“, um es erneut zu versuchen.</string>
+    <string name="remote_dictate_error">Die Spracherkennung konnte nicht abgeschlossen werden. Tippe oder halte „Diktieren“, um es erneut zu versuchen.</string>
+    <string name="remote_dictate_permission_needed">MacLink benötigt Mikrofonzugriff, um auf %1$s zu diktieren.</string>
+    <string name="remote_denied_title">Steuerung auf %1$s erlauben</string>
+    <string name="remote_denied_text">Erlaube auf %1$s die Steuerung durch dieses Gerät im MacLink-Hinweis oder unter „Einstellungen › Geräte“.</string>
+    <string name="remote_offline_text">%1$s ist momentan nicht verbunden.</string>
+    <string name="remote_unsupported_text">Aktualisiere MacLink auf %1$s, um ihn von diesem Gerät aus zu steuern.</string>
+    <string name="remote_slide_next">Nächste Folie</string>
+    <string name="remote_slide_prev">Vorherige Folie</string>
+    <string name="remote_slide_start">Präsentation starten</string>
+    <string name="remote_slide_stop">Präsentation beenden</string>
+    <string name="remote_slide_black">Schwarzer Bildschirm</string>
+    <string name="remote_laser_hold">Für Laserpointer gedrückt halten</string>
+    <string name="remote_laser_active">Laser auf %1$s · Gerät neigen oder hier ziehen</string>
+    <string name="remote_volume_hint">Solange dieser Bildschirm geöffnet ist, wechseln auch die Lautstärketasten die Folien.</string>
+    <string name="remote_mode_screen">Bildschirm</string>
+    <string name="pc_mirror_connecting">%1$s wird verbunden…</string>
+    <string name="pc_mirror_fullscreen">Vollbild</string>
+    <string name="pc_mirror_exit_fullscreen">Vollbild beenden</string>
+    <string name="pc_mirror_right_click">Rechtsklick</string>
+    <string name="pc_mirror_task_view">Aktive Anwendungen</string>
+    <string name="pc_mirror_keyboard">Tastatur</string>
+    <string name="pc_mirror_hide_keyboard">Tasten ausblenden</string>
+    <string name="pc_mirror_send_text">Senden</string>
+    <string name="pc_mirror_backspace">Rücktaste</string>
+    <string name="pc_mirror_quality_720p">720p</string>
+    <string name="pc_mirror_quality_1080p">1080p</string>
+    <string name="pc_mirror_quality_desc">Stream-Qualität: %1$s</string>
+    <string name="pc_mirror_viewport_desc">Bildschirm von %1$s</string>
+
+    <!-- Voice recorder to PC -->
+    <string name="action_record_pc">Aufnehmen</string>
+    <string name="channel_recorder">Sprachrekorder</string>
+    <!-- Phone as microphone. -->
+    <string name="channel_mic">Gerätemikrofon für deinen PC</string>
+    <string name="channel_mic_requests">Mikrofonanfragen</string>
+    <string name="mic_notification_title">Mikrofon aktiv für %1$s</string>
+    <string name="mic_notification_text">Dein PC hört das Mikrofon dieses Geräts.</string>
+    <string name="mic_request_title">%1$s möchte das Mikrofon dieses Geräts nutzen</string>
+    <string name="mic_request_text">Tippe zum Starten. Es bleibt aktiv, bis du oder der PC es beenden.</string>
+    <string name="mic_request_start">Starten</string>
+    <string name="mic_request_card_text">Es bleibt aktiv, bis du oder der PC es beenden.</string>
+    <string name="mic_pc_toggle">Dieses Gerät als Mikrofon verwenden</string>
+    <string name="mic_pc_toggle_hint">Standardmäßig ein. Dieser PC kann das Mikrofon anfordern. Es schaltet sich erst ein, wenn du auf „Starten“ tippst.</string>
+    <string name="recorder_notification_recording">Aufnahme für %1$s</string>
+    <string name="recorder_notification_paused">Aufnahme pausiert (%1$s)</string>
+    <string name="recorder_permission_title">Mikrofonzugriff erlauben</string>
+    <string name="recorder_permission_text">MacLink verwendet das Mikrofon nur, während du eine Sprachnotiz zum Senden an %1$s aufnimmst.</string>
+    <string name="recorder_allow_mic">Mikrofon erlauben</string>
+    <string name="recorder_offline_hint">Aufnahmen werden auf diesem Gerät gespeichert und automatisch gesendet, sobald %1$s verbunden ist.</string>
+    <string name="recorder_status_ready">Aufnahmebereit für %1$s</string>
+    <string name="recorder_status_recording">Aufnahme für %1$s</string>
+    <string name="recorder_status_paused">Pausiert</string>
+    <string name="recorder_start">Aufnahme starten</string>
+    <string name="recorder_pause">Pause</string>
+    <string name="recorder_resume">Fortsetzen</string>
+    <string name="recorder_marker_hint">Markierungsname (optional)</string>
+    <string name="recorder_add_marker">Markierung hinzufügen</string>
+    <string name="recorder_marker_default">Markierung %1$d</string>
+    <string name="recorder_saved_title">Sprachaufnahmen</string>
+    <string name="recorder_send_now">Senden</string>
+    <string name="recorder_send_again">Erneut senden</string>
+    <string name="recorder_delete">Löschen</string>
+    <string name="recorder_denied_text">Sprachaufnahmen sind für dieses Gerät auf %1$s deaktiviert.</string>
+    <plurals name="recorder_markers_count">
+        <item quantity="one">%1$d Markierung</item>
+        <item quantity="other">%1$d Markierungen</item>
+    </plurals>
+
+    <!-- Deck (macro pad to PC) -->
+    <string name="action_deck_pc">Deck</string>
+    <string name="action_desk_pc">Tischuhr</string>
+    <string name="deck_title">Deck</string>
+    <string name="deck_fullscreen">Vollbild</string>
+    <string name="deck_exit_fullscreen">Vollbild beenden</string>
+    <string name="deck_playing">Wiedergabe</string>
+    <string name="deck_paused">Pausiert</string>
+    <string name="deck_muted">Stumm</string>
+    <string name="deck_live">Live</string>
+    <string name="deck_volume_percent">%1$d%%</string>
+    <string name="deck_waiting">Deck von %1$s wird geladen…</string>
+    <string name="deck_empty_page">Noch keine Kacheln auf dieser Seite. Füge Kacheln in MacLink auf %1$s hinzu.</string>
+    <string name="deck_commands_denied_title">Befehle auf %1$s erlauben</string>
+    <string name="deck_commands_denied_text">Um Shell-Befehle von diesem Gerät auszuführen, aktiviere „Deck-Befehle ausführen“ für dieses Gerät unter „MacLink › Einstellungen › Geräte“ auf %1$s.</string>
+    <string name="deck_hint">Kacheln im Deck auf %1$s anpassen</string>
+    <string name="pc_audio_title">PC-Audio</string>
+    <string name="pc_audio_volume">Lautstärke</string>
+    <string name="pc_audio_mute">Stummschalten</string>
+    <string name="pc_audio_unmute">Stummschaltung aufheben</string>
+    <string name="pc_audio_muted">Stumm</string>
+    <string name="pc_audio_output">Ausgabe: %1$s</string>
+    <string name="pc_audio_outputs_title">Audioausgänge auf %1$s</string>
+    <string name="pc_audio_default_badge">Standard</string>
+    <string name="pc_audio_outputs_hint">Aktive Wiedergabegeräte auf %1$s.</string>
+    <string name="pc_audio_use_phone_speaker">Gerät als Lautsprecher verwenden</string>
+    <string name="pc_audio_use_phone_speaker_sub">PC-Audio auf diesem Gerät wiedergeben</string>
+    <string name="pc_audio_use_phone_speaker_on">PC-Audio wird auf dieses Gerät gestreamt</string>
+    <string name="pc_audio_use_phone_mic">Gerät als Mikrofon verwenden</string>
+    <string name="pc_audio_use_phone_mic_sub">Mikrofon dieses Geräts an den PC senden</string>
+    <string name="pc_audio_use_phone_mic_on">Der PC hört das Mikrofon dieses Geräts</string>
+
+    <!-- Phone storage in File Explorer -->
+    <string name="settings_storage">Speicher im Datei-Explorer</string>
+    <string name="storage_all_files_title">Zugriff auf alle Dateien</string>
+    <string name="storage_all_files_on">Ein: Von dir autorisierte PCs können die Dateien dieses Geräts im Datei-Explorer durchsuchen, öffnen und kopieren.</string>
+    <string name="storage_all_files_off">Durchsuche die Ordner dieses Geräts im Datei-Explorer auf deinem PC. Benötigt „Zugriff auf alle Dateien“ oder wähle unten bestimmte Ordner aus.</string>
+    <string name="storage_saf_title">Nur ausgewählte Ordner</string>
+    <string name="storage_saf_hint">Teile nur die Ordner, die du auswählst.</string>
+    <string name="storage_add_folder">Ordner hinzufügen</string>
+    <string name="storage_remove_folder">Entfernen</string>
+    <string name="storage_pc_toggle">Speicher dieses Geräts im Datei-Explorer durchsuchen</string>
+    <string name="storage_pc_toggle_hint">Standardmäßig aus. Erlaubt diesem PC, deine freigegebenen Dateien aufzulisten, zu öffnen, hochzuladen, umzubenennen und zu löschen.</string>
+    <string name="storage_request_title">%1$s möchte den Speicher dieses Geräts durchsuchen</string>
+    <string name="storage_request_text">%1$s erlauben, deinen freigegebenen Speicher (oder ausgewählte Ordner) im Datei-Explorer zu durchsuchen?</string>
+    <string name="action_not_now">Jetzt nicht</string>
+
+    <!-- Phone as webcam to PC -->
+    <string name="action_webcam_pc">Webcam</string>
+    <string name="channel_webcam">Geräte-Webcam</string>
+    <string name="channel_webcam_requests">Webcam-Anfragen</string>
+    <string name="webcam_notification_streaming">Kamera wird an %1$s gestreamt</string>
+    <string name="webcam_notification_detail">%1$d × %2$d · Kamera (%3$s)</string>
+    <string name="webcam_request_title">%1$s möchte deine Kamera verwenden</string>
+    <string name="webcam_request_text">Tippe, um die Webcam-Steuerung zu öffnen und den Stream zu starten.</string>
+    <string name="webcam_permission_title">Kamerazugriff erlauben</string>
+    <string name="webcam_permission_text">MacLink verwendet die Kamera nur, während du Video als Webcam an %1$s streamst.</string>
+    <string name="webcam_allow_camera">Kamera erlauben</string>
+    <string name="webcam_status_streaming">Streame %1$d × %2$d an %3$s</string>
+    <string name="webcam_status_connecting">Kamera wird mit %1$s verbunden…</string>
+    <string name="webcam_status_ready">Bereit zum Streamen an %1$s</string>
+    <string name="webcam_start">Webcam starten</string>
+    <string name="webcam_stop">Webcam beenden</string>
+    <string name="webcam_camera_back">Hinten</string>
+    <string name="webcam_camera_front">Vorne</string>
+    <string name="webcam_switch_camera">Kamera wechseln</string>
+    <string name="webcam_torch_on">Taschenlampe ein</string>
+    <string name="webcam_torch_off">Taschenlampe aus</string>
+    <string name="webcam_zoom_label">Zoom %1$.1f×</string>
+    <string name="webcam_resolution_label">Auflösung</string>
+    <string name="webcam_denied_text">Die Webcam ist für dieses Gerät auf %1$s deaktiviert.</string>
+    <string name="webcam_offline_hint">Verbinde %1$s im selben Netzwerk, um deine Kamera zu streamen.</string>
+
+    <!-- Timeline -->
+    <string name="timeline_title">Zeitverlauf</string>
+    <string name="timeline_subtitle">Dateien, Zwischenablage-Einträge, Links, Fotos und Sitzungen, die mit deinen PCs geteilt wurden.</string>
+    <string name="timeline_search">Zeitverlauf durchsuchen</string>
+    <string name="timeline_empty">Dein Zeitverlauf ist noch leer.</string>
+    <string name="timeline_no_match">Keine Treffer für „%1$s“.</string>
+    <string name="timeline_filter_all">Alle</string>
+    <string name="timeline_filter_files">Dateien</string>
+    <string name="timeline_filter_clips">Zwischenablage</string>
+    <string name="timeline_filter_links">Links</string>
+    <string name="timeline_filter_photos">Fotos</string>
+    <string name="timeline_filter_recordings">Aufnahmen</string>
+    <string name="timeline_filter_sessions">Sitzungen</string>
+    <string name="timeline_action_open">Öffnen</string>
+    <string name="timeline_action_folder">Im Ordner anzeigen</string>
+    <string name="timeline_action_copy">Kopieren</string>
+    <string name="timeline_action_send_again">Erneut senden</string>
+    <string name="timeline_action_remove">Entfernen</string>
+    <string name="timeline_action_clear_all">Alle löschen</string>
+    <string name="timeline_action_load_more">Mehr laden</string>
+    <string name="timeline_today">Heute</string>
+    <string name="timeline_yesterday">Gestern</string>
+    <string name="settings_timeline_title">Zeitverlauf</string>
+    <string name="settings_timeline_retention">Einträge im Zeitverlauf behalten</string>
+    <string name="settings_timeline_retention_hint">Ältere Einträge automatisch entfernen oder bis zu 5.000 Einträge lokal auf diesem Gerät behalten.</string>
+    <string name="timeline_retention_30d">30 T.</string>
+    <string name="timeline_retention_90d">90 T.</string>
+    <string name="timeline_retention_1y">1 J.</string>
+    <string name="timeline_retention_all">Alle</string>
+
+    <!-- Data & storage -->
+    <string name="settings_data_storage_title">Daten &amp; Speicher</string>
+    <string name="data_action_clear">Löschen</string>
+    <string name="data_notifications_title">Benachrichtigungsverlauf</string>
+    <string name="data_notifications_subtitle">Live auf gekoppelte PCs gespiegelt · nicht auf diesem Gerät gespeichert (PCs behalten verworfene Benachrichtigungen für bis zu 24 Stunden / 300 Einträge)</string>
+    <string name="data_clipboard_title">Zwischenablageverlauf</string>
+    <string name="data_clipboard_subtitle">Auf dem Gerät verschlüsselt (ohne Passwörter und Einmalcodes) · für 7 Tage gespeichert, bis zu 50 Einträge / 128 MB</string>
+    <plurals name="data_clipboard_count">
+        <item quantity="one">%1$d Eintrag gespeichert</item>
+        <item quantity="other">%1$d Einträge gespeichert</item>
+    </plurals>
+    <string name="data_timeline_title">Zeitverlauf</string>
+    <string name="data_timeline_subtitle">Dateien, Zwischenablage-Einträge, Links, Fotos, Aufnahmen und Sitzungen · bis zu 5.000 Einträge</string>
+    <string name="data_messages_title">Nachrichten-Cache</string>
+    <string name="data_messages_subtitle">SMS und Chat-Benachrichtigungen werden live aus Android gelesen; temporäre MMS-Zwischendateien werden bis zu 5 Minuten behalten (PCs speichern Chatverläufe für 90 Tage)</string>
+    <string name="data_photos_title">Foto-Vorschaubilder &amp; Kamera-Cache</string>
+    <string name="data_photos_subtitle">Fotos werden bei Bedarf direkt aus dem MediaStore gelesen; temporäre Kamera-Aufnahmen für den PC werden bis zu 24 Stunden behalten</string>
+    <string name="data_received_files_title">Verlauf empfangener Dateien</string>
+    <string name="data_received_files_subtitle">Übertragungsprotokoll im Zeitverlauf gespeichert (gespeicherte Dateien im Ordner „Downloads“ werden niemals gelöscht)</string>
+    <string name="data_clear_everything_hint">Löscht Zwischenablageverlauf, Zeitverlauf, Übertragungsprotokolle und Caches. Gekoppelte PCs und Einstellungen bleiben erhalten.</string>
+    <string name="data_clear_everything_button">Alles löschen…</string>
+    <string name="data_clear_everything_dialog_title">Alle lokalen Daten löschen?</string>
+    <string name="data_clear_everything_dialog_body">Löscht Zwischenablageverlauf, Zeitverlauf, Protokolle empfangener Dateien und Caches auf diesem Gerät. Gekoppelte PCs und Einstellungen bleiben erhalten.</string>
+    <string name="data_clear_everything_confirm">Alles löschen</string>
+    <string name="data_cleared_everything_toast">Alle lokalen Daten auf diesem Gerät wurden gelöscht.</string>
+
+    <!-- LocalSend -->
+    <string name="settings_localsend_title">LocalSend</string>
+    <string name="settings_localsend_subtitle">Dateien mit LocalSend-Geräten in der Nähe senden und empfangen. Standardmäßig aus. Bei eingehenden Dateien wird immer zuerst gefragt.</string>
+    <string name="localsend_card_title">LocalSend in der Nähe</string>
+    <string name="localsend_card_empty">Noch keine LocalSend-Geräte in diesem WLAN gefunden.</string>
+    <string name="localsend_nearby_device">Gerät in der Nähe</string>
+    <string name="transfer_requested_from">%1$s möchte Dateien senden</string>
+    <string name="action_accept">Annehmen</string>
+    <string name="action_decline">Ablehnen</string>
+    <string name="action_dismiss">Verwerfen</string>
+
+    <!-- Continuity Camera -->
+    <string name="channel_camera_requests">Kamera-Aufnahmeanfragen</string>
+    <string name="continuity_camera_request_scan_title">%1$s möchte ein Dokument scannen</string>
+    <string name="continuity_camera_request_photo_title">%1$s möchte ein Foto aufnehmen</string>
+    <string name="continuity_camera_request_scan_text">Tippe, um ein Dokument mit deiner Kamera zu scannen.</string>
+    <string name="continuity_camera_request_photo_text">Tippe, um ein Foto mit deiner Kamera aufzunehmen.</string>
+    <string name="continuity_camera_scan_title">Dokument scannen</string>
+    <string name="continuity_camera_photo_title">Foto aufnehmen</string>
+    <string name="continuity_camera_for_pc">Für %1$s</string>
+    <string name="continuity_camera_mode_photo">Foto</string>
+    <string name="continuity_camera_mode_scan">Scan</string>
+    <string name="continuity_camera_enhance">Dokument optimieren</string>
+    <string name="continuity_camera_adjust_corners">Ecken anpassen</string>
+    <string name="continuity_camera_preview_scan">Scan-Vorschau</string>
+    <string name="continuity_camera_retake">Wiederholen</string>
+    <string name="continuity_camera_send_scan">Scan senden</string>
+    <string name="continuity_camera_use_photo">Foto verwenden</string>
+    <string name="continuity_camera_shutter_photo">Foto aufnehmen</string>
+    <string name="continuity_camera_shutter_scan">Dokument erfassen</string>
+    <string name="continuity_camera_preview_desc">Aufnahmevorschau</string>
+    <string name="continuity_camera_corners_desc">Ziehe die Ecken, um die Dokumentränder anzupassen</string>
+    <string name="continuity_camera_permission_denied">Kameraberechtigung auf dem Gerät verweigert</string>
+    <string name="continuity_camera_cancelled">Auf dem Gerät abgebrochen</string>
+
+    <!-- Task notifications -->
+    <string name="task_default_label">Aufgabe</string>
+    <string name="task_finished_title">%1$s abgeschlossen</string>
+    <string name="task_failed_title">%1$s fehlgeschlagen (Exit-Code %2$d)</string>
+    <string name="task_took_from">%1$s · %2$s</string>
+    <string name="task_took_hm">Dauer: %1$d Std. %2$02d Min.</string>
+    <string name="task_took_ms">Dauer: %1$d Min. %2$02d Sek.</string>
+    <string name="task_took_s">Dauer: %1$d Sek.</string>
+    <string name="task_running_short">Läuft</string>
+
+    <!-- Errors -->
+    <string name="error_not_connected">Der PC ist momentan nicht verbunden.</string>
+    <string name="error_not_paired">Dieser PC ist nicht mehr gekoppelt.</string>
+    <string name="error_timed_out">Der PC hat nicht rechtzeitig geantwortet.</string>
+    <string name="error_unsupported">Die App auf dem PC unterstützt das noch nicht.</string>
+    <string name="error_generic">Etwas ist schiefgelaufen.</string>
+
+    <!-- Theme seed names -->
+    <string name="settings_seed_honey">Honig</string>
+    <string name="settings_seed_lavender">Lavendel</string>
+    <string name="settings_seed_ocean">Ozean</string>
+    <string name="settings_seed_sage">Salbei</string>
+    <string name="settings_seed_black">Schwarz</string>
+    <string name="settings_amoled">Reines Schwarz (AMOLED)</string>
+    <string name="settings_amoled_hint">Echte dunkle Oberflächen in #000000 für OLED-Bildschirme.</string>
+
+    <!-- Deck defaults & accessibility -->
+    <string name="deck_tile_with_badge">%1$s, %2$s</string>
+    <string name="deck_default_page_main">Hauptseite</string>
+    <string name="deck_default_play_pause">Wiedergabe / Pause</string>
+    <string name="deck_default_previous">Zurück</string>
+    <string name="deck_default_next">Weiter</string>
+    <string name="deck_default_volume_down">Leiser</string>
+    <string name="deck_default_volume_up">Lauter</string>
+    <string name="deck_default_volume_mute">Ton stummschalten</string>
+    <string name="deck_default_mic_mute">Mikrofon stumm</string>
+    <string name="deck_default_show_desktop">Desktop anzeigen</string>
+    <string name="deck_default_switch_window">Fenster wechseln</string>
+    <string name="deck_default_screenshot">Screenshot</string>
+    <string name="deck_default_lock_pc">PC sperren</string>
+
+    <!-- Remote special keys -->
+    <string name="remote_key_ctrl">Strg</string>
+    <string name="remote_key_alt">Alt</string>
+    <string name="remote_key_shift">Umschalt</string>
+    <string name="remote_key_win">Win</string>
+    <string name="remote_key_esc">Esc</string>
+    <string name="remote_key_esc_desc">Escape</string>
+    <string name="remote_key_tab">Tab</string>
+    <string name="remote_key_left_desc">Pfeil nach links</string>
+    <string name="remote_key_up_desc">Pfeil nach oben</string>
+    <string name="remote_key_down_desc">Pfeil nach unten</string>
+    <string name="remote_key_right_desc">Pfeil nach rechts</string>
+    <string name="remote_key_home">Pos1</string>
+    <string name="remote_key_end">Ende</string>
+    <string name="remote_key_del">Entf</string>
+    <string name="remote_key_del_desc">Entfernen</string>
+    <string name="remote_key_copy">Kopieren</string>
+    <string name="remote_key_paste">Einfügen</string>
+
+    <!-- Webcam formatting -->
+    <string name="webcam_stream_spec">%1$d × %2$d · %3$d fps</string>
+    <string name="webcam_stream_camera_spec">%1$d × %2$d · %3$s</string>
+    <string name="webcam_status_streaming_camera">Streame %1$d × %2$d an %3$s · %4$s</string>
+    <string name="webcam_switch_camera_current">Kamera wechseln (%1$s)</string>
+    <string name="webcam_res_720p">720p</string>
+    <string name="webcam_res_1080p">1080p</string>
+    <string name="webcam_res_4k">4K</string>
+    <string name="webcam_zoom_preset">%1$d×</string>
+
+    <!-- Formatted status & metadata phrases -->
+    <string name="transfer_requested_from_size">%1$s möchte Dateien senden · %2$s</string>
+    <string name="transfer_sending_progress">Sende an %1$s · %2$s / %3$s</string>
+    <string name="transfer_receiving_progress">Empfange von %1$s · %2$s / %3$s</string>
+    <string name="clipboard_history_meta">%1$s · %2$s</string>
+    <string name="clipboard_history_meta_pinned">%1$s · %2$s · Angeheftet</string>
+    <string name="timeline_latest_summary">%1$s · %2$s</string>
+    <string name="recorder_marker_chip">%1$s · %2$s</string>
+
+    <!-- Rich Handoff -->
+    <string name="handoff_map_from">Karte von %1$s</string>
+    <string name="handoff_video_from">Video von %1$s</string>
+    <string name="handoff_action_continue_video">Weiter ansehen</string>
+    <string name="handoff_doc_received_from">Von %1$s · zum Öffnen tippen</string>
+
+    <!-- Remote PC keyboard typing without mirroring -->
+    <string name="keyboard_from_pc_banner">Tastatureingabe von %1$s</string>
+    <string name="keyboard_stop">Tippen beenden</string>
+
+
+    <!-- Home-screen PC widget -->
+    <string name="widget_pc_title">PC-Schnellaktionen</string>
+    <string name="widget_pc_description">Verbindungsstatus, Zwischenablage senden, PC klingeln lassen, PC sperren und Aufwecken für deinen gekoppelten PC.</string>
+    <string name="widget_pc_no_pc">Kein PC gekoppelt</string>
+    <string name="widget_pc_tap_to_pair">Tippen, um MacLink zu öffnen und einen PC zu koppeln</string>
+    <string name="widget_pc_connected">Verbunden</string>
+    <string name="widget_pc_offline">Offline</string>
+    <string name="widget_pc_waking">Wird aufgeweckt…</string>
+    <string name="widget_pc_wake">Aufwecken</string>
+    <string name="widget_pc_send_clip">Auswahl senden</string>
+    <string name="widget_pc_ring">PC klingeln lassen</string>
+    <string name="widget_pc_lock">PC sperren</string>
+    <string name="widget_pc_ringing_toast">%1$s klingelt…</string>
+    <string name="widget_pc_waking_toast">%1$s wird aufgeweckt…</string>
+
+    <!-- Companion Device Manager proximity wake -->
+    <string name="companion_wake_title">Aufwecken, wenn PC in der Nähe ist (Begleitgerät)</string>
+    <string name="companion_wake_on">Verknüpft · Android weckt MacLink auf, wenn dein PC in der Nähe ist</string>
+    <string name="companion_wake_off">Verknüpfe deinen PC, damit Android MacLink aufweckt, sobald sein BLE-Signal in Reichweite ist</string>
+    <string name="companion_wake_associate">Verknüpfen</string>
+
+    <!-- Flick to Send sheet -->
+
+    <!-- PC notifications & Browse PC files -->
+    <string name="channel_pc_notifications">PC-Benachrichtigungen</string>
+    <string name="channel_peer_notifications">Benachrichtigungen von deinem anderen Smartphone oder Tablet</string>
+    <string name="action_browse_pc_files">PC-Dateien durchsuchen</string>
+    <string name="pc_files_title">Dateien auf %1$s</string>
+    <string name="pc_files_root">Start</string>
+    <string name="pc_files_up">Nach oben</string>
+    <string name="pc_files_empty">Dieser Ordner ist leer.</string>
+    <string name="pc_files_loading">Dateien werden geladen…</string>
+    <string name="pc_files_downloading">%1$s wird heruntergeladen…</string>
+    <string name="pc_files_saved">%1$s in Downloads gespeichert</string>
+    <string name="pc_files_failed">%1$s konnte nicht heruntergeladen werden</string>
+    <string name="pc_files_not_shared">Aktiviere „Dein PC in der Hosentasche“ in den MacLink-Einstellungen auf %1$s.</string>
+    <string name="pc_files_offline">%1$s ist nicht verbunden.</string>
+    <string name="pc_files_update">Aktualisiere MacLink auf %1$s, um dessen Dateien zu durchsuchen.</string>
+    <string name="pc_files_not_found">Dieser Ordner ist auf %1$s nicht mehr vorhanden.</string>
+    <string name="pc_files_error">Dieser Ordner auf %1$s konnte nicht aufgelistet werden. Versuche es erneut.</string>
+    <string name="pc_files_folder_downloads">Downloads</string>
+    <string name="pc_files_folder_documents">Dokumente</string>
+    <string name="pc_files_folder_desktop">Desktop</string>
+    <string name="pc_files_folder_pictures">Bilder</string>
+
+    <!-- Live streaming banners, remote input setup, collapsible permissions & clipboard privacy -->
+    <string name="mirror_banner_subtitle_control_on">Tippe, wische und schreibe von deinem PC aus</string>
+    <string name="mirror_banner_subtitle_audio">Bildschirm und Audio · jederzeit auf Stopp tippen</string>
+    <string name="mirror_banner_subtitle">Live-Bildschirmübertragung · jederzeit auf Stopp tippen</string>
+    <string name="mirror_allow_pc_control">PC-Maussteuerung erlauben</string>
+    <string name="action_open_controls">Steuerung</string>
+    <string name="remote_input_requested_title">Dein PC hat versucht, dieses Gerät zu steuern</string>
+    <string name="remote_input_requested_text">Aktiviere „MacLink: Steuerung vom PC“ in den Bedienungshilfen, um Maus und Tastatur deines PCs auf diesem Gerät zu nutzen.</string>
+    <string name="permissions_setup_title">Berechtigungen &amp; Einrichtung (%1$d offen)</string>
+    <string name="permissions_setup_subtitle">Benachrichtigungen, Anrufe, SMS, Fotos und Hintergrundzugriff</string>
+    <string name="clipboard_preview_hidden">••••••••••••</string>
+    <string name="clipboard_preview_reveal">Anzeigen</string>
+    <string name="clipboard_preview_hide">Ausblenden</string>
+
+    <!-- Send queue -->
+    <string name="send_queue_title_count">Sendewarteschlange · %1$d</string>
+    <string name="send_queue_cancel_all">Alle abbrechen</string>
+    <string name="send_queue_clear">Leeren</string>
+    <string name="send_queue_waiting_for">Warte auf %1$s</string>
+    <string name="send_queue_sending_progress">Sende · %1$d%%</string>
+    <string name="send_queue_sending">Wird gesendet…</string>
+    <string name="send_queue_failed_reason">Fehlgeschlagen · %1$s</string>
+    <string name="send_queue_expired_reason">Abgelaufen · %1$s</string>
+    <string name="send_queue_retry">Erneut versuchen</string>
+    <string name="send_queue_dismiss">Verwerfen</string>
+    <string name="send_queue_offline_toast">%1$s ist offline. Wird gesendet, sobald das Gerät wieder erreichbar ist.</string>
+    <string name="send_queue_undo">Rückgängig</string>
+    <string name="send_queue_full">Die Sendewarteschlange ist voll. Leere sie oder warte, bis ausstehende Elemente abgeschlossen sind.</string>
+    <string name="send_queue_dropped_unpair">%1$d Element(e) in der Warteschlange für %2$s verworfen (Gerät entkoppelt).</string>
+
+    <!-- Setup Walkthrough -->
+    <string name="walkthrough_step_progress">Schritt %1$d von %2$d</string>
+    <string name="walkthrough_stage_desc">Waben-Einrichtungsstatus, Schritt %1$d von %2$d</string>
+    <string name="walkthrough_action_skip">Einrichtung überspringen</string>
+    <string name="walkthrough_action_back">Zurück</string>
+    <string name="walkthrough_action_get_started">Los geht’s</string>
+    <string name="walkthrough_action_continue">Weiter</string>
+    <string name="walkthrough_action_pair_later">Später koppeln</string>
+    <string name="walkthrough_action_done">Fertig</string>
+    <string name="walkthrough_action_open_guide">Funktionsübersicht öffnen</string>
+
+    <string name="walkthrough_welcome_title">Verbinde dein Gerät und deinen PC</string>
+    <string name="walkthrough_welcome_subtitle">Benachrichtigungen, Anrufe, Nachrichten, Dateien, Zwischenablage, Kamera und Bildschirm – geteilt mit deinem PC.</string>
+    <string name="walkthrough_welcome_card_heading">Datenschutz von Grund auf</string>
+    <string name="walkthrough_welcome_tls_title">Ende-zu-Ende-verschlüsselt (TLS 1.3)</string>
+    <string name="walkthrough_welcome_tls_body">Jede Verbindung nutzt gegenseitig geprüfte Gerätezertifikate.</string>
+    <string name="walkthrough_welcome_lan_title">Direkt über WLAN, Ethernet oder USB</string>
+    <string name="walkthrough_welcome_lan_body">Der Datenverkehr bleibt in deinem Netzwerk. Ein Relay wird nur genutzt, wenn „Über mobile Daten verbinden“ aktiv ist.</string>
+    <string name="walkthrough_welcome_local_title">Kein Konto und kein Cloud-Speicher</string>
+    <string name="walkthrough_welcome_local_body">Geräteschlüssel werden durch Windows DPAPI und den Android Keystore geschützt.</string>
+
+    <string name="walkthrough_permissions_title">Berechtigungen</string>
+    <string name="walkthrough_permissions_subtitle">Erteile nur, was du nutzt. Du kannst jede Berechtigung später in den Einstellungen ändern.</string>
+    <string name="walkthrough_permissions_granted_badge">%1$d von %2$d erteilt</string>
+    <string name="walkthrough_perm_counter">Berechtigung %1$d von %2$d</string>
+    <string name="walkthrough_perm_counter_optional">Berechtigung %1$d von %2$d · Optional</string>
+    <string name="walkthrough_perm_status_granted">Erteilt</string>
+    <string name="walkthrough_perm_status_not_granted">Nicht erteilt</string>
+    <string name="walkthrough_perm_action_grant">Erteilen</string>
+    <string name="walkthrough_perm_action_manage">Verwalten</string>
+    <string name="walkthrough_perm_action_next">Weiter</string>
+    <string name="walkthrough_perm_dot_desc">%1$s, %2$s</string>
+
+    <string name="walkthrough_perm_notif_title">Benachrichtigungen</string>
+    <string name="walkthrough_perm_notif_does">Gerätebenachrichtigungen auf deinem PC sehen, verwerfen, direkt beantworten und Medien steuern.</string>
+    <string name="walkthrough_perm_notif_requires">Android benötigt den Benachrichtigungszugriff und die Benachrichtigungsberechtigung.</string>
+    <string name="walkthrough_restricted_title">Android hat diese Einstellung blockiert</string>
+    <string name="walkthrough_restricted_body">Android hält einige Berechtigungen für Apps zurück, die aus einer Datei statt aus einem App-Store installiert wurden. So gibst du sie frei:</string>
+    <string name="walkthrough_restricted_step1">Tippe auf „App-Info öffnen“.</string>
+    <string name="walkthrough_restricted_step2">Tippe oben rechts auf ⋮, wähle „Eingeschränkte Einstellungen zulassen“ und bestätige.</string>
+    <string name="walkthrough_restricted_step3">Kehre hierher zurück und tippe erneut auf „Erteilen“.</string>
+    <string name="walkthrough_restricted_note">Das Menü zeigt diese Option erst an, nachdem du einmal versucht hast, die Berechtigung zu erteilen. Auf manchen Geräten heißt die Option etwas anders.</string>
+    <string name="walkthrough_restricted_open">App-Info öffnen</string>
+
+    <string name="walkthrough_perm_battery_title">Uneingeschränkte Akkunutzung</string>
+    <string name="walkthrough_perm_battery_does">Hält dein Gerät erreichbar, wenn der Bildschirm ausgeschaltet ist.</string>
+    <string name="walkthrough_perm_battery_requires">Hält die Verbindung zu deinem PC aktiv, während das Gerät gesperrt ist.</string>
+
+    <string name="walkthrough_perm_calls_title">Anrufe</string>
+    <string name="walkthrough_perm_calls_does">Eingehende Anrufe auf deinem PC sehen sowie direkt am Desktop annehmen, ablehnen oder wählen.</string>
+    <string name="walkthrough_perm_calls_requires">Android benötigt die Berechtigungen für Telefon und Anrufliste.</string>
+
+    <string name="walkthrough_perm_sms_title">Nachrichten</string>
+    <string name="walkthrough_perm_sms_does">SMS- und MMS-Nachrichten mit Kontaktnamen auf deinem PC lesen und senden.</string>
+    <string name="walkthrough_perm_sms_requires">Android benötigt die Berechtigungen für SMS und Kontakte.</string>
+
+    <string name="walkthrough_perm_photos_title">Fotos</string>
+    <string name="walkthrough_perm_photos_does">Aktuelle Gerätefotos auf deinem PC durchsuchen und Originale speichern.</string>
+    <string name="walkthrough_perm_photos_requires">Android benötigt den Zugriff auf Fotos und Videos.</string>
+
+    <string name="walkthrough_perm_storage_title">Speicher im Datei-Explorer</string>
+    <string name="walkthrough_perm_storage_does">Deine Geräteordner vom PC aus im Datei-Explorer durchsuchen.</string>
+    <string name="walkthrough_perm_storage_requires">Android benötigt den Zugriff auf alle Dateien oder ausgewählte Ordner.</string>
+
+    <string name="walkthrough_perm_access_title">Assistenz</string>
+    <string name="walkthrough_perm_access_does">Deinen gespiegelten Gerätebildschirm vom PC aus mit Maus und Tastatur steuern.</string>
+    <string name="walkthrough_perm_access_requires">Android benötigt den MacLink-Bedienungshilfendienst oder den erweiterten Modus.</string>
+
+    <string name="walkthrough_pair_title">Mit deinem PC koppeln</string>
+    <string name="walkthrough_pair_subtitle">Öffne MacLink auf deinem PC. Scanne den QR-Code oder wähle deinen PC unten aus.</string>
+    <string name="walkthrough_pair_ready_title">Gekoppelter PC</string>
+    <string name="walkthrough_pair_badge_paired">Gekoppelt</string>
+    <string name="walkthrough_pair_device_online">%1$s · Verbunden</string>
+    <string name="walkthrough_pair_device_offline">%1$s · Offline</string>
+    <string name="walkthrough_pair_scan_qr">QR-Code scannen</string>
+    <string name="walkthrough_pair_hide_qr">QR-Scanner ausblenden</string>
+    <string name="walkthrough_pair_nearby_heading">PCs in der Nähe</string>
+    <string name="walkthrough_pair_nearby_tap">Tippen, um im lokalen Netzwerk zu koppeln</string>
+    <string name="walkthrough_pair_usb_title">Automatische USB-Kopplung</string>
+    <string name="walkthrough_pair_usb_hint">Schließe ein USB-Kabel bei aktiviertem USB-Debugging an, um automatisch zu koppeln.</string>
+
+    <string name="walkthrough_power_title">Funktionsstufe wählen</string>
+    <string name="walkthrough_power_subtitle">Lege fest, wie viel Steuerung dein PC über dieses Gerät hat.</string>
+    <string name="walkthrough_power_current_badge">Aktuell: %1$s</string>
+    <string name="walkthrough_power_badge_active">Aktiv</string>
+    <string name="walkthrough_power_badge_available">Verfügbar</string>
+    <string name="walkthrough_power_badge_optional">Optional</string>
+    <string name="walkthrough_power_standard_title">Standard</string>
+    <string name="walkthrough_power_standard_sub">Standardinstallation</string>
+    <string name="walkthrough_power_standard_desc">Benachrichtigungen, Anrufe, Nachrichten, Fotos, Dateien, die Kachel „Zwischenablage senden“ und Bildschirmspiegelung (nur Ansicht).</string>
+    <string name="walkthrough_power_assist_title">Assistenz</string>
+    <string name="walkthrough_power_assist_sub">Bedienungshilfendienst</string>
+    <string name="walkthrough_power_assist_desc">Ermöglicht zusätzlich die Maus- und Tastatursteuerung vom PC während der Bildschirmspiegelung.</string>
+    <string name="walkthrough_power_assist_manage">Verwalten</string>
+    <string name="walkthrough_power_assist_open">Aktivieren</string>
+    <string name="walkthrough_power_elevated_title">Erweitert</string>
+    <string name="walkthrough_power_elevated_sub">Kabelloses Debugging</string>
+    <string name="walkthrough_power_elevated_desc">Zwischenablage-Synchronisierung im Hintergrund, Apps in eigenen PC-Fenstern und Eingabe mit niedriger Latenz.</string>
+    <string name="walkthrough_power_elevated_reconnect">Erneut verbinden</string>
+    <string name="walkthrough_power_elevated_enable">Einrichten</string>
+    <string name="walkthrough_power_elevated_hide_steps">Schritte ausblenden</string>
+    <string name="walkthrough_power_elevated_show_steps">Schritte anzeigen</string>
+    <string name="walkthrough_power_elevated_steps_heading">Kabelloses Debugging einrichten</string>
+    <string name="walkthrough_power_elevated_step1">1. Tippe unter Einstellungen › Über das Telefon 7-mal auf „Build-Nummer“, um die Entwickleroptionen zu aktivieren.</string>
+    <string name="walkthrough_power_elevated_step2">2. Tippe auf „Einrichten“, um die Entwickleroptionen zu öffnen.</string>
+    <string name="walkthrough_power_elevated_step3">3. Aktiviere „Kabelloses Debugging“, tippe auf „Gerät mit Kopplungscode koppeln“ und gib den 6-stelligen Code in der Benachrichtigung ein.</string>
+
+    <string name="walkthrough_done_title">Einrichtung abgeschlossen</string>
+    <string name="walkthrough_done_subtitle">MacLink ist bereit. Du kannst diesen Einrichtungsassistenten jederzeit unter Einstellungen › Info erneut öffnen.</string>
+    <string name="walkthrough_done_summary_heading">Deine Einrichtung</string>
+    <string name="walkthrough_done_paired_label">Gekoppelter PC</string>
+    <string name="walkthrough_done_no_pc">Noch keiner · jederzeit auf der Startseite koppeln</string>
+    <string name="walkthrough_done_power_label">Funktionsstufe</string>
+    <string name="walkthrough_done_power_elevated">Erweitert (Kabelloses Debugging)</string>
+    <string name="walkthrough_done_power_assist">Assistenz (Bedienungshilfendienst)</string>
+    <string name="walkthrough_done_power_standard">Standard</string>
+    <string name="walkthrough_done_permissions_label">Berechtigungen</string>
+    <string name="walkthrough_done_no_permissions">Noch keine erteilt</string>
+    <string name="walkthrough_done_try_heading">Gleich ausprobieren</string>
+    <string name="walkthrough_done_try_1">1. Kopiere Text und tippe auf die Kachel „Zwischenablage senden“, um ihn auf deinem PC einzufügen.</string>
+    <string name="walkthrough_done_try_2">2. Teile eine beliebige Datei oder einen Link über das Android-Teilen-Menü mit MacLink.</string>
+
+    <!-- Features Guide Chrome -->
+    <string name="guide_back">Zurück</string>
+    <string name="guide_open_walkthrough">Einrichtungsassistent</string>
+    <string name="guide_title">Funktionsübersicht</string>
+    <string name="guide_subtitle">Prüfe die Funktionsbereitschaft auf diesem Gerät oder springe direkt zu den Einstellungen.</string>
+    <string name="guide_search_placeholder">Funktionen oder Berechtigungen suchen</string>
+    <string name="guide_search_desc">Funktionen suchen</string>
+    <string name="guide_connect_pc_banner">Verbinde deinen PC, um zu sehen, welche Funktionen bereit sind</string>
+    <string name="guide_empty_title">Keine passenden Funktionen</string>
+    <string name="guide_empty_body">Versuche einen anderen Suchbegriff oder wähle „Alle“.</string>
+    <string name="guide_where_prefix">Wo: %1$s</string>
+    <string name="guide_needs_prefix">Benötigt: %1$s</string>
+    <string name="guide_external_heading">Unter Android öffnen</string>
+    <string name="guide_action_show_me">Zeig es mir</string>
+    <string name="guide_action_learn_more">Mehr erfahren</string>
+    <string name="guide_action_done">Fertig</string>
+    <string name="guide_sheet_where">Wo du es findest</string>
+    <string name="guide_sheet_needs">Was du brauchst</string>
+    <string name="guide_sheet_steps_phone">Auf deinem Gerät</string>
+    <string name="guide_sheet_steps_pc">Auf deinem PC</string>
+    <string name="guide_sheet_options">Optionen</string>
+    <string name="guide_sheet_privacy">Daten und Datenschutz</string>
+    <string name="guide_sheet_limits">Einschränkungen</string>
+    <string name="guide_numbered_step">%1$d. %2$s</string>
+
+    <string name="guide_area_all">Alle</string>
+    <string name="guide_area_notifications_calls">Benachrichtigungen &amp; Anrufe</string>
+    <string name="guide_area_messages">Nachrichten</string>
+    <string name="guide_area_clipboard_files">Zwischenablage &amp; Dateien</string>
+    <string name="guide_area_mirroring_camera">Spiegelung &amp; Kamera</string>
+    <string name="guide_area_input_control">Eingabe &amp; Steuerung</string>
+    <string name="guide_area_power_network">Energie &amp; Netzwerk</string>
+
+    <string name="guide_badge_available">Bereit</string>
+    <string name="guide_badge_needs_permission">Benötigt %1$s</string>
+    <string name="guide_badge_needs_power">Benötigt %1$s</string>
+    <string name="guide_badge_connect_pc">Zum Prüfen PC verbinden</string>
+
+    <string name="guide_req_notification_access">Benachrichtigungszugriff</string>
+    <string name="guide_req_unrestricted_battery">Uneingeschränkte Akkunutzung</string>
+    <string name="guide_req_calls">Telefon und Anrufliste</string>
+    <string name="guide_req_sms_contacts">SMS und Kontakte</string>
+    <string name="guide_req_photos">Fotos</string>
+    <string name="guide_req_storage">Zugriff auf alle Dateien</string>
+    <string name="guide_req_dnd">Zugriff auf „Bitte nicht stören“</string>
+    <string name="guide_req_write_settings">Systemeinstellungen ändern</string>
+    <string name="guide_req_elevated">Erweitert</string>
+    <string name="guide_req_assist_or_elevated">Assistenz oder Erweitert</string>
+
+    <string name="guide_fix_grant">Erteilen</string>
+    <string name="guide_fix_allow">Erlauben</string>
+    <string name="guide_fix_enable">Aktivieren</string>
+    <string name="guide_fix_pair">Koppeln</string>
+
+    <!-- Features Guide Entries -->
+    <!-- 1. Notifications -->
+    <string name="guide_notif_title">Benachrichtigungen</string>
+    <string name="guide_notif_summary">Gerätebenachrichtigungen auf deinem PC sehen, verwerfen oder direkt beantworten.</string>
+    <string name="guide_notif_where">Einstellungen › Berechtigungen › Benachrichtigungen</string>
+    <string name="guide_notif_needs">Benachrichtigungszugriff, Schalter „Benachrichtigungen“ für den PC aktiviert</string>
+    <string name="guide_notif_need_1">Android-Benachrichtigungszugriff für MacLink aktiviert.</string>
+    <string name="guide_notif_need_2">Ab Android 13 bei manueller APK-Installation „Eingeschränkte Einstellungen zulassen“ in der App-Info aktiviert.</string>
+    <string name="guide_notif_need_3">PC gekoppelt und online.</string>
+    <string name="guide_notif_phone_1">Öffne Einstellungen › Berechtigungen › Benachrichtigungen und tippe auf „Erlauben“.</string>
+    <string name="guide_notif_phone_2">Aktiviere MacLink im Android-Benachrichtigungszugriff.</string>
+    <string name="guide_notif_pc_1">Sieh dir Gerätebenachrichtigungen im PC-Benachrichtigungscenter oder im MacLink-Fenster an.</string>
+    <string name="guide_notif_pc_2">Tippe eine Antwort direkt auf der Karte ein und drücke „Senden“ oder verwirf sie, um sie auf beiden Geräten zu löschen.</string>
+    <string name="guide_notif_opt_1">Erlauben / Verwalten: Öffnet die Android-Einstellungen für den Benachrichtigungszugriff.</string>
+    <string name="guide_notif_opt_2">Benachrichtigungs-Schalter pro PC: Legt fest, ob ein gekoppelter PC Benachrichtigungen erhält.</string>
+    <string name="guide_notif_privacy">Benachrichtigungen werden über TLS 1.3 übertragen und bleiben auf diesem Gerät nur im Arbeitsspeicher.</string>
+    <string name="guide_notif_limits">Laufende Systembenachrichtigungen können nicht aus der Ferne verworfen werden.</string>
+
+    <!-- 2. Calls -->
+    <string name="guide_calls_title">Anrufe</string>
+    <string name="guide_calls_summary">Eingehende Anrufe auf deinem PC sehen, annehmen oder ablehnen und Rufnummern vom Desktop aus wählen.</string>
+    <string name="guide_calls_where">Einstellungen › Berechtigungen › Anrufe, Kontakte und Nachrichten</string>
+    <string name="guide_calls_needs">Berechtigungen für Telefon, Anrufliste und Kontakte</string>
+    <string name="guide_calls_need_1">Berechtigungen für Telefon und Anrufliste unter Android erteilt.</string>
+    <string name="guide_calls_need_2">Kontakte-Berechtigung für Anrufernamen und Fotos erteilt.</string>
+    <string name="guide_calls_phone_1">Öffne Einstellungen › Berechtigungen › Anrufe, Kontakte und Nachrichten und tippe auf „Erlauben“.</string>
+    <string name="guide_calls_phone_2">Nutze die Benachrichtigung des aktiven Anrufs für Stummschaltung, Lautsprecher und Auflegen.</string>
+    <string name="guide_calls_pc_1">Nimm den Anruf an, lehne ihn ab oder antworte per SMS direkt im Anrufbanner auf deinem PC.</string>
+    <string name="guide_calls_pc_2">Öffne „Anrufe“ auf deinem PC, um die Anrufliste zu durchsuchen oder eine Nummer zu wählen.</string>
+    <string name="guide_calls_opt_1">Annehmen / Ablehnen: Nimmt den eingehenden Anruf auf deinem Gerät an oder lehnt ihn ab.</string>
+    <string name="guide_calls_opt_2">Stumm / Lautsprecher: Schaltet während eines Telefonats das Gerätemikrofon stumm oder den Lautsprecher ein.</string>
+    <string name="guide_calls_privacy">Die Anrufliste wird beim Verbinden deines PCs aus Android gelesen und verlässt niemals deine gekoppelten Geräte.</string>
+    <string name="guide_calls_limits">Das Gesprächsaudio bleibt auf deinem Gerät oder Headset. Stummschalten und Halten vom PC aus erfordern ab Android 12 den erweiterten Modus.</string>
+
+    <!-- 3. Now playing -->
+    <string name="guide_media_title">Aktuelle Wiedergabe</string>
+    <string name="guide_media_summary">Steuere die Medienwiedergabe von Gerät und PC, passe die PC-Lautstärke an oder streame PC-Audio auf den Gerätelautsprecher.</string>
+    <string name="guide_media_where">Startseite › Karte des gekoppelten PCs › PC-Audio</string>
+    <string name="guide_media_needs">Benachrichtigungszugriff für Gerätemedien, verbundener gekoppelter PC für PC-Audio</string>
+    <string name="guide_media_need_1">Benachrichtigungszugriff unter Android, um aktive Mediensitzungen zu lesen.</string>
+    <string name="guide_media_need_2">Verbundener gekoppelter PC.</string>
+    <string name="guide_media_phone_1">Klappe auf der Startseite „PC-Audio“ auf der Karte deines gekoppelten PCs aus.</string>
+    <string name="guide_media_phone_2">Passe den PC-Lautstärkeregler an oder aktiviere „Gerät als Lautsprecher nutzen“.</string>
+    <string name="guide_media_pc_1">Steuere die Gerätewiedergabe auf deinem PC mit Wiedergabe, Pause, Weiter und Zurück.</string>
+    <string name="guide_media_opt_1">Gerät als Lautsprecher nutzen: Streamt Audio mit niedriger Latenz von deinem PC auf dein Gerät.</string>
+    <string name="guide_media_opt_2">Lautstärke und Stumm: Steuert das Standard-Wiedergabegerät auf deinem PC.</string>
+    <string name="guide_media_privacy">Medien-Metadaten und Coverbilder stammen aus der lokalen Mediensitzung über TLS 1.3.</string>
+    <string name="guide_media_limits">Live-PC-Audiostreaming erfordert eine stabile WLAN- oder USB-Verbindung.</string>
+
+    <!-- 4. Messages -->
+    <string name="guide_sms_title">Nachrichten</string>
+    <string name="guide_sms_summary">Unterhaltungen lesen, MMS-Anhänge ansehen und SMS direkt vom PC aus senden.</string>
+    <string name="guide_sms_where">Einstellungen › Berechtigungen › Anrufe, Kontakte und Nachrichten</string>
+    <string name="guide_sms_needs">Berechtigungen für SMS und Kontakte</string>
+    <string name="guide_sms_need_1">SMS-Berechtigung unter Android erteilt.</string>
+    <string name="guide_sms_need_2">Kontakte-Berechtigung für Kontaktnamen und Profilbilder erteilt.</string>
+    <string name="guide_sms_phone_1">Öffne Einstellungen › Berechtigungen › Anrufe, Kontakte und Nachrichten und erlaube „SMS vom PC senden“ und „Kontakte“.</string>
+    <string name="guide_sms_pc_1">Öffne „Nachrichten“ auf deinem PC, um Unterhaltungen zu lesen oder SMS- und MMS-Antworten zu senden.</string>
+    <string name="guide_sms_opt_1">Erlauben / Verwalten: Öffnet die Android-Berechtigungseinstellungen für SMS und Kontakte.</string>
+    <string name="guide_sms_opt_2">Nachrichten-Cache: Lösche zwischengespeicherte MMS-Dateien unter Einstellungen › Funktionen &amp; Daten › Daten &amp; Speicher.</string>
+    <string name="guide_sms_privacy">Nachrichten werden bei Bedarf aus dem Android-Telefonsystem gelesen.</string>
+    <string name="guide_sms_limits">Das Senden erfolgt über die SIM-Karte und den Mobilfunktarif deines Geräts.</string>
+
+    <!-- 5. Clipboard -->
+    <string name="guide_clip_title">Zwischenablage</string>
+    <string name="guide_clip_summary">Kopierten Text und Bilder zwischen Gerät und PC teilen und die letzten 50 Einträge im Zwischenablage-Verlauf durchsuchen.</string>
+    <string name="guide_clip_where">Startseite › Zwischenablage-Verlauf (oder Einstellungen › Funktionen &amp; Daten › Zwischenablage)</string>
+    <string name="guide_clip_needs">Gekoppelter PC; erweiterter Modus für automatische Hintergrund-Synchronisierung vom Gerät zum PC</string>
+    <string name="guide_clip_need_1">Die Synchronisierung vom PC zum Gerät und die Kachel „Zwischenablage senden“ funktionieren sofort ohne Zusatzschritte.</string>
+    <string name="guide_clip_need_2">Der erweiterte Modus ergänzt die automatische Synchronisierung der Zwischenablage vom Gerät zum PC.</string>
+    <string name="guide_clip_phone_1">Kopiere Text oder ein Bild auf deinem Gerät und öffne dann MacLink oder tippe auf die Kachel „Zwischenablage senden“.</string>
+    <string name="guide_clip_phone_2">Tippe auf der Startseite auf „Zwischenablage-Verlauf“, um letzte Einträge anzusehen, anzuheften, zu kopieren oder zu löschen.</string>
+    <string name="guide_clip_pc_1">Kopiere Text oder ein Bild auf deinem PC, um es an die Zwischenablage deines Geräts zu senden.</string>
+    <string name="guide_clip_opt_1">Anzeigen / Ausblenden: Verbirgt oder zeigt die Vorschau des letzten Eintrags auf der Startseite.</string>
+    <string name="guide_clip_opt_2">Anheften: Hält einen Eintrag ganz oben im Verlauf der letzten 50 Elemente.</string>
+    <string name="guide_clip_opt_3">Aktionen für kopierten Text vorschlagen: Bietet das Öffnen von Links, Karten oder Rufnummern vom PC an.</string>
+    <string name="guide_clip_privacy">Der Zwischenablage-Verlauf wird verschlüsselt gespeichert und schließt Einträge aus, die von Passwort-Managern als vertraulich markiert wurden.</string>
+    <string name="guide_clip_limits">Ab Android 10 wird das Lesen der Zwischenablage im Hintergrund ohne erweiterten Modus oder Tippen auf „Zwischenablage senden“ blockiert.</string>
+
+    <!-- 6. Send clipboard -->
+    <string name="guide_tile_title">Zwischenablage senden</string>
+    <string name="guide_tile_summary">Sende deine Geräte-Zwischenablage aus jeder App heraus über die Schnelleinstellungs-Kachel an deinen PC.</string>
+    <string name="guide_tile_where">Android-Schnelleinstellungen › Zwischenablage senden</string>
+    <string name="guide_tile_needs">Gekoppelter PC</string>
+    <string name="guide_tile_ext_1">1. Wische zweimal vom oberen Bildschirmrand nach unten, um die Schnelleinstellungen zu öffnen.</string>
+    <string name="guide_tile_ext_2">2. Tippe auf „Bearbeiten“ und ziehe „Zwischenablage senden“ in deine aktiven Kacheln.</string>
+    <string name="guide_tile_ext_3">3. Kopiere Text in einer beliebigen App, wische nach unten und tippe auf „Zwischenablage senden“.</string>
+    <string name="guide_tile_need_1">Mindestens ein gekoppelter PC.</string>
+    <string name="guide_tile_phone_1">Füge die Kachel „Zwischenablage senden“ einmalig zu den Schnelleinstellungen hinzu und tippe nach dem Kopieren darauf.</string>
+    <string name="guide_tile_pc_1">Füge den Inhalt auf deinem PC mit Strg+V ein.</string>
+    <string name="guide_tile_opt_1">Kachel „Zwischenablage senden“: Liest beim Antippen einmalig die aktuelle Geräte-Zwischenablage und sendet sie oder reiht sie in die Warteschlange ein.</string>
+    <string name="guide_tile_privacy">Liest die Zwischenablage nur beim Antippen. Offline-Einträge bleiben bis zu 24 Stunden in der Warteschlange.</string>
+    <string name="guide_tile_limits">Wird genutzt, wenn die Hintergrund-Synchronisierung im erweiterten Modus nicht aktiv ist.</string>
+
+    <!-- 7. Send files -->
+    <string name="guide_files_title">Dateien senden</string>
+    <string name="guide_files_summary">Übertrage Dateien oder Ordner zwischen Gerät und PC über WLAN, Ethernet oder USB – inklusive Pause und Fortsetzen.</string>
+    <string name="guide_files_where">Startseite › Karte des gekoppelten PCs › Dateien senden / Ordner senden</string>
+    <string name="guide_files_needs">Gekoppelter PC</string>
+    <string name="guide_files_need_1">Gekoppelter PC (Offline-Dateien warten bis zu 7 Tage in der Sendewarteschlange).</string>
+    <string name="guide_files_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „Dateien senden“ oder „Ordner senden“.</string>
+    <string name="guide_files_phone_2">Pausiere, setze fort oder brich aktive Übertragungen in der Karte „Übertragungen“ auf der Startseite ab.</string>
+    <string name="guide_files_pc_1">Ziehe Dateien auf das MacLink-Fenster oder auf die MacLink Island am oberen Bildschirmrand deines PCs.</string>
+    <string name="guide_files_opt_1">Dateien senden / Ordner senden: Überträgt einzelne Dateien oder komplette Ordnerstrukturen.</string>
+    <string name="guide_files_opt_2">Pause / Fortsetzen: Setzt unterbrochene Übertragungen fort, ohne bereits übertragene Bytes erneut zu senden.</string>
+    <string name="guide_files_privacy">Dateien werden über QUIC TLS 1.3 mit BLAKE3-Integritätsprüfung in den Ordner Download/MacLink übertragen.</string>
+    <string name="guide_files_limits">Bis zu 5.000 Dateien pro Stapel.</string>
+
+    <!-- 8. Send queue -->
+    <string name="guide_queue_title">Sendewarteschlange</string>
+    <string name="guide_queue_summary">Reihe Dateien, Links, Zwischenablage-Einträge und Aufnahmen in die Warteschlange ein, während dein PC offline ist, und stelle sie automatisch zu, sobald er sich wieder verbindet.</string>
+    <string name="guide_queue_where">Startseite › Karte „Sendewarteschlange“</string>
+    <string name="guide_queue_needs">Gekoppelter PC</string>
+    <string name="guide_queue_need_1">Mindestens ein gekoppelter PC.</string>
+    <string name="guide_queue_phone_1">Sende Dateien, Zwischenablage-Einträge oder Links an einen Offline-PC; sie erscheinen unter „Sendewarteschlange“ auf der Startseite.</string>
+    <string name="guide_queue_phone_2">Eingereihte Elemente werden der Reihe nach automatisch gesendet, sobald dein PC wieder verbunden ist.</string>
+    <string name="guide_queue_pc_1">Elemente, die auf deinem PC eingereiht wurden, während dein Gerät offline war, werden beim Wiederverbinden ebenfalls zugestellt.</string>
+    <string name="guide_queue_opt_1">Erneut versuchen / Verwerfen / Alle abbrechen: Verwalte einzelne oder alle eingereihten Elemente auf der Startseite.</string>
+    <string name="guide_queue_privacy">Eingereihte Daten bleiben im privaten App-Speicher und werden nach der Zustellung oder beim Entkoppeln gelöscht.</string>
+    <string name="guide_queue_limits">Fasst bis zu 200 Elemente oder 10 GiB. Dateien laufen nach 7 Tagen ab, Zwischenablage-Einträge und Links nach 24 Stunden.</string>
+
+    <!-- 9. Send to PC -->
+    <string name="guide_share_title">An PC senden</string>
+    <string name="guide_share_summary">Teile Links, Text, Fotos oder Dokumente aus jeder Android-App über das System-Teilen-Menü mit deinem PC.</string>
+    <string name="guide_share_where">Android-Teilen-Menü › An PC senden</string>
+    <string name="guide_share_needs">Gekoppelter PC</string>
+    <string name="guide_share_ext_1">1. Tippe in einem beliebigen Browser, einer Galerie oder einer Dokumenten-App auf deinem Gerät auf „Teilen“.</string>
+    <string name="guide_share_ext_2">2. Wähle MacLink („An PC senden“ oder „Auf PC öffnen“).</string>
+    <string name="guide_share_need_1">Mindestens ein gekoppelter PC.</string>
+    <string name="guide_share_phone_1">Teile einen beliebigen Link oder eine Datei über das Android-Teilen-Menü und wähle deinen Ziel-PC.</string>
+    <string name="guide_share_pc_1">Links öffnen sich im Standardbrowser deines PCs; Dateien werden unter „Downloads“ gespeichert.</string>
+    <string name="guide_share_opt_1">An PC senden / Auf PC öffnen: Speichert Dateien oder öffnet Links und sichere Dokumente direkt beim Empfang.</string>
+    <string name="guide_share_privacy">Ausführbare Dateien und Skripte werden auf deinem PC niemals automatisch geöffnet.</string>
+    <string name="guide_share_limits">Nur sichere Dokumenttypen öffnen sich automatisch; alle anderen Dateien werden unter „Downloads“ gespeichert.</string>
+
+    <!-- 10. Storage in File Explorer -->
+    <string name="guide_storage_title">Speicher im Datei-Explorer</string>
+    <string name="guide_storage_summary">Durchsuche den freigegebenen Speicher dieses Geräts oder ausgewählte Ordner im Windows-Datei-Explorer.</string>
+    <string name="guide_storage_where">Einstellungen › Berechtigungen › Fotos und Videos (sowie Einstellungen › Geräte)</string>
+    <string name="guide_storage_needs">Zugriff auf alle Dateien (oder ausgewählte Ordner) und Speicher-Schalter pro PC</string>
+    <string name="guide_storage_need_1">Zugriff auf alle Dateien oder ausgewählte Ordner unter Einstellungen › Berechtigungen › Fotos und Videos.</string>
+    <string name="guide_storage_need_2">„Gerätespeicher im Datei-Explorer durchsuchen“ für den PC unter Einstellungen › Geräte aktiviert.</string>
+    <string name="guide_storage_phone_1">Erteile den Zugriff auf alle Dateien oder wähle Ordner unter Einstellungen › Berechtigungen › Fotos und Videos aus.</string>
+    <string name="guide_storage_phone_2">Aktiviere den Speicherschalter für deinen PC unter Einstellungen › Geräte.</string>
+    <string name="guide_storage_pc_1">Öffne deinen Gerätespeicher über MacLink oder den Windows-Datei-Explorer auf deinem PC.</string>
+    <string name="guide_storage_opt_1">Zugriff auf alle Dateien / Nur ausgewählte Ordner: Gib den gesamten Speicher oder nur ausgewählte SAF-Ordner frei.</string>
+    <string name="guide_storage_privacy">Das Durchsuchen des Speichers ist für jeden PC standardmäßig deaktiviert, bis du es einschaltest.</string>
+    <string name="guide_storage_limits">Android blockiert den Zugriff auf private App-Verzeichnisse unter /Android/data.</string>
+
+    <!-- 11. Browse PC files -->
+    <string name="guide_pc_files_title">PC-Dateien durchsuchen</string>
+    <string name="guide_pc_files_summary">Durchsuche vom Gerät aus Ordner, die dein PC freigegeben hat, und lade Dateien in deinen Downloads-Ordner herunter.</string>
+    <string name="guide_pc_files_where">Startseite › Karte des gekoppelten PCs › PC-Dateien durchsuchen</string>
+    <string name="guide_pc_files_needs">Verbundener gekoppelter PC mit aktivierter Speicherfreigabe</string>
+    <string name="guide_pc_files_need_1">Verbundener gekoppelter PC, der seine Ordner freigibt („Dein PC in der Hosentasche“).</string>
+    <string name="guide_pc_files_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „PC-Dateien durchsuchen“ und tippe auf eine Datei, um sie herunterzuladen.</string>
+    <string name="guide_pc_files_pc_1">Aktiviere „Dein PC in der Hosentasche“ in den MacLink-Einstellungen auf deinem PC.</string>
+    <string name="guide_pc_files_opt_1">Ansicht „PC-Dateien durchsuchen“: Navigiere durch PC-Ordner und lade Dateien in „Downloads“ herunter.</string>
+    <string name="guide_pc_files_privacy">Heruntergeladene Dateien werden lokal im Downloads-Ordner deines Geräts gespeichert.</string>
+    <string name="guide_pc_files_limits">Erfordert, dass der gekoppelte PC online ist.</string>
+
+    <!-- 12. Photos -->
+    <string name="guide_photos_title">Fotos</string>
+    <string name="guide_photos_summary">Durchsuche Fotos, Screenshots und Videos deines Geräts auf deinem PC und speichere Originale in voller Auflösung.</string>
+    <string name="guide_photos_where">Einstellungen › Berechtigungen › Fotos und Videos</string>
+    <string name="guide_photos_needs">Berechtigung für Fotos und Videos</string>
+    <string name="guide_photos_need_1">Berechtigung für Fotos und Videos unter Android erteilt.</string>
+    <string name="guide_photos_phone_1">Öffne Einstellungen › Berechtigungen › Fotos und Videos und tippe auf „Erlauben“.</string>
+    <string name="guide_photos_pc_1">Öffne „Fotos“ auf deinem PC, um Vorschaubilder zu durchsuchen und Originale zu kopieren oder zu speichern.</string>
+    <string name="guide_photos_opt_1">Alle erlauben: Gewährt vollen Galeriezugriff, wenn ab Android 14 nur teilweiser Fotozugriff aktiv ist.</string>
+    <string name="guide_photos_privacy">Vorschaubilder werden bei Bedarf lokal auf deinem Gerät erzeugt.</string>
+    <string name="guide_photos_limits">Teilweiser Fotozugriff ab Android 14 zeigt nur die von dir ausgewählten Fotos an.</string>
+
+    <!-- 13. Timeline -->
+    <string name="guide_timeline_title">Zeitverlauf</string>
+    <string name="guide_timeline_summary">Durchsuche einen lokalen Verlauf aller mit deinen PCs geteilten Dateien, Zwischenablage-Einträge, Links, Fotos, Aufnahmen und Sitzungen.</string>
+    <string name="guide_timeline_where">Startseite › Zeitverlauf (sowie Einstellungen › Funktionen &amp; Daten › Daten &amp; Speicher)</string>
+    <string name="guide_timeline_needs">Keine zusätzlichen Berechtigungen</string>
+    <string name="guide_timeline_need_1">Mindestens ein geteiltes Element, damit die Karte „Zeitverlauf“ auf der Startseite erscheint.</string>
+    <string name="guide_timeline_phone_1">Tippe auf der Startseite auf „Zeitverlauf“, um zu suchen, nach Typ zu filtern oder bei früheren Elementen auf „Erneut senden“ zu tippen.</string>
+    <string name="guide_timeline_pc_1">Öffne „Zeitverlauf“ auf deinem PC, um den Aktivitätsverlauf am Desktop zu durchsuchen.</string>
+    <string name="guide_timeline_opt_1">Zeitverlauf-Einträge behalten (30 T., 90 T., 1 J., Alle): Lege die Aufbewahrungsdauer unter Einstellungen › Funktionen &amp; Daten › Daten &amp; Speicher fest.</string>
+    <string name="guide_timeline_privacy">Wird ausschließlich in einer lokalen SQLite-Datenbank auf deinem Gerät gespeichert.</string>
+    <string name="guide_timeline_limits">Bewahrt lokal bis zu 5.000 Einträge auf.</string>
+
+    <!-- 14. LocalSend -->
+    <string name="guide_localsend_title">LocalSend</string>
+    <string name="guide_localsend_summary">Sende und empfange Dateien mit LocalSend-Geräten in der Nähe im selben WLAN – ganz ohne Kopplung.</string>
+    <string name="guide_localsend_where">Einstellungen › Funktionen &amp; Daten › LocalSend (sowie Startseite › LocalSend in der Nähe)</string>
+    <string name="guide_localsend_needs">LocalSend unter Einstellungen › Funktionen &amp; Daten aktiviert</string>
+    <string name="guide_localsend_need_1">Schalter „LocalSend“ unter Einstellungen › Funktionen &amp; Daten eingeschaltet.</string>
+    <string name="guide_localsend_phone_1">Aktiviere LocalSend unter Einstellungen › Funktionen &amp; Daten und nutze dann die Karte „LocalSend in der Nähe“ auf der Startseite.</string>
+    <string name="guide_localsend_pc_1">Sende oder empfange Dateien mit jedem LocalSend-Gerät im selben lokalen Netzwerk.</string>
+    <string name="guide_localsend_opt_1">LocalSend-Schalter: Steuert die LAN-Multicast-Erkennung auf Port 53317.</string>
+    <string name="guide_localsend_privacy">Standardmäßig deaktiviert; eingehende Übertragungen fragen vor dem Speichern immer nach.</string>
+    <string name="guide_localsend_limits">Funktioniert nur im selben lokalen Netzwerk.</string>
+
+    <!-- 15. Screen mirroring -->
+    <string name="guide_mirror_title">Bildschirmspiegelung</string>
+    <string name="guide_mirror_summary">Streame deinen Gerätebildschirm und internes Audio in ein Fenster auf deinem PC oder sieh dir deinen PC-Bildschirm auf dem Gerät an.</string>
+    <string name="guide_mirror_where">Einstellungen › Berechtigungen › Steuerung vom PC (oder Startseite › PC steuern)</string>
+    <string name="guide_mirror_needs">Verbundener gekoppelter PC; Assistenz oder Erweitert für Maus- und Tastatursteuerung</string>
+    <string name="guide_mirror_need_1">Verbundener gekoppelter PC.</string>
+    <string name="guide_mirror_need_2">Optional: Assistenz (Bedienungshilfen) oder Erweitert für Maus- und Tastatureingaben vom PC.</string>
+    <string name="guide_mirror_phone_1">Tippe im Android-Aufnahmedialog auf „Jetzt starten“, wenn die Spiegelung vom PC aus gestartet wird.</string>
+    <string name="guide_mirror_phone_2">Tippe jederzeit im Banner auf der Startseite auf „Stopp“, um die Bildschirmfreigabe zu beenden.</string>
+    <string name="guide_mirror_pc_1">Starte „Bildschirmspiegelung“ auf deinem PC, um ein Live-Fenster deines Geräts zu öffnen.</string>
+    <string name="guide_mirror_opt_1">Stopp: Beendet die Bildschirmaufnahme sofort über die Startseite oder die Benachrichtigung.</string>
+    <string name="guide_mirror_privacy">Erfordert eine Bestätigung auf deinem Gerät, sofern sie nicht über ein virtuelles Display im erweiterten Modus gestartet wird.</string>
+    <string name="guide_mirror_limits">Apps mit FLAG_SECURE werden in normalen MediaProjection-Streams schwarz dargestellt.</string>
+
+    <!-- 16. App streams -->
+    <string name="guide_apps_title">App-Streams</string>
+    <string name="guide_apps_summary">Öffne einzelne Android-Apps in eigenen Fenstern auf deinem PC, während dein Gerätebildschirm unabhängig nutzbar bleibt.</string>
+    <string name="guide_apps_where">Einstellungen › Berechtigungen › Steuerung vom PC › Echte Touch- und Tastatureingabe (Kabelloses Debugging)</string>
+    <string name="guide_apps_needs">Erweitert (Kabelloses Debugging)</string>
+    <string name="guide_apps_need_1">Erweiterter Modus, eingerichtet über Kabelloses Debugging.</string>
+    <string name="guide_apps_need_2">Verbundener gekoppelter PC.</string>
+    <string name="guide_apps_phone_1">Richte Kabelloses Debugging unter Einstellungen › Berechtigungen › Steuerung vom PC ein.</string>
+    <string name="guide_apps_pc_1">Öffne „App-Streams“ auf deinem PC und klicke auf eine beliebige Geräte-App, um sie in einem eigenen Fenster zu starten.</string>
+    <string name="guide_apps_opt_1">Alle schließen: Schließt alle aktiven Virtuelles-Display-App-Fenster über das Banner auf der Startseite.</string>
+    <string name="guide_apps_privacy">App-Fenster werden über TLS 1.3 von einem lokalen virtuellen Display auf diesem Gerät gestreamt.</string>
+    <string name="guide_apps_limits">Erfordert den erweiterten Modus, um virtuelle Displays unter Android zu erstellen.</string>
+
+    <!-- 17. Phone as webcam -->
+    <string name="guide_webcam_title">Gerät als Webcam</string>
+    <string name="guide_webcam_summary">Streame die Front- oder Rückkamera deines Geräts mit bis zu 4K oder 60 fps an deinen PC.</string>
+    <string name="guide_webcam_where">Startseite › Karte des gekoppelten PCs › Webcam</string>
+    <string name="guide_webcam_needs">Kameraberechtigung, verbundener gekoppelter PC</string>
+    <string name="guide_webcam_need_1">Kameraberechtigung unter Android und ein verbundener gekoppelter PC.</string>
+    <string name="guide_webcam_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „Webcam“, wähle Auflösung und Objektiv und tippe auf „Webcam starten“.</string>
+    <string name="guide_webcam_pc_1">Sieh dir den Live-Kamerastream in MacLink auf deinem PC an oder nimm ihn auf.</string>
+    <string name="guide_webcam_opt_1">Kamera wechseln / Taschenlampe / Zoom / Auflösung (720p, 1080p, 4K): Live-Kamerasteuerung.</string>
+    <string name="guide_webcam_privacy">Startet niemals heimlich im Hintergrund; zeigt während des Streamings eine laufende Benachrichtigung an.</string>
+    <string name="guide_webcam_limits">1080p mit 60 fps und 4K erfordern Hardware-Encoder-Unterstützung sowie schnelles WLAN oder USB.</string>
+
+    <!-- 18. Continuity camera -->
+    <string name="guide_continuity_title">Übergabekamera</string>
+    <string name="guide_continuity_summary">Nimm mit deiner Gerätekamera direkt für deinen PC ein Foto auf oder scanne ein Dokument und schneide es zu.</string>
+    <string name="guide_continuity_where">Vom PC angefordert › Übergabekamera-Aufforderung auf dem Gerät</string>
+    <string name="guide_continuity_needs">Kameraberechtigung, verbundener gekoppelter PC</string>
+    <string name="guide_continuity_need_1">Kameraberechtigung unter Android und ein verbundener gekoppelter PC.</string>
+    <string name="guide_continuity_phone_1">Tippe auf die Anfrage-Benachrichtigung oder das Banner, mach ein Foto oder passe die Dokumentenecken an und tippe auf „Senden“.</string>
+    <string name="guide_continuity_pc_1">Starte „Foto aufnehmen“ oder „Dokument scannen“ in MacLink auf deinem PC.</string>
+    <string name="guide_continuity_opt_1">Ecken anpassen / Dokument optimieren: Perspektivischer Zuschnitt und Kontrastverbesserung für Scans.</string>
+    <string name="guide_continuity_privacy">Aufnahmen werden erst gesendet, wenn du auf „Foto verwenden“ oder „Scan senden“ tippst.</string>
+    <string name="guide_continuity_limits">Kameraanfragen laufen nach 2 Minuten ab, wenn sie nicht beantwortet werden.</string>
+
+    <!-- 19. Voice recorder -->
+    <string name="guide_recorder_title">Sprachrekorder</string>
+    <string name="guide_recorder_summary">Nimm Sprachnotizen mit Zeitmarken auf, um sie an deinen PC zu senden – inklusive automatischer Offline-Warteschlange.</string>
+    <string name="guide_recorder_where">Startseite › Karte des gekoppelten PCs › Aufnehmen</string>
+    <string name="guide_recorder_needs">Mikrofonberechtigung, gekoppelter PC</string>
+    <string name="guide_recorder_need_1">Mikrofonberechtigung unter Android und ein gekoppelter PC.</string>
+    <string name="guide_recorder_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „Aufnehmen“ und dann auf „Aufnahme starten“.</string>
+    <string name="guide_recorder_phone_2">Tippe auf „Markierung setzen“, um wichtige Stellen zu markieren; fertige Aufnahmen werden sofort gesendet oder in die Warteschlange eingereiht.</string>
+    <string name="guide_recorder_pc_1">Abgeschlossene Aufnahmen landen im Downloads-Ordner deines PCs und im Zeitverlauf.</string>
+    <string name="guide_recorder_opt_1">Markierung setzen / Erneut senden / Löschen: Verwalte Markierungen und gespeicherte Aufnahmen.</string>
+    <string name="guide_recorder_privacy">Nutzt das Mikrofon nur während der Aufnahme; bis zur Zustellung im privaten App-Speicher abgelegt.</string>
+    <string name="guide_recorder_limits">Offline-Aufnahmen werden automatisch eingereiht und gesendet, sobald dein PC wieder verbunden ist.</string>
+
+    <!-- 20. Control PC -->
+    <string name="guide_remote_title">PC steuern</string>
+    <string name="guide_remote_summary">Nutze dein Gerät als Touchpad, Tastatur, Diktiermikrofon, Air Mouse oder Präsentations-Fernbedienung für deinen PC.</string>
+    <string name="guide_remote_where">Startseite › Karte des gekoppelten PCs › PC steuern</string>
+    <string name="guide_remote_needs">Verbundener gekoppelter PC mit erlaubter Fernsteuerung</string>
+    <string name="guide_remote_need_1">Verbundener gekoppelter PC, auf dem die Steuerung für dieses Gerät erlaubt ist.</string>
+    <string name="guide_remote_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „PC steuern“.</string>
+    <string name="guide_remote_phone_2">Wechsle zwischen Touchpad, Air Mouse, Präsentation, Tastatur und Diktieren.</string>
+    <string name="guide_remote_pc_1">Bestätige die Fernsteuerung auf deinem PC, wenn du dazu aufgefordert wirst.</string>
+    <string name="guide_remote_opt_1">Touchpad-Geschwindigkeit: Passe die Empfindlichkeit unter Einstellungen › Funktionen &amp; Daten › PC steuern an.</string>
+    <string name="guide_remote_privacy">Eingabeereignisse werden über verschlüsselte QUIC-Streams an deinen gekoppelten PC übertragen.</string>
+    <string name="guide_remote_limits">Die Air Mouse erfordert ein Hardware-Gyroskop in deinem Gerät.</string>
+
+    <!-- 21. Assist -->
+    <string name="guide_assist_title">Assistenz</string>
+    <string name="guide_assist_summary">Lass Maus und Tastatur deines PCs über den Bedienungshilfendienst auf diesem Gerät tippen, wischen und schreiben.</string>
+    <string name="guide_assist_where">Einstellungen › Berechtigungen › Steuerung vom PC › Maus und Tastatur deines PCs verwenden</string>
+    <string name="guide_assist_needs">Bedienungshilfendienst aktiviert</string>
+    <string name="guide_assist_need_1">MacLink-Bedienungshilfendienst in den Android-Einstellungen aktiviert.</string>
+    <string name="guide_assist_phone_1">Öffne Einstellungen › Berechtigungen › Steuerung vom PC und tippe unter „Maus und Tastatur deines PCs verwenden“ auf „Erlauben“.</string>
+    <string name="guide_assist_pc_1">Klicke, ziehe, scrolle und tippe direkt im Fenster der Gerätespiegelung auf deinem PC.</string>
+    <string name="guide_assist_opt_1">Tippen beenden: Beendet die PC-Tastatureingabe über das Banner auf der Startseite.</string>
+    <string name="guide_assist_privacy">Führt Gesten und Texteingaben deines gekoppelten PCs aus; liest keine Bildschirminhalte oder Passwörter mit.</string>
+    <string name="guide_assist_limits">Bei manuell installierten APKs ab Android 13 muss zuerst in der App-Info „Eingeschränkte Einstellungen zulassen“ aktiviert werden.</string>
+
+    <!-- 22. Elevated -->
+    <string name="guide_elevated_title">Erweitert</string>
+    <string name="guide_elevated_summary">Echte Touch- und Tastatureingabe, App-Streams, Zwischenablage-Synchronisierung im Hintergrund und Anrufsteuerung über Kabelloses Debugging.</string>
+    <string name="guide_elevated_where">Einstellungen › Berechtigungen › Steuerung vom PC › Echte Touch- und Tastatureingabe (Kabelloses Debugging)</string>
+    <string name="guide_elevated_needs">Kabelloses Debugging</string>
+    <string name="guide_elevated_need_1">Entwickleroptionen und Kabelloses Debugging aktiviert.</string>
+    <string name="guide_elevated_phone_1">Öffne Einstellungen › Berechtigungen › Steuerung vom PC und tippe unter „Echte Touch- und Tastatureingabe“ auf „Einrichten“.</string>
+    <string name="guide_elevated_phone_2">Tippe unter „Kabelloses Debugging“ auf „Gerät mit Kopplungscode koppeln“ und gib den 6-stelligen Code in der Benachrichtigung ein.</string>
+    <string name="guide_elevated_pc_1">Nutze App-Streams, Hintergrund-Synchronisierung der Zwischenablage und Eingaben mit niedriger Latenz von deinem PC aus.</string>
+    <string name="guide_elevated_opt_1">Einrichten / Ausschalten: Koppelt oder beendet den lokalen Dienst für Kabelloses Debugging.</string>
+    <string name="guide_elevated_privacy">Läuft lokal auf diesem Gerät über Loopback-ADB; es ist kein externer Server beteiligt.</string>
+    <string name="guide_elevated_limits">Die erstmalige Kopplung für Kabelloses Debugging erfordert WLAN.</string>
+
+    <!-- 23. Deck -->
+    <string name="guide_deck_title">Deck</string>
+    <string name="guide_deck_summary">Nutze dein Gerät als Raster mit Kurzbefehl-Kacheln, Medientasten, Lautstärkereglern und Live-Systemanzeigen für deinen PC.</string>
+    <string name="guide_deck_where">Startseite › Karte des gekoppelten PCs › Deck</string>
+    <string name="guide_deck_needs">Verbundener gekoppelter PC</string>
+    <string name="guide_deck_need_1">Verbundener gekoppelter PC.</string>
+    <string name="guide_deck_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „Deck“ und tippe auf eine Kachel, um ihre Aktion auszulösen.</string>
+    <string name="guide_deck_pc_1">Passe Deck-Seiten und -Kacheln in MacLink auf deinem PC an.</string>
+    <string name="guide_deck_opt_1">Vollbild: Erweitert das Deck-Raster über den gesamten Gerätebildschirm.</string>
+    <string name="guide_deck_privacy">Deck-Layouts und Systemwerte bleiben ausschließlich zwischen deinem Gerät und deinem gekoppelten PC.</string>
+    <string name="guide_deck_limits">Kacheln mit Shell-Befehlen erfordern, dass auf deinem PC „Deck-Befehle ausführen“ für dieses Gerät aktiviert ist.</string>
+
+    <!-- 24. Desk Mode -->
+    <string name="guide_desk_title">Tischmodus</string>
+    <string name="guide_desk_summary">Always-on-OLED-Tischuhr mit Live-PC-Verbindungsstatus, Mediensteuerung und Schnellaktionen.</string>
+    <string name="guide_desk_where">Startseite › Karte des gekoppelten PCs › Tischuhr</string>
+    <string name="guide_desk_needs">Gekoppelter PC</string>
+    <string name="guide_desk_need_1">Gekoppelter PC.</string>
+    <string name="guide_desk_phone_1">Tippe auf der Startseite auf der Karte deines gekoppelten PCs auf „Tischuhr“ und stelle dein Gerät auf einen Ständer oder ein Ladegerät.</string>
+    <string name="guide_desk_pc_1">Medienwiedergabe und Status deines PCs werden live auf dem Tischmodus-Bildschirm aktualisiert.</string>
+    <string name="guide_desk_opt_1">OLED-Einbrennschutz: Verschiebt das Layout regelmäßig um wenige Pixel, um OLED-Bildschirme zu schonen.</string>
+    <string name="guide_desk_privacy">Wird lokal auf deinem Gerät anhand des aktuellen PC-Status dargestellt.</string>
+    <string name="guide_desk_limits">Hält den Bildschirm eingeschaltet, solange der Modus geöffnet ist.</string>
+
+    <!-- 25. Wake PC -->
+    <string name="guide_wake_title">PC aufwecken</string>
+    <string name="guide_wake_summary">Wecke einen schlafenden gekoppelten PC über dein lokales Netzwerk per Wake-on-LAN auf.</string>
+    <string name="guide_wake_where">Startseite › Karte des gekoppelten PCs › Aufwecken</string>
+    <string name="guide_wake_needs">Gekoppelter PC mit im BIOS und im Netzwerkadapter aktiviertem Wake-on-LAN</string>
+    <string name="guide_wake_need_1">Gekoppelter PC, der mindestens einmal über das lokale Netzwerk verbunden war, damit MacLink seine MAC-Adresse kennt.</string>
+    <string name="guide_wake_need_2">Wake-on-LAN in den Windows-Netzwerkadaptereinstellungen und im BIOS/UEFI aktiviert.</string>
+    <string name="guide_wake_phone_1">Wenn dein gekoppelter PC auf der Startseite offline ist, tippe auf seiner Karte auf „Aufwecken“.</string>
+    <string name="guide_wake_pc_1">Aktiviere das Aufwecken per Wake-on-LAN-Paket im Geräte-Manager › Netzwerkadapter › Energieverwaltung.</string>
+    <string name="guide_wake_opt_1">Aufwecken: Sendet ein Wake-on-LAN-Paket im lokalen Netzwerk.</string>
+    <string name="guide_wake_privacy">Verwendet die MAC-Adresse, die während einer früheren authentifizierten LAN-Sitzung gelernt wurde.</string>
+    <string name="guide_wake_limits">Erfordert Ethernet oder einen WLAN-Adapter, der Wake on Wireless LAN unterstützt.</string>
+
+    <!-- 26. Quick actions -->
+    <string name="guide_quick_title">Schnellaktionen</string>
+    <string name="guide_quick_summary">Lass deinen PC klingeln, sperre ihn oder versetze ihn über die Startseite oder das Startbildschirm-Widget in den Energiesparmodus, und steuere „Bitte nicht stören“, Taschenlampe und Helligkeit deines Geräts vom PC aus.</string>
+    <string name="guide_quick_where">Startseite › Karte des gekoppelten PCs (sowie Einstellungen › Berechtigungen › Steuerung vom PC)</string>
+    <string name="guide_quick_needs">Zugriff auf „Bitte nicht stören“ und Berechtigung für Bildschirmhelligkeit für Schalter vom PC zum Gerät</string>
+    <string name="guide_quick_need_1">„PC klingeln lassen“, „PC sperren“, „Energiesparmodus“ und die Gerätetaschenlampe funktionieren ohne zusätzliche Berechtigungen.</string>
+    <string name="guide_quick_need_2">„Bitte nicht stören“ und der Lautlos-Modus erfordern den Zugriff auf „Bitte nicht stören“.</string>
+    <string name="guide_quick_need_3">Die Steuerung der Gerätehelligkeit erfordert die Berechtigung „Bildschirmhelligkeit“ oder den erweiterten Modus.</string>
+    <string name="guide_quick_phone_1">Nutze „PC klingeln lassen“, „PC sperren“ und „Energiesparmodus“ auf der Karte deines gekoppelten PCs auf der Startseite oder füge das Widget „PC-Schnellaktionen“ hinzu.</string>
+    <string name="guide_quick_pc_1">Schalte „Bitte nicht stören“, Klingelton, Taschenlampe, Lautstärke und Helligkeit deines Geräts in MacLink auf deinem PC um.</string>
+    <string name="guide_quick_opt_1">Bitte nicht stören / Bildschirmhelligkeit: Erteile die Berechtigung unter Einstellungen › Berechtigungen › Steuerung vom PC.</string>
+    <string name="guide_quick_privacy">Befehle werden pro Gerät über TLS 1.3 authentifiziert.</string>
+    <string name="guide_quick_limits">Das Sperren und der Energiesparmodus des PCs können pro Gerät in den PC-Einstellungen › Geräte ein- oder ausgeschaltet werden.</string>
+
+    <!-- 27. Connect over mobile data -->
+    <string name="guide_away_title">Über mobile Daten verbinden</string>
+    <string name="guide_away_summary">Bleibe unterwegs ohne WLAN über mobile Daten mit deinem PC verbunden oder stelle eine Verbindung per USB-Kabel her.</string>
+    <string name="guide_away_where">Einstellungen › Geräte › Über mobile Daten verbinden</string>
+    <string name="guide_away_needs">Uneingeschränkte Akkunutzung, „Über mobile Daten verbinden“ aktiviert</string>
+    <string name="guide_away_need_1">Uneingeschränkte Akkunutzung unter Einstellungen › Berechtigungen › Hintergrund &amp; Akku.</string>
+    <string name="guide_away_need_2">„Über mobile Daten verbinden“ unter Einstellungen › Geräte aktiviert.</string>
+    <string name="guide_away_phone_1">Aktiviere „Über mobile Daten verbinden“ unter Einstellungen › Geräte.</string>
+    <string name="guide_away_pc_1">Auf der Karte deines PCs wird je nach aktiver Verbindung „Unterwegs verbunden“ oder „Über USB“ angezeigt.</string>
+    <string name="guide_away_opt_1">Über mobile Daten verbinden: Nutzt ein Ende-zu-Ende-verschlüsseltes Relay, wenn kein LAN oder USB verfügbar ist.</string>
+    <string name="guide_away_privacy">Der Relay-Datenverkehr ist mit deinen gekoppelten TLS-1.3-Geräteschlüsseln Ende-zu-Ende-verschlüsselt.</string>
+    <string name="guide_away_limits">Dateiübertragungen über mobile Daten belasten dein mobiles Datenvolumen.</string>
+
+    <!-- 28. Connection Doctor -->
+    <string name="guide_doctor_title">Verbindungs-Doktor</string>
+    <string name="guide_doctor_summary">Prüfe Hintergrund-Akkueinstellungen, Aufwecken per Begleitgerät und den Zugriff auf das lokale Netzwerk, damit dein Gerät erreichbar bleibt.</string>
+    <string name="guide_doctor_where">Einstellungen › Berechtigungen › Hintergrund &amp; Akku</string>
+    <string name="guide_doctor_needs">Uneingeschränkte Akkunutzung</string>
+    <string name="guide_doctor_need_1">Uneingeschränkte Akkunutzung im Hintergrund aktiviert.</string>
+    <string name="guide_doctor_need_2">Optional: „Aufwecken, wenn PC in der Nähe ist (Begleitgerät)“ verknüpft.</string>
+    <string name="guide_doctor_phone_1">Öffne Einstellungen › Berechtigungen › Hintergrund &amp; Akku und erlaube die uneingeschränkte Akkunutzung.</string>
+    <string name="guide_doctor_phone_2">Folge der Hersteller-Akkuanleitung, falls dein Gerätehersteller Hintergrund-Apps einschränkt.</string>
+    <string name="guide_doctor_pc_1">Öffne den Verbindungs-Doktor auf deinem PC, um Übertragungslatenz, Ports und Verbindungszustand zu prüfen.</string>
+    <string name="guide_doctor_opt_1">Aufwecken, wenn PC in der Nähe ist: Verknüpft deinen PC, damit Android MacLink in BLE-Reichweite aufweckt.</string>
+    <string name="guide_doctor_privacy">Diagnosen laufen lokal zwischen deinem Gerät und deinem gekoppelten PC ab.</string>
+    <string name="guide_doctor_limits">Bei manchen Geräteherstellern muss die Akkuoptimierung auf „Nicht eingeschränkt“ gestellt werden.</string>
+    <string name="pair_link_title">Mit %1$s koppeln?</string>
+    <string name="pair_link_body">Ein Kopplungslink wurde geöffnet. Kopple nur, wenn du den Code dieses Geräts gerade selbst gescannt oder geöffnet hast. Ein gekoppeltes Gerät kann deine Benachrichtigungen und Nachrichten empfangen.</string>
+    <string name="pair_link_confirm">Koppeln</string>
+    <string name="pair_link_cancel">Abbrechen</string>
+    <string name="pair_link_unknown_pc">diesem Gerät</string>
+    <string name="data_clear_failed">Einige Verlaufsdaten konnten nicht gelöscht werden. Versuche es erneut.</string>
+    <string name="channel_updates">Updates</string>
+    <string name="update_ready_title">MacLink %1$s ist bereit</string>
+    <string name="update_ready_text">Tippe, um das Update zu installieren.</string>
+    <string name="update_done_title">MacLink wurde auf %1$s aktualisiert</string>
+    <string name="update_done_text">Tippe zum Öffnen. Deine PCs verbinden sich automatisch wieder.</string>
+    <string name="update_auto_title">Updates automatisch installieren</string>
+    <string name="update_auto_text">Neue Versionen von GitHub werden im Hintergrund installiert.</string>
+
+    <string name="home_guide_title">Anleitung</string>
+    <string name="home_whats_new_guide">Neu: Funktionsübersicht</string>
+    <string name="home_guide_card_body">Entdecke jede Funktion von MacLink, prüfe aktive Berechtigungen oder tippe auf „Zeig es mir“, um direkt zur jeweiligen Einstellung zu springen.</string>
+    <string name="home_no_pc_paired">Noch kein PC gekoppelt</string>
+    <string name="home_no_pc_body">Öffne MacLink auf deinem Windows- oder Linux-PC, um per QR-Code oder lokaler Erkennung zu koppeln, oder starte den Einrichtungsassistenten erneut.</string>
+    <string name="home_background_clipboard_title">Hintergrund-Zwischenablage &amp; volle Steuerung</string>
+    <string name="home_background_clipboard_body">Synchronisiere die Zwischenablage im Hintergrund und aktiviere die Touch-Steuerung über Kabelloses Debugging.</string>
+    <string name="home_section_screen">Bildschirm, Kamera &amp; Eingabe</string>
+    <string name="home_section_transfer">Schnellübertragung &amp; Zwischenablage</string>
+    <string name="home_section_system">System &amp; Energie</string>
+    <string name="settings_category_devices">Geräte</string>
+    <string name="settings_category_features">Funktionen &amp; Daten</string>
+    <string name="settings_theme_artwork_color">Farbe aus Mediencover</string>
+    <string name="settings_mobile_data_body">Unterwegs ohne WLAN über LTE/5G oder Relay verbunden bleiben</string>
+    <string name="settings_background_clipboard_title">Hintergrundzugriff auf Zwischenablage</string>
+    <string name="settings_guide_card_body">Durchsuche alle Funktionen, prüfe aktuelle Voraussetzungen oder springe direkt zu den Einstellungen.</string>
+    <string name="settings_walkthrough_body">Öffne den Einrichtungsassistenten für Berechtigungen, Kopplung und Funktionsstufen erneut.</string>
+    <string name="desk_exit">Tischmodus beenden</string>
+    <string name="desk_media_playing">PC-Medien · Wiedergabe</string>
+    <string name="desk_media_audio">PC-Medien &amp; Audio</string>
+    <string name="desk_pc_screen">PC-Bildschirm</string>
+    <string name="queue_kind_clipboard">Zwischenablage</string>
+    <string name="queue_kind_clipboard_image">Zwischenablage-Bild</string>
+    <string name="queue_kind_files">Dateien</string>
+    <string name="queue_kind_folder">Ordner</string>
+    <string name="queue_kind_link">Link</string>
+    <string name="queue_kind_document">Dokument</string>
+    <string name="queue_kind_recording">Aufnahme</string>
+    <string name="queue_kind_task_alert">Aufgabenbenachrichtigung</string>
+    <string name="queue_kind_camera_request">Kameraanfrage</string>
+
+    <string name="settings_theme_artwork_body">App- &amp; Glasfarben an das aktuelle Mediencover anpassen</string>
+    <string name="settings_wireless_debugging_active">Aktiv über Kabelloses Debugging · Zwischenablage wird automatisch synchronisiert</string>
+    <string name="settings_wireless_debugging_hint">Erlaube Kabelloses Debugging, damit die Zwischenablage im Hintergrund synchronisiert wird, oder nutze „Zwischenablage senden“ in der Benachrichtigung</string>
+
+    <!-- Pause for banking apps -->
+    <string name="banking_title">Für Banking-Apps pausieren</string>
+    <string name="banking_text">Einige Banking-Apps starten nicht, solange Entwickleroptionen, Debugging oder ein Bedienungshilfendienst aktiv sind. Wähle sie hier aus: MacLink schaltet diese Funktionen aus, solange die Apps geöffnet sind, und beim Verlassen wieder ein.</string>
+    <plurals name="banking_chosen">
+        <item quantity="one">%1$d App ausgewählt</item>
+        <item quantity="other">%1$d Apps ausgewählt</item>
+    </plurals>
+    <string name="banking_needs_elevated">Erfordert die einmalige Einrichtung des erweiterten Modus, damit MacLink diese Einstellungen ändern kann.</string>
+    <string name="banking_needs_usage">Erlaube den Nutzungszugriff, damit MacLink erkennt, wann eine Banking-App geöffnet ist.</string>
+    <string name="banking_paused_now">Aktuell für eine Banking-App pausiert.</string>
+    <string name="banking_choose">Apps auswählen</string>
+    <string name="banking_pick_title">Banking-Apps</string>
+    <string name="banking_search">Apps suchen</string>
+    <string name="banking_shortcut">Verknüpfung hinzufügen</string>
+    <string name="banking_shortcut_hint">Falls sich eine App weiterhin nicht öffnen lässt, starte sie über ihre Verknüpfung: MacLink pausiert zuerst und öffnet dann die App.</string>
+    <string name="banking_channel">Für Banking-Apps pausieren</string>
+    <string name="banking_paused_title">Für eine Banking-App pausiert</string>
+    <string name="banking_paused_text">Entwickleroptionen, Debugging und der Bedienungshilfendienst von MacLink sind ausgeschaltet, bis du die App verlässt.</string>
+    <string name="banking_turn_back_on">Wieder einschalten</string>
+    <string name="action_done">Fertig</string>
+    <!-- The phone's name as PCs see it when MacLink runs in another Android profile: "Pixel 9a (Work)". -->
+    <string name="device_name_in_profile">%1$s (%2$s)</string>
+    <string name="profile_work">Arbeit</string>
+    <string name="profile_other">Zweites Profil</string>
+</resources>

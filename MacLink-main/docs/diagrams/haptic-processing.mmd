@@ -1,0 +1,25 @@
+flowchart TD
+
+    A["Recognised Touch Interaction"] --> B["Gesture Event"]
+    B --> C["Haptic Event Router"]
+
+    C --> D{"Haptics Enabled?"}
+
+    D -->|No| X["Skip Haptic"]
+    D -->|Yes| E["Identify Interaction Type"]
+
+    E --> F["Read Selected Haptic Profile"]
+    F --> G["Check Device Capabilities"]
+    G --> H{"Hardware Available?"}
+
+    H -->|No| I["Fallback / No Vibration"]
+    H -->|Yes| J["Check System Settings"]
+
+    J --> K["Check Rate Limits"]
+    K --> L["Select Haptic Effect"]
+    L --> M["Android Haptic API"]
+    M --> N["Vibration Actuator"]
+    N --> O["User Feels Tactile Feedback"]
+
+    P["Network Transport"] -. "Independent branch" .-> Q["Mac Event Delivery"]
+

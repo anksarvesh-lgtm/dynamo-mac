@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Clean-room macOS notch app architecture",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 720],
+    "views": [
+      {
+        "id": "runtime-path",
+        "label": "Runtime path",
+        "focus": ["macos-events", "public-adapters", "event-hub", "state-core", "notch-surface"],
+        "note": "System events become typed domain events, state transitions, and a rendered notch surface."
+      },
+      {
+        "id": "features",
+        "label": "Feature modules",
+        "focus": ["feature-host", "media-hud", "shelf", "widgets", "local-store"],
+        "note": "Modules activate only when visible or enabled and persist local data through one bounded store."
+      },
+      {
+        "id": "risk-boundary",
+        "label": "Compatibility boundary",
+        "focus": ["fragile-adapters", "event-hub", "diagnostics"],
+        "note": "Private or unstable integrations remain isolated, optional, observable, and replaceable."
+      }
+    ]
+  },
+  "components": [
+    { "id": "macos-events", "type": "external", "label": "macOS events", "sublabel": "Display, audio, calendar, drag", "pos": [25, 280], "size": [140, 76] },
+    { "id": "public-adapters", "type": "backend", "label": "Public API adapters", "sublabel": "EventKit, AVFoundation, CoreAudio", "pos": [190, 210], "size": [170, 82] },
+    { "id": "fragile-adapters", "type": "security", "label": "Compatibility adapters", "sublabel": "MediaRemote, Bluetooth, brightness", "pos": [190, 370], "size": [170, 82] },
+    { "id": "event-hub", "type": "messagebus", "label": "Typed event hub", "sublabel": "AsyncStream with coalescing", "pos": [400, 280], "size": [150, 76] },
+    { "id": "state-core", "type": "backend", "label": "State and lifecycle core", "sublabel": "Finite-state reducer on MainActor", "pos": [590, 170], "size": [165, 86] },
+    { "id": "feature-host", "type": "backend", "label": "Feature host", "sublabel": "Capability and activation policy", "pos": [590, 350], "size": [165, 86] },
+    { "id": "notch-surface", "type": "frontend", "label": "Notch surface", "sublabel": "NSPanel shell and SwiftUI motion", "pos": [790, 105], "size": [180, 86] },
+    { "id": "media-hud", "type": "frontend", "label": "Media and HUD", "sublabel": "Now playing, volume, brightness", "pos": [790, 245], "size": [180, 76] },
+    { "id": "shelf", "type": "frontend", "label": "File shelf", "sublabel": "Drop, preview, drag out, AirDrop", "pos": [790, 365], "size": [180, 76] },
+    { "id": "widgets", "type": "frontend", "label": "Local widgets", "sublabel": "Calendar, notes, mirror, timers", "pos": [790, 485], "size": [180, 76] },
+    { "id": "local-store", "type": "database", "label": "Local persistence", "sublabel": "Settings, notes, shelf metadata", "pos": [590, 535], "size": [165, 76] },
+    { "id": "diagnostics", "type": "security", "label": "Performance diagnostics", "sublabel": "Signposts, budgets, soak tests", "pos": [400, 535], "size": [150, 76] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Replaceable compatibility boundary", "wraps": ["fragile-adapters"], "pad": 18 },
+    { "kind": "region", "label": "Local-only application", "wraps": ["event-hub", "state-core", "feature-host", "notch-surface", "media-hud", "shelf", "widgets", "local-store", "diagnostics"], "pad": 24 }
+  ],
+  "connections": [
+    { "id": "events-public", "from": "macos-events", "to": "public-adapters", "variant": "emphasis" },
+    { "id": "events-fragile", "from": "macos-events", "to": "fragile-adapters", "variant": "dashed" },
+    { "id": "public-hub", "from": "public-adapters", "to": "event-hub", "label": "events" },
+    { "id": "fragile-hub", "from": "fragile-adapters", "to": "event-hub", "variant": "dashed" },
+    { "id": "hub-state", "from": "event-hub", "to": "state-core", "label": "reduce" },
+    { "id": "state-surface", "from": "state-core", "to": "notch-surface", "variant": "emphasis" },
+    { "id": "state-host", "from": "state-core", "to": "feature-host", "label": "activation state", "labelAt": [673, 286] },
+    { "id": "host-media", "from": "feature-host", "to": "media-hud" },
+    { "id": "host-shelf", "from": "feature-host", "to": "shelf" },
+    { "id": "host-widgets", "from": "feature-host", "to": "widgets" },
+    { "id": "host-store", "from": "feature-host", "to": "local-store", "label": "bounded persistence", "labelAt": [673, 468] },
+    { "id": "diagnostics-hub", "from": "diagnostics", "to": "event-hub", "label": "measure latency and energy", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Idle means idle", "items": ["No display link, camera, or polling loop while collapsed", "Observers and tasks stop with feature visibility"] },
+    { "dot": "amber", "title": "Compatibility policy", "items": ["Public API first", "Private integrations are isolated, optional, and tested per macOS release"] },
+    { "dot": "cyan", "title": "Open-source boundary", "items": ["Original behavior is reference evidence only", "New name, assets, strings, icons, and implementation"] }
+  ]
+}

@@ -1,0 +1,26 @@
+flowchart TD
+
+    A["Shared Product Specification"] --> B["Mac Xcode Project"]
+    A --> C["Android Gradle Project"]
+
+    B --> D["Mac Build"]
+    C --> E["Android Build"]
+
+    D --> F["Unit Tests"]
+    E --> G["Unit and Instrumentation Tests"]
+
+    F --> H["Mac Hardware Integration"]
+    G --> I["Android Hardware Integration"]
+
+    H --> J["Mac Release Validation"]
+    I --> K["Android Release Validation"]
+
+    J --> L["Signed macOS Application"]
+    K --> M["Signed Android APK / AAB"]
+
+    L --> N["Mac Distribution"]
+    M --> O["Android Distribution"]
+
+    N --> P["Versioned Production Release"]
+    O --> P
+

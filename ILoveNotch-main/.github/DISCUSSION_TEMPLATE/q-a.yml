@@ -1,0 +1,13 @@
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: ILoveNotch version, macOS version, and Mac
+      description: Shown at the top of the menu bar menu. Helps us answer faster.
+      placeholder: 0.2.0 (c94187a), macOS 26.0, MacBook Air 13" M2

@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+
+    actor User
+    participant Screen as Android Touchscreen
+    participant Gesture as Gesture Engine
+    participant Haptic as Local Haptic Engine
+    participant Queue as Event Queue
+    participant Network as WebSocket
+    participant Receiver as Mac Receiver
+    participant Validator as Security Validator
+    participant Controller as Mac Input Controller
+    participant OS as macOS
+
+    User->>Screen: Tap touchpad
+    Screen->>Gesture: MotionEvent
+    Gesture->>Gesture: Check duration and movement
+    Gesture->>Gesture: Classify as single tap
+
+    par Immediate local tactile feedback
+        Gesture->>Haptic: CLICK event
+        Haptic->>Haptic: Select haptic profile
+        Haptic-->>User: Physical vibration feedback
+    and Remote click transmission
+        Gesture->>Queue: Create click event
+        Queue->>Network: Serialize event
+        Network->>Receiver: Encrypted WebSocket message
+        Receiver->>Validator: Validate session and sequence
+        Validator->>Controller: Approved event
+        Controller->>OS: CGEvent mouse down/up
+        OS-->>User: Mac performs click
+    end
+

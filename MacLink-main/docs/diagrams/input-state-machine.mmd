@@ -1,0 +1,21 @@
+stateDiagram-v2
+
+    [*] --> Disconnected
+
+    Disconnected --> Discovering: Start discovery
+    Discovering --> Pairing: Select Mac
+    Pairing --> Connecting: Credentials accepted
+    Connecting --> Connected: Session authenticated
+
+    Connected --> ActiveTouchpad: Touchpad enabled
+    ActiveTouchpad --> Connected: Touchpad disabled
+
+    Connected --> Reconnecting: Network interruption
+    ActiveTouchpad --> Reconnecting: Connection lost
+
+    Reconnecting --> Connected: Session restored
+    Reconnecting --> Disconnected: Timeout or failure
+
+    Connected --> Disconnected: Manual disconnect
+    Disconnected --> [*]
+

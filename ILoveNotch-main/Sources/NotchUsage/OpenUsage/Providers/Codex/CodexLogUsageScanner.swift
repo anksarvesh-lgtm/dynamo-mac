@@ -1,0 +1,317 @@
+// SPDX-License-Identifier: MIT
+// Adapted from OpenUsage (https://github.com/robinebers/openusage) at 4ce7887.
+// Copyright (c) Robin Ebers and contributors. MIT License; see THIRD_PARTY_NOTICES.md.
+// swift-format-ignore-file
+
+import Foundation
+
+/// Builds daily token/cost estimates for Codex by scanning the Codex CLI's local session rollouts
+/// natively (`$CODEX_HOME/sessions/**/*.jsonl` + `archived_sessions/`), replacing the external
+/// `ccusage` CLI.
+///
+/// Ports ccusage's Codex adapter semantics:
+/// - Homes come from `CODEX_HOME` (comma-separated), else `~/.codex`. Each home contributes its
+///   `sessions/` and `archived_sessions/` dirs; when both hold the same relative file path the
+///   active `sessions/` copy wins.
+/// - A `turn_context` line updates the session's current model; an `event_msg`/`token_count` line
+///   carries the turn's usage — `last_token_usage` when present, else the delta against the previous
+///   cumulative `total_token_usage`.
+/// - Child sessions (subagents spawned via `thread_spawn`, and forks) replay the parent's entire
+///   `token_count` history at spawn with rewritten timestamps. Those replayed lines are skipped —
+///   they only seed the delta baseline — until the file's first live turn: a `task_started` whose
+///   `started_at` is at or after the child session's own creation time (replayed `task_started`
+///   lines carry the parent's original, older `started_at`). When the child's `session_meta` has no
+///   parseable creation timestamp, the same skip still arms and clears on the first `task_started`
+///   whose `started_at` is at or after that line's own wall-clock second. This is deliberately not
+///   a "same second as spawn" window over `token_count` timestamps: a large parent history takes
+///   multiple seconds to replay, so that heuristic undercuts it (that was the cause of a ~20x
+///   spend inflation).
+/// - A `token_count` line whose cumulative `total_token_usage` is unchanged from the previous line
+///   is a re-emitted stale snapshot, not new usage, and is skipped even when it carries a
+///   `last_token_usage`.
+/// - Early sessions without model metadata fall back to `gpt-5`. The `codex-auto-review` slug stays
+///   visible in usage breakdowns and carries a dated fallback model only for cost estimation.
+///   The `gpt-reserve` slug (Luna Reserve fallback after regular usage is exhausted) stays visible
+///   the same way and prices at `gpt-5.6-luna` rates.
+/// - Identical events (same timestamp + model + token counts) appearing in multiple files (copied
+///   session logs) count once.
+/// - Cost per event: `(input - cached) x input rate + cached x cache-read rate + output x output
+///   rate`, all x the model's Codex priority multiplier when the session ran on the fast/priority
+///   service tier. The tier is tracked per session from `thread_settings_applied` lines — never from
+///   the current `config.toml`, which would retroactively reprice the whole history when toggled.
+///   Events with no recorded tier price at standard rates. Supported GPT-5.4/5.5/5.6 requests above
+///   272k input tokens use OpenAI's higher rates for the whole request.
+///
+/// An actor for the same reasons as `ClaudeLogUsageScanner`: scans run off the main actor, and a
+/// versioned Application Support cache keyed by path + size + mtime makes both refreshes and relaunches
+/// re-parse only files that changed.
+actor CodexLogUsageScanner {
+    private let environment: EnvironmentReading
+    private let homeDirectory: @Sendable () -> URL
+    private let scanner: IncrementalJSONLScanner<Event>
+    private let allowsUnattributedHistory: Bool
+    private let additionalHomes: [String]
+
+    /// One turn's token usage, normalized from a `token_count` line (deltas already applied).
+    /// `isFast` records whether the session was on the fast/priority service tier when the turn
+    /// ran, tracked from the session's own log; absent tier metadata means standard.
+    struct Event: Codable, Sendable, Equatable {
+        var timestamp: Date
+        var model: String
+        var pricingModel: String? = nil
+        var input: Int
+        var cached: Int
+        var output: Int
+        var reasoning: Int
+        var total: Int
+        var isFast: Bool = false
+    }
+
+    /// Multi-account cards that resolve the same Codex homes share this actor and parse each rollout
+    /// once. The version is the parser schema version; bump it when `Event` semantics change.
+    private static let sharedScanner = IncrementalJSONLScanner<Event>(
+        logTag: LogTag.plugin("codex"),
+        persistence: JSONLScanCachePersistence(namespace: "codex", schemaVersion: 4)
+    )
+
+    static func flushPersistentCacheWrites() async {
+        await sharedScanner.flushPendingWrites()
+    }
+
+    init(
+        environment: EnvironmentReading = ProcessEnvironmentReader(),
+        homeDirectory: @escaping @Sendable () -> URL = { FileManager.default.homeDirectoryForCurrentUser },
+        incrementalScanner: IncrementalJSONLScanner<Event>? = nil,
+        allowsUnattributedHistory: Bool = true,
+        additionalHomes: [String] = []
+    ) {
+        self.environment = environment
+        self.homeDirectory = homeDirectory
+        self.scanner = incrementalScanner ?? Self.sharedScanner
+        self.allowsUnattributedHistory = allowsUnattributedHistory
+        self.additionalHomes = additionalHomes
+    }
+
+    /// Scan the last `daysBack` days of Codex rollouts. Returns `nil` when no Codex home or no
+    /// session files exist (the spend tiles then render "No data").
+    func scan(
+        daysBack: Int = 30, now: Date = Date(), pricing: ModelPricing, fallbackModel: String? = nil
+    ) async -> LogUsageScan? {
+        // Codex rollouts identify conversations, not the account paying for each turn. xswap can
+        // resume the same conversation under another login, so even its home cannot prove ownership.
+        guard allowsUnattributedHistory else {
+            AppLog.info(LogTag.plugin("codex"), "local history excluded: multiple accounts are known and rollout ownership is unavailable")
+            return DailyUsageAccumulator().build()
+        }
+        let homes = codexHomes()
+        let since = JSONLScanning.sinceDate(daysBack: daysBack, now: now)
+        let identityPaths = Set(homes.map { $0.resolvingSymlinksInPath().standardizedFileURL.path })
+            .sorted()
+        let identity = identityPaths.isEmpty ? "no-codex-home" : identityPaths.joined(separator: "\n")
+        let files = Self.sessionFiles(homes: homes)
+        guard !files.isEmpty else {
+            _ = await scanner.items(
+                from: [], since: since, cacheIdentity: identity, parse: Self.parseFile
+            )
+            return nil
+        }
+
+        guard let events = await scanner.items(
+            from: files,
+            since: since,
+            cacheIdentity: identity,
+            initialState: CodexLogFileParser(),
+            parse: { data, state in state.parse(data) }
+        ), !Task.isCancelled else { return nil }
+        return Self.aggregate(events: events, since: since, pricing: pricing, fallbackModel: fallbackModel)
+    }
+
+    // MARK: - Discovery
+
+    /// `CODEX_HOME` entries (comma-separated) when set, else `~/.codex` — same as ccusage.
+    private func codexHomes() -> [URL] {
+        let extra = additionalHomes.map { URL(fileURLWithPath: expandHome($0)) }
+        if let raw = environment.value(for: "CODEX_HOME")?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty {
+            return raw.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+                .map { URL(fileURLWithPath: expandHome($0)) } + extra
+        }
+        return [homeDirectory().appendingPathComponent(".codex")] + extra
+    }
+
+    /// Every rollout `*.jsonl` under each home's `sessions/` and `archived_sessions/` (a home with
+    /// neither is scanned directly, ccusage's fallback). When both dirs of one home contain the same
+    /// relative path, the `sessions/` copy wins — an archived duplicate must not double-count.
+    private static func sessionFiles(homes: [URL]) -> [JSONLScanning.DiscoveredFile] {
+        var files: [JSONLScanning.DiscoveredFile] = []
+        var seenDirs: Set<String> = []
+        for home in homes {
+            var seenRelative: Set<String> = []
+            var sourceDirs: [URL] = []
+            for name in ["sessions", "archived_sessions"] {
+                let dir = home.appendingPathComponent(name)
+                var isDirectory: ObjCBool = false
+                if FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                    sourceDirs.append(dir)
+                }
+            }
+            if sourceDirs.isEmpty {
+                sourceDirs = [home]
+            }
+            // `jsonlFiles` resolves symlinks before enumerating, so the discovered paths carry the
+            // resolved dir as their prefix — resolve here too or the relative keys (and the
+            // cross-home dir dedup) stop matching for symlinked Codex homes.
+            for dir in sourceDirs.map({ $0.resolvingSymlinksInPath() }) where seenDirs.insert(dir.path).inserted {
+                for file in JSONLScanning.jsonlFiles(under: dir) {
+                    let relative = String(file.path.dropFirst(dir.path.count))
+                    guard seenRelative.insert(relative).inserted else { continue }
+                    files.append(file)
+                }
+            }
+        }
+        return files
+    }
+
+    // MARK: - File parsing
+
+    /// Parse one rollout file: track the current model from `turn_context` and the current service
+    /// tier from `thread_settings_applied`, normalize each `token_count` into a delta event, and
+    /// skip a child session's replayed parent history (everything before the first live
+    /// `task_started` — see the type doc). A session that never records a tier is standard.
+    static func parseFile(_ data: Data) -> [Event] {
+        var parser = CodexLogFileParser()
+        return parser.parse(data)
+    }
+
+    /// Token fields of a `token_count` usage object, tolerating the older field spellings ccusage
+    /// accepts (`prompt_tokens`, `completion_tokens`, `cache_read_input_tokens`, …).
+    struct RawUsage: Sendable {
+        var input: Int
+        var cached: Int
+        var output: Int
+        var reasoning: Int
+        var total: Int
+
+        init(json: [String: Any]) {
+            func int(_ keys: String...) -> Int? {
+                for key in keys {
+                    if let number = json[key] as? NSNumber { return number.intValue }
+                }
+                return nil
+            }
+            input = int("input_tokens", "prompt_tokens", "input") ?? 0
+            cached = int("cached_input_tokens", "cache_read_input_tokens", "cached_tokens") ?? 0
+            output = int("output_tokens", "completion_tokens", "output") ?? 0
+            reasoning = int("reasoning_output_tokens", "reasoning_tokens") ?? 0
+            let reported = int("total_tokens") ?? 0
+            let recomputed = input + output + reasoning
+            total = (reported > 0 || recomputed == 0) ? reported : recomputed
+        }
+
+        private init(input: Int, cached: Int, output: Int, reasoning: Int, total: Int) {
+            self.input = input
+            self.cached = cached
+            self.output = output
+            self.reasoning = reasoning
+            self.total = total
+        }
+
+        /// Same token counts as `other` — an unchanged cumulative snapshot re-emitted by Codex.
+        func equalCounts(_ other: RawUsage) -> Bool {
+            input == other.input && cached == other.cached && output == other.output
+                && reasoning == other.reasoning && total == other.total
+        }
+
+        /// Recover a turn delta from cumulative totals (used when `last_token_usage` is absent).
+        func subtracting(_ previous: RawUsage?) -> RawUsage {
+            RawUsage(
+                input: max(0, input - (previous?.input ?? 0)),
+                cached: max(0, cached - (previous?.cached ?? 0)),
+                output: max(0, output - (previous?.output ?? 0)),
+                reasoning: max(0, reasoning - (previous?.reasoning ?? 0)),
+                total: max(0, total - (previous?.total ?? 0))
+            )
+        }
+    }
+
+    /// A session_meta payload marking the file as a child session (subagent spawn or fork) whose
+    /// leading `token_count` lines replay the parent's history.
+    ///
+    /// JSON `null` is `NSNull`, not Swift `nil` — treat null (and blank strings) as absent so a
+    /// root session that declares `forked_from_id: null` is not misclassified as a child.
+    static func isChildSessionMeta(_ payload: [String: Any]) -> Bool {
+        if hasNonNullValue(payload["forked_from_id"]) { return true }
+        if hasNonNullValue(payload["parent_thread_id"]) { return true }
+        if payload["thread_source"] as? String == "subagent" { return true }
+        if let source = payload["source"] as? [String: Any], hasNonNullValue(source["subagent"]) {
+            return true
+        }
+        return false
+    }
+
+    /// `true` when JSONSerialization yielded a real value (not missing, not `null`, not blank text).
+    private static func hasNonNullValue(_ value: Any?) -> Bool {
+        switch value {
+        case nil, is NSNull:
+            return false
+        case let text as String:
+            return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        default:
+            return true
+        }
+    }
+
+    /// An explicit model on the line updates the session's current model. Otherwise the tracked
+    /// model applies, and a session with no metadata falls back to `gpt-5`.
+    static func resolveModel(
+        parsed: String?,
+        currentModel: inout String?
+    ) -> String {
+        if let parsed {
+            currentModel = parsed
+        }
+        var model: String
+        if let parsed {
+            model = parsed
+        } else if let current = currentModel {
+            model = current
+        } else {
+            currentModel = "gpt-5"
+            model = "gpt-5"
+        }
+        return model
+    }
+
+    /// `codex-auto-review` release timeline (newest first), from ccusage's embedded snapshot: a
+    /// line dated on/after a release prices as that codex model.
+    ///
+    /// The `gpt-5.6-luna` entry is ours; ccusage's snapshot still stops at gpt-5.5. OpenAI moved
+    /// auto-review onto the GPT-5.6 family when it shipped on 2026-07-09, and the Codex model
+    /// catalog (`~/.codex/models_cache.json`) lists `codex-auto-review` with Luna's exact profile.
+    /// Without this entry every auto-review event since July prices at gpt-5.5 rates, which are 25x
+    /// Luna's across input, cache reads and output alike.
+    private static let autoReviewFallbacks: [(releasedOn: String, model: String)] = [
+        ("2026-07-09", "gpt-5.6-luna"),
+        ("2026-04-23", "gpt-5.5"),
+        ("2026-03-05", "gpt-5.4"),
+        ("2026-02-05", "gpt-5.3-codex"),
+        ("2025-12-11", "gpt-5.2-codex"),
+        ("2025-11-13", "gpt-5.1-codex"),
+        ("2025-09-15", "gpt-5-codex"),
+        ("2025-08-07", "gpt-5")
+    ]
+
+    static func autoReviewFallback(at timestamp: String) -> String {
+        let date = String(timestamp.prefix(10))
+        guard date.count == 10, date.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else {
+            return "gpt-5"
+        }
+        return autoReviewFallbacks.first(where: { date >= $0.releasedOn })?.model ?? "gpt-5"
+    }
+
+    /// Luna Reserve keeps its `gpt-reserve` slug in breakdowns while using Luna's cost estimates.
+    static let reservePricingModel = "gpt-5.6-luna"
+
+}

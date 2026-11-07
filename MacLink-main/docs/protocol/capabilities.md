@@ -1,0 +1,103 @@
+# Capability registry
+
+Capability IDs a device may announce in `hello.caps` and `hello.update`
+(protocol §5 to 6). A device announces a capability only when it can provide it
+**right now**: with its current power level, permissions, add-ons and OS
+version.
+
+IDs are lowercase dotted strings (`[a-z0-9._-]`, at most 64 bytes). Receivers
+ignore malformed IDs, IDs they don't know, and anything beyond 256 entries.
+New IDs may be added in any release; an ID is never reused with a different
+meaning.
+
+The capability matrix (`docs/architecture/capabilities.md`) turns these into
+feature states. "Unlocked by" is what the matrix offers the user when the
+capability is missing.
+
+## Both devices
+
+| ID | Meaning | Unlocked by |
+|---|---|---|
+| `core.ping` | Answers `ping` | always offered |
+| `device.battery` | Sends `event.battery` | always offered |
+| `device.ring` | Rings on `device.ring`, even on silent | always offered |
+| `files.transfer` | Sends and receives files ([files service](files.md)) | app update |
+| `link.open` | Opens web links sent to it ([actions](actions.md)) | app update |
+| `task.notify` | Sends or shows watched PC task notifications ([actions](actions.md)) | app update |
+| `clip.image` | Accepts images on its clipboard ([clipboard service](clipboard.md)) | app update |
+| `media.control` | Shares its media players for remote control ([media service](media.md); phone: needs notification access) | phone: notification access · desktop: app update |
+| `media.remote` | Shows and controls other devices' media players | app update |
+
+> **LocalSend v2.1 LAN interop:** Unpaired LocalSend discovery and file transfer
+> (`224.0.0.167:53317` UDP multicast + HTTP/HTTPS `/api/localsend/v2/*` on TCP
+> port `53317`, see [protocol §13](v0.md#13-localsend-v21-interoperability-optional-lan-interop))
+> is an opt-in local setting (`localsend.enabled`) rather than a paired-session
+> capability, because it operates with unpaired third-party LocalSend devices.
+
+## Phone
+
+| ID | Meaning | Unlocked by |
+|---|---|---|
+| `notify.mirror` | Forwards notifications ([notifications service](notifications.md)) | notification access |
+| `notify.live` | Includes live progress, timer, and Android 16 Live Update metadata on mirrored notifications ([notifications service](notifications.md)) | notification access |
+| `notify.reply` | Accepts inline replies and actions on notifications | notification access |
+| `notify.sensitive` | Forwards notifications Android hides as sensitive (e.g. one-time codes) | Elevated |
+| `notify.show` | Shows a paired phone's or tablet's notifications ([notifications service](notifications.md)) | app update |
+| `sms.read` | Lists conversations and messages ([messages](sms.md)) | SMS permission |
+| `sms.send` | Sends texts when a PC asks ([messages](sms.md)) | SMS permission |
+| `call.state` | Reports incoming and ongoing calls ([calls](calls.md)) | phone permission |
+| `call.control` | Answers, declines and silences calls when a PC asks ([calls](calls.md)) | phone permission |
+| `call.incall` | Mutes, holds and presses keys on the call in progress ([calls](calls.md)) | Elevated, Android 12+ |
+| `call.log` | Lists recent calls ([calls](calls.md)) | phone permission |
+| `call.dial` | Places a call or opens the dialer when a PC asks ([calls](calls.md)) | phone permission |
+| `contacts.read` | Lists and searches contacts ([contacts](contacts.md)) | contacts permission |
+| `clip.write` | Accepts clipboard content from the PC ([clipboard service](clipboard.md)) | app update |
+| `clip.share` | Sends the clipboard when the user taps "Send" | app update |
+| `clip.read.auto` | Sends clipboard changes automatically, in the background | Elevated |
+| `photos.read` | Announces new photos and screenshots, lists albums and items, serves thumbnails, and sends files on request ([photos](photos.md)) | photos permission |
+| `mirror.capture` | Streams its screen (with the system's capture prompt at Basic; [mirroring](mirror.md)) | app update |
+| `mirror.input` | Accepts touch, key and scroll input while mirrored | Assist |
+| `mirror.virtual_display` | Runs apps on displays of their own, shown in windows on the PC ([mirroring](mirror.md)) | Elevated, Android 11+ |
+| `mirror.audio` | Streams all audio while mirrored | Elevated |
+| `mirror.audio.playback` | Streams audio from apps that allow playback capture | app update |
+| `toggles.read` | Shares quick settings state ([toggles](toggles.md)) | app update |
+| `toggles.ringer` | Changes the ringer mode between `ring` and `vibrate` ([toggles](toggles.md)) | app update |
+| `toggles.volume` | Changes the media volume ([toggles](toggles.md)) | app update |
+| `toggles.flashlight` | Turns the flashlight on or off ([toggles](toggles.md)) | hardware flash unit |
+| `toggles.dnd` | Turns Do Not Disturb on or off and sets the ringer to `silent` ([toggles](toggles.md)) | Do Not Disturb access or Elevated |
+| `toggles.brightness` | Changes the screen brightness ([toggles](toggles.md)) | Modify system settings or Elevated |
+| `toggles.wifi` | Turns Wi-Fi on or off ([toggles](toggles.md)) | Elevated |
+| `toggles.bluetooth` | Turns Bluetooth on or off ([toggles](toggles.md)) | Elevated |
+| `storage.read` | Lists folders and reads files in shared storage or picked SAF folders ([storage](storage.md)) | All files access or picked SAF folder |
+| `storage.write` | Creates folders, writes/uploads files, renames and deletes entries in shared storage or picked SAF folders ([storage](storage.md)) | All files access or picked SAF folder |
+| `camera.stream` | Streams a camera for webcam use ([webcam](webcam.md)) | camera permission |
+| `mic.stream` | Streams its microphone when its user agrees ([mic](mic.md)) | app update (asks for the microphone permission when first used) |
+| `media.watch` | Shows a PC's playback streamed to it (Play on phone, [media](media.md) §4) | app update |
+| `camera.capture` | Captures a photo or document scan on request ([Continuity Camera](v0.md#12-continuity-camera-cameracapture)) | camera permission |
+
+## Desktop
+
+| ID | Meaning | Unlocked by |
+|---|---|---|
+| `pc.power` | Locks or sleeps on request ([actions](actions.md)) | app update |
+| `pc.wake` | Shares network adapter addresses (`pc.wake_info`) so a paired phone can wake it with Wake-on-LAN ([actions](actions.md)) | app update |
+| `photos.show` | Shows a phone's new photos and gallery ([photos](photos.md)) | app update |
+| `call.show` | Shows a phone's calls, recent calls and dialer ([calls](calls.md)) | app update |
+| `contacts.show` | Shows a phone's contacts ([contacts](contacts.md)) | app update |
+| `sms.show` | Shows a phone's text messages ([messages](sms.md)) | app update |
+| `toggles.show` | Shows a phone's quick settings and sends toggle changes ([toggles](toggles.md)) | app update |
+| `mirror.view` | Shows a phone's screen ([mirroring](mirror.md)) | app update |
+| `mirror.listen` | Plays a mirrored phone's sound ([mirroring](mirror.md)) | app update |
+| `files.browse` | Lets a paired phone browse and fetch its files | app update |
+| `storage.mount` | Mounts a paired phone's shared storage in File Explorer ([storage](storage.md)) | app update |
+| `input.inject` | Accepts pointer, keyboard and presentation input ([remote input](remote.md)) | app update |
+| `recorder` | Saves and converts voice recordings from a phone ([recorder](recorder.md)) | app update |
+| `deck.actions` | Shares its Deck layout and live tile state and runs Deck actions ([deck](deck.md)) | app update |
+| `pc.audio` | Reports active audio output devices in `deck.state` and accepts `pc.audio.set` volume/mute changes ([deck](deck.md)) | app update |
+| `camera.virtual` | Receives and decodes a phone's camera stream ([webcam](webcam.md)) | app update |
+| `mic.listen` | Takes a phone's microphone and plays it into an output ([mic](mic.md)) | app update |
+| `media.stream` | Streams a player's picture and sound to a phone that watches (Play on phone, [media](media.md) §4) | app update |
+| `addon.vcam` | The virtual camera add-on is installed ([webcam](webcam.md)) | installing the add-on |
+| `camera.continuity` | Requests and receives Continuity Camera photos and document scans ([Continuity Camera](v0.md#12-continuity-camera-cameracapture)) | app update |
+
+

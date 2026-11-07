@@ -1,0 +1,102 @@
+flowchart TB
+
+    subgraph DEVICES["LOCAL HARDWARE INPUT"]
+        D1["MacBook Trackpad"]
+        D2["Apple Magic Mouse"]
+        D3["External Mouse"]
+        D4["Android Remote Touchpad"]
+    end
+
+    subgraph NATIVE["NATIVE MAC INPUT ENGINE"]
+        T1["AppKit NSEvent"]
+        T2["NSResponder"]
+        T3["NSTouch"]
+        T4["Gesture Recognizers"]
+        T5["Pressure Events"]
+        T6["Native Event Classifier"]
+    end
+
+    subgraph GLOBAL["GLOBAL MONITORING"]
+        G1["NSEvent Global Monitor"]
+        G2["Local Event Monitor"]
+        G3["CGEventTap"]
+    end
+
+    subgraph REMOTE["REMOTE INPUT RECEIVER"]
+        R1["Network Listener"]
+        R2["Pairing & Authentication"]
+        R3["Event Validator"]
+        R4["Sequence Manager"]
+        R5["Remote Event Queue"]
+        R6["Input Controller"]
+    end
+
+    subgraph ACTIONS["ACTION PROCESSING"]
+        A1["Gesture Action Router"]
+        A2["CGEvent Generator"]
+        A3["Keyboard Shortcut Engine"]
+        A4["Window Action Controller"]
+        A5["Custom Command Engine"]
+    end
+
+    subgraph HAPTIC["MAC HAPTIC CONTROLLER"]
+        H1["Force Touch Handler"]
+        H2["NSHapticFeedbackManager"]
+    end
+
+    subgraph PRESENTATION["SWIFTUI APPLICATION"]
+        U1["Dashboard"]
+        U2["Device Manager"]
+        U3["Input Inspector"]
+        U4["Gesture Settings"]
+        U5["Permission Manager"]
+        U6["Network Diagnostics"]
+    end
+
+    subgraph STORAGE["MAC CONFIGURATION STORAGE"]
+        S1["UserDefaults / SwiftData"]
+        S2["Keychain"]
+        S3["Gesture Profiles"]
+        S4["Paired Device Registry"]
+    end
+
+    D1 --> T1
+    D2 --> T1
+    D3 --> G1
+
+    T1 --> T2
+    T1 --> T3
+    T2 --> T4
+    T3 --> T6
+    T4 --> T6
+    T5 --> T6
+
+    D3 --> G2
+    D3 --> G3
+
+    T6 --> A1
+    G1 --> A1
+    G2 --> A1
+    G3 --> A1
+
+    D4 --> R1
+    R1 --> R2 --> R3 --> R4 --> R5 --> R6
+    R6 --> A2
+
+    A1 --> A3
+    A1 --> A4
+    A1 --> A5
+
+    A2 --> A1
+    T5 --> H1 --> H2
+
+    U1 --> U2
+    U2 --> U4
+    U3 --> T6
+    U4 --> S3
+    U5 --> S2
+    U6 --> R1
+
+    S1 --> S3
+    S2 --> S4
+

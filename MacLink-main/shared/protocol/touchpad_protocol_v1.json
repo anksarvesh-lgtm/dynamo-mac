@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MacLinkTouchpadProtocolV1",
+  "description": "Shared Event Protocol specification for Mac + Android Unified Touchpad & Gesture Ecosystem",
+  "type": "object",
+  "required": ["version", "sessionId", "sequence", "timestamp", "eventType", "payload"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Protocol schema version (always 1 for v1)"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "description": "Unique authenticated cryptographic session identifier"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonically increasing sequence number for replay prevention and ordering"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Epoch timestamp in milliseconds when the event was generated"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "POINTER_MOVE",
+        "POINTER_DOWN",
+        "POINTER_UP",
+        "LEFT_CLICK",
+        "RIGHT_CLICK",
+        "DOUBLE_CLICK",
+        "SCROLL",
+        "PINCH",
+        "ROTATE",
+        "SWIPE",
+        "KEY_DOWN",
+        "KEY_UP",
+        "GESTURE_START",
+        "GESTURE_END",
+        "GESTURE_CANCEL",
+        "CONNECTION_PING",
+        "CONNECTION_PONG",
+        "DEVICE_STATUS"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific parameter dictionary"
+    }
+  }
+}
+

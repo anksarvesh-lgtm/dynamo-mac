@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>OpenNotchSourceDirectory</key>
+	<string>$(OPENNOTCH_SOURCE)</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/niyamvora/ILoveNotch/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>rKEETTORw3k063xBn4P4UWHfyHwzEjFsHiXCYqPzPlQ=</string>
+	<key>OpenNotchCommit</key>
+	<string>$(OPENNOTCH_COMMIT)</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>ILoveNotch listens to what's playing so the media waveform moves with the music, and so you can set each app's volume. Audio is processed on this Mac as it plays and is never recorded.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>ILoveNotch works Music and Spotify from the notch: shuffle and repeat, what plays next, and playing a track again. It only talks to the app that's playing.</string>
+	<!-- Quick Share with Android phones: announcing the Mac and finding phones on the local network. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ILoveNotch finds Android phones on your Wi-Fi so you can share files with them using Quick Share. It uses your local network only, never the internet.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_FC9F5ED42C8A._tcp</string>
+	</array>
+	<!-- Show in Notch: ilovenotch://show?title=… from scripts and other apps. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>cafe.opennotch.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ilovenotch</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

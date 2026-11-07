@@ -1,0 +1,88 @@
+name: Bug report
+description: Something in ILoveNotch doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Search [existing issues](https://github.com/niyamvora/ILoveNotch/issues?q=is%3Aissue) first; a 👍 on an open one helps more than a duplicate.
+        Security problem? Report it privately instead: [SECURITY.md](https://github.com/niyamvora/ILoveNotch/blob/main/SECURITY.md).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options:
+        - The notch (opening, closing, resizing, pinning)
+        - Media
+        - Shelf
+        - Calendar
+        - Tasks (Reminders)
+        - Notes
+        - Shortcuts
+        - Timer / stopwatch
+        - Mirror (camera)
+        - AI Usage
+        - System activities (volume, battery, Bluetooth)
+        - Updates
+        - Settings or menu bar
+        - Somewhere else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      placeholder: Hovering the notch opens it, but it closes again straight away. I expected it to stay open while the pointer is inside.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Calendar tab
+        2. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ILoveNotch version
+      description: Shown at the top of the menu bar menu.
+      placeholder: "0.2.0 (c94187a)"
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Installed from
+      options:
+        - GitHub release
+        - Mac App Store
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 26.0"
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and displays
+      description: Model, and any external displays (the notch behaves differently without a notch).
+      placeholder: MacBook Pro 14" M3, plus one external 4K display
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: |
+        Optional. Capture logs while reproducing with:
+        `log stream --level debug --predicate 'subsystem == "cafe.opennotch.app"'`
+        Logs can include event, reminder, or file names; remove anything private before posting.
+      render: text

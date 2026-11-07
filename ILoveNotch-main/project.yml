@@ -1,0 +1,163 @@
+# XcodeGen spec for the app targets. OpenNotch.xcodeproj is generated from this
+# file and git-ignored: run `make project` (or `xcodegen generate`).
+name: OpenNotch
+options:
+  bundleIdPrefix: cafe.opennotch
+  deploymentTarget:
+    macOS: "14.6"
+  createIntermediateGroups: true
+packages:
+  OpenNotchKit:
+    path: .
+  # In-app updates for release builds (docs/updates.md); MIT, see THIRD_PARTY_NOTICES.md.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.10.0
+
+settingGroups:
+  # Shared by the full app and the App Store edition.
+  app:
+    # The app's name everywhere people see it: ILoveNotch.app, the menu bar, Settings, permission
+    # prompts. The project, targets, and bundle ID keep their original OpenNotch names.
+    PRODUCT_NAME: ILoveNotch
+    PRODUCT_BUNDLE_IDENTIFIER: cafe.opennotch.app
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    MARKETING_VERSION: 1.5.0 # the latest release, so builds from source say where they stand; releases set their own
+    CURRENT_PROJECT_VERSION: 2
+    SWIFT_VERSION: "6.0" # Swift 6 language mode: complete strict-concurrency checking
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_LSUIElement: YES # accessory app: no Dock icon, no menu bar
+    # The App Store listing's primary category; Utilities is the secondary (docs/app-store/metadata.md).
+    INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+    INFOPLIST_KEY_NSHumanReadableCopyright: Copyright © 2026 Niyam Vora. MIT License.
+    # Shelf files dropped from protected folders are checked again on later launches.
+    INFOPLIST_KEY_NSDesktopFolderUsageDescription: ILoveNotch keeps files you drop on the shelf so you can drag them out later.
+    INFOPLIST_KEY_NSDocumentsFolderUsageDescription: ILoveNotch keeps files you drop on the shelf so you can drag them out later.
+    INFOPLIST_KEY_NSDownloadsFolderUsageDescription: ILoveNotch keeps files you drop on the shelf so you can drag them out later.
+    INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: ILoveNotch shows today's events in the notch, adds the events and time blocks you create there, and changes or deletes the ones you choose. Your calendars stay on this Mac.
+    INFOPLIST_KEY_NSRemindersFullAccessUsageDescription: ILoveNotch shows, adds, and completes your reminders in the notch.
+    INFOPLIST_KEY_NSCameraUsageDescription: ILoveNotch shows your camera in the Mirror tab while that tab is open. Nothing is recorded.
+    ENABLE_HARDENED_RUNTIME: YES
+    # Ad-hoc signing builds and runs without an Apple team; `make` signs local builds with an Apple
+    # Development certificate when there is one, and releases are re-signed when they're exported.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  # The full app, for GitHub Releases and local builds.
+  OpenNotch:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+        excludes: ["Info.plist", "AppStore/**"]
+      # Now-playing helper script, run by /usr/bin/perl (see THIRD_PARTY_NOTICES.md).
+      - path: ThirdParty/mediaremote-adapter/bin/mediaremote-adapter.pl
+        buildPhase: resources
+      # The licenses of the code this edition ships, which they ask to travel with it.
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+    dependencies:
+      - package: OpenNotchKit
+        product: NotchCore
+      - package: OpenNotchKit
+        product: NotchSurface
+      - package: OpenNotchKit
+        product: NotchFeatures
+      - package: OpenNotchKit
+        product: NotchUsage
+      - package: OpenNotchKit
+        product: NotchTransfer
+      - package: OpenNotchKit
+        product: NotchMixer
+      - package: Sparkle
+      # Embedded, never linked: the framework is loaded by the perl helper process, not by OpenNotch.
+      - target: MediaRemoteAdapter
+        embed: true
+        link: false
+    settings:
+      groups: [app]
+      base:
+        # Merged with the generated keys: the checkout and commit a local build came from, for the
+        # updater, and Sparkle's feed and public key.
+        INFOPLIST_FILE: App/Info.plist
+        # Release builds set this empty, so downloads never carry a path from the build machine.
+        OPENNOTCH_SOURCE: $(SRCROOT)
+        # Hardened Runtime resource access: EventKit, the camera, and system audio.
+        CODE_SIGN_ENTITLEMENTS: App/OpenNotch.entitlements
+
+  # The Mac App Store edition: the same app in the App Sandbox, without the now-playing helper,
+  # Sparkle, the local updater, or the volume-key tap (docs/plan/implementation-plan.md#app-store-edition).
+  OpenNotchAppStore:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+        excludes: ["Info.plist", "AppStore/Info.plist"]
+    dependencies:
+      - package: OpenNotchKit
+        product: NotchCore
+      - package: OpenNotchKit
+        product: NotchSurface
+      - package: OpenNotchKit
+        product: NotchFeatures
+    settings:
+      groups: [app]
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) APP_STORE
+        INFOPLIST_FILE: App/AppStore/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/AppStore/OpenNotch.entitlements
+
+  # mediaremote-adapter (BSD-3-Clause, git submodule pinned to v0.7.7), built the way its
+  # CMakeLists.txt does: Objective-C with ARC and default symbol visibility so perl can call it.
+  MediaRemoteAdapter:
+    type: framework
+    platform: macOS
+    sources:
+      - path: ThirdParty/mediaremote-adapter/src
+        excludes: ["test/**"]
+      - path: ThirdParty/mediaremote-adapter/include
+        headerVisibility: public
+    dependencies:
+      - sdk: Foundation.framework
+      - sdk: AppKit.framework
+      - sdk: UniformTypeIdentifiers.framework
+    settings:
+      base:
+        PRODUCT_NAME: MediaRemoteAdapter
+        PRODUCT_BUNDLE_IDENTIFIER: com.vandenbe.MediaRemoteAdapter
+        MARKETING_VERSION: 0.7.7
+        CURRENT_PROJECT_VERSION: 1
+        GENERATE_INFOPLIST_FILE: YES
+        CLANG_ENABLE_OBJC_ARC: YES
+        GCC_SYMBOLS_PRIVATE_EXTERN: NO
+        GCC_WARN_INHIBIT_ALL_WARNINGS: YES # vendored code: its warnings are upstream's to fix
+        HEADER_SEARCH_PATHS: ["$(SRCROOT)/ThirdParty/mediaremote-adapter/include", "$(SRCROOT)/ThirdParty/mediaremote-adapter/src"]
+        DEFINES_MODULE: NO
+        SKIP_INSTALL: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+
+schemes:
+  OpenNotch:
+    build:
+      targets:
+        OpenNotch: all
+    test:
+      config: Debug
+      targets:
+        - package: OpenNotchKit/NotchCoreTests
+        - package: OpenNotchKit/NotchSurfaceTests
+        - package: OpenNotchKit/NotchFeaturesTests
+        - package: OpenNotchKit/PerformanceTests
+    archive:
+      config: Release
+  OpenNotch App Store:
+    build:
+      targets:
+        OpenNotchAppStore: all
+    archive:
+      config: Release

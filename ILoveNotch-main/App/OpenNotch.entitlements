@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<!-- Capturing system audio for the media waveform (Core Audio process tap). -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<!-- The Mirror tab. -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	<!-- Music and Spotify's AppleScript, for the media tab's shuffle, repeat, up next, and lyrics.
+	     macOS asks once per app (Privacy & Security › Automation). -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>

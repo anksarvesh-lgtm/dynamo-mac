@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/niyamvora/ILoveNotch/discussions/categories/q-a
+    about: How do I…? Is it supposed to…? Ask in Q&A.
+  - name: Share an idea
+    url: https://github.com/niyamvora/ILoveNotch/discussions/categories/ideas
+    about: Open-ended ideas to talk through before they become a feature request.
+  - name: Report a security vulnerability
+    url: https://github.com/niyamvora/ILoveNotch/security/advisories/new
+    about: Report it privately, never in a public issue.

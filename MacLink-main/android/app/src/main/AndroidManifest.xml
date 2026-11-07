@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Talking to paired PCs on the local network. Android 17 asks the user
+         for it (the Nearby devices permission group). -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Local discovery (mDNS) needs multicast on Wi-Fi. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Staying reachable in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Reconnecting after the phone restarts. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Sharing the screen with a PC (each time, after Android's prompt). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Keeping the phone awake while mirroring its screen to a PC. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Voice recorder to PC while the screen is off or the app is in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Voice recordings and voice typing for a PC (asked in context) and the
+         phone's sound while mirrored (playback capture, with the screen share's consent). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Elevated: turning wireless debugging back on after a reboot or a new
+         Wi-Fi network. Not grantable to apps; MacLink grants it to itself
+         through the shell once the user has paired it with wireless debugging. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Pause for banking apps: which app is in front (usage access, granted
+         by Elevated or in Settings › Usage access). -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Quick settings from a PC: Do Not Disturb / silent mode, and screen
+         brightness (asked for in Settings, or granted at Elevated). -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <!-- Scanning the pairing QR code. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Find my phone. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Asking to run unrestricted in the background: phones such as Samsung's
+         otherwise freeze the app, and PCs can't reach it. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Companion Device Manager association: lets Android wake MacLink when
+         a paired PC's BLE proximity beacon appears nearby. -->
+    <uses-feature
+        android:name="android.software.companion_device_setup"
+        android:required="false" />
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND" />
+    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Installing its own updates from GitHub releases (the user allows it once). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Updates of MacLink itself without a prompt (Android 12+), when turned on in Settings. -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+    <!-- Calls, shown on paired PCs, with the caller's number and contact
+         (asked for in the app). The call itself stays on the phone. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Controlling the call in progress for a PC (mute, speaker, hold,
+         keypad) as a calling companion, without being the phone app. -->
+    <uses-permission android:name="android.permission.CALL_COMPANION_APP" />
+    <!-- The same, through the app-op the shell grants at Elevated: Telecom
+         binds a companion that has it. -->
+    <uses-permission
+        android:name="android.permission.MANAGE_ONGOING_CALLS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Calls and texts need a phone line, but tablets without one still
+         run everything else. -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+    <!-- Texts, read and sent from paired PCs (asked for in the app). -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- Photos, screenshots and videos, shown on paired PCs (asked for in the app). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Phone storage in File Explorer on paired PCs (off by default, asked in
+         context; users can also pick specific folders with the Storage Access
+         Framework instead). -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <!-- Names and icons of the apps whose notifications are mirrored, and the
+         phone's speech recognizer for voice typing: Android hides other apps
+         unless they're declared here. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+
+    <application
+        android:name=".MacLinkApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MacLink">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Pairing links: a PC's QR code scanned with any camera app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="maclink" android:host="pair" />
+            </intent-filter>
+        </activity>
+
+        <!-- Sending text to the PC: shared from other apps, or the clipboard
+             (from the tile and the connection notification). No screen of
+             its own. -->
+        <activity
+            android:name=".clipboard.SendActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/clip_share_label"
+            android:noHistory="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <!-- Map locations (geo: URIs) opened with MacLink go straight to the PC. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="geo" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <receiver
+            android:name=".files.TransferNotifications$CancelReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".notifications.PcNotificationPoster$DismissReceiver"
+            android:exported="false" />
+
+        <!-- Android's answers while installing an update. -->
+        <receiver
+            android:name=".update.AppUpdater$InstallResult"
+            android:exported="false" />
+
+        <!-- Reconnects after the phone restarts or MacLink updates. -->
+        <receiver
+            android:name=".service.StartupReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The PC media notification's buttons (Android 12 and earlier). -->
+        <receiver
+            android:name=".media.PcMedia$CommandReceiver"
+            android:exported="false" />
+
+        <!-- Opening received files on Android 8–9 (later versions use MediaStore),
+             and images from a PC on the clipboard. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <service
+            android:name=".clipboard.ClipboardTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_clipboard"
+            android:label="@string/clip_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Mirroring notifications to PCs; the user grants access in Settings. -->
+        <service
+            android:name=".notifications.NotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Shows Android's screen capture prompt for a PC's request. -->
+        <activity
+            android:name=".mirror.MirrorConsentActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Pause for banking apps: "Open with banking pause" shortcuts, and
+             the paused notification's Turn back on. -->
+        <activity
+            android:name=".banking.OpenWithPauseActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <receiver
+            android:name=".banking.BankingPause$ResumeReceiver"
+            android:exported="false" />
+
+        <!-- The PC's mouse and keyboard on the mirrored screen (Assist); the
+             user turns it on in Android's accessibility settings. -->
+        <service
+            android:name=".mirror.InputService"
+            android:exported="true"
+            android:label="@string/input_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/input_service" />
+        </service>
+
+        <!-- The wireless debugging pairing code, typed into a notification. -->
+        <receiver
+            android:name=".elevated.PairingNotification$Receiver"
+            android:exported="false" />
+
+        <!-- Connects to an InputServer started from adb shell (shell UID only). -->
+        <receiver
+            android:name=".elevated.Elevated$AttachReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+
+        <!-- Telecom binds it while there are calls (CALL_COMPANION_APP). -->
+        <service
+            android:name=".calls.CallCompanion"
+            android:exported="true"
+            android:permission="android.permission.BIND_INCALL_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.InCallService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".mirror.MirrorService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection|connectedDevice" />
+
+        <receiver
+            android:name=".mirror.AppWindows$CloseReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".recorder.RecorderService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- Phone as microphone. -->
+        <service
+            android:name=".mic.MicService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <activity
+            android:name=".mic.MicStartActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <receiver
+            android:name=".mic.MicDeclineReceiver"
+            android:exported="false" />
+
+        <!-- Play on phone: a PC player's picture and sound, full screen. -->
+        <activity
+            android:name=".ui.watch.WatchActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.MacLink" />
+
+        <service
+            android:name=".service.ConnectionService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <!-- Companion Device Manager service: woken by Android when a paired PC's
+             BLE proximity beacon appears nearby. -->
+        <service
+            android:name=".companion.PcCompanionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_COMPANION_DEVICE_SERVICE"
+            tools:targetApi="31">
+            <intent-filter>
+                <action android:name="android.companion.CompanionDeviceService" />
+            </intent-filter>
+        </service>
+
+        <!-- Home-screen widget: paired PC connection status, Wake, and battery-free quick actions. -->
+        <receiver
+            android:name=".widget.PcWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_pc_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pc_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.PcWidgetProvider$ActionReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

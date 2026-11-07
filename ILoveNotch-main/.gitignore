@@ -1,0 +1,47 @@
+# Build output (build/ holds releases, App Store uploads, and soak results)
+.build/
+build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+# Generated from project.yml by XcodeGen
+*.xcodeproj/
+
+# Third-party apps and reference binaries. ILoveNotch is a clean-room project:
+# the repository may only contain original or permissively licensed material.
+*.app
+NotchNook.app/
+*.dmg
+*.pkg
+*.zip
+reference/
+extracted/
+
+# Disassembly and decompiler databases
+*.hop
+*.i64
+*.idb
+*.bndb
+*.gpr
+*.rep/
+
+# Signing material and secrets
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+*.keychain-db
+*.pem
+.env
+.env.*
+# Release credentials (paths and IDs) for scripts/release.sh; see release.env.example
+release.env
+
+# Tool receipts
+*.visual-check.json
+
+.DS_Store
+.gstack/

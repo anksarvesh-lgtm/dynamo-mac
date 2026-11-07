@@ -1,0 +1,142 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  QT_VERSION: "6.12.0"
+
+jobs:
+  version:
+    name: The tag matches the version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          version=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          if [ "v$version" != "${{ github.ref_name }}" ]; then
+            echo "::error::tag ${{ github.ref_name }} but Cargo.toml says $version"
+            exit 1
+          fi
+
+  macos:
+    name: macOS Desktop App
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          cache: true
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git
+      - name: Build release binary
+        run: cargo build --locked --release -p maclink-desktop
+      - name: Package MacLink.app
+        run: ./desktop/packaging/macos/build-app.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/*.zip
+
+  android:
+    name: Android app (signed)
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned Rust toolchain and the Android targets
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-linux-android armv7-linux-androideabi
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "16111833"
+          packages: "platforms;android-37.0 ndk;30.0.16248370 build-tools;37.0.0"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: The signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "MACLINK_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::The ANDROID_KEYSTORE secret is not set; falling back to default signing"
+          fi
+      - name: Build
+        working-directory: android
+        env:
+          MACLINK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease -Pmaclink.abis=arm64-v8a,armeabi-v7a
+      - name: Check the signature, and name the app
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$apk" ]; then
+            apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          fi
+          if [ -f "$apk" ]; then
+            "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$apk" || true
+          fi
+          mkdir -p out
+          cp "$apk" "out/MacLink-${GITHUB_REF_NAME#v}-android.apk"
+      - name: Forget the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: out/*.apk
+
+  publish:
+    name: Draft the release
+    needs: [macos, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: files
+          merge-multiple: true
+      - uses: actions/checkout@v7
+        with:
+          path: source
+          sparse-checkout: |
+            Cargo.toml
+            CHANGELOG.md
+            .github/scripts
+      - name: Draft it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="MacLink ${GITHUB_REF_NAME#v} (Beta Release)"
+          cd files
+          sha256sum *.{zip,dmg,apk} > SHA256SUMS.txt 2>/dev/null || sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          awk -v v="${GITHUB_REF_NAME#v}" '$1=="##" && $2=="["v"]" {f=1; next} f && /^## / {exit} f' \
+            ../source/CHANGELOG.md | awk -f ../source/.github/scripts/unwrap-notes.awk > notes.md || true
+          if [ -s notes.md ]; then notes=(--notes-file notes.md); else notes=(--generate-notes); fi
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" *.{zip,dmg,apk} SHA256SUMS.txt \
+              --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "${{ github.ref_name }}" *.{zip,dmg,apk} SHA256SUMS.txt \
+              --repo "${{ github.repository }}" --draft "${notes[@]}" --title "$title"
+          fi

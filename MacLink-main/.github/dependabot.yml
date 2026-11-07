@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      rust:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # Moves with cxx-qt only (see Cargo.toml).
+      - dependency-name: cxx
+      # Moves with windows, whose own windows-core it has to be: the
+      # implement macro and windows' COM types come from that one crate.
+      - dependency-name: windows-core
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+    groups:
+      android:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

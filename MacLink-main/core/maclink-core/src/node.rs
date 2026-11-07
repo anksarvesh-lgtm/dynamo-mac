@@ -1,0 +1,4083 @@
+// SPDX-License-Identifier: MPL-2.0
+//! [`Node`]: the core's entry point. Owns the network endpoint, the trust
+//! store, live sessions and one reconnect supervisor per paired device.
+
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, Mutex, RwLock, Weak},
+    time::Duration,
+};
+
+use iroh::{
+    Endpoint, EndpointAddr, RelayMode,
+    address_lookup::MemoryLookup,
+    endpoint::{Connection, QuicTransportConfig, VarInt, presets},
+    endpoint_info::{EndpointInfo, UserData},
+    protocol::{AcceptError, ProtocolHandler, Router},
+};
+use iroh_mdns_address_lookup::{DiscoveryEvent, MdnsAddressLookup};
+use maclink_protocol::{
+    ALPN_PAIR, ALPN_SESSION, DeviceId, Envelope, ErrorCode,
+    messages::{
+        Battery, ClipSet, DeviceInfo, DeviceKind, HelloUpdate, MediaCommand, MediaPlayer, Notification,
+        NotifyAction, NotifyKey, PowerLevel, Ring, types,
+    },
+    pairing::PairingUri,
+};
+use tokio::sync::{Notify, broadcast};
+use tokio_util::sync::CancellationToken;
+
+use crate::{
+    Error, NodeConfig, Platform, Result,
+    events::{ConnectionPath, DiscoveredDevice, LinkState, NodeEvent, PairedDevice, PairingEvent},
+    features::{self, CapabilityMatrix, DeviceFacts, MatrixInputs},
+    identity,
+    notifications::{self, Feed},
+    pairing::{self, PairingState},
+    session::{self, CLOSE_DUPLICATE, CLOSE_NORMAL, REQUEST_TIMEOUT, Session},
+    store::Store,
+    transfer,
+};
+
+const DIAL_TIMEOUT: Duration = Duration::from_secs(15);
+const BACKOFF_MIN: Duration = Duration::from_secs(1);
+const BACKOFF_MAX: Duration = Duration::from_secs(8);
+/// How long the device with the higher ID waits before dialing (see `maintain`).
+const DEFER_DIAL: Duration = Duration::from_millis(750);
+/// How long a phone plugged into a PC waits for the PC to dial through the cable before
+/// dialing itself (see [`Shared::usb_tunnel_inbound`]).
+const USB_DIAL_GRACE: Duration = Duration::from_secs(6);
+/// Broadcast channel capacity for [`NodeEvent`]s: large enough to absorb initial
+/// notification snapshots and multi-peer capability/state bursts without lagging
+/// UI or FFI subscribers.
+const EVENT_CAPACITY: usize = 2048;
+/// A connection with no traffic for this long is dead. iroh sends a
+/// keep-alive every 1 s, so a healthy link is never idle that long, and a
+/// device that drops off the network shows as offline within ~2-4 seconds
+/// instead of after QUIC's default of 30 s.
+const KEEP_ALIVE_INTERVAL: Duration = Duration::from_millis(1000);
+const IDLE_TIMEOUT: Duration = Duration::from_secs(8);
+/// Flow-control windows: how much may be in flight per stream and in all.
+const STREAM_WINDOW: u32 = 16 * 1024 * 1024;
+const CONNECTION_WINDOW: u32 = 32 * 1024 * 1024;
+/// How long opening a stream the PC asked for (its screen, an app window)
+/// waits for the connection to come back if it just dropped or was replaced.
+const STREAM_RECONNECT_WAIT: Duration = Duration::from_secs(10);
+
+/// Capabilities every build offers.
+const BASE_CAPABILITIES: &[&str] = &[
+    "core.ping",
+    "device.battery",
+    "device.ring",
+    "files.transfer",
+    "clip.image",
+    "media.remote",
+    "link.open",
+    "task.notify",
+];
+
+/// This device's mutable description, sent to peers.
+#[derive(Debug, Clone)]
+pub(crate) struct LocalState {
+    pub app_version: String,
+    pub device: DeviceInfo,
+    pub power: PowerLevel,
+    pub extra_capabilities: Vec<String>,
+    pub battery: Option<Battery>,
+}
+
+impl LocalState {
+    pub fn capabilities(&self) -> Vec<String> {
+        let mut caps: Vec<String> = BASE_CAPABILITIES.iter().map(|c| (*c).to_owned()).collect();
+        if !matches!(self.device.kind, DeviceKind::Phone | DeviceKind::Tablet) {
+            caps.push(maclink_protocol::messages::continuity_camera::RECEIVE.to_owned());
+        }
+        for cap in &self.extra_capabilities {
+            if !caps.contains(cap) {
+                caps.push(cap.clone());
+            }
+        }
+        caps
+    }
+}
+
+struct Supervisor {
+    wake: Arc<Notify>,
+    cancel: CancellationToken,
+}
+
+/// A PC's reader of a phone's mirroring: the phone, the session, video or sound.
+pub(crate) type MirrorStop = (DeviceId, u32, &'static str);
+
+/// State shared by the node, its sessions and background tasks.
+pub(crate) struct Shared {
+    pub id: DeviceId,
+    pub endpoint: Endpoint,
+    pub store: Store,
+    pub platform: Arc<dyn Platform>,
+    pub local: RwLock<LocalState>,
+    pub pairing: PairingState,
+    pub cancel: CancellationToken,
+    events: broadcast::Sender<NodeEvent>,
+    sessions: Mutex<HashMap<DeviceId, Arc<Session>>>,
+    links: Mutex<HashMap<DeviceId, LinkState>>,
+    supervisors: Mutex<HashMap<DeviceId, Supervisor>>,
+    discovered: Mutex<HashMap<DeviceId, DiscoveredDevice>>,
+    /// Last LAN mDNS sighting per peer (timestamp and announced socket addresses).
+    pub(crate) lan_seen: Mutex<HashMap<DeviceId, (std::time::Instant, Vec<SocketAddr>)>>,
+    /// Consecutive direct/QUIC dial failures per peer since last connected.
+    dial_failures: Mutex<HashMap<DeviceId, u32>>,
+    /// The last capability matrix emitted per device, to emit only changes.
+    matrices: Mutex<HashMap<DeviceId, CapabilityMatrix>>,
+    pub(crate) away_mode: std::sync::atomic::AtomicBool,
+    memory: MemoryLookup,
+    /// This device's notifications, when it mirrors them (phones).
+    pub notifications: Feed,
+    /// Local notification history for fast listing and substring search.
+    pub(crate) notification_history: Mutex<Vec<Notification>>,
+    /// This device's media players (docs/protocol/media.md).
+    pub players: crate::media::Players,
+    /// This phone's call in progress (docs/protocol/calls.md).
+    pub(crate) calls: crate::calls::Current,
+    /// This phone's quick settings state (docs/protocol/toggles.md).
+    pub(crate) toggles: crate::toggles::Current,
+    /// This PC's Wake-on-LAN adapter addresses (docs/protocol/actions.md).
+    pub(crate) wake_info: crate::actions::CurrentWakeInfo,
+    /// Active watched tasks on this PC (`task.notify`, `docs/protocol/actions.md`).
+    pub(crate) tasks: crate::actions::ActiveTasks,
+    /// This PC's Deck layout and live state, and connected PCs' Decks (docs/protocol/deck.md).
+    pub(crate) deck: crate::deck::Current,
+    /// Stop signals for phone screens shown here, by phone.
+    pub(crate) mirror_stops: Mutex<HashMap<MirrorStop, Arc<tokio::sync::Notify>>>,
+    /// Peers granted one-time reverse-mirror consent for the current session.
+    pub(crate) pc_mirror_sessions: Mutex<std::collections::HashSet<DeviceId>>,
+    /// Play on phone offers this PC made, by phone: the player and when.
+    pub(crate) watch_offers: Mutex<HashMap<DeviceId, crate::media::WatchOffer>>,
+    /// Stop signals for phone webcam streams arriving here, by phone.
+    pub(crate) webcam_stops: Mutex<HashMap<DeviceId, Arc<tokio::sync::Notify>>>,
+    /// Stop signals for phone microphone streams arriving here, by phone.
+    pub(crate) mic_stops: Mutex<HashMap<DeviceId, Arc<tokio::sync::Notify>>>,
+    /// Per-peer rate limiters and prompt state for remote input.
+    pub(crate) remote: Mutex<crate::remote::RemoteState>,
+    /// Per-peer prompt state and open folders for the storage service.
+    pub(crate) storage: Mutex<crate::storage::StorageState>,
+    /// Encrypted-at-rest history of the last 50 clips exchanged with peers.
+    pub(crate) clipboard_history: crate::clipboard_history::ClipboardHistoryStore,
+    /// Smart suggestion for the most recently received text clip, if any.
+    pub(crate) last_clip_suggestion: Mutex<Option<(DeviceId, crate::ClipSuggestion)>>,
+    /// LocalSend v2.1 discovery, server, and outgoing transfers.
+    pub(crate) localsend: crate::localsend::LocalSendState,
+    /// Bound loopback TCP port for the phone-side USB tunnel listener (0 if disabled).
+    pub(crate) usb_listener_port: std::sync::atomic::AtomicU16,
+    /// Active loopback UDP bridge ports carrying USB-tunneled QUIC traffic.
+    pub(crate) usb_bridge_ports: Arc<Mutex<std::collections::HashSet<u16>>>,
+    /// Active USB tunnel peers mapped to their local UDP bridge address and cancellation token.
+    pub(crate) usb_peers: Arc<Mutex<HashMap<DeviceId, (SocketAddr, CancellationToken)>>>,
+    /// Peers whose USB tunnel this device accepted (a phone plugged into that PC).
+    pub(crate) usb_inbound: Mutex<std::collections::HashSet<DeviceId>>,
+    /// USB peers that are only paired by hand (Android emulators).
+    pub(crate) usb_manual_pair: Mutex<std::collections::HashSet<DeviceId>>,
+    /// Wakes the PC-side ADB watcher immediately on `refresh()`.
+    pub(crate) usb_poke: Notify,
+    /// Wakes the persistent send-queue coordinator when items are enqueued, retried, or sessions change.
+    pub(crate) queue_notify: Arc<Notify>,
+    /// Peers currently being drained by a per-peer queue runner task.
+    pub(crate) queue_active_peers: Mutex<std::collections::HashSet<DeviceId>>,
+    /// Number of wake-up ticks executed by `run_queue_coordinator`.
+    pub(crate) queue_coordinator_ticks: std::sync::atomic::AtomicUsize,
+    pub data_dir: std::path::PathBuf,
+    /// Where received files go.
+    pub downloads_dir: std::path::PathBuf,
+    /// Running or paused transfers, to pause, resume, or cancel them.
+    transfers: Mutex<HashMap<String, TransferControl>>,
+    /// The node's runtime, for work started from non-async callers.
+    pub(crate) runtime: tokio::runtime::Handle,
+}
+
+pub(crate) struct TransferControl {
+    pub cancel: CancellationToken,
+    pub paused: tokio::sync::watch::Sender<bool>,
+    pub peer: DeviceId,
+    pub direction: transfer::Direction,
+    pub paused_transfer: Option<transfer::Transfer>,
+    pub running: bool,
+}
+
+impl std::fmt::Debug for Shared {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Shared").field("id", &self.id).finish_non_exhaustive()
+    }
+}
+
+fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+impl Shared {
+    pub fn emit(&self, event: NodeEvent) {
+        // No subscribers is fine; events are a UI convenience.
+        let _ = self.events.send(event);
+    }
+
+    pub(crate) fn peer_name(&self, peer: &DeviceId) -> String {
+        self.store
+            .get_peer(peer)
+            .ok()
+            .flatten()
+            .map(|p| p.info.name)
+            .or_else(|| self.localsend.peer_name(peer))
+            .unwrap_or_else(|| peer.short())
+    }
+
+    pub(crate) fn record_timeline(&self, mut entry: crate::timeline::NewTimelineEntry) -> Option<i64> {
+        if entry.device_name.is_empty() {
+            entry.device_name = self.peer_name(&entry.device_id);
+        }
+        let id = self.store.insert_timeline(&entry, crate::now_unix()).ok()?;
+        self.emit(NodeEvent::TimelineChanged);
+        Some(id)
+    }
+
+    pub(crate) fn record_timeline_clip(
+        &self,
+        peer: DeviceId,
+        peer_name: &str,
+        incoming: bool,
+        detail: &str,
+        clip_id: String,
+        evicted_ids: Vec<String>,
+    ) {
+        for evicted in evicted_ids {
+            let _ = self.store.delete_timeline_by_ref(&evicted);
+        }
+        let _ = self.store.delete_timeline_by_ref(&clip_id);
+        let _ = self.record_timeline(crate::timeline::NewTimelineEntry {
+            kind: crate::TimelineKind::Clip,
+            device_id: peer,
+            device_name: peer_name.to_owned(),
+            incoming,
+            timestamp: crate::now_unix(),
+            title: String::new(),
+            detail: detail.to_owned(),
+            target: String::new(),
+            size_bytes: 0,
+            duration_secs: 0,
+            ref_id: Some(clip_id),
+        });
+    }
+
+    pub(crate) fn finish_timeline_session(&self, row_id: i64, duration_secs: u64) {
+        if self.store.update_timeline_duration(row_id, duration_secs.max(1)).unwrap_or(false) {
+            self.emit(NodeEvent::TimelineChanged);
+        }
+    }
+
+    pub(crate) fn nudge_reconnect(&self) {
+        for supervisor in lock(&self.supervisors).values() {
+            supervisor.wake.notify_one();
+        }
+    }
+
+    /// Where partly received files wait until complete.
+    pub fn incoming_dir(&self) -> std::path::PathBuf {
+        self.data_dir.join("incoming")
+    }
+
+    /// Where staged files for the persistent outgoing send queue live until delivered or cancelled.
+    pub fn queue_staging_dir(&self) -> std::path::PathBuf {
+        self.data_dir.join("queue_staging")
+    }
+
+    pub fn register_transfer(&self, id: &str, cancel: CancellationToken) {
+        let (paused, _) = tokio::sync::watch::channel(false);
+        lock(&self.transfers).insert(
+            id.to_owned(),
+            TransferControl {
+                cancel,
+                paused,
+                peer: DeviceId([0; 32]),
+                direction: transfer::Direction::Incoming,
+                paused_transfer: None,
+                running: true,
+            },
+        );
+    }
+
+    pub(crate) fn register_transfer_control(
+        &self,
+        id: &str,
+        peer: DeviceId,
+        direction: transfer::Direction,
+        cancel: CancellationToken,
+    ) -> tokio::sync::watch::Receiver<bool> {
+        let (paused, rx) = tokio::sync::watch::channel(false);
+        let running = direction == transfer::Direction::Incoming;
+        lock(&self.transfers).insert(
+            id.to_owned(),
+            TransferControl { cancel, paused, peer, direction, paused_transfer: None, running },
+        );
+        rx
+    }
+
+    pub(crate) fn ensure_transfer_control(
+        &self,
+        id: &str,
+        peer: DeviceId,
+        direction: transfer::Direction,
+    ) -> (CancellationToken, tokio::sync::watch::Receiver<bool>) {
+        let mut map = lock(&self.transfers);
+        if let Some(ctrl) = map.get_mut(id) {
+            ctrl.running = true;
+            return (ctrl.cancel.clone(), ctrl.paused.subscribe());
+        }
+        let cancel = CancellationToken::new();
+        let (paused, rx) = tokio::sync::watch::channel(false);
+        map.insert(
+            id.to_owned(),
+            TransferControl {
+                cancel: cancel.clone(),
+                paused,
+                peer,
+                direction,
+                paused_transfer: None,
+                running: true,
+            },
+        );
+        (cancel, rx)
+    }
+
+    pub(crate) fn mark_transfer_idle(&self, id: &str) {
+        if let Some(ctrl) = lock(&self.transfers).get_mut(id) {
+            ctrl.running = false;
+        }
+    }
+
+    pub(crate) fn set_transfer_paused(&self, id: &str, is_paused: bool) {
+        if let Some(ctrl) = lock(&self.transfers).get_mut(id) {
+            let _ = ctrl.paused.send(is_paused);
+            if !is_paused {
+                ctrl.paused_transfer = None;
+            }
+        }
+    }
+
+    pub(crate) fn mark_transfer_paused(&self, id: &str, transfer: transfer::Transfer) {
+        if let Some(ctrl) = lock(&self.transfers).get_mut(id)
+            && !ctrl.cancel.is_cancelled()
+        {
+            let _ = ctrl.paused.send(true);
+            ctrl.paused_transfer = Some(transfer);
+        }
+    }
+
+    pub(crate) fn resume_transfer_from_peer(&self, id: &str, peer: DeviceId) {
+        if let Some(ctrl) = lock(&self.transfers).get_mut(id)
+            && (ctrl.peer == peer || ctrl.peer == DeviceId([0; 32]))
+        {
+            let _ = ctrl.paused.send(false);
+            ctrl.paused_transfer = None;
+        }
+    }
+
+    pub(crate) async fn cancel_transfer_from_peer(&self, id: &str, peer: DeviceId) {
+        let (found_active, paused) = {
+            let mut map = lock(&self.transfers);
+            if let Some(ctrl) = map.get_mut(id)
+                && (ctrl.peer == peer || ctrl.peer == DeviceId([0; 32]))
+            {
+                ctrl.cancel.cancel();
+                let paused = ctrl.paused_transfer.take();
+                if paused.is_some() {
+                    map.remove(id);
+                }
+                (paused.is_none(), paused)
+            } else {
+                (false, None)
+            }
+        };
+        if !found_active {
+            let dir = self.incoming_dir().join(peer.to_string()).join(id);
+            let _ = tokio::fs::remove_dir_all(&dir).await;
+            if let Some(parent) = dir.parent() {
+                let _ = tokio::fs::remove_dir(parent).await;
+            }
+        }
+        if let Some(mut t) = paused {
+            t.state = transfer::TransferState::Cancelled;
+            self.emit(NodeEvent::Transfer(t));
+        }
+    }
+
+    pub(crate) fn cancel_queue_or_transfer(self: &Arc<Self>, id: &str) -> Result<bool> {
+        self.localsend.resolve_transfer_approval(id, false);
+        let removed_queue = self.store.remove_queue_item(id)?;
+        let target = {
+            let mut map = lock(&self.transfers);
+            if let Some(ctrl) = map.get_mut(id) {
+                ctrl.cancel.cancel();
+                let peer = ctrl.peer;
+                let direction = ctrl.direction;
+                let paused = ctrl.paused_transfer.take();
+                let running = ctrl.running;
+                if paused.is_some() || !running {
+                    map.remove(id);
+                }
+                Some((peer, direction, paused, running))
+            } else {
+                None
+            }
+        };
+
+        if let Some((ref q_item, ref payload)) = removed_queue {
+            transfer::cleanup_staging_id(self, id);
+            self.emit(NodeEvent::QueueChanged);
+            self.queue_notify.notify_waiters();
+            let was_running = target.as_ref().is_some_and(|(_, _, _, running)| *running);
+            if !was_running {
+                let is_file_item = matches!(
+                    payload,
+                    crate::QueuePayload::Files { .. }
+                        | crate::QueuePayload::Folder { .. }
+                        | crate::QueuePayload::HandoffDocument { .. }
+                        | crate::QueuePayload::Recording { .. }
+                );
+                if is_file_item {
+                    let (recording, markers, open_on_arrival) = match payload {
+                        crate::QueuePayload::Recording { markers, .. } => (true, markers.clone(), false),
+                        crate::QueuePayload::HandoffDocument { .. } => (false, Vec::new(), true),
+                        _ => (false, Vec::new(), false),
+                    };
+                    let mut names: Vec<String> = Vec::new();
+                    let mut last_folder: Option<String> = None;
+                    for spec in &q_item.files {
+                        match spec.folder.as_deref().map(|f| f.split('/').next().unwrap_or(f)) {
+                            Some(top) if last_folder.as_deref() == Some(top) => {}
+                            Some(top) => {
+                                names.push(top.to_owned());
+                                last_folder = Some(top.to_owned());
+                            }
+                            None => {
+                                names.push(spec.name.clone());
+                                last_folder = None;
+                            }
+                        }
+                    }
+                    self.emit(NodeEvent::Transfer(transfer::Transfer {
+                        id: q_item.id.clone(),
+                        device: q_item.peer,
+                        direction: transfer::Direction::Outgoing,
+                        names,
+                        files: q_item.files_total as usize,
+                        total: q_item.bytes_total,
+                        done: q_item.bytes_done,
+                        state: transfer::TransferState::Cancelled,
+                        recording,
+                        markers,
+                        open_on_arrival,
+                    }));
+                }
+            }
+        }
+
+        if let Some((peer, direction, paused, _running)) = target {
+            let was_paused = paused.is_some();
+            if let Some(mut t) = paused {
+                t.state = transfer::TransferState::Cancelled;
+                self.emit(NodeEvent::Transfer(t));
+            }
+            if peer != DeviceId([0; 32]) {
+                let shared = self.clone();
+                let id_owned = id.to_owned();
+                self.runtime.spawn(async move {
+                    if was_paused && direction == transfer::Direction::Incoming {
+                        let dir = shared.incoming_dir().join(peer.to_string()).join(&id_owned);
+                        let _ = tokio::fs::remove_dir_all(&dir).await;
+                        if let Some(parent) = dir.parent() {
+                            let _ = tokio::fs::remove_dir(parent).await;
+                        }
+                    }
+                    if let Some(session) = shared.session(&peer)
+                        && let Ok(env) = Envelope::new(
+                            types::FILES_CANCEL,
+                            &maclink_protocol::messages::FilesControl { id: id_owned },
+                        )
+                    {
+                        let _ = session.send(env).await;
+                    }
+                });
+            }
+            return Ok(true);
+        }
+
+        Ok(removed_queue.is_some())
+    }
+
+    pub fn unregister_transfer(&self, id: &str) {
+        lock(&self.transfers).remove(id);
+    }
+
+    /// Every connected device's session.
+    pub fn live_sessions(&self) -> Vec<Arc<Session>> {
+        lock(&self.sessions).values().filter(|s| s.is_alive()).cloned().collect()
+    }
+
+    /// Whether a device toggle (see [`features::DEVICE_TOGGLES`]) is on for
+    /// `peer`; unknown toggles are off.
+    pub fn toggle_on(&self, peer: &DeviceId, toggle: &str) -> bool {
+        self.store
+            .toggles(peer)
+            .ok()
+            .and_then(|t| t.get(toggle).copied())
+            .or_else(|| features::toggle_default(toggle))
+            .unwrap_or(false)
+    }
+
+    /// The capabilities this device offers right now.
+    pub fn local_capabilities(&self) -> Vec<String> {
+        self.local.read().unwrap_or_else(|e| e.into_inner()).capabilities()
+    }
+
+    pub fn session(&self, peer: &DeviceId) -> Option<Arc<Session>> {
+        lock(&self.sessions).get(peer).filter(|s| s.is_alive()).cloned()
+    }
+
+    fn set_link(&self, peer: DeviceId, link: LinkState) {
+        let changed = lock(&self.links).insert(peer, link.clone()).as_ref() != Some(&link);
+        if changed {
+            self.emit(NodeEvent::LinkChanged { device: peer, link });
+        }
+    }
+
+    pub fn link(&self, peer: &DeviceId, last_seen: Option<i64>) -> LinkState {
+        lock(&self.links).get(peer).cloned().unwrap_or(LinkState::Offline { last_seen })
+    }
+
+    /// Publishes the session's current path and round-trip time, if it's
+    /// still the peer's session (a replaced one has nothing to say).
+    pub fn publish_online(&self, session: &Session) {
+        let sessions = lock(&self.sessions);
+        if sessions
+            .get(&session.peer)
+            .is_some_and(|current| std::ptr::eq(current.as_ref(), session) && current.is_alive())
+        {
+            self.set_link(session.peer, LinkState::Online { path: session.path(), rtt_ms: session.rtt_ms() });
+        }
+    }
+
+    pub fn away_mode(&self) -> bool {
+        // Mobile network / away mode removed: connections are strictly LAN or USB only.
+        false
+    }
+
+    pub(crate) fn is_allowed_peer_ip(&self, ip: std::net::IpAddr) -> bool {
+        if self.away_mode() {
+            return true;
+        }
+        crate::session::is_lan_ip(ip)
+    }
+
+    pub(crate) fn is_connection_allowed(&self, conn: &Connection) -> bool {
+        if self.away_mode() || self.is_usb_connection(conn) {
+            return true;
+        }
+        let paths = conn.paths();
+        let selected = paths.iter().find(|p| p.is_selected()).or_else(|| paths.iter().next());
+        match selected {
+            Some(p) if p.is_relay() => false,
+            Some(p) => match p.remote_addr() {
+                iroh::TransportAddr::Ip(addr) => self.is_usb_addr(addr) || self.is_allowed_peer_ip(addr.ip()),
+                _ => false,
+            },
+            None => false,
+        }
+    }
+
+    pub(crate) async fn wait_connection_allowed(&self, conn: &Connection) -> bool {
+        if self.away_mode() || self.is_usb_connection(conn) {
+            return true;
+        }
+        for _ in 0..20 {
+            if !conn.paths().is_empty() {
+                return self.is_connection_allowed(conn);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        self.is_connection_allowed(conn)
+    }
+
+    /// Our direct addresses, for pairing links. Waits briefly for the
+    /// endpoint to learn them right after startup; if no non-loopback
+    /// interface is up yet (e.g. right after a PC restart while Wi-Fi is still
+    /// associating), falls back to `127.0.0.1:<port>` from the bound socket.
+    pub async fn direct_addrs(&self) -> Vec<SocketAddr> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let mut addrs: Vec<SocketAddr> = self
+                .endpoint
+                .addr()
+                .ip_addrs()
+                .copied()
+                .filter(|a| self.away_mode() || crate::session::is_lan_ip(a.ip()))
+                .collect();
+            if addrs.iter().any(|a| !a.ip().is_loopback()) || tokio::time::Instant::now() >= deadline {
+                if cfg!(test)
+                    && let Some(sock) =
+                        self.endpoint.bound_sockets().into_iter().find(|a| a.is_ipv4() && a.port() != 0)
+                {
+                    let loopback = SocketAddr::from(([127, 0, 0, 1], sock.port()));
+                    if !addrs.contains(&loopback) {
+                        addrs.push(loopback);
+                    }
+                }
+                if !addrs.is_empty() {
+                    return addrs;
+                }
+                return self
+                    .endpoint
+                    .bound_sockets()
+                    .into_iter()
+                    .find(|a| a.is_ipv4() && a.port() != 0)
+                    .map(|a| vec![SocketAddr::from(([127, 0, 0, 1], a.port()))])
+                    .unwrap_or_default();
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    }
+
+    /// Returns the local IPv4 UDP port the QUIC endpoint is bound to.
+    pub(crate) fn bound_v4_port(&self) -> Option<u16> {
+        self.endpoint.bound_sockets().into_iter().find(|a| a.is_ipv4() && a.port() != 0).map(|a| a.port())
+    }
+
+    pub(crate) fn register_usb_bridge_port(&self, port: u16) {
+        lock(&self.usb_bridge_ports).insert(port);
+    }
+
+    pub(crate) fn unregister_usb_bridge_port(&self, port: u16) {
+        lock(&self.usb_bridge_ports).remove(&port);
+    }
+
+    pub(crate) fn is_usb_addr(&self, addr: &SocketAddr) -> bool {
+        addr.ip().to_canonical().is_loopback() && lock(&self.usb_bridge_ports).contains(&addr.port())
+    }
+
+    pub(crate) fn usb_peer_addr(&self, peer: &DeviceId) -> Option<SocketAddr> {
+        lock(&self.usb_peers).get(peer).map(|(addr, _)| *addr)
+    }
+
+    /// Whether `peer` is a PC this phone is plugged into: the PC dials through the cable.
+    /// If this device dialed too (over Wi-Fi, say), the two connections would replace each
+    /// other, and a Wi-Fi path that only works one way would keep breaking the USB one.
+    pub(crate) fn usb_tunnel_inbound(&self, peer: &DeviceId) -> bool {
+        lock(&self.usb_inbound).contains(peer) && self.usb_peer_addr(peer).is_some()
+    }
+
+    pub(crate) fn is_usb_connection(&self, conn: &Connection) -> bool {
+        let peer = crate::device_id(&conn.remote_id());
+        if self.usb_peer_addr(&peer).is_some() {
+            return true;
+        }
+        conn.paths().iter().any(|p| match p.remote_addr() {
+            iroh::TransportAddr::Ip(addr) => self.is_usb_addr(addr),
+            _ => false,
+        })
+    }
+
+    pub(crate) fn note_discovered(&self, peer: DeviceId, name: Option<String>) {
+        if self.store.is_paired(&peer).unwrap_or(false) {
+            return;
+        }
+        let device = DiscoveredDevice { id: peer, name };
+        let is_new = lock(&self.discovered).insert(peer, device.clone()).as_ref() != Some(&device);
+        if is_new {
+            self.emit(NodeEvent::Discovered(device));
+        }
+    }
+
+    pub(crate) fn on_usb_tunnel_accepted(
+        self: &Arc<Self>,
+        peer: DeviceId,
+        name: String,
+        bridge_addr: SocketAddr,
+        cancel: CancellationToken,
+    ) {
+        if let Some((old_addr, old_cancel)) = lock(&self.usb_peers).insert(peer, (bridge_addr, cancel))
+            && old_addr != bridge_addr
+        {
+            old_cancel.cancel();
+        }
+        lock(&self.usb_inbound).insert(peer);
+        self.note_discovered(peer, (!name.is_empty()).then_some(name));
+        self.remember_addrs(&peer, &[bridge_addr]);
+        if self.store.is_paired(&peer).unwrap_or(false) {
+            self.start_supervisor(peer);
+            self.wake_supervisor(&peer);
+            if let Some(session) = self.session(&peer) {
+                self.publish_online(&session);
+            }
+            self.refresh_capabilities(&peer);
+        }
+    }
+
+    pub(crate) fn on_usb_tunnel_connected(
+        self: &Arc<Self>,
+        peer: DeviceId,
+        name: String,
+        bridge_addr: SocketAddr,
+        cancel: CancellationToken,
+        auto_pair: bool,
+    ) {
+        if let Some((old_addr, old_cancel)) = lock(&self.usb_peers).insert(peer, (bridge_addr, cancel))
+            && old_addr != bridge_addr
+        {
+            old_cancel.cancel();
+        }
+        if auto_pair {
+            lock(&self.usb_manual_pair).remove(&peer);
+        } else {
+            lock(&self.usb_manual_pair).insert(peer);
+        }
+        self.note_discovered(peer, (!name.is_empty()).then_some(name));
+        self.remember_addrs(&peer, &[bridge_addr]);
+        if self.store.is_paired(&peer).unwrap_or(false) {
+            self.start_supervisor(peer);
+            self.wake_supervisor(&peer);
+            self.refresh_capabilities(&peer);
+            let s = self.clone();
+            tokio::spawn(async move {
+                s.endpoint.network_change().await;
+                if let Some(session) = s.session(&peer) {
+                    s.publish_online(&session);
+                    s.refresh_capabilities(&peer);
+                } else {
+                    s.wake_supervisor(&peer);
+                }
+            });
+        } else if auto_pair {
+            let s = self.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                if !s.store.is_paired(&peer).unwrap_or(false) {
+                    let _ = pairing::start_nearby(&s, peer).await;
+                }
+            });
+        }
+    }
+
+    pub(crate) async fn on_usb_tunnel_disconnected(&self, peer: DeviceId, bridge_addr: SocketAddr) {
+        let removed = {
+            let mut peers = lock(&self.usb_peers);
+            if peers.get(&peer).is_some_and(|(addr, _)| *addr == bridge_addr) {
+                peers.remove(&peer);
+                lock(&self.usb_inbound).remove(&peer);
+                lock(&self.usb_manual_pair).remove(&peer);
+                true
+            } else {
+                false
+            }
+        };
+        if !removed {
+            return;
+        }
+        if !self.store.is_paired(&peer).unwrap_or(false) && !lock(&self.lan_seen).contains_key(&peer) {
+            if lock(&self.discovered).remove(&peer).is_some() {
+                self.emit(NodeEvent::DiscoveryExpired(peer));
+            }
+            return;
+        }
+        if let Ok(Some(record)) = self.store.get_peer(&peer) {
+            self.remember_addrs(&peer, &record.last_addrs);
+        }
+        self.endpoint.network_change().await;
+        self.wake_supervisor(&peer);
+        if let Some(session) = self.session(&peer) {
+            self.publish_online(&session);
+        }
+        self.refresh_capabilities(&peer);
+    }
+
+    pub(crate) fn retry_usb_auto_pair(self: &Arc<Self>) {
+        let peers: Vec<DeviceId> = lock(&self.usb_peers).keys().copied().collect();
+        let manual = lock(&self.usb_manual_pair).clone();
+        for peer in peers.into_iter().filter(|p| !manual.contains(p)) {
+            if !self.store.is_paired(&peer).unwrap_or(false) {
+                let s = self.clone();
+                tokio::spawn(async move {
+                    let _ = pairing::start_nearby(&s, peer).await;
+                });
+            }
+        }
+    }
+
+    /// Feeds known addresses of a peer into address lookup.
+    pub fn remember_addrs(&self, peer: &DeviceId, addrs: &[SocketAddr]) {
+        let allow_wan = self.away_mode();
+        let mut all: Vec<SocketAddr> = addrs
+            .iter()
+            .copied()
+            .filter(|a| {
+                if self.is_usb_addr(a) {
+                    true
+                } else if a.ip().is_loopback() {
+                    cfg!(test)
+                } else {
+                    allow_wan || crate::session::is_lan_ip(a.ip())
+                }
+            })
+            .collect();
+        if let Some(usb_addr) = self.usb_peer_addr(peer)
+            && !all.contains(&usb_addr)
+        {
+            all.push(usb_addr);
+        }
+        if all.is_empty() && allow_wan {
+            return;
+        }
+        if let Ok(key) = crate::public_key(peer) {
+            self.memory.add_endpoint_info(EndpointInfo::new(key).with_ip_addrs(all));
+        }
+    }
+
+    /// Removes any cached non-LAN (cellular / public IPv6 / WAN) or stale loopback
+    /// addresses for `peer` so `maintain` does not repeatedly dial a dead endpoint.
+    pub(crate) fn purge_non_lan_addrs(&self, peer: &DeviceId) {
+        if let Ok(Some(record)) = self.store.get_peer(peer) {
+            let lan_only: Vec<SocketAddr> = record
+                .last_addrs
+                .iter()
+                .copied()
+                .filter(|a| !a.ip().to_canonical().is_loopback() && crate::session::is_lan_ip(a.ip()))
+                .collect();
+            if lan_only.len() != record.last_addrs.len()
+                && let Some(seen) = record.last_seen
+            {
+                let _ = self.store.record_seen(peer, seen, &lan_only);
+            }
+            self.remember_addrs(peer, &lan_only);
+        }
+    }
+
+    /// Computes the capability matrix for a paired device from its last known
+    /// capabilities, this device's state and the user's toggles.
+    pub fn capability_matrix(&self, peer: &DeviceId) -> Result<CapabilityMatrix> {
+        let record = self.store.get_peer(peer)?.ok_or(Error::NotPaired)?;
+        let toggles = self.store.toggles(peer)?;
+        let local = {
+            let local = self.local.read().unwrap_or_else(|e| e.into_inner());
+            DeviceFacts::new(&local.device, local.capabilities().into_iter().collect(), local.power)
+        };
+        let remote = DeviceFacts::new(&record.info, record.caps, record.power);
+        let mut paths = vec![ConnectionPath::Lan];
+        if self.usb_peer_addr(peer).is_some()
+            || self.session(peer).is_some_and(|s| s.path() == ConnectionPath::Usb)
+        {
+            paths.push(ConnectionPath::Usb);
+        }
+        if self.away_mode() {
+            paths.push(ConnectionPath::Relay);
+        }
+        Ok(features::compute(
+            *peer,
+            MatrixInputs { local: &local, peer: &remote, paths: &paths, toggles: &toggles },
+        ))
+    }
+
+    /// Recomputes a device's capability matrix and emits it if it changed.
+    pub fn refresh_capabilities(&self, peer: &DeviceId) {
+        let matrix = match self.capability_matrix(peer) {
+            Ok(matrix) => matrix,
+            Err(Error::NotPaired) => return,
+            Err(e) => {
+                tracing::warn!(peer = %peer.short(), error = %e, "failed to compute capabilities");
+                return;
+            }
+        };
+        let changed = lock(&self.matrices).insert(*peer, matrix.clone()).as_ref() != Some(&matrix);
+        if changed {
+            self.emit(NodeEvent::Capabilities(matrix));
+        }
+    }
+
+    /// Recomputes every paired device's matrix (after a local change).
+    fn refresh_all_capabilities(&self) {
+        match self.store.list_peers() {
+            Ok(peers) => peers.iter().for_each(|p| self.refresh_capabilities(&p.id)),
+            Err(e) => tracing::warn!(error = %e, "failed to list peers"),
+        }
+    }
+
+    /// Stores a newly paired device and starts keeping it connected.
+    pub async fn complete_pairing(self: &Arc<Self>, peer: DeviceId, info: DeviceInfo) -> Result<()> {
+        let info = info.sanitized();
+        let paired_at = crate::now_unix();
+        let mut reassigned_queue = false;
+        // The same physical device paired again (after a reinstall it has a new identity):
+        // move its history and queue to the new pairing and forget the old one. Only the
+        // install ID decides; same-name devices (two family phones) stay separate.
+        if let Some(install_id) = info.install_id.as_deref()
+            && let Ok(existing_peers) = self.store.list_peers()
+        {
+            for old in existing_peers {
+                if old.id != peer
+                    && self.session(&old.id).is_none()
+                    && old.info.kind == info.kind
+                    && old.info.install_id.as_deref() == Some(install_id)
+                {
+                    let _ = self.store.reassign_timeline(&old.id, &peer);
+                    if self.store.reassign_send_queue_peer(&old.id, &peer).unwrap_or(0) > 0 {
+                        reassigned_queue = true;
+                    }
+                    let _ = self.forget_peer(&old.id).await;
+                }
+            }
+        }
+        self.store.upsert_peer(&peer, &info, paired_at)?;
+        tracing::info!(peer = %peer.short(), "paired");
+        let device = PairedDevice {
+            id: peer,
+            info,
+            paired_at,
+            link: LinkState::Offline { last_seen: None },
+            can_wake: false,
+        };
+        self.emit(NodeEvent::DeviceAdded(device.clone()));
+        self.emit(NodeEvent::Pairing(PairingEvent::Paired(device)));
+        if reassigned_queue {
+            self.emit(NodeEvent::QueueChanged);
+        }
+        lock(&self.discovered).remove(&peer);
+        self.start_supervisor(peer);
+        self.queue_notify.notify_waiters();
+        Ok(())
+    }
+
+    /// Removes a paired device locally (after we or the peer unpaired).
+    pub async fn forget_peer(&self, peer: &DeviceId) -> Result<()> {
+        let peer_name = self.peer_name(peer);
+        let dropped_count = self
+            .store
+            .list_send_queue(Some(peer))
+            .map(|items| {
+                u32::try_from(
+                    items
+                        .iter()
+                        .filter(|i| {
+                            matches!(i.status, crate::QueueStatus::Waiting | crate::QueueStatus::Sending)
+                        })
+                        .count(),
+                )
+                .unwrap_or(u32::MAX)
+            })
+            .unwrap_or(0);
+        let active_transfer_ids: Vec<String> = lock(&self.transfers)
+            .iter()
+            .filter(|(_, ctrl)| &ctrl.peer == peer)
+            .map(|(id, ctrl)| {
+                ctrl.cancel.cancel();
+                id.clone()
+            })
+            .collect();
+        for id in active_transfer_ids {
+            lock(&self.transfers).remove(&id);
+        }
+        let dropped_queue = self.store.drop_all_queue_for_peer(peer).unwrap_or_default();
+        for (id, _) in &dropped_queue {
+            transfer::cleanup_staging_id(self, id);
+        }
+
+        let existed = self.store.remove_peer(peer)?;
+        if let Some(sup) = lock(&self.supervisors).remove(peer) {
+            sup.cancel.cancel();
+        }
+        if let Some(session) = lock(&self.sessions).remove(peer) {
+            session.close(CLOSE_NORMAL, b"unpaired");
+        }
+        lock(&self.links).remove(peer);
+        lock(&self.lan_seen).remove(peer);
+        lock(&self.dial_failures).remove(peer);
+        lock(&self.matrices).remove(peer);
+        lock(&self.remote).remove_peer(peer);
+        lock(&self.storage).remove_peer(peer);
+        self.toggles.remove_peer(peer);
+        self.deck.remove_peer(peer);
+        self.stop_webcam(peer);
+        if !dropped_queue.is_empty() {
+            self.emit(NodeEvent::QueueChanged);
+            if dropped_count > 0 {
+                self.emit(NodeEvent::QueueDroppedOnUnpair { peer: *peer, peer_name, dropped_count });
+            }
+        }
+        if existed {
+            self.emit(NodeEvent::DeviceRemoved(*peer));
+        }
+        Ok(())
+    }
+
+    /// Registers an established session, resolving duplicates: if both
+    /// devices dialed at once, the connection opened by the device with the
+    /// lower ID wins on both sides.
+    fn register_session(
+        self: &Arc<Self>,
+        conn: Connection,
+        dialer: DeviceId,
+        streams: (iroh::endpoint::SendStream, iroh::endpoint::RecvStream),
+        remote: maclink_protocol::messages::Hello,
+    ) -> Option<Arc<Session>> {
+        let peer = crate::device_id(&conn.remote_id());
+        if conn.close_reason().is_some() {
+            return None;
+        }
+        if !self.is_connection_allowed(&conn) {
+            tracing::debug!(peer = %peer.short(), "refusing session on non-LAN path while away_mode is off");
+            conn.close(VarInt::from_u32(CLOSE_NORMAL), b"away mode disabled");
+            return None;
+        }
+        let mut sessions = lock(&self.sessions);
+        if let Some(existing) = sessions.get(&peer).filter(|s| s.is_alive()) {
+            let keep_existing = existing.dialer != dialer && existing.dialer < dialer;
+            if keep_existing {
+                drop(sessions);
+                conn.close(VarInt::from_u32(CLOSE_DUPLICATE), b"duplicate");
+                return None;
+            }
+            existing.close(CLOSE_DUPLICATE, b"duplicate");
+        }
+
+        let remote_device = remote.device.sanitized();
+        if let Err(e) = self.store.update_info(&peer, &remote_device) {
+            tracing::warn!(error = %e, "failed to update peer info");
+        }
+        let effective_device =
+            self.store.get_peer(&peer).ok().flatten().map(|p| p.info).unwrap_or(remote_device);
+        let caps = features::sanitize_capabilities(remote.caps.clone());
+        if let Err(e) = self.store.update_capabilities(&peer, Some(&caps), Some(remote.power.effective())) {
+            tracing::warn!(error = %e, "failed to update peer capabilities");
+        }
+
+        let local_caps = self.local.read().unwrap_or_else(|e| e.into_inner()).capabilities();
+        eprintln!("============================================================");
+        eprintln!("[MACLINK LIVE HANDSHAKE DIAGNOSTICS]");
+        eprintln!("  Peer ID:            {}", peer.short());
+        eprintln!("  Device Name:        {}", effective_device.name);
+        eprintln!("  Device OS:          {} {}", effective_device.os, effective_device.os_ver);
+        eprintln!("  Phone App Version:  {}", remote.app);
+        eprintln!("  Protocol Version:   {} (min: {})", remote.proto, remote.min);
+        eprintln!("  Phone Power Level:  {:?}", remote.power);
+        eprintln!("  Phone Caps Count:   {}", remote.caps.len());
+        eprintln!("  Phone Capabilities: {:?}", remote.caps);
+        eprintln!("  Mac Local Caps:     {:?}", local_caps);
+        eprintln!("------------------------------------------------------------");
+        eprintln!("  Feature Requirements Check:");
+        eprintln!("    Mirror Screen (mirroring.view):");
+        eprintln!(
+            "      - phone requires 'mirror.capture': {}",
+            remote.caps.contains(&"mirror.capture".to_string())
+        );
+        eprintln!(
+            "      - mac requires 'mirror.view':     {}",
+            local_caps.contains(&"mirror.view".to_string())
+        );
+        eprintln!("    Type on Phone (mirroring.control):");
+        eprintln!(
+            "      - phone requires 'mirror.capture': {}",
+            remote.caps.contains(&"mirror.capture".to_string())
+        );
+        eprintln!(
+            "      - phone requires 'mirror.input':   {}",
+            remote.caps.contains(&"mirror.input".to_string())
+        );
+        eprintln!(
+            "      - mac requires 'mirror.view':     {}",
+            local_caps.contains(&"mirror.view".to_string())
+        );
+        eprintln!("============================================================");
+
+        let weak = Arc::downgrade(self);
+        let session = Session::spawn(self, conn, dialer, streams, move |ended| {
+            if let Some(shared) = weak.upgrade() {
+                shared.on_session_end(&ended);
+            }
+        });
+        sessions.insert(peer, session.clone());
+        drop(sessions);
+        lock(&self.dial_failures).remove(&peer);
+
+        tracing::info!(peer = %peer.short(), path = ?session.path(), "connected");
+        let allow_wan = self.away_mode();
+        let addrs: Vec<SocketAddr> = session
+            .remote_ip_addrs()
+            .into_iter()
+            .filter(|a| {
+                !a.ip().to_canonical().is_loopback() && (allow_wan || crate::session::is_lan_ip(a.ip()))
+            })
+            .collect();
+        let persisted_addrs = if addrs.is_empty() {
+            self.store
+                .get_peer(&peer)
+                .ok()
+                .flatten()
+                .map(|r| {
+                    r.last_addrs
+                        .into_iter()
+                        .filter(|a| {
+                            !a.ip().to_canonical().is_loopback()
+                                && (allow_wan || crate::session::is_lan_ip(a.ip()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            addrs
+        };
+        if let Err(e) = self.store.record_seen(&peer, crate::now_unix(), &persisted_addrs) {
+            tracing::warn!(error = %e, "failed to record peer addresses");
+        }
+        self.remember_addrs(&peer, &persisted_addrs);
+        self.emit(NodeEvent::PeerInfoChanged { device: peer, info: effective_device });
+        self.emit(NodeEvent::PeerPowerChanged { device: peer, power: remote.power.effective() });
+        self.refresh_capabilities(&peer);
+        self.publish_online(&session);
+        self.queue_notify.notify_waiters();
+
+        // Bring the peer up to date with state it may have missed.
+        let battery = self.local.read().unwrap_or_else(|e| e.into_inner()).battery.clone();
+        let shared = self.clone();
+        let s = session.clone();
+        tokio::spawn(async move {
+            if let Some(battery) = battery
+                && let Ok(env) = Envelope::new(types::EVENT_BATTERY, &battery)
+            {
+                let _ = s.send(env).await;
+            }
+            shared.send_notification_snapshot(&s).await;
+            shared.send_media_state(&s).await;
+            shared.send_call_state(&s).await;
+            shared.send_toggles_state(&s).await;
+            crate::actions::send_wake_info(&shared, &s).await;
+            crate::actions::send_active_tasks(&shared, &s).await;
+            shared.send_deck(&s).await;
+        });
+        Some(session)
+    }
+
+    fn on_session_end(&self, ended: &Arc<Session>) {
+        let paired = self.store.is_paired(&ended.peer).unwrap_or(false);
+        let mut sessions = lock(&self.sessions);
+        let current = sessions.get(&ended.peer).is_some_and(|current| Arc::ptr_eq(current, ended));
+        if current {
+            sessions.remove(&ended.peer);
+            lock(&self.pc_mirror_sessions).remove(&ended.peer);
+            lock(&self.watch_offers).remove(&ended.peer);
+            lock(&self.storage).remove_peer(&ended.peer);
+            self.toggles.remove_peer(&ended.peer);
+            self.deck.remove_peer(&ended.peer);
+            if paired {
+                // Why, as QUIC tells it: timed out, closed by the other side...
+                let reason = ended.conn.close_reason().map(|r| r.to_string()).unwrap_or_default();
+                tracing::info!(peer = %ended.peer.short(), %reason, "disconnected");
+                // Still under the lock: a new session for the peer can't
+                // register (and say it's online) until this is said, so a
+                // stale "offline" never lands after a fresh "online".
+                self.set_link(ended.peer, LinkState::Offline { last_seen: Some(crate::now_unix()) });
+            }
+            drop(sessions);
+            let _ = self.store.clear_send_queue_retry_delays(&ended.peer);
+            self.queue_notify.notify_waiters();
+        }
+    }
+
+    fn start_supervisor(self: &Arc<Self>, peer: DeviceId) {
+        let mut supervisors = lock(&self.supervisors);
+        if supervisors.contains_key(&peer) {
+            return;
+        }
+        let wake = Arc::new(Notify::new());
+        let cancel = self.cancel.child_token();
+        supervisors.insert(peer, Supervisor { wake: wake.clone(), cancel: cancel.clone() });
+        tokio::spawn(maintain(Arc::downgrade(self), peer, wake, cancel));
+    }
+
+    fn wake_supervisor(&self, peer: &DeviceId) {
+        if let Some(sup) = lock(&self.supervisors).get(peer) {
+            sup.wake.notify_one();
+        }
+    }
+
+    /// Dials a paired device and runs the handshake.
+    async fn dial(self: &Arc<Self>, peer: DeviceId) -> Result<Arc<Session>> {
+        struct CloseOnDrop(Option<Connection>);
+        impl Drop for CloseOnDrop {
+            fn drop(&mut self) {
+                if let Some(conn) = self.0.take() {
+                    conn.close(VarInt::from_u32(CLOSE_NORMAL), b"dial cancelled");
+                }
+            }
+        }
+
+        let mut addr = EndpointAddr::new(crate::public_key(&peer)?);
+        if let Some(usb_addr) = self.usb_peer_addr(&peer) {
+            addr = addr.with_ip_addr(usb_addr);
+        }
+        if let Some((_, addrs)) = lock(&self.lan_seen).get(&peer) {
+            for a in addrs {
+                addr = addr.with_ip_addr(*a);
+            }
+        }
+        if let Ok(Some(record)) = self.store.get_peer(&peer) {
+            for a in &record.last_addrs {
+                if crate::session::is_lan_ip(a.ip()) {
+                    addr = addr.with_ip_addr(*a);
+                }
+            }
+        }
+        let conn = tokio::time::timeout(DIAL_TIMEOUT, self.endpoint.connect(addr, ALPN_SESSION))
+            .await
+            .map_err(|_| Error::Timeout)?
+            .map_err(crate::error::net)?;
+        let mut guard = CloseOnDrop(Some(conn));
+        let conn_ref = guard.0.as_ref().expect("connection present");
+        if !self.wait_connection_allowed(conn_ref).await {
+            tracing::debug!(peer = %peer.short(), "refusing outgoing session on non-LAN path while away_mode is off");
+            if let Some(c) = guard.0.take() {
+                c.close(VarInt::from_u32(CLOSE_NORMAL), b"away mode disabled");
+            }
+            return Err(Error::Offline);
+        }
+        let hello = session::local_hello(self);
+        let (send, recv, remote) = session::handshake_dialer(conn_ref, &hello).await?;
+        let conn = guard.0.take().expect("connection present");
+        self.register_session(conn, self.id, (send, recv), remote)
+            .or_else(|| self.session(&peer))
+            .ok_or(Error::Offline)
+    }
+
+    /// Sends a message to every connected device.
+    async fn broadcast(&self, env: Envelope) {
+        for session in self.live_sessions() {
+            if let Err(e) = session.send(env.clone()).await {
+                tracing::debug!(peer = %session.peer.short(), error = %e, "broadcast failed");
+            }
+        }
+    }
+}
+
+/// Dials `peer`, interrupting an in-flight non-USB dial if a USB tunnel comes up while waiting.
+async fn dial_with_usb_interrupt(
+    node: &Arc<Shared>,
+    peer: DeviceId,
+    wake: &Notify,
+) -> Option<Result<Arc<Session>>> {
+    let had_usb = node.usb_peer_addr(&peer).is_some();
+    if had_usb {
+        return Some(node.dial(peer).await);
+    }
+    let dial_fut = node.dial(peer);
+    tokio::pin!(dial_fut);
+    loop {
+        tokio::select! {
+            res = &mut dial_fut => return Some(res),
+            _ = wake.notified() => {
+                if node.usb_peer_addr(&peer).is_some() && node.session(&peer).is_none() {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+/// Keeps one paired device connected: waits while a session is alive,
+/// otherwise dials with exponential backoff. Woken early by LAN discovery.
+async fn maintain(shared: Weak<Shared>, peer: DeviceId, wake: Arc<Notify>, cancel: CancellationToken) {
+    let mut backoff = BACKOFF_MIN;
+    // Set once this phone has given its PC the chance to dial through the cable.
+    let mut waited_for_usb = false;
+    loop {
+        let Some(node) = shared.upgrade() else { return };
+        if cancel.is_cancelled() {
+            return;
+        }
+        if node.session(&peer).is_none() && node.usb_tunnel_inbound(&peer) && !waited_for_usb {
+            // Plugged in: the PC dials through the cable. Dial only if it hasn't by then.
+            waited_for_usb = true;
+            drop(node);
+            let deadline = tokio::time::Instant::now() + USB_DIAL_GRACE;
+            loop {
+                tokio::select! {
+                    _ = tokio::time::sleep_until(deadline) => break,
+                    _ = wake.notified() => {}
+                    _ = cancel.cancelled() => return,
+                }
+                if shared.upgrade().is_some_and(|n| n.session(&peer).is_some()) {
+                    break;
+                }
+            }
+            continue;
+        }
+        if let Some(session) = node.session(&peer) {
+            waited_for_usb = false;
+            drop(node);
+            tokio::select! {
+                _ = session.cancel.cancelled() => {}
+                _ = cancel.cancelled() => return,
+            }
+            if session.started.elapsed() >= Duration::from_secs(15) {
+                backoff = BACKOFF_MIN;
+                continue;
+            }
+            // A short-lived session (< 15s) just dropped (e.g. mobile data transition or
+            // remote peer rejected non-LAN path): purge non-LAN addresses and sleep with
+            // exponential backoff so we never flap in a tight loop.
+            if let Some(n) = shared.upgrade() {
+                n.purge_non_lan_addrs(&peer);
+            }
+            let jitter = backoff.mul_f64(rand::random::<f64>() * 0.2);
+            tokio::select! {
+                _ = tokio::time::sleep(backoff + jitter) => {
+                    backoff = (backoff * 2).min(BACKOFF_MAX);
+                }
+                _ = wake.notified() => {
+                    backoff = BACKOFF_MIN;
+                }
+                _ = cancel.cancelled() => return,
+            }
+            continue;
+        }
+        // When both devices come up together they'd dial each other at once and
+        // one connection would be dropped. The higher ID briefly defers so the
+        // lower one usually wins; it still dials in case the other can't reach it.
+        // Skip the deferral if an outbound USB tunnel is already ready.
+        if node.id > peer && backoff == BACKOFF_MIN && node.usb_peer_addr(&peer).is_none() {
+            drop(node);
+            tokio::select! {
+                _ = tokio::time::sleep(DEFER_DIAL) => {}
+                _ = wake.notified() => {
+                    backoff = BACKOFF_MIN;
+                }
+                _ = cancel.cancelled() => return,
+            }
+            let Some(again) = shared.upgrade() else { return };
+            if again.session(&peer).is_some() {
+                continue;
+            }
+            let Some(result) = dial_with_usb_interrupt(&again, peer, &wake).await else {
+                continue;
+            };
+            let ok = handle_dial_result(&again, result, peer, &mut backoff);
+            drop(again);
+            if ok {
+                continue;
+            }
+        } else {
+            let Some(result) = dial_with_usb_interrupt(&node, peer, &wake).await else {
+                continue;
+            };
+            let ok = handle_dial_result(&node, result, peer, &mut backoff);
+            drop(node);
+            if ok {
+                continue;
+            }
+        }
+        // Up to 20% jitter so many devices don't retry in lockstep.
+        let jitter = backoff.mul_f64(rand::random::<f64>() * 0.2);
+        tokio::select! {
+            _ = tokio::time::sleep(backoff + jitter) => {
+                backoff = (backoff * 2).min(BACKOFF_MAX);
+            }
+            _ = wake.notified() => {
+                backoff = BACKOFF_MIN;
+            }
+            _ = cancel.cancelled() => return,
+        }
+    }
+}
+
+/// Returns true if the dial succeeded (backoff is reset once the session stays up >= 15s).
+fn handle_dial_result(
+    shared: &Shared,
+    result: Result<Arc<Session>>,
+    peer: DeviceId,
+    backoff: &mut Duration,
+) -> bool {
+    match result {
+        Ok(_) => true,
+        Err(e) => {
+            *lock(&shared.dial_failures).entry(peer).or_insert(0) += 1;
+            tracing::debug!(peer = %peer.short(), error = %e, retry_in = ?backoff, "dial failed");
+            false
+        }
+    }
+}
+
+/// Accepts `maclink/0` sessions from paired devices.
+#[derive(Debug, Clone)]
+struct SessionProtocol(Weak<Shared>);
+
+impl ProtocolHandler for SessionProtocol {
+    async fn accept(&self, conn: Connection) -> Result<(), AcceptError> {
+        let Some(shared) = self.0.upgrade() else { return Err(AcceptError::from_err(Error::Offline)) };
+        let peer = crate::device_id(&conn.remote_id());
+        if !shared.store.is_paired(&peer).unwrap_or(false) {
+            tracing::debug!(peer = %peer.short(), "refusing session from unpaired device");
+            conn.close(VarInt::from_u32(ErrorCode::Unpaired.close_code()), b"unpaired");
+            return Err(AcceptError::from_err(Error::NotPaired));
+        }
+        if !shared.wait_connection_allowed(&conn).await {
+            tracing::debug!(peer = %peer.short(), "refusing incoming session on non-LAN path while away_mode is off");
+            conn.close(VarInt::from_u32(CLOSE_NORMAL), b"away mode disabled");
+            return Err(AcceptError::from_err(Error::Offline));
+        }
+        let hello = session::local_hello(&shared);
+        match session::handshake_listener(&conn, &hello).await {
+            Ok((send, recv, remote)) => {
+                shared.register_session(conn, peer, (send, recv), remote);
+                Ok(())
+            }
+            Err(e) => {
+                tracing::debug!(peer = %peer.short(), error = %e, "incoming handshake failed");
+                Err(AcceptError::from_err(e))
+            }
+        }
+    }
+}
+
+/// Accepts `maclink-pair/0` connections while pairing.
+#[derive(Debug, Clone)]
+struct PairProtocol(Weak<Shared>);
+
+impl ProtocolHandler for PairProtocol {
+    async fn accept(&self, conn: Connection) -> Result<(), AcceptError> {
+        let Some(shared) = self.0.upgrade() else { return Err(AcceptError::from_err(Error::Offline)) };
+        pairing::accept(shared, conn).await;
+        Ok(())
+    }
+}
+
+/// The MacLink engine. One per app.
+///
+/// Commands are async methods; everything that changes is reported through
+/// [`Node::events`]. Cheap to clone.
+#[derive(Clone)]
+pub struct Node {
+    shared: Arc<Shared>,
+    router: Arc<Router>,
+}
+
+impl std::fmt::Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Node").field("id", &self.shared.id).finish_non_exhaustive()
+    }
+}
+
+impl Node {
+    /// Loads or creates the device identity and trust store, starts
+    /// networking, and begins reconnecting to paired devices.
+    pub async fn start(config: NodeConfig, platform: Arc<dyn Platform>) -> Result<Node> {
+        std::fs::create_dir_all(&config.data_dir)?;
+        let protector = config.key_protector.clone().unwrap_or_else(identity::default_protector);
+        let secret = identity::load_or_create(&config.data_dir, protector.as_ref())?;
+        let store = Store::open(&config.data_dir)?;
+        let _ = store.reset_interrupted_sending();
+        let _ = store.expire_stale_queue_items(crate::now_unix_ms());
+        let clipboard_history =
+            crate::clipboard_history::ClipboardHistoryStore::open(&config.data_dir, protector.clone());
+        let localsend =
+            crate::localsend::LocalSendState::open(&config.data_dir, protector, config.localsend_port)?;
+
+        // A stable port lets paired devices reconnect to the addresses they
+        // remember even where local discovery is blocked (guest Wi-Fi, some
+        // routers and VPNs). Reuse the last one; take any free port if it's
+        // gone, and remember that instead.
+        let saved = if config.port == 0 { Ports::load(&config.data_dir) } else { None };
+        let wanted =
+            if config.port != 0 { Some(Ports { v4: config.port, v6: Some(config.port) }) } else { saved };
+        // Right after a restart the previous process may still be letting go
+        // of the ports, so try them for a moment before taking others.
+        let mut bound = bind_endpoint(&config, secret.clone(), wanted).await;
+        for _ in 0..PORT_RETRIES {
+            if bound.is_ok() || wanted.is_none() {
+                break;
+            }
+            tokio::time::sleep(PORT_RETRY_DELAY).await;
+            bound = bind_endpoint(&config, secret.clone(), wanted).await;
+        }
+        let endpoint = match bound {
+            Ok(endpoint) => endpoint,
+            Err(e) if config.port == 0 && wanted.is_some() => {
+                tracing::info!(error = %e, "saved ports unavailable; using others");
+                bind_endpoint(&config, secret, None).await?
+            }
+            Err(e) => return Err(e),
+        };
+        if config.port == 0
+            && let Some(bound) = Ports::of(&endpoint.bound_sockets())
+            && Some(bound) != saved
+        {
+            bound.save(&config.data_dir);
+        }
+        let id = crate::device_id(&endpoint.id());
+
+        let lookups = endpoint.address_lookup().map_err(crate::error::net)?;
+        let memory = MemoryLookup::new();
+        lookups.add(memory.clone());
+
+        let (events, _) = broadcast::channel(EVENT_CAPACITY);
+        let shared = Arc::new(Shared {
+            id,
+            endpoint: endpoint.clone(),
+            store,
+            platform,
+            local: RwLock::new(LocalState {
+                app_version: config.app_version.clone(),
+                device: config.device.clone(),
+                power: config.power,
+                extra_capabilities: config.capabilities.clone(),
+                battery: None,
+            }),
+            pairing: PairingState::default(),
+            cancel: CancellationToken::new(),
+            events,
+            sessions: Mutex::new(HashMap::new()),
+            links: Mutex::new(HashMap::new()),
+            supervisors: Mutex::new(HashMap::new()),
+            discovered: Mutex::new(HashMap::new()),
+            lan_seen: Mutex::new(HashMap::new()),
+            dial_failures: Mutex::new(HashMap::new()),
+            matrices: Mutex::new(HashMap::new()),
+            away_mode: std::sync::atomic::AtomicBool::new(false),
+            memory,
+            notifications: Feed::default(),
+            notification_history: Mutex::new(Vec::new()),
+            players: Default::default(),
+            calls: Default::default(),
+            toggles: Default::default(),
+            wake_info: Default::default(),
+            tasks: Default::default(),
+            deck: Default::default(),
+            mirror_stops: Mutex::new(HashMap::new()),
+            pc_mirror_sessions: Mutex::new(std::collections::HashSet::new()),
+            watch_offers: Mutex::new(HashMap::new()),
+            webcam_stops: Mutex::new(HashMap::new()),
+            mic_stops: Mutex::new(HashMap::new()),
+            remote: Mutex::new(Default::default()),
+            storage: Mutex::new(Default::default()),
+            clipboard_history,
+            last_clip_suggestion: Mutex::new(None),
+            localsend,
+            usb_listener_port: std::sync::atomic::AtomicU16::new(0),
+            usb_bridge_ports: Arc::new(Mutex::new(std::collections::HashSet::new())),
+            usb_peers: Arc::new(Mutex::new(HashMap::new())),
+            usb_inbound: Mutex::new(std::collections::HashSet::new()),
+            usb_manual_pair: Mutex::new(std::collections::HashSet::new()),
+            usb_poke: Notify::new(),
+            queue_notify: Arc::new(Notify::new()),
+            queue_active_peers: Mutex::new(std::collections::HashSet::new()),
+            queue_coordinator_ticks: std::sync::atomic::AtomicUsize::new(0),
+            data_dir: config.data_dir.clone(),
+            downloads_dir: config.downloads_dir.clone().unwrap_or_else(|| config.data_dir.join("received")),
+            transfers: Mutex::new(HashMap::new()),
+            runtime: tokio::runtime::Handle::current(),
+        });
+
+        if config.lan_discovery {
+            start_lan_discovery(&shared, &config.device.name)?;
+        }
+        if shared.localsend.enabled() {
+            shared.localsend.start(&shared);
+        }
+
+        let router = Router::builder(endpoint)
+            .accept(ALPN_SESSION, SessionProtocol(Arc::downgrade(&shared)))
+            .accept(ALPN_PAIR, PairProtocol(Arc::downgrade(&shared)))
+            .spawn();
+
+        if let Some(preferred_port) = config.usb_port {
+            crate::usb::start_phone_listener(&shared, preferred_port);
+        }
+        if let Some(adb_addr) = config.adb_server {
+            crate::usb::start_adb_watcher(&shared, adb_addr);
+        }
+
+        let incoming = shared.incoming_dir();
+        tokio::task::spawn_blocking(move || transfer::clean_incoming(&incoming));
+
+        for peer in shared.store.list_peers()? {
+            let lan_only: Vec<SocketAddr> = peer
+                .last_addrs
+                .iter()
+                .copied()
+                .filter(|a| !a.ip().to_canonical().is_loopback() && crate::session::is_lan_ip(a.ip()))
+                .collect();
+            if lan_only.len() != peer.last_addrs.len()
+                && let Some(seen) = peer.last_seen
+            {
+                let _ = shared.store.record_seen(&peer.id, seen, &lan_only);
+            }
+            shared.remember_addrs(&peer.id, &lan_only);
+            shared.start_supervisor(peer.id);
+            shared.wake_supervisor(&peer.id);
+        }
+        run_queue_coordinator(Arc::downgrade(&shared), shared.cancel.child_token());
+        tracing::info!(device = %id.short(), lan = config.lan_discovery, away = config.away_mode, "node started");
+        Ok(Node { shared, router: Arc::new(router) })
+    }
+
+    /// Whether remote / mobile data connections outside the local Wi-Fi/LAN are allowed.
+    pub fn away_mode(&self) -> bool {
+        self.shared.away_mode()
+    }
+
+    /// Mobile network / away mode has been removed: connection is strictly LAN or USB.
+    pub fn set_away_mode(&self, _enabled: bool) {
+        self.shared.away_mode.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Stops all sessions and networking.
+    pub async fn shutdown(&self) {
+        self.shared.cancel.cancel();
+        self.shared.localsend.stop(&self.shared);
+        let sessions: Vec<_> = lock(&self.shared.sessions).drain().map(|(_, s)| s).collect();
+        for session in sessions {
+            session.close(CLOSE_NORMAL, b"shutdown");
+        }
+        if let Err(e) = self.router.shutdown().await {
+            tracing::warn!(error = %e, "router shutdown failed");
+        }
+        self.shared.endpoint.close().await;
+    }
+
+    pub fn device_id(&self) -> DeviceId {
+        self.shared.id
+    }
+
+    /// Subscribes to node events. Each subscriber gets its own stream.
+    pub fn events(&self) -> broadcast::Receiver<NodeEvent> {
+        self.shared.events.subscribe()
+    }
+
+    /// This device's direct addresses (for diagnostics and tests).
+    pub async fn direct_addrs(&self) -> Vec<SocketAddr> {
+        self.shared.direct_addrs().await
+    }
+
+    /// Returns the loopback TCP port the phone-side USB tunnel listener is
+    /// bound to, if enabled via [`NodeConfig::usb_port`].
+    pub fn usb_port(&self) -> Option<u16> {
+        let port = self.shared.usb_listener_port.load(std::sync::atomic::Ordering::Relaxed);
+        (port != 0).then_some(port)
+    }
+
+    /// Connects a PC-side USB tunnel to a forwarded phone loopback TCP address
+    /// (`127.0.0.1:<port>`) and returns the phone's [`DeviceId`].
+    pub async fn connect_usb_tunnel(&self, forwarded_tcp: SocketAddr) -> Result<DeviceId> {
+        crate::usb::connect_usb_tunnel(&self.shared, forwarded_tcp).await
+    }
+
+    // ---- Pairing ----
+
+    /// Enters pairing mode and returns the link to show as a QR code.
+    pub async fn pairing_start_qr(&self) -> Result<PairingUri> {
+        pairing::start_host(&self.shared).await
+    }
+
+    /// Pairs with the device whose pairing link was scanned.
+    pub async fn pairing_join(&self, uri: &str) -> Result<()> {
+        let uri = PairingUri::parse(uri)?;
+        if uri.id == self.shared.id {
+            return Err(Error::Protocol("cannot pair a device with itself".into()));
+        }
+        pairing::join_qr(&self.shared, &uri).await
+    }
+
+    /// Starts nearby pairing with a discovered device. The other device must
+    /// be in pairing mode (showing its pairing screen). The alphanumeric code
+    /// arrives as [`PairingEvent::SasCode`] on both devices.
+    pub async fn pairing_start_nearby(&self, peer: DeviceId) -> Result<()> {
+        pairing::start_nearby(&self.shared, peer).await
+    }
+
+    /// Answers the alphanumeric code comparison shown via
+    /// [`PairingEvent::SasCode`].
+    pub fn pairing_confirm(&self, codes_match: bool) -> Result<()> {
+        self.shared.pairing.decide(codes_match)
+    }
+
+    /// Leaves pairing mode and abandons any code comparison.
+    pub fn pairing_cancel(&self) {
+        pairing::cancel(&self.shared);
+    }
+
+    /// Whether this device is currently showing a pairing code.
+    pub fn is_pairing(&self) -> bool {
+        self.shared.pairing.is_hosting()
+    }
+
+    /// Adds addresses where a device can be reached. Used for "connect by IP"
+    /// when local discovery is blocked (some routers and VPNs filter mDNS).
+    pub fn add_known_addrs(&self, peer: DeviceId, addrs: &[SocketAddr]) {
+        self.shared.remember_addrs(&peer, addrs);
+        self.shared.wake_supervisor(&peer);
+    }
+
+    /// Tells the core the network may have changed (Wi-Fi switched, resumed
+    /// from sleep). Paths are re-checked and offline devices are dialed right
+    /// away instead of after their backoff. Harmless when nothing changed.
+    pub async fn network_changed(&self) {
+        self.shared.endpoint.network_change().await;
+        for session in self.shared.live_sessions() {
+            let shared = self.shared.clone();
+            tokio::spawn(async move {
+                crate::session::probe_after_network_change(&shared, &session).await;
+            });
+        }
+        self.shared.nudge_reconnect();
+    }
+
+    /// What a "refresh" button does: reconnects to devices that aren't
+    /// connected, and brings connected ones back in sync both ways (their
+    /// notifications and media here, this device's there).
+    pub async fn refresh(&self) {
+        self.shared.usb_poke.notify_one();
+        self.shared.retry_usb_auto_pair();
+        self.network_changed().await;
+        self.shared.refresh_all_capabilities();
+        self.shared.localsend.refresh(&self.shared);
+        let local_device = self.shared.local.read().unwrap_or_else(|e| e.into_inner()).device.clone();
+        let hello_env = Envelope::new(
+            types::HELLO_UPDATE,
+            &HelloUpdate { device: Some(local_device), ..Default::default() },
+        )
+        .ok();
+        for session in self.shared.live_sessions() {
+            if let Some(ref env) = hello_env {
+                let _ = session.send(env.clone()).await;
+            }
+            let _ = session.send(Envelope::empty(types::NOTIFY_SYNC)).await;
+            let _ = session.send(Envelope::empty(types::MEDIA_SYNC)).await;
+            self.shared.send_notification_snapshot(&session).await;
+            self.shared.send_media_state(&session).await;
+            self.shared.send_toggles_state(&session).await;
+            crate::actions::send_wake_info(&self.shared, &session).await;
+            crate::actions::send_active_tasks(&self.shared, &session).await;
+            self.shared.send_deck(&session).await;
+        }
+    }
+
+    /// Devices discovered on the local network that aren't paired yet.
+    pub fn discovered_devices(&self) -> Vec<DiscoveredDevice> {
+        lock(&self.shared.discovered).values().cloned().collect()
+    }
+
+    // ---- Paired devices ----
+
+    pub fn paired_devices(&self) -> Result<Vec<PairedDevice>> {
+        Ok(self
+            .shared
+            .store
+            .list_peers()?
+            .into_iter()
+            .map(|p| PairedDevice {
+                link: self.shared.link(&p.id, p.last_seen),
+                can_wake: p.wake_info.as_ref().is_some_and(|w| !w.macs.is_empty()),
+                id: p.id,
+                info: p.info,
+                paired_at: p.paired_at,
+            })
+            .collect())
+    }
+
+    /// Unpairs a device, telling it if it's connected.
+    pub async fn unpair(&self, peer: DeviceId) -> Result<()> {
+        if !self.shared.store.is_paired(&peer)? {
+            return Err(Error::NotPaired);
+        }
+        if let Some(session) = self.shared.session(&peer) {
+            let _ = session.send(Envelope::empty(types::PAIR_REVOKE)).await;
+            // Let the revoke reach the peer before the connection closes.
+            tokio::time::sleep(Duration::from_millis(150)).await;
+        }
+        self.shared.forget_peer(&peer).await
+    }
+
+    /// Asks a device to start or stop ringing.
+    pub async fn ring(&self, peer: DeviceId, on: bool) -> Result<()> {
+        let reply = self.request(peer, Envelope::new(types::DEVICE_RING, &Ring { on })?).await?;
+        reply.expect(types::OK)?;
+        Ok(())
+    }
+
+    /// Sends a request to a connected device. If the connection is replaced
+    /// mid-request (e.g. a duplicate connection was resolved), retries once
+    /// on the new one, so requests must be idempotent.
+    async fn request(&self, peer: DeviceId, env: Envelope) -> Result<Envelope> {
+        let first = self.connected(&peer)?;
+        match first.request(env.clone(), REQUEST_TIMEOUT).await {
+            Err(Error::Offline) => match self.shared.session(&peer) {
+                Some(next) if !Arc::ptr_eq(&next, &first) => next.request(env, REQUEST_TIMEOUT).await,
+                _ => Err(Error::Offline),
+            },
+            other => other,
+        }
+    }
+
+    fn connected(&self, peer: &DeviceId) -> Result<Arc<Session>> {
+        if !self.shared.store.is_paired(peer)? {
+            return Err(Error::NotPaired);
+        }
+        self.shared.session(peer).ok_or(Error::Offline)
+    }
+
+    /// Like [`connected`](Self::connected), but waits up to [`STREAM_RECONNECT_WAIT`]
+    /// for a connection that just dropped or was replaced to come back.
+    async fn connected_soon(&self, peer: &DeviceId) -> Result<Arc<Session>> {
+        let deadline = tokio::time::Instant::now() + STREAM_RECONNECT_WAIT;
+        loop {
+            match self.connected(peer) {
+                Err(Error::Offline) if tokio::time::Instant::now() < deadline => {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+                other => return other,
+            }
+        }
+    }
+
+    // ---- Capabilities ----
+
+    /// What works with a paired device, and how to unlock what doesn't.
+    /// Changes arrive as [`NodeEvent::Capabilities`]. Before the device has
+    /// connected once, its capabilities are unknown and most features show
+    /// as locked.
+    pub fn capabilities(&self, peer: DeviceId) -> Result<CapabilityMatrix> {
+        self.shared.capability_matrix(&peer)
+    }
+
+    /// The per-device toggles (see [`features::DEVICE_TOGGLES`]) with their
+    /// current values.
+    pub fn device_toggles(&self, peer: DeviceId) -> Result<Vec<(&'static str, bool)>> {
+        if !self.shared.store.is_paired(&peer)? {
+            return Err(Error::NotPaired);
+        }
+        let set = self.shared.store.toggles(&peer)?;
+        Ok(features::DEVICE_TOGGLES
+            .iter()
+            .map(|(name, default)| (*name, set.get(*name).copied().unwrap_or(*default)))
+            .collect())
+    }
+
+    /// Allows or disallows something for one device, e.g. `"clipboard"`.
+    pub fn set_device_toggle(&self, peer: DeviceId, toggle: &str, enabled: bool) -> Result<()> {
+        if features::toggle_default(toggle).is_none() {
+            return Err(Error::Unsupported);
+        }
+        if !self.shared.store.is_paired(&peer)? {
+            return Err(Error::NotPaired);
+        }
+        self.shared.store.set_toggle(&peer, toggle, enabled)?;
+        self.shared.refresh_capabilities(&peer);
+        if toggle == notifications::TOGGLE {
+            self.notifications_toggled(peer, enabled);
+        }
+        if toggle == crate::media::TOGGLE {
+            self.shared.media_toggled(peer, enabled);
+        }
+        if toggle == crate::toggles::TOGGLE {
+            self.shared.toggles_toggled(peer, enabled);
+        }
+        if toggle == crate::actions::POWER_TOGGLE
+            && let Some(session) = self.shared.session(&peer)
+        {
+            let shared = self.shared.clone();
+            self.shared.runtime.spawn(async move {
+                crate::actions::send_wake_info(&shared, &session).await;
+            });
+        }
+        if toggle == crate::storage::TOGGLE {
+            let mut st = self.shared.storage.lock().unwrap_or_else(|e| e.into_inner());
+            if enabled {
+                st.clear_prompted(&peer);
+            } else {
+                st.remove_peer(&peer);
+            }
+        }
+        if (toggle == crate::mirror::TOGGLE || toggle == crate::mirror::PC_MIRROR_TOGGLE) && !enabled {
+            if toggle == crate::mirror::PC_MIRROR_TOGGLE {
+                lock(&self.shared.pc_mirror_sessions).remove(&peer);
+            }
+            self.shared.stop_showing_all(&peer);
+            let platform = self.shared.platform.clone();
+            drop(
+                self.shared
+                    .runtime
+                    .spawn_blocking(move || platform.mirror_stop_requested(&peer, crate::MIRROR_SCREEN)),
+            );
+            if let Some(session) = self.shared.session(&peer) {
+                self.shared.runtime.spawn(async move {
+                    let _ = crate::mirror::stop(&session, crate::MIRROR_SCREEN).await;
+                });
+            }
+        }
+        if toggle == crate::mic::TOGGLE && !enabled {
+            self.shared.stop_mic(&peer);
+            let platform = self.shared.platform.clone();
+            drop(self.shared.runtime.spawn_blocking(move || platform.mic_stop_requested(&peer)));
+            if let Some(session) = self.shared.session(&peer) {
+                self.shared.runtime.spawn(async move {
+                    let _ = crate::mic::stop(&session).await;
+                });
+            }
+        }
+        if toggle == crate::webcam::TOGGLE && !enabled {
+            self.shared.stop_webcam(&peer);
+            let platform = self.shared.platform.clone();
+            drop(self.shared.runtime.spawn_blocking(move || platform.webcam_stop_requested(&peer)));
+            if let Some(session) = self.shared.session(&peer) {
+                self.shared.runtime.spawn(async move {
+                    let _ = crate::webcam::stop(&session).await;
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Grants or revokes one-time reverse-mirror consent (`pc_mirror`) for `peer`
+    /// for the duration of its current session without persisting a toggle change.
+    pub fn set_pc_mirror_session_allowed(&self, peer: DeviceId, allowed: bool) {
+        let mut set = lock(&self.shared.pc_mirror_sessions);
+        if allowed {
+            set.insert(peer);
+        } else {
+            set.remove(&peer);
+        }
+    }
+
+    /// Brings both sides in line after the user allowed or stopped
+    /// notifications for a device.
+    fn notifications_toggled(&self, peer: DeviceId, enabled: bool) {
+        let shared = &self.shared;
+        if shared.notifications.is_active() {
+            // This phone: send the PC everything, or clear it.
+            if let Some(session) = shared.session(&peer) {
+                let task = shared.clone();
+                shared.runtime.spawn(async move { task.send_notification_snapshot(&session).await });
+            }
+        } else if enabled {
+            // This PC: ask the phone for what it shows now.
+            if let Some(session) = shared.session(&peer) {
+                shared.runtime.spawn(async move {
+                    let _ = session.send(Envelope::empty(types::NOTIFY_SYNC)).await;
+                });
+            }
+        } else {
+            shared.emit(NodeEvent::NotificationsReset { device: peer, items: Vec::new() });
+        }
+    }
+
+    // ---- Files (docs/protocol/files.md) ----
+
+    /// Sends files to a paired device; returns the transfer's ID. Progress
+    /// and the outcome arrive as [`NodeEvent::Transfer`]; the transfer
+    /// waits for the device to connect and resumes after interruptions.
+    pub async fn send_files(&self, peer: DeviceId, files: Vec<transfer::OutgoingFile>) -> Result<String> {
+        transfer::send(&self.shared, peer, files).await
+    }
+
+    /// Hands off a document to a paired device and asks the receiver to open it
+    /// with the default application once it arrives (`docs/protocol/files.md`).
+    pub async fn send_handoff_files(
+        &self,
+        peer: DeviceId,
+        files: Vec<transfer::OutgoingFile>,
+    ) -> Result<String> {
+        transfer::send_handoff(&self.shared, peer, files).await
+    }
+
+    /// Sends a voice recording and its markers to a paired PC; returns the
+    /// transfer's ID. Progress and the outcome arrive as
+    /// [`NodeEvent::Transfer`]; the transfer waits for the PC to connect and
+    /// resumes after interruptions.
+    pub async fn send_recording(
+        &self,
+        peer: DeviceId,
+        file: transfer::OutgoingFile,
+        markers: Vec<transfer::RecordingMarker>,
+    ) -> Result<String> {
+        transfer::send_recording(&self.shared, peer, file, markers).await
+    }
+
+    /// Accepts an incoming transfer waiting for user confirmation (LocalSend).
+    pub fn accept_transfer(&self, id: &str) {
+        self.shared.localsend.resolve_transfer_approval(id, true);
+    }
+
+    /// Pauses an active transfer in either direction, preserving partial files
+    /// on the receiver so it can be resumed later. Unknown IDs are ignored.
+    pub fn pause_transfer(&self, id: &str) {
+        if let Some(ctrl) = lock(&self.shared.transfers).get(id) {
+            let _ = ctrl.paused.send(true);
+        }
+    }
+
+    /// Resumes a manually paused transfer in either direction. Unknown IDs are ignored.
+    pub fn resume_transfer(&self, id: &str) {
+        let target = {
+            let mut map = lock(&self.shared.transfers);
+            if let Some(ctrl) = map.get_mut(id) {
+                let _ = ctrl.paused.send(false);
+                ctrl.paused_transfer = None;
+                Some((ctrl.peer, ctrl.direction))
+            } else {
+                None
+            }
+        };
+        if let Some((peer, transfer::Direction::Incoming)) = target
+            && peer != DeviceId([0; 32])
+            && let Some(session) = self.shared.session(&peer)
+            && let Ok(env) = Envelope::new(
+                types::FILES_RESUME,
+                &maclink_protocol::messages::FilesControl { id: id.to_owned() },
+            )
+        {
+            self.shared.runtime.spawn(async move {
+                let _ = session.send(env).await;
+            });
+        }
+    }
+
+    /// Cancels a transfer in either direction (or declines a pending incoming
+    /// LocalSend transfer). Unknown IDs are ignored.
+    pub fn cancel_transfer(&self, id: &str) {
+        let _ = self.shared.cancel_queue_or_transfer(id);
+    }
+
+    // ---- Persistent outgoing send queue ----
+
+    /// Lists items in the persistent outgoing send queue (ordered by `seq ASC`),
+    /// optionally filtered to a single paired `peer`.
+    pub fn send_queue(&self, peer: Option<DeviceId>) -> Result<Vec<crate::QueueItem>> {
+        self.shared.store.list_send_queue(peer.as_ref())
+    }
+
+    /// Returns the ID of the most recently queued active (`Waiting` or `Sending`)
+    /// item for `peer`, if any.
+    pub fn latest_queued_id_for_peer(&self, peer: DeviceId) -> Option<String> {
+        self.shared
+            .store
+            .list_send_queue(Some(&peer))
+            .ok()?
+            .into_iter()
+            .rev()
+            .find(|i| matches!(i.status, crate::QueueStatus::Waiting | crate::QueueStatus::Sending))
+            .map(|i| i.id)
+    }
+
+    /// Cancels and removes a single item from the outgoing send queue (and cancels
+    /// its active file transfer and cleans up staged files if applicable).
+    pub fn cancel_queue_item(&self, id: &str) -> Result<bool> {
+        self.shared.cancel_queue_or_transfer(id)
+    }
+
+    /// Cancels all active (`Waiting` or `Sending`) items in the outgoing send queue
+    /// for `peer` and returns the number of items cancelled.
+    pub fn cancel_queue_for_peer(&self, peer: DeviceId) -> Result<u32> {
+        self.cancel_all_queue_items(Some(peer))
+    }
+
+    /// Cancels all active (`Waiting` or `Sending`) items in the outgoing send queue
+    /// (optionally filtered to `peer`) and returns the number of items cancelled.
+    pub fn cancel_all_queue_items(&self, peer: Option<DeviceId>) -> Result<u32> {
+        let items = self.shared.store.list_send_queue(peer.as_ref())?;
+        let mut count: u32 = 0;
+        for item in items {
+            if matches!(item.status, crate::QueueStatus::Waiting | crate::QueueStatus::Sending)
+                && self.shared.cancel_queue_or_transfer(&item.id).unwrap_or(false)
+            {
+                count = count.saturating_add(1);
+            }
+        }
+        Ok(count)
+    }
+
+    /// Resets a failed or expired queue item back to `Waiting` so it retries immediately.
+    pub fn retry_queue_item(&self, id: &str) -> Result<bool> {
+        let retried = self.shared.store.retry_queue_item(id, crate::now_unix_ms())?;
+        if retried {
+            self.shared.emit(NodeEvent::QueueChanged);
+            self.shared.queue_notify.notify_waiters();
+        }
+        Ok(retried)
+    }
+
+    /// Resets all failed or expired queue items (optionally filtered to `peer`)
+    /// back to `Waiting` and returns the number of items reset.
+    pub fn retry_all_failed_queue_items(&self, peer: Option<DeviceId>) -> Result<u32> {
+        let count = self.shared.store.retry_all_failed_queue_items(peer.as_ref(), crate::now_unix_ms())?;
+        if count > 0 {
+            self.shared.emit(NodeEvent::QueueChanged);
+            self.shared.queue_notify.notify_waiters();
+        }
+        Ok(count)
+    }
+
+    /// Removes all failed and expired items from the outgoing send queue
+    /// (optionally filtered to `peer`), cleans up their staged files, and returns
+    /// the number of items removed.
+    pub fn clear_finished_queue_items(&self, peer: Option<DeviceId>) -> Result<u32> {
+        let removed = self.shared.store.clear_finished_queue_items(peer.as_ref())?;
+        for (id, _) in &removed {
+            transfer::cleanup_staging_id(&self.shared, id);
+        }
+        let count = u32::try_from(removed.len()).unwrap_or(u32::MAX);
+        if count > 0 {
+            self.shared.emit(NodeEvent::QueueChanged);
+        }
+        Ok(count)
+    }
+
+    /// Alias for [`Node::clear_finished_queue_items`].
+    pub fn clear_finished_queue(&self, peer: Option<DeviceId>) -> Result<u32> {
+        self.clear_finished_queue_items(peer)
+    }
+
+    /// Marks any `Waiting` queue items whose TTL has elapsed as `Expired` and
+    /// returns the number of items expired.
+    pub fn expire_stale_queue_items(&self) -> Result<u32> {
+        let expired = self.shared.store.expire_stale_queue_items(crate::now_unix_ms())?;
+        let count = u32::try_from(expired).unwrap_or(u32::MAX);
+        if count > 0 {
+            self.shared.emit(NodeEvent::QueueChanged);
+        }
+        Ok(count)
+    }
+
+    /// Returns the number of wake-up ticks executed by the background send-queue coordinator.
+    #[doc(hidden)]
+    pub fn queue_coordinator_ticks(&self) -> usize {
+        self.shared.queue_coordinator_ticks.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Sets `attempts` and `next_retry_ms` on a waiting queue item and wakes the queue coordinator.
+    #[doc(hidden)]
+    pub fn debug_set_queue_retry_ms(&self, id: &str, attempts: u32, next_retry_ms: i64) -> Result<bool> {
+        let updated =
+            self.shared.store.mark_queue_retry_or_wait(id, attempts, next_retry_ms, Some("test retry"))?;
+        self.shared.queue_notify.notify_waiters();
+        Ok(updated)
+    }
+
+    // ---- LocalSend compatibility (docs/protocol/v0.md) ----
+
+    /// Whether LocalSend v2.1 compatibility is enabled on this device.
+    pub fn localsend_enabled(&self) -> bool {
+        self.shared.localsend.enabled()
+    }
+
+    /// Turns LocalSend v2.1 compatibility on or off (persisted encrypted on disk).
+    pub fn set_localsend_enabled(&self, enabled: bool) -> Result<()> {
+        self.shared.localsend.set_enabled(&self.shared, enabled)
+    }
+
+    /// Whether this device's LocalSend HTTP/HTTPS server is actively bound and
+    /// able to receive incoming files (false when turned off, or when TCP port
+    /// 53317 is already owned by a standalone LocalSend process, or by MacLink
+    /// in another Android profile, on the same device: that one receives).
+    pub fn localsend_receiving(&self) -> bool {
+        self.shared.localsend.receiving()
+    }
+
+    /// Returns the LocalSend peers currently discovered on the local network.
+    pub fn localsend_peers(&self) -> Vec<crate::LocalSendPeer> {
+        self.shared.localsend.peers()
+    }
+
+    /// Broadcasts a fresh LocalSend UDP multicast announcement and probes local ports.
+    pub fn refresh_localsend(&self) {
+        self.shared.localsend.refresh(&self.shared);
+    }
+
+    /// Probes `host:port` via the LocalSend v2.1 HTTP/HTTPS API and adds the peer if found.
+    pub async fn probe_localsend_peer(&self, host: &str, port: u16) -> Result<crate::LocalSendPeer> {
+        crate::localsend::probe_peer(&self.shared, host, port).await
+    }
+
+    // ---- Clipboard (docs/protocol/clipboard.md) ----
+
+    /// Puts text on a paired device's clipboard. Fails with
+    /// [`Error::Denied`] when the user turned the clipboard off for that
+    /// device (here or there), and [`Error::TooLarge`] beyond
+    /// [`crate::CLIP_MAX_BYTES`].
+    pub async fn send_clipboard(&self, peer: DeviceId, text: String) -> Result<()> {
+        self.send_clipboard_rich(peer, text, None, None).await
+    }
+
+    /// Puts text (and optional HTML and RTF rich text) on a paired device's
+    /// clipboard. Rich-text fields that would push the payload beyond
+    /// [`crate::CLIP_MAX_BYTES`] are dropped so the plain text still arrives.
+    pub async fn send_clipboard_rich(
+        &self,
+        peer: DeviceId,
+        text: String,
+        html: Option<String>,
+        rtf: Option<String>,
+    ) -> Result<()> {
+        if text.is_empty() {
+            return Ok(());
+        }
+        let max = maclink_protocol::messages::CLIP_MAX_BYTES;
+        if text.len() > max {
+            return Err(Error::TooLarge);
+        }
+        if !self.shared.store.is_paired(&peer)? {
+            return Err(Error::NotPaired);
+        }
+        if !self.shared.toggle_on(&peer, crate::clipboard::TOGGLE) {
+            return Err(Error::Denied);
+        }
+        let mut used = text.len();
+        let html = html.filter(|s| !s.trim().is_empty()).and_then(|s| {
+            if used.saturating_add(s.len()) <= max {
+                used += s.len();
+                Some(s)
+            } else {
+                None
+            }
+        });
+        let rtf = rtf.filter(|s| !s.trim().is_empty()).filter(|s| used.saturating_add(s.len()) <= max);
+        let has_queue = self.shared.store.has_active_queue_for_peer(&peer).unwrap_or(false);
+        if !has_queue && self.shared.session(&peer).is_some() {
+            let env = Envelope::new(
+                types::CLIP_SET,
+                &ClipSet { text: text.clone(), html: html.clone(), rtf: rtf.clone() },
+            )?;
+            match self.request(peer, env).await.and_then(|r| r.expect(types::OK).map_err(Into::into)) {
+                Ok(()) => {
+                    let peer_name = self.shared.peer_name(&peer);
+                    if let Some((clip_id, evicted)) =
+                        self.shared.clipboard_history.record_text_with_id(&text, &peer_name, false)
+                    {
+                        self.shared.record_timeline_clip(peer, &peer_name, false, "text", clip_id, evicted);
+                        self.shared.emit(NodeEvent::ClipboardHistoryChanged);
+                    }
+                    return Ok(());
+                }
+                Err(e) if !crate::actions::is_transient_send_error(&e) => return Err(e),
+                Err(_) => {}
+            }
+        }
+        let id = transfer::new_id();
+        let payload = crate::QueuePayload::Clipboard { text, html, rtf };
+        self.shared.store.enqueue_send_item(&id, &peer, &payload, None, crate::now_unix_ms())?;
+        self.shared.emit(NodeEvent::QueueChanged);
+        self.shared.queue_notify.notify_waiters();
+        Ok(())
+    }
+
+    /// Puts an image on a paired device's clipboard (`image/png` or
+    /// `image/jpeg`), when the user copied one. [`Error::Unsupported`] when
+    /// the device's app can't take images, [`Error::Denied`] when the user
+    /// turned the clipboard off for it, and [`Error::TooLarge`] beyond
+    /// [`crate::CLIP_MAX_IMAGE_BYTES`].
+    pub async fn send_clipboard_image(&self, peer: DeviceId, mime: String, bytes: Vec<u8>) -> Result<()> {
+        let Some(peer_rec) = self.shared.store.get_peer(&peer)? else {
+            return Err(Error::NotPaired);
+        };
+        let image = maclink_protocol::messages::ClipImage { mime: mime.clone(), size: bytes.len() as u64 };
+        if image.size > maclink_protocol::messages::clip::MAX_IMAGE_BYTES {
+            return Err(Error::TooLarge);
+        }
+        if !image.is_valid() {
+            return Err(Error::Internal("not a PNG or JPEG image".into()));
+        }
+        if !self.shared.toggle_on(&peer, crate::clipboard::TOGGLE) {
+            return Err(Error::Denied);
+        }
+        if !peer_rec.caps.is_empty() && !peer_rec.caps.iter().any(|c| c == "clip.image") {
+            return Err(Error::Unsupported);
+        }
+        let has_queue = self.shared.store.has_active_queue_for_peer(&peer).unwrap_or(false);
+        if !has_queue && let Some(session) = self.shared.session(&peer) {
+            match crate::clipboard::send_image(&self.shared, &session, mime.clone(), bytes.clone()).await {
+                Ok(()) => return Ok(()),
+                Err(e) if !crate::actions::is_transient_send_error(&e) => return Err(e),
+                Err(_) => {}
+            }
+        }
+        let id = transfer::new_id();
+        let payload = crate::QueuePayload::ClipboardImage { mime, width: 0, height: 0 };
+        self.shared.store.enqueue_send_item(&id, &peer, &payload, Some(&bytes), crate::now_unix_ms())?;
+        self.shared.emit(NodeEvent::QueueChanged);
+        self.shared.queue_notify.notify_waiters();
+        Ok(())
+    }
+
+    /// Whether the local clipboard history is enabled.
+    pub fn clipboard_history_enabled(&self) -> bool {
+        self.shared.clipboard_history.enabled()
+    }
+
+    /// Turns the local clipboard history on or off.
+    pub fn set_clipboard_history_enabled(&self, enabled: bool) -> Result<()> {
+        self.shared.clipboard_history.set_enabled(enabled)
+    }
+
+    /// Lists the local clipboard history (pinned first, then newest first),
+    /// optionally filtered by `query`.
+    pub fn clipboard_history(&self, query: Option<&str>) -> Vec<crate::ClipboardHistoryEntry> {
+        self.shared.clipboard_history.list(query)
+    }
+
+    /// Decrypts and returns `(mime, bytes)` for an image entry in the
+    /// clipboard history.
+    pub fn clipboard_history_image(&self, id: &str) -> Option<(String, Vec<u8>)> {
+        self.shared.clipboard_history.image_bytes(id)
+    }
+
+    /// Pins or unpins an entry in the clipboard history.
+    pub fn pin_clipboard_history(&self, id: &str, pinned: bool) -> bool {
+        let changed = self.shared.clipboard_history.set_pinned(id, pinned);
+        if changed {
+            self.shared.emit(NodeEvent::ClipboardHistoryChanged);
+        }
+        changed
+    }
+
+    /// Deletes one entry from the clipboard history.
+    pub fn delete_clipboard_history(&self, id: &str) -> bool {
+        let deleted = self.shared.clipboard_history.delete(id);
+        let removed_tl = self.shared.store.delete_timeline_by_ref(id).unwrap_or(false);
+        if deleted {
+            self.shared.emit(NodeEvent::ClipboardHistoryChanged);
+        }
+        if removed_tl {
+            self.shared.emit(NodeEvent::TimelineChanged);
+        }
+        deleted
+    }
+
+    /// Clears the entire clipboard history and deletes its encrypted files from disk.
+    pub fn clear_clipboard_history(&self) -> Result<()> {
+        self.shared.clipboard_history.clear()?;
+        let _ = self.shared.store.delete_timeline_clips();
+        self.shared.emit(NodeEvent::ClipboardHistoryChanged);
+        self.shared.emit(NodeEvent::TimelineChanged);
+        Ok(())
+    }
+
+    /// Copies a clipboard history entry back onto this device's OS clipboard.
+    pub fn copy_clipboard_history(&self, id: &str) -> Result<()> {
+        let entry = self.shared.clipboard_history.entry(id).ok_or(Error::NotFound)?;
+        match entry.kind {
+            crate::ClipboardItemKind::Text => {
+                self.shared.platform.set_clipboard(&entry.text).map_err(|e| Error::Internal(e.to_string()))
+            }
+            crate::ClipboardItemKind::Image => {
+                let (mime, bytes) = self.shared.clipboard_history.image_bytes(id).ok_or(Error::NotFound)?;
+                self.shared
+                    .platform
+                    .set_clipboard_image(&mime, &bytes)
+                    .map_err(|e| Error::Internal(e.to_string()))
+            }
+        }
+    }
+
+    /// Sends a clipboard history entry to `peer` again.
+    pub async fn resend_clipboard_history(&self, peer: DeviceId, id: &str) -> Result<()> {
+        let entry = self.shared.clipboard_history.entry(id).ok_or(Error::NotFound)?;
+        match entry.kind {
+            crate::ClipboardItemKind::Text => self.send_clipboard(peer, entry.text).await,
+            crate::ClipboardItemKind::Image => {
+                let (mime, bytes) = self.shared.clipboard_history.image_bytes(id).ok_or(Error::NotFound)?;
+                self.send_clipboard_image(peer, mime, bytes).await
+            }
+        }
+    }
+
+    /// Returns the smart suggestion classified for the most recently received
+    /// text clip (`None` when the latest clip had no suggestion or was an OTP).
+    pub fn last_clip_suggestion(&self) -> Option<(DeviceId, crate::ClipSuggestion)> {
+        self.shared.last_clip_suggestion.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    // ---- Actions (docs/protocol/actions.md) ----
+
+    /// Locks or sleeps a paired PC.
+    pub async fn pc_power(&self, peer: DeviceId, action: crate::PowerAction) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::actions::pc_power(&self.shared, &session, action).await
+    }
+
+    /// Sets this PC's Wake-on-LAN adapter addresses (`pc.wake_info`) and sends
+    /// them to every connected phone when they changed.
+    pub async fn set_wake_info(&self, info: maclink_protocol::messages::PcWakeInfo) {
+        let prev = self.shared.wake_info.get();
+        let clean = self.shared.wake_info.set(info);
+        if prev.as_ref() != Some(&clean) {
+            for session in self.shared.live_sessions() {
+                crate::actions::send_wake_info(&self.shared, &session).await;
+            }
+        }
+    }
+
+    /// Returns the stored Wake-on-LAN addresses for a paired PC, if any.
+    pub fn wake_info(&self, peer: DeviceId) -> Result<Option<maclink_protocol::messages::PcWakeInfo>> {
+        Ok(self.shared.store.get_peer(&peer)?.ok_or(Error::NotPaired)?.wake_info)
+    }
+
+    /// Sends Wake-on-LAN magic packets for a paired PC over UDP to its stored
+    /// subnet broadcasts and `255.255.255.255` on ports 9 and 7, repeated a
+    /// few times over ~2 s.
+    pub async fn wake(&self, peer: DeviceId) -> Result<()> {
+        crate::actions::wake(
+            &self.shared,
+            &peer,
+            maclink_protocol::messages::wake::DEFAULT_PORTS,
+            &[],
+            4,
+            Duration::from_millis(650),
+        )
+        .await
+    }
+
+    /// Sends Wake-on-LAN magic packets for a paired PC on custom UDP ports and
+    /// additional target IPv4 addresses (used by tests).
+    pub async fn wake_on_ports(
+        &self,
+        peer: DeviceId,
+        ports: &[u16],
+        extra_targets: &[std::net::Ipv4Addr],
+    ) -> Result<()> {
+        crate::actions::wake(&self.shared, &peer, ports, extra_targets, 2, Duration::from_millis(40)).await
+    }
+
+    /// Asks a connected paired peer on the target LAN to broadcast a Wake-on-LAN
+    /// magic packet for `mac` (`wake.relay`).
+    pub async fn wake_via_relay(
+        &self,
+        relay_peer: &DeviceId,
+        mac: [u8; 6],
+        broadcast: Option<std::net::Ipv4Addr>,
+    ) -> Result<()> {
+        let session = self.connected(relay_peer)?;
+        let env = Envelope::new(
+            types::WAKE_RELAY,
+            &maclink_protocol::messages::WakeRelay { mac, broadcast: broadcast.map(|b| b.to_string()) },
+        )?;
+        session.request(env, REQUEST_TIMEOUT).await?.expect(types::OK)?;
+        Ok(())
+    }
+
+    /// Sends a low-latency PCM audio frame (`audio.pcm`) to a connected paired device.
+    /// Single sub-MTU frames (`<= 960` bytes) use a zero-HOL-blocking QUIC datagram;
+    /// larger frames are sent intact as an `AUDIO_PCM` envelope so frame boundaries
+    /// are never fragmented or partially lost.
+    pub async fn send_pc_audio_pcm(
+        &self,
+        peer: &DeviceId,
+        sample_rate: u32,
+        channels: u8,
+        pcm: Vec<u8>,
+    ) -> Result<()> {
+        if pcm.is_empty() {
+            return Ok(());
+        }
+        let session = self.connected(peer)?;
+        if pcm.len() <= 960
+            && session.conn.max_datagram_size().is_some_and(|max_dgram| 10 + pcm.len() <= max_dgram)
+        {
+            let mut pkt = Vec::with_capacity(10 + pcm.len());
+            pkt.extend_from_slice(b"NLPA");
+            pkt.extend_from_slice(&sample_rate.to_le_bytes());
+            pkt.push(channels);
+            pkt.push(0);
+            pkt.extend_from_slice(&pcm);
+            if session.send_datagram(bytes::Bytes::from(pkt)).is_ok() {
+                return Ok(());
+            }
+        }
+        let env = Envelope::new(
+            types::AUDIO_PCM,
+            &maclink_protocol::messages::AudioPcmFrame { sample_rate, channels, pcm },
+        )?;
+        session.try_send_realtime(env)
+    }
+
+    /// Opens a web link on a paired device.
+    pub async fn open_link(&self, peer: DeviceId, url: String) -> Result<()> {
+        crate::actions::open_link(&self.shared, peer, url).await
+    }
+
+    /// Sends an ongoing or completed task notification (`task.notify`) to a
+    /// paired device (or to all connected devices that offer `task.notify`
+    /// when `peer` is `None`).
+    pub async fn task_notify(&self, peer: Option<DeviceId>, task: crate::TaskNotify) -> Result<()> {
+        crate::actions::task_notify(&self.shared, peer, task).await
+    }
+
+    // ---- Screen mirroring (docs/protocol/mirror.md) ----
+
+    /// Asks a paired phone for its screen. The phone asks its user; video
+    /// then arrives through [`Platform::mirror_sink`](crate::Platform::mirror_sink).
+    pub async fn mirror_start(&self, peer: DeviceId, options: crate::MirrorStart) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::mirror::start(&self.shared, &session, options).await
+    }
+
+    /// Stops showing a phone's screen or app window (`mirroring`), and
+    /// tells the phone.
+    pub async fn mirror_stop(&self, peer: DeviceId, mirroring: u32) {
+        self.shared.stop_showing(&peer, mirroring);
+        if let Ok(session) = self.connected(&peer) {
+            let _ = crate::mirror::stop(&session, mirroring).await;
+        }
+    }
+
+    /// Asks a phone for a keyframe (the decoder lost its place).
+    pub async fn mirror_keyframe(&self, peer: DeviceId, mirroring: u32) {
+        if let Ok(session) = self.connected(&peer) {
+            crate::mirror::request_keyframe(&session, mirroring).await;
+        }
+    }
+
+    /// Resizes an app window's display (`mirroring` != 0) on a phone.
+    pub async fn mirror_resize(&self, peer: DeviceId, mirroring: u32, width: u32, height: u32) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::mirror::resize(&self.shared, &session, mirroring, width, height).await
+    }
+
+    /// Updates `stay_awake` and `screen_off` while mirroring a phone's screen (`session == 0`).
+    pub async fn mirror_power(&self, peer: DeviceId, stay_awake: bool, screen_off: bool) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::mirror::power(&self.shared, &session, stay_awake, screen_off).await
+    }
+
+    /// The PC's mouse and keyboard on a phone's mirrored screen or app window.
+    pub async fn mirror_input(
+        &self,
+        peer: DeviceId,
+        mirroring: u32,
+        input: crate::MirrorInput,
+    ) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::mirror::input(&self.shared, &session, mirroring, input).await
+    }
+
+    /// The apps a phone can open in windows of their own (Elevated), by name.
+    pub async fn mirror_apps(&self, peer: DeviceId) -> Result<Vec<crate::PhoneApp>> {
+        let session = self.connected(&peer)?;
+        crate::mirror::apps(&self.shared, &session).await
+    }
+
+    /// Opens this phone's video stream to a PC that asked for the screen
+    /// or an app window.
+    pub async fn mirror_open(&self, peer: DeviceId) -> Result<crate::MirrorStream> {
+        self.open_mirror_stream(peer, false).await
+    }
+
+    /// Opens this phone's sound stream to a PC that asked for the screen
+    /// with its sound.
+    pub async fn mirror_open_audio(&self, peer: DeviceId) -> Result<crate::MirrorStream> {
+        self.open_mirror_stream(peer, true).await
+    }
+
+    /// The PC asked for the stream a moment ago, but the connection it asked
+    /// over can drop or be replaced (a reconnect, a duplicate connection
+    /// resolved) before the stream opens. Waits for the connection to come
+    /// back, and retries once on a new one.
+    async fn open_mirror_stream(&self, peer: DeviceId, audio: bool) -> Result<crate::MirrorStream> {
+        let first = self.connected_soon(&peer).await?;
+        match crate::mirror::open(&self.shared, &first, audio).await {
+            Err(err @ (Error::Offline | Error::Network(_))) => {
+                let next = self.connected_soon(&peer).await?;
+                if Arc::ptr_eq(&next, &first) {
+                    return Err(err);
+                }
+                crate::mirror::open(&self.shared, &next, audio).await
+            }
+            other => other,
+        }
+    }
+
+    // ---- Webcam (docs/protocol/webcam.md) ----
+
+    /// Asks a paired phone to start streaming its camera as a webcam.
+    /// Video then arrives through [`Platform::webcam_sink`](crate::Platform::webcam_sink).
+    pub async fn webcam_start(&self, peer: DeviceId, options: crate::WebcamStart) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::webcam::start(&self.shared, &session, options).await
+    }
+
+    /// Stops a webcam stream with `peer` (either direction) and tells `peer`.
+    pub async fn webcam_stop(&self, peer: DeviceId) {
+        self.shared.stop_webcam(&peer);
+        if let Ok(session) = self.connected(&peer) {
+            let _ = crate::webcam::stop(&session).await;
+        }
+    }
+
+    /// Asks a phone for a fresh H.264 keyframe on the webcam stream.
+    pub async fn webcam_keyframe(&self, peer: DeviceId) {
+        if let Ok(session) = self.connected(&peer) {
+            crate::webcam::request_keyframe(&session).await;
+        }
+    }
+
+    /// Opens this phone's camera stream to a paired PC.
+    pub async fn webcam_open(&self, peer: DeviceId) -> Result<crate::MirrorStream> {
+        let session = self.connected(&peer)?;
+        crate::webcam::open(&self.shared, &session).await
+    }
+
+    // ---- Phone as microphone (docs/protocol/mic.md) ----
+
+    /// Asks a paired phone to stream its microphone; the phone asks its
+    /// user. Sound then arrives through [`Platform::mic_sink`](crate::Platform::mic_sink).
+    pub async fn mic_start(&self, peer: DeviceId) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::mic::start(&self.shared, &session).await
+    }
+
+    /// Stops a microphone stream with `peer` (either direction) and tells `peer`.
+    pub async fn mic_stop(&self, peer: DeviceId) {
+        self.shared.stop_mic(&peer);
+        if let Ok(session) = self.connected(&peer) {
+            let _ = crate::mic::stop(&session).await;
+        }
+    }
+
+    /// Opens this phone's microphone stream to a paired PC.
+    pub async fn mic_open(&self, peer: DeviceId) -> Result<crate::MirrorStream> {
+        let session = self.connected(&peer)?;
+        crate::mic::open(&self.shared, &session).await
+    }
+
+    // ---- Continuity Camera (docs/protocol/v0.md §Continuity Camera) ----
+
+    /// Asks a paired phone to capture a photo or scan a document and stream the result back.
+    pub async fn request_camera_capture(
+        &self,
+        peer: DeviceId,
+        request_id: String,
+        mode: crate::CameraCaptureMode,
+    ) -> Result<()> {
+        crate::continuity_camera::request(&self.shared, peer, request_id, mode).await
+    }
+
+    /// Cancels an in-flight Continuity Camera request on either side.
+    pub async fn cancel_camera_capture(
+        &self,
+        peer: DeviceId,
+        request_id: String,
+        reason: Option<String>,
+    ) -> Result<()> {
+        crate::continuity_camera::cancel(&self.shared, peer, request_id, reason).await
+    }
+
+    /// Sends a captured photo or scanned document from this phone to the requesting PC.
+    pub async fn send_camera_capture_result(
+        &self,
+        peer: DeviceId,
+        meta: crate::CameraCaptureResultMeta,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::continuity_camera::send_result(&self.shared, &session, meta, bytes).await
+    }
+
+    // ---- Messages (docs/protocol/sms.md) ----
+
+    /// This phone's messages changed (in `thread`, or anywhere): connected
+    /// PCs that show them catch up.
+    pub async fn sms_changed(&self, thread: Option<String>) {
+        self.shared.sms_changed(thread).await;
+    }
+
+    /// A paired phone's latest conversations, newest first.
+    pub async fn sms_threads(&self, peer: DeviceId, limit: u32) -> Result<Vec<crate::SmsThread>> {
+        let session = self.connected(&peer)?;
+        crate::sms::threads(&self.shared, &session, limit).await
+    }
+
+    /// A conversation's messages before `before` (Unix ms; the latest when
+    /// `None`), newest first.
+    pub async fn sms_messages(
+        &self,
+        peer: DeviceId,
+        thread: String,
+        before: Option<i64>,
+        limit: u32,
+    ) -> Result<Vec<crate::SmsMessage>> {
+        let session = self.connected(&peer)?;
+        crate::sms::messages(&self.shared, &session, thread, before, limit).await
+    }
+
+    /// Sends a text through a paired phone.
+    pub async fn sms_send(&self, peer: DeviceId, to: Vec<String>, body: String) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::sms::send(&self.shared, &session, to, body, Vec::new()).await
+    }
+
+    /// Sends a text (no attachments) through a paired phone.
+    pub async fn send_sms(
+        &self,
+        peer: impl std::borrow::Borrow<DeviceId>,
+        to: Vec<String>,
+        body: String,
+    ) -> Result<()> {
+        let session = self.connected(peer.borrow())?;
+        crate::sms::send(&self.shared, &session, to, body, Vec::new()).await
+    }
+
+    /// Sends a text or MMS with optional image attachments through a paired phone.
+    pub async fn send_sms_with_attachments(
+        &self,
+        peer: impl std::borrow::Borrow<DeviceId>,
+        to: Vec<String>,
+        body: String,
+        attachments: Vec<crate::SmsAttachment>,
+    ) -> Result<()> {
+        let session = self.connected(peer.borrow())?;
+        crate::sms::send(&self.shared, &session, to, body, attachments).await
+    }
+
+    /// Alias for [`Node::send_sms_with_attachments`].
+    pub async fn sms_send_with_attachments(
+        &self,
+        peer: impl std::borrow::Borrow<DeviceId>,
+        to: Vec<String>,
+        body: String,
+        attachments: Vec<crate::SmsAttachment>,
+    ) -> Result<()> {
+        self.send_sms_with_attachments(peer, to, body, attachments).await
+    }
+
+    /// A picture in a message: its type and bytes.
+    pub async fn sms_part(&self, peer: DeviceId, id: String) -> Result<(String, Vec<u8>)> {
+        let session = self.connected(&peer)?;
+        crate::sms::part(&self.shared, &session, id).await
+    }
+
+    // ---- Unified Conversations (MessagingStyle notification threads) ----
+
+    /// Lists locally stored `MessagingStyle` chat threads for a paired phone,
+    /// newest first.
+    pub fn chat_threads(&self, peer: impl std::borrow::Borrow<DeviceId>) -> Vec<crate::ChatThreadRecord> {
+        self.shared.store.chat_threads(peer.borrow()).unwrap_or_default()
+    }
+
+    /// Looks up a single `MessagingStyle` chat thread by ID (`chat:<app>:<title>`).
+    pub fn chat_thread(
+        &self,
+        peer: impl std::borrow::Borrow<DeviceId>,
+        thread_id: &str,
+    ) -> Option<crate::ChatThreadRecord> {
+        self.shared.store.chat_thread(peer.borrow(), thread_id).ok().flatten()
+    }
+
+    /// Lists up to `limit` messages in a locally stored `MessagingStyle` chat
+    /// thread, newest first.
+    pub fn chat_messages(
+        &self,
+        peer: impl std::borrow::Borrow<DeviceId>,
+        thread_id: &str,
+        limit: u32,
+    ) -> Vec<crate::ChatMessageRecord> {
+        self.shared.store.chat_messages(peer.borrow(), thread_id, limit as usize).unwrap_or_default()
+    }
+
+    /// Marks a locally stored `MessagingStyle` chat thread as read (`unread = 0`).
+    pub fn mark_chat_thread_read(&self, peer: impl std::borrow::Borrow<DeviceId>, thread_id: &str) -> bool {
+        self.shared.store.mark_chat_thread_read(peer.borrow(), thread_id).unwrap_or(false)
+    }
+
+    /// Deletes a single `MessagingStyle` chat thread and its messages.
+    pub fn delete_chat_thread(&self, peer: impl std::borrow::Borrow<DeviceId>, thread_id: &str) -> bool {
+        self.shared.store.delete_chat_thread(peer.borrow(), thread_id).unwrap_or(false)
+    }
+
+    /// Clears all locally stored `MessagingStyle` chat threads.
+    pub fn clear_chat_threads(&self) -> usize {
+        self.shared.store.clear_chat_threads().unwrap_or(0)
+    }
+
+    /// Upserts a `MessagingStyle` conversation notification into the local chat thread store.
+    pub fn upsert_chat_notification(
+        &self,
+        peer: DeviceId,
+        notification: &Notification,
+        is_snapshot: bool,
+    ) -> Result<Option<String>> {
+        self.shared.store.upsert_chat_notification(
+            &peer,
+            notification,
+            notification.icon.as_deref(),
+            is_snapshot,
+        )
+    }
+
+    /// Sends an inline reply to a `MessagingStyle` chat thread using its
+    /// latest active notification key and reply action ID, and appends the
+    /// outgoing message to the local thread history.
+    pub async fn reply_chat_thread(
+        &self,
+        peer: impl std::borrow::Borrow<DeviceId>,
+        thread_id: &str,
+        text: String,
+    ) -> Result<()> {
+        let peer = *peer.borrow();
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return Err(Error::Protocol("empty reply".into()));
+        }
+        let thread = self.shared.store.chat_thread(&peer, thread_id)?.ok_or(Error::NotFound)?;
+        if !thread.active || thread.notification_key.is_empty() {
+            return Err(Error::NotFound);
+        }
+        let Some(action) = thread.reply_action_id else {
+            return Err(Error::NotFound);
+        };
+        let key = thread.notification_key;
+        let env =
+            Envelope::new(types::NOTIFY_ACTION, &NotifyAction { key, action, reply: Some(trimmed.into()) })?;
+        self.request(peer, env).await?.expect(types::OK)?;
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis() as i64);
+        let _ = self.shared.store.append_chat_reply(&peer, thread_id, trimmed, now_ms);
+        self.shared.emit(NodeEvent::SmsChanged { device: peer, thread: Some(thread_id.to_owned()) });
+        Ok(())
+    }
+
+    // ---- Calls (docs/protocol/calls.md) ----
+
+    /// A call on this phone rang, was answered or ended; sent to every
+    /// connected PC the user allows (and to PCs that connect during it).
+    pub async fn call_changed(&self, call: crate::CallState) -> Result<()> {
+        self.shared.call_changed(call).await
+    }
+
+    /// Answers, declines or silences a call on a paired phone.
+    pub async fn call_command(&self, peer: DeviceId, id: String, command: crate::CallCommand) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::calls::command(&self.shared, &session, id, command).await
+    }
+
+    /// This phone's call history changed: connected PCs that show it catch up.
+    pub async fn call_log_changed(&self) {
+        self.shared.call_log_changed().await;
+    }
+
+    /// A paired phone's recent calls before `before` (Unix ms; the latest
+    /// when `None`), newest first.
+    pub async fn call_log(
+        &self,
+        peer: DeviceId,
+        before: Option<i64>,
+        limit: u32,
+    ) -> Result<Vec<crate::CallLogEntry>> {
+        let session = self.connected(&peer)?;
+        crate::calls::log(&self.shared, &session, before, limit).await
+    }
+
+    /// Asks a paired phone to place a call to `number` (or open the dialer
+    /// with it filled in).
+    pub async fn call_dial(&self, peer: DeviceId, number: String) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::calls::dial(&self.shared, &session, number).await
+    }
+
+    // ---- Contacts (docs/protocol/contacts.md) ----
+
+    /// This phone's contacts changed: connected PCs that show them catch up.
+    pub async fn contacts_changed(&self) {
+        self.shared.contacts_changed().await;
+    }
+
+    /// Lists or searches a paired phone's contacts (favorites first, then
+    /// alphabetical), skipping `offset`.
+    pub async fn contacts(
+        &self,
+        peer: DeviceId,
+        query: Option<String>,
+        offset: u32,
+        limit: u32,
+    ) -> Result<Vec<crate::Contact>> {
+        let session = self.connected(&peer)?;
+        crate::contacts::list(&self.shared, &session, query, offset, limit).await
+    }
+
+    // ---- Photos (docs/protocol/photos.md) ----
+
+    /// A photo or screenshot just appeared on this phone; announced to every
+    /// connected PC the user allows. PCs then ask for it through
+    /// [`Platform::open_photo`](crate::Platform::open_photo).
+    pub async fn photo_taken(&self, photo: crate::Photo) -> Result<()> {
+        self.shared.photo_taken(photo).await
+    }
+
+    /// This phone's photo or video library changed: connected PCs that show
+    /// photos catch up.
+    pub async fn photos_changed(&self) {
+        self.shared.photos_changed().await;
+    }
+
+    /// Lists a paired phone's photo and video albums.
+    pub async fn photo_albums(&self, peer: DeviceId) -> Result<Vec<crate::PhotoAlbum>> {
+        let session = self.connected(&peer)?;
+        crate::photos::albums(&self.shared, &session).await
+    }
+
+    /// Lists a paired phone's photos and videos (in `album`, or all when
+    /// `None`), newest first: from the latest, or after `before`, the
+    /// previous page's last item (its date and ID).
+    pub async fn photo_list(
+        &self,
+        peer: DeviceId,
+        album: Option<String>,
+        before: Option<(i64, String)>,
+        limit: u32,
+    ) -> Result<Vec<crate::PhotoItem>> {
+        let session = self.connected(&peer)?;
+        crate::photos::list(&self.shared, &session, album, before, limit).await
+    }
+
+    /// Fetches small JPEG thumbnails for a batch of item IDs on a paired phone.
+    pub async fn photo_thumbs(&self, peer: DeviceId, ids: Vec<String>) -> Result<Vec<crate::PhotoThumb>> {
+        let session = self.connected(&peer)?;
+        crate::photos::thumbs(&self.shared, &session, ids).await
+    }
+
+    /// Asks a phone for a photo or video; returns the ID of the transfer
+    /// that brings it (reported like any other).
+    pub async fn fetch_photo(&self, peer: DeviceId, id: String) -> Result<String> {
+        let session = self.connected(&peer)?;
+        crate::photos::fetch(&self.shared, &session, id).await
+    }
+
+    /// Asks a phone for one or more photos or videos in a single transfer;
+    /// returns the transfer ID.
+    pub async fn fetch_photos(&self, peer: DeviceId, ids: Vec<String>) -> Result<String> {
+        let session = self.connected(&peer)?;
+        crate::photos::fetch_many(&self.shared, &session, ids).await
+    }
+
+    /// Like [`fetch_photos`](Self::fetch_photos), for a backup: the files are
+    /// saved as usual, but the transfer leaves nothing in the Timeline.
+    pub async fn fetch_photos_quietly(&self, peer: DeviceId, ids: Vec<String>) -> Result<String> {
+        let session = self.connected(&peer)?;
+        crate::photos::fetch_quietly(&self.shared, &session, ids).await
+    }
+
+    /// Keeps a transfer started by [`fetch_photos_quietly`](Self::fetch_photos_quietly)
+    /// quiet after a restart, when it resumes.
+    pub fn keep_transfer_quiet(&self, transfer_id: &str) {
+        crate::transfer::mark_quiet_transfer(&self.shared, transfer_id);
+    }
+
+    // ---- Remote input (docs/protocol/remote.md) ----
+
+    /// Checks whether a paired PC currently accepts remote input from this
+    /// phone. If `remote_input` is off on the PC, returns [`Error::Denied`]
+    /// and triggers the PC's one-time prompt the first time.
+    pub async fn remote_check(&self, peer: DeviceId) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::remote::check(&self.shared, &session).await
+    }
+
+    /// Sends a remote input event to a paired PC.
+    pub async fn remote_input(&self, peer: DeviceId, input: crate::RemoteInput) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::remote::input(&self.shared, &session, input).await
+    }
+
+    /// Sends relative pointer motion `(dx, dy)` in a QUIC datagram (never on
+    /// the control stream).
+    pub async fn remote_move(&self, peer: DeviceId, dx: f32, dy: f32) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::remote::move_pointer(&self.shared, &session, dx, dy).await
+    }
+
+    /// Sends smooth scroll `(dx, dy)` in a QUIC datagram.
+    pub async fn remote_scroll_fast(&self, peer: DeviceId, dx: f32, dy: f32) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::remote::scroll_fast(&self.shared, &session, dx, dy).await
+    }
+
+    /// Sends a laser pointer update to a paired PC (`x`, `y` in `0.0..=1.0`).
+    pub async fn remote_laser(&self, peer: DeviceId, on: bool, x: f32, y: f32) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::remote::laser(&self.shared, &session, on, x, y).await
+    }
+
+    // ---- Media (docs/protocol/media.md) ----
+
+    /// This device's media players changed (most relevant first); sent to
+    /// every connected device the user allows. Include each player's
+    /// artwork every time: the core sends it once per device and session.
+    pub async fn media_changed(&self, players: Vec<MediaPlayer>) {
+        self.shared.media_changed(players).await;
+    }
+
+    /// Play on phone: offers `peer` (a phone) what this PC's `player` plays,
+    /// streamed (`docs/protocol/media.md` §4). The phone shows the offer;
+    /// taking it starts mirroring with `watch`, which this PC then allows
+    /// for that phone and player.
+    pub async fn offer_watch(&self, peer: DeviceId, player: String, title: Option<String>) -> Result<()> {
+        crate::media::offer_watch(&self.shared, peer, player, title, None).await
+    }
+
+    /// Play on phone for a video file: offers `peer` the `file` this PC's
+    /// `player` plays, at `position_ms`, for the phone to play itself. The
+    /// phone reads it with [`Node::watch_file_read`] while the offer is open,
+    /// and only that file.
+    pub async fn offer_watch_file(
+        &self,
+        peer: DeviceId,
+        player: String,
+        title: Option<String>,
+        file: std::path::PathBuf,
+        position_ms: u64,
+    ) -> Result<()> {
+        crate::media::offer_watch(&self.shared, peer, player, title, Some((file, position_ms))).await
+    }
+
+    /// On the phone: reads up to `length` bytes (at most 4 MiB) from
+    /// `offset` of the file the PC `peer` offered. Returns the file's size
+    /// and the bytes (fewer at its end).
+    pub async fn watch_file_read(&self, peer: DeviceId, offset: u64, length: u64) -> Result<(u64, Vec<u8>)> {
+        let session = self.connected(&peer)?;
+        crate::media::read_file(&session, offset, length).await
+    }
+
+    /// Runs a command on a paired device's media player.
+    pub async fn media_command(
+        &self,
+        peer: DeviceId,
+        player: String,
+        action: crate::MediaAction,
+        position: Option<u64>,
+    ) -> Result<()> {
+        if !self.shared.toggle_on(&peer, crate::media::TOGGLE) {
+            return Err(Error::Denied);
+        }
+        let command = MediaCommand { player, action: action.as_str().into(), position };
+        let env = Envelope::new(types::MEDIA_COMMAND, &command)?;
+        self.request(peer, env).await?.expect(types::OK)?;
+        Ok(())
+    }
+
+    // ---- Notifications (docs/protocol/notifications.md) ----
+
+    /// A notification appeared or changed on this phone; sent to every
+    /// connected PC the user allows. Include the app icon (PNG) each time:
+    /// the core sends it once per PC and session.
+    pub async fn notification_posted(&self, notification: Notification) {
+        if let Some(clean) = notification.clone().sanitized() {
+            let mut hist = lock(&self.shared.notification_history);
+            hist.retain(|n| n.key != clean.key);
+            hist.push(clean);
+        }
+        self.shared.notification_posted(notification).await;
+    }
+
+    /// A notification went away on this phone.
+    pub async fn notification_removed(&self, key: String) {
+        self.shared.notification_removed(key).await;
+    }
+
+    /// Everything this phone shows now (when the notification listener
+    /// connects, or an empty list when access was revoked).
+    pub async fn notifications_reset(&self, items: Vec<Notification>) {
+        self.record_notification_history(items.clone());
+        self.shared.notifications_reset(items).await;
+    }
+
+    /// Records a batch of notifications in the local notification history for
+    /// listing and substring search.
+    pub fn record_notification_history(&self, items: Vec<Notification>) {
+        let mut clean: Vec<Notification> = items.into_iter().filter_map(Notification::sanitized).collect();
+        clean.sort_by(|a, b| b.when.cmp(&a.when).then_with(|| a.key.cmp(&b.key)));
+        *lock(&self.shared.notification_history) = clean;
+    }
+
+    /// Lists notifications in the local history (newest first), optionally
+    /// filtered by a case-insensitive substring `query` matching title, text,
+    /// subtext, app display name, or package name.
+    pub fn notification_history(&self, query: Option<&str>, limit: usize) -> Vec<Notification> {
+        let q = query.map(str::trim).filter(|s| !s.is_empty()).map(str::to_ascii_lowercase);
+        let hist = lock(&self.shared.notification_history);
+        let cap = limit.max(1);
+        hist.iter()
+            .filter(|n| match q.as_deref() {
+                None => true,
+                Some(needle) => {
+                    n.app.to_ascii_lowercase().contains(needle)
+                        || n.app_name.to_ascii_lowercase().contains(needle)
+                        || n.title.as_deref().is_some_and(|s| s.to_ascii_lowercase().contains(needle))
+                        || n.text.as_deref().is_some_and(|s| s.to_ascii_lowercase().contains(needle))
+                        || n.sub.as_deref().is_some_and(|s| s.to_ascii_lowercase().contains(needle))
+                }
+            })
+            .take(cap)
+            .cloned()
+            .collect()
+    }
+
+    /// Dismisses a phone's notification there.
+    pub async fn dismiss_notification(&self, peer: DeviceId, key: String) -> Result<()> {
+        let env = Envelope::new(types::NOTIFY_DISMISS, &NotifyKey { key })?;
+        self.request(peer, env).await?.expect(types::OK)?;
+        Ok(())
+    }
+
+    /// Runs an action of a phone's notification; `reply` is the text for a
+    /// reply action.
+    pub async fn run_notification_action(
+        &self,
+        peer: DeviceId,
+        key: String,
+        action: String,
+        reply: Option<String>,
+    ) -> Result<()> {
+        let env = Envelope::new(
+            types::NOTIFY_ACTION,
+            &NotifyAction { key: key.clone(), action, reply: reply.clone() },
+        )?;
+        self.request(peer, env).await?.expect(types::OK)?;
+        if let Some(text) = reply.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_millis() as i64);
+            if let Ok(Some(thread_id)) = self.shared.store.append_chat_reply_by_key(&peer, &key, text, now_ms)
+            {
+                self.shared.emit(NodeEvent::SmsChanged { device: peer, thread: Some(thread_id) });
+            }
+        }
+        Ok(())
+    }
+
+    // ---- Phone toggles (docs/protocol/toggles.md) ----
+
+    /// The latest quick settings reported by a connected phone, if any.
+    pub fn phone_toggles(&self, peer: DeviceId) -> Option<crate::PhoneToggles> {
+        self.shared.toggles.peer(&peer)
+    }
+
+    /// This phone's quick settings state (on startup and whenever any toggle
+    /// changes); sent to every connected PC the user allows (and to PCs that
+    /// connect later).
+    pub async fn toggles_changed(&self, toggles: crate::PhoneToggles) -> Result<()> {
+        self.shared.toggles_changed(toggles).await
+    }
+
+    /// Asks a paired phone to change one quick setting (`id`: `dnd`, `ringer`,
+    /// `flashlight`, `volume`, `brightness`, `wifi`, `bluetooth`).
+    pub async fn set_phone_toggle(
+        &self,
+        peer: DeviceId,
+        id: String,
+        value: crate::PhoneToggleValue,
+    ) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::toggles::set(&self.shared, &session, id, value).await
+    }
+
+    // ---- Deck (docs/protocol/deck.md) ----
+
+    /// The latest Deck layout reported by a connected PC, if any.
+    pub fn deck_layout(&self, peer: DeviceId) -> Option<crate::DeckLayout> {
+        self.shared.deck.peer_layout(&peer)
+    }
+
+    /// The latest live Deck state reported by a connected PC, if any.
+    pub fn deck_state(&self, peer: DeviceId) -> Option<crate::DeckState> {
+        self.shared.deck.peer_state(&peer)
+    }
+
+    /// Updates this PC's Deck layout and sends it to every connected phone
+    /// when this device offers `deck.actions`.
+    pub async fn set_deck_layout(&self, layout: crate::DeckLayout) -> Result<()> {
+        self.shared.set_deck_layout(layout).await
+    }
+
+    /// Updates this PC's live Deck state and sends it to every connected phone
+    /// when it changed and this device offers `deck.actions`.
+    pub async fn set_deck_state(&self, state: crate::DeckState) -> Result<()> {
+        self.shared.set_deck_state(state).await
+    }
+
+    /// Asks a paired PC to run the action bound to `tile` (`deck.press`).
+    pub async fn deck_press(&self, peer: DeviceId, tile: String) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::deck::press(&self.shared, &session, tile).await
+    }
+
+    /// Asks a paired PC to change its master speaker volume (`0..=100`) and/or
+    /// mute state (`pc.audio.set`).
+    pub async fn set_pc_audio(&self, peer: DeviceId, volume: Option<u8>, muted: Option<bool>) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::deck::set_pc_audio(&self.shared, &session, volume, muted).await
+    }
+
+    // ---- Phone storage (PC File Explorer) ----
+
+    /// Lists a directory on a connected phone (`storage.list`).
+    pub async fn storage_list(
+        &self,
+        peer: DeviceId,
+        path: impl Into<String>,
+    ) -> Result<Vec<crate::StorageEntry>> {
+        let session = self.connected(&peer)?;
+        crate::storage::list(&self.shared, &session, path.into()).await
+    }
+
+    /// Convenience alias for [`Node::storage_list`] taking `&DeviceId` and `&str`.
+    pub async fn list_storage(&self, peer: &DeviceId, path: &str) -> Result<Vec<crate::StorageEntry>> {
+        self.storage_list(*peer, path).await
+    }
+
+    /// Reads a byte range `[offset, offset + length)` (or to end of file if
+    /// `length` is `None`) from `path` on a connected phone (`storage.read`).
+    pub async fn storage_read(
+        &self,
+        peer: DeviceId,
+        path: impl Into<String>,
+        offset: u64,
+        length: Option<u64>,
+    ) -> Result<(crate::StorageReadMeta, Vec<u8>)> {
+        let (meta, mut recv) = self.storage_read_stream(peer, path, offset, length).await?;
+        let mut buf = Vec::with_capacity((meta.length.min(16 * 1024 * 1024)) as usize);
+        while let Some(chunk) = recv.read_chunk(64 * 1024).await.map_err(|_| crate::Error::Offline)? {
+            if (buf.len() + chunk.len()) as u64 > meta.length {
+                return Err(crate::Error::Protocol("phone sent more bytes than length".into()));
+            }
+            buf.extend_from_slice(&chunk);
+        }
+        if buf.len() as u64 != meta.length {
+            return Err(crate::Error::Offline);
+        }
+        Ok((meta, buf))
+    }
+
+    /// Convenience alias for [`Node::storage_read`] taking `&DeviceId`, `&str`,
+    /// `offset`, and `length`.
+    pub async fn read_storage(
+        &self,
+        peer: &DeviceId,
+        path: &str,
+        offset: u64,
+        length: u64,
+    ) -> Result<Vec<u8>> {
+        let (_meta, bytes) = self.storage_read(*peer, path, offset, Some(length)).await?;
+        Ok(bytes)
+    }
+
+    /// Opens a ranged read stream from `path` on a connected phone
+    /// (`storage.read`), returning the metadata and raw QUIC receive stream.
+    pub async fn storage_read_stream(
+        &self,
+        peer: DeviceId,
+        path: impl Into<String>,
+        offset: u64,
+        length: Option<u64>,
+    ) -> Result<(crate::StorageReadMeta, iroh::endpoint::RecvStream)> {
+        let session = self.connected(&peer)?;
+        crate::storage::open_read_stream(&self.shared, &session, path.into(), offset, length).await
+    }
+
+    /// Uploads a local file to `path` on a connected phone (`storage.write`).
+    pub async fn storage_write(
+        &self,
+        peer: DeviceId,
+        path: impl Into<String>,
+        source: &std::path::Path,
+    ) -> Result<crate::StorageWriteDone> {
+        self.storage_write_with_id(peer, path, source, None, None).await
+    }
+
+    /// Uploads a local file to `path` on a connected phone (`storage.write`),
+    /// reusing `id` when resuming an interrupted upload.
+    pub async fn storage_write_with_id(
+        &self,
+        peer: DeviceId,
+        path: impl Into<String>,
+        source: &std::path::Path,
+        id: Option<String>,
+        stop_after: Option<u64>,
+    ) -> Result<crate::StorageWriteDone> {
+        let session = self.connected(&peer)?;
+        let id = id.unwrap_or_else(crate::storage::new_upload_id);
+        crate::storage::write_with_id(
+            &self.shared,
+            &session,
+            id,
+            path.into(),
+            crate::FileSource::Path(source.to_path_buf()),
+            None,
+            stop_after,
+        )
+        .await
+    }
+
+    /// Creates a directory at `path` on a connected phone (`storage.mkdir`).
+    pub async fn storage_mkdir(&self, peer: DeviceId, path: impl Into<String>) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::storage::mkdir(&self.shared, &session, path.into()).await
+    }
+
+    /// Renames or moves `from` to `to` on a connected phone (`storage.rename`).
+    pub async fn storage_rename(
+        &self,
+        peer: DeviceId,
+        from: impl Into<String>,
+        to: impl Into<String>,
+    ) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::storage::rename(&self.shared, &session, from.into(), to.into()).await
+    }
+
+    /// Deletes `path` on a connected phone (`storage.delete`).
+    pub async fn storage_delete(
+        &self,
+        peer: DeviceId,
+        path: impl Into<String>,
+        confirmed: bool,
+    ) -> Result<()> {
+        let session = self.connected(&peer)?;
+        crate::storage::delete(&self.shared, &session, path.into(), confirmed).await
+    }
+
+    /// Notifies connected PCs that have `path` open in File Explorer that its
+    /// contents changed (`storage.changed`, debounced to at most once per second).
+    pub async fn storage_changed(&self, path: impl Into<String>) {
+        crate::storage::notify_changed(&self.shared, path.into()).await;
+    }
+
+    /// Directory paths currently watched by any connected PC (most recently
+    /// listed folders).
+    pub fn storage_open_folders(&self) -> Vec<String> {
+        self.shared.storage.lock().unwrap_or_else(|e| e.into_inner()).open_folders_all()
+    }
+
+    // ---- Local state reported by the app ----
+
+    /// Reports this device's battery; forwarded to connected devices.
+    pub async fn update_battery(&self, battery: Battery) {
+        let battery = battery.sanitized();
+        let changed = {
+            let mut local = self.shared.local.write().unwrap_or_else(|e| e.into_inner());
+            let changed = local.battery.as_ref() != Some(&battery);
+            local.battery = Some(battery.clone());
+            changed
+        };
+        if changed && let Ok(env) = Envelope::new(types::EVENT_BATTERY, &battery) {
+            self.shared.broadcast(env).await;
+        }
+    }
+
+    /// Updates this device's description (e.g. after a rename).
+    pub async fn update_device_info(&self, device: DeviceInfo) {
+        let device = device.sanitized();
+        self.shared.local.write().unwrap_or_else(|e| e.into_inner()).device = device.clone();
+        let update = HelloUpdate { device: Some(device), ..Default::default() };
+        if let Ok(env) = Envelope::new(types::HELLO_UPDATE, &update) {
+            self.shared.broadcast(env).await;
+        }
+        self.shared.refresh_all_capabilities();
+    }
+
+    /// Updates this device's Material You seed color (`accent`, ARGB) and
+    /// broadcasts it to connected peers (`hello.update`).
+    pub async fn update_accent(&self, accent: Option<u32>) {
+        let device = {
+            let mut local = self.shared.local.write().unwrap_or_else(|e| e.into_inner());
+            if local.device.accent == accent {
+                return;
+            }
+            local.device.accent = accent;
+            local.device.clone()
+        };
+        let update = HelloUpdate { device: Some(device), ..Default::default() };
+        if let Ok(env) = Envelope::new(types::HELLO_UPDATE, &update) {
+            self.shared.broadcast(env).await;
+        }
+    }
+
+    /// Updates this device's power level and the capabilities it offers
+    /// beyond the built-in ones (they depend on permissions and add-ons).
+    pub async fn update_power(&self, power: PowerLevel, extra_capabilities: Vec<String>) {
+        let caps = {
+            let mut local = self.shared.local.write().unwrap_or_else(|e| e.into_inner());
+            local.power = power;
+            local.extra_capabilities = extra_capabilities;
+            local.capabilities()
+        };
+        let update = HelloUpdate { power: Some(power), caps: Some(caps), device: None };
+        if let Ok(env) = Envelope::new(types::HELLO_UPDATE, &update) {
+            self.shared.broadcast(env).await;
+        }
+        self.shared.refresh_all_capabilities();
+        for session in self.shared.live_sessions() {
+            self.shared.send_deck(&session).await;
+        }
+    }
+
+    // ---- Timeline ----
+
+    /// Returns the current retention policy for the local timeline.
+    pub fn timeline_retention(&self) -> Result<crate::TimelineRetention> {
+        self.shared.store.timeline_retention()
+    }
+
+    /// Sets the retention policy for the local timeline and runs auto-purge immediately.
+    pub fn set_timeline_retention(&self, retention: crate::TimelineRetention) -> Result<()> {
+        self.shared.store.set_timeline_retention(retention, crate::now_unix())?;
+        self.shared.emit(NodeEvent::TimelineChanged);
+        Ok(())
+    }
+
+    /// Queries one page of the local timeline, resolving linked clipboard items
+    /// in memory without duplicating clip content in SQLite.
+    pub fn timeline_page(&self, query: &crate::TimelineQuery) -> Result<crate::TimelinePage> {
+        let matching_clip_refs: Vec<String> = match query.search.as_deref().map(str::trim) {
+            Some(q) if !q.is_empty() => {
+                self.shared.clipboard_history.list(Some(q)).into_iter().map(|c| c.id).collect()
+            }
+            _ => Vec::new(),
+        };
+        let mut page = self.shared.store.query_timeline(query, &matching_clip_refs)?;
+        for entry in &mut page.entries {
+            self.resolve_timeline_clip(entry);
+            Self::resolve_timeline_link(entry);
+        }
+        Ok(page)
+    }
+
+    /// Returns one timeline entry by ID, resolving its linked clip if any.
+    pub fn timeline_entry(&self, id: i64) -> Result<Option<crate::TimelineEntry>> {
+        let mut entry = self.shared.store.get_timeline(id)?;
+        if let Some(ref mut e) = entry {
+            self.resolve_timeline_clip(e);
+            Self::resolve_timeline_link(e);
+        }
+        Ok(entry)
+    }
+
+    /// Records a custom local timeline entry (e.g. a saved mirror screenshot or
+    /// mirror video recording) and emits [`NodeEvent::TimelineChanged`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_timeline(
+        &self,
+        kind: crate::TimelineKind,
+        peer: DeviceId,
+        incoming: bool,
+        title: String,
+        detail: String,
+        target: String,
+        size_bytes: u64,
+        duration_secs: u64,
+        ref_id: Option<String>,
+    ) -> Option<i64> {
+        self.shared.record_timeline(crate::timeline::NewTimelineEntry {
+            kind,
+            device_id: peer,
+            device_name: self.shared.peer_name(&peer),
+            incoming,
+            timestamp: crate::now_unix(),
+            title,
+            detail,
+            target,
+            size_bytes,
+            duration_secs,
+            ref_id,
+        })
+    }
+
+    /// Updates a timeline entry matching `ref_id` (e.g. when a photo or voice
+    /// recording finishes post-processing into its final destination).
+    pub fn update_timeline_by_ref(
+        &self,
+        ref_id: &str,
+        kind: crate::TimelineKind,
+        title: &str,
+        detail: &str,
+        target: &str,
+        size_bytes: u64,
+    ) -> bool {
+        let updated = self
+            .shared
+            .store
+            .update_timeline_by_ref(ref_id, kind, title, detail, target, size_bytes)
+            .unwrap_or(false);
+        if updated {
+            self.shared.emit(NodeEvent::TimelineChanged);
+        }
+        updated
+    }
+
+    /// Removes a timeline entry matching `ref_id` (e.g. private photo preview fetches).
+    pub fn delete_timeline_by_ref(&self, ref_id: &str) -> bool {
+        let deleted = self.shared.store.delete_timeline_by_ref(ref_id).unwrap_or(false);
+        if deleted {
+            self.shared.emit(NodeEvent::TimelineChanged);
+        }
+        deleted
+    }
+
+    /// Removes one entry from the local timeline by row ID.
+    pub fn delete_timeline_entry(&self, id: i64) -> Result<bool> {
+        let deleted = self.shared.store.delete_timeline(id)?;
+        if deleted {
+            self.shared.emit(NodeEvent::TimelineChanged);
+        }
+        Ok(deleted)
+    }
+
+    /// Clears all entries from the local timeline.
+    pub fn clear_timeline(&self) -> Result<usize> {
+        let removed = self.shared.store.clear_timeline()?;
+        if removed > 0 {
+            self.shared.emit(NodeEvent::TimelineChanged);
+        }
+        Ok(removed)
+    }
+
+    // ---- Data retention & privacy ----
+
+    /// Returns current item/byte counts and retention settings across local history and caches.
+    pub fn data_retention_counts(&self) -> DataRetentionCounts {
+        let (clip_count, clip_bytes) = self.shared.clipboard_history.count_and_bytes();
+        let timeline_items = self.shared.store.timeline_total_count().unwrap_or(0);
+        let timeline_retention_days = self
+            .shared
+            .store
+            .timeline_retention()
+            .map(|r| r.max_days)
+            .unwrap_or(crate::DEFAULT_TIMELINE_MAX_DAYS);
+        let (chat_threads, chat_messages) = self.shared.store.chat_cache_counts().unwrap_or((0, 0));
+        let received_file_records =
+            self.shared.store.timeline_count_by_kind(crate::TimelineKind::File).unwrap_or(0);
+        DataRetentionCounts {
+            clipboard_items: u32::try_from(clip_count).unwrap_or(u32::MAX),
+            clipboard_bytes: clip_bytes,
+            timeline_items,
+            timeline_retention_days,
+            chat_threads,
+            chat_messages,
+            received_file_records,
+        }
+    }
+
+    /// Clears all locally cached `MessagingStyle` chat threads and messages.
+    pub fn clear_message_cache(&self) -> Result<()> {
+        let removed = self.shared.store.clear_chat_threads()?;
+        if removed > 0
+            && let Ok(peers) = self.shared.store.list_peers()
+        {
+            for peer in peers {
+                self.shared.emit(NodeEvent::SmsChanged { device: peer.id, thread: None });
+            }
+        }
+        Ok(())
+    }
+
+    /// Clears all file transfer records (`TimelineKind::File`) from the local timeline
+    /// without deleting downloaded files on disk.
+    pub fn clear_received_file_history(&self) -> Result<()> {
+        let removed = self.shared.store.delete_timeline_kind(crate::TimelineKind::File)?;
+        if removed > 0 {
+            self.shared.emit(NodeEvent::TimelineChanged);
+        }
+        Ok(())
+    }
+
+    /// Wipes all local history and caches (encrypted clipboard history + image files,
+    /// timeline entries, and `MessagingStyle` conversation cache) while preserving
+    /// device identity, paired devices, per-device feature toggles, and the outgoing send queue.
+    pub fn clear_all_local_data(&self) -> Result<()> {
+        self.shared.clipboard_history.clear()?;
+        *self.shared.last_clip_suggestion.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.shared.store.clear_all_history_and_cache()?;
+        self.shared.emit(NodeEvent::ClipboardHistoryChanged);
+        self.shared.emit(NodeEvent::TimelineChanged);
+        if let Ok(peers) = self.shared.store.list_peers() {
+            for peer in peers {
+                self.shared.emit(NodeEvent::SmsChanged { device: peer.id, thread: None });
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_timeline_clip(&self, entry: &mut crate::TimelineEntry) {
+        if entry.kind != crate::TimelineKind::Clip {
+            return;
+        }
+        if let Some(ref_id) = entry.ref_id.as_deref()
+            && let Some(clip) = self.shared.clipboard_history.entry(ref_id)
+        {
+            entry.clip_available = true;
+            match clip.kind {
+                crate::ClipboardItemKind::Text => {
+                    entry.title = clip.text;
+                    entry.detail = "text".into();
+                }
+                crate::ClipboardItemKind::Image => {
+                    entry.title = "Image clip".into();
+                    entry.detail = clip.mime.unwrap_or_else(|| "image/png".into());
+                    if let Some((mime, bytes)) = self.shared.clipboard_history.image_bytes(ref_id) {
+                        entry.image_data_url = Some(crate::timeline::encode_data_url(&mime, &bytes));
+                    }
+                }
+            }
+        } else {
+            entry.clip_available = false;
+            if entry.title.is_empty() {
+                entry.title =
+                    if entry.detail.contains("image") { "Image clip".into() } else { "Text clip".into() };
+            }
+        }
+    }
+
+    fn resolve_timeline_link(entry: &mut crate::TimelineEntry) {
+        if entry.kind != crate::TimelineKind::Link {
+            return;
+        }
+        let raw_url = if !entry.target.is_empty() {
+            entry.target.clone()
+        } else if !entry.title.is_empty() {
+            entry.title.clone()
+        } else {
+            return;
+        };
+        let lower = raw_url.get(..8).map(str::to_ascii_lowercase).unwrap_or_default();
+        let is_uri =
+            lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("geo:");
+        if !is_uri {
+            return;
+        }
+        let title_lower = entry.title.get(..8).map(str::to_ascii_lowercase).unwrap_or_default();
+        let title_is_raw_uri = entry.title.is_empty()
+            || entry.title == raw_url
+            || title_lower.starts_with("http://")
+            || title_lower.starts_with("https://")
+            || title_lower.starts_with("geo:");
+        if title_is_raw_uri {
+            let (friendly_title, detail) = crate::handoff::timeline_link_title_and_detail(&raw_url, None);
+            entry.title = friendly_title;
+            entry.detail = detail;
+        } else if entry.detail != raw_url {
+            entry.detail = raw_url;
+        }
+    }
+
+    // ---- Connection Doctor diagnostics ----
+
+    /// Returns LAN mDNS sighting and consecutive dial failure diagnostics for `peer`.
+    pub fn peer_diagnostics(&self, peer: &DeviceId) -> PeerDiagnostics {
+        let (mdns_seen_ago_secs, mdns_addrs) = match lock(&self.shared.lan_seen).get(peer) {
+            Some((seen_at, addrs)) => (Some(seen_at.elapsed().as_secs()), addrs.clone()),
+            None => (None, Vec::new()),
+        };
+        let dial_failures = lock(&self.shared.dial_failures).get(peer).copied().unwrap_or(0);
+        PeerDiagnostics { mdns_seen_ago_secs, mdns_addrs, dial_failures }
+    }
+
+    /// Records a LAN discovery sighting for `peer` (e.g. from mDNS or LocalSend).
+    pub fn record_lan_sighting(&self, peer: DeviceId, addrs: Vec<SocketAddr>) {
+        lock(&self.shared.lan_seen).insert(peer, (std::time::Instant::now(), addrs.clone()));
+        self.shared.remember_addrs(&peer, &addrs);
+        if self.shared.store.is_paired(&peer).unwrap_or(false) {
+            self.shared.wake_supervisor(&peer);
+        }
+    }
+
+    /// Increments the consecutive dial failure counter for `peer`.
+    pub fn record_dial_failure(&self, peer: DeviceId) {
+        *lock(&self.shared.dial_failures).entry(peer).or_insert(0) += 1;
+    }
+}
+
+/// Per-peer discovery and connection diagnostics for the Connection Doctor.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PeerDiagnostics {
+    /// Seconds since this peer was last seen announcing itself on LAN mDNS, if seen in this session.
+    pub mdns_seen_ago_secs: Option<u64>,
+    /// Last LAN IP/port addresses announced by this peer over mDNS.
+    pub mdns_addrs: Vec<SocketAddr>,
+    /// Consecutive direct/QUIC dial failures since the peer last connected.
+    pub dial_failures: u32,
+}
+
+/// Summary of locally stored history and cache counts for the Privacy & Data settings UI.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DataRetentionCounts {
+    pub clipboard_items: u32,
+    pub clipboard_bytes: u64,
+    pub timeline_items: u32,
+    pub timeline_retention_days: u32,
+    pub chat_threads: u32,
+    pub chat_messages: u32,
+    pub received_file_records: u32,
+}
+
+const PORT_FILE: &str = "port";
+/// Retrying the saved ports: 5 × 200 ms.
+const PORT_RETRIES: usize = 5;
+const PORT_RETRY_DELAY: Duration = Duration::from_millis(200);
+
+/// The UDP ports the endpoint listens on, remembered across restarts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Ports {
+    v4: u16,
+    /// None where the machine has no IPv6.
+    v6: Option<u16>,
+}
+
+impl Ports {
+    /// Reads "<v4> [<v6>]".
+    fn load(dir: &std::path::Path) -> Option<Ports> {
+        let text = std::fs::read_to_string(dir.join(PORT_FILE)).ok()?;
+        let mut parts = text.split_whitespace().map(str::parse::<u16>);
+        let v4 = parts.next()?.ok().filter(|p| *p != 0)?;
+        let v6 = parts.next().and_then(Result::ok).filter(|p| *p != 0);
+        Some(Ports { v4, v6 })
+    }
+
+    fn of(bound: &[SocketAddr]) -> Option<Ports> {
+        let v4 = bound.iter().find(|a| a.is_ipv4())?.port();
+        let v6 = bound.iter().find(|a| a.is_ipv6()).map(SocketAddr::port);
+        Some(Ports { v4, v6 })
+    }
+
+    fn save(self, dir: &std::path::Path) {
+        let text = match self.v6 {
+            Some(v6) => format!("{} {v6}", self.v4),
+            None => self.v4.to_string(),
+        };
+        if let Err(e) = std::fs::write(dir.join(PORT_FILE), text) {
+            tracing::warn!(error = %e, "can't remember the ports");
+        }
+    }
+}
+
+/// Binds the endpoint on `ports`, or any free ports.
+async fn bind_endpoint(
+    _config: &NodeConfig,
+    secret: iroh::SecretKey,
+    ports: Option<Ports>,
+) -> Result<Endpoint> {
+    let transport = QuicTransportConfig::builder()
+        .keep_alive_interval(KEEP_ALIVE_INTERVAL)
+        .max_idle_timeout(Some(IDLE_TIMEOUT.try_into().expect("the idle timeout fits a QUIC varint")))
+        // Room for a file transfer to keep the link busy through Wi-Fi's
+        // latency spikes (the defaults suit ~100 Mbit/s at 100 ms; a phone
+        // on Wi-Fi 6 does several times that, with bursts of delay).
+        .stream_receive_window(VarInt::from_u32(STREAM_WINDOW))
+        .receive_window(VarInt::from_u32(CONNECTION_WINDOW))
+        .send_window(u64::from(CONNECTION_WINDOW))
+        .build();
+    let mut builder = Endpoint::builder(presets::Minimal)
+        .secret_key(secret)
+        .alpns(vec![ALPN_SESSION.to_vec(), ALPN_PAIR.to_vec()])
+        .transport_config(transport);
+    // LAN only: no relays, mobile network away mode removed.
+    builder = builder.relay_mode(RelayMode::Disabled);
+    let v4_port = ports.map_or(0, |p| p.v4);
+    builder = builder
+        .clear_ip_transports()
+        .bind_addr(SocketAddr::from(([0, 0, 0, 0], v4_port)))
+        .map_err(crate::error::net)?;
+    builder.bind().await.map_err(crate::error::net)
+}
+
+/// Announces this device on the LAN and watches for others.
+fn start_lan_discovery(shared: &Arc<Shared>, name: &str) -> Result<()> {
+    let mdns = MdnsAddressLookup::builder()
+        .service_name("maclink")
+        .build(shared.endpoint.id())
+        .map_err(crate::error::net)?;
+    shared.endpoint.address_lookup().map_err(crate::error::net)?.add(mdns.clone());
+    // Announce our name so nearby pairing can show it; truncate safely.
+    let mut announced = name.to_owned();
+    while announced.len() > UserData::MAX_LENGTH {
+        announced.pop();
+    }
+    if let Ok(data) = UserData::try_from(announced) {
+        shared.endpoint.set_user_data_for_address_lookup(Some(data));
+    }
+
+    let weak = Arc::downgrade(shared);
+    let cancel = shared.cancel.child_token();
+    tokio::spawn(async move {
+        use n0_future::StreamExt;
+        let mut events = mdns.subscribe().await;
+        loop {
+            let event = tokio::select! {
+                _ = cancel.cancelled() => return,
+                event = events.next() => match event { Some(e) => e, None => return },
+            };
+            let Some(shared) = weak.upgrade() else { return };
+            match event {
+                DiscoveryEvent::Discovered { endpoint_info, .. } => {
+                    let id = crate::device_id(&endpoint_info.endpoint_id);
+                    let addrs: Vec<SocketAddr> = endpoint_info.ip_addrs().copied().collect();
+                    lock(&shared.lan_seen).insert(id, (std::time::Instant::now(), addrs.clone()));
+                    shared.remember_addrs(&id, &addrs);
+                    if shared.store.is_paired(&id).unwrap_or(false) {
+                        shared.wake_supervisor(&id);
+                        continue;
+                    }
+                    let device =
+                        DiscoveredDevice { id, name: endpoint_info.user_data().map(|d| d.to_string()) };
+                    let is_new =
+                        lock(&shared.discovered).insert(id, device.clone()).as_ref() != Some(&device);
+                    if is_new {
+                        shared.emit(NodeEvent::Discovered(device));
+                    }
+                }
+                DiscoveryEvent::Expired { endpoint_id } => {
+                    let id = crate::device_id(&endpoint_id);
+                    if shared.usb_peer_addr(&id).is_none() && lock(&shared.discovered).remove(&id).is_some() {
+                        shared.emit(NodeEvent::DiscoveryExpired(id));
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+    Ok(())
+}
+
+struct ActivePeerQueueGuard {
+    weak: Weak<Shared>,
+    peer: DeviceId,
+}
+
+impl Drop for ActivePeerQueueGuard {
+    fn drop(&mut self) {
+        if let Some(shared) = self.weak.upgrade() {
+            lock(&shared.queue_active_peers).remove(&self.peer);
+            if shared.session(&self.peer).is_some()
+                && shared.store.has_active_queue_for_peer(&self.peer).unwrap_or(false)
+            {
+                shared.queue_notify.notify_waiters();
+            }
+        }
+    }
+}
+
+fn run_queue_coordinator(weak: Weak<Shared>, cancel: CancellationToken) {
+    tokio::spawn(async move {
+        loop {
+            if cancel.is_cancelled() {
+                return;
+            }
+            let Some(shared) = weak.upgrade() else { return };
+            shared.queue_coordinator_ticks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let notify = shared.queue_notify.clone();
+            let notified = notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+
+            let now_ms = crate::now_unix_ms();
+            if shared.store.expire_stale_queue_items(now_ms).unwrap_or(0) > 0 {
+                shared.emit(NodeEvent::QueueChanged);
+            }
+            if let Ok(peers) = shared.store.peers_with_waiting_queue() {
+                for peer in peers {
+                    if shared.session(&peer).is_some() {
+                        let should_spawn = lock(&shared.queue_active_peers).insert(peer);
+                        if should_spawn {
+                            let peer_weak = weak.clone();
+                            let peer_cancel = cancel.child_token();
+                            tokio::spawn(async move {
+                                run_peer_queue(peer_weak, peer, peer_cancel).await;
+                            });
+                        }
+                    }
+                }
+            }
+            let online_peers: Vec<DeviceId> = shared.live_sessions().into_iter().map(|s| s.peer).collect();
+            let sleep_dur = match shared.store.next_queue_wake_ms(&online_peers).ok().flatten() {
+                Some(wake_ms) if wake_ms <= now_ms => Some(Duration::from_millis(50)),
+                Some(wake_ms) => Some(Duration::from_millis((wake_ms - now_ms) as u64)),
+                None => None,
+            };
+            drop(shared);
+            let sleep_fut = async move {
+                match sleep_dur {
+                    Some(d) => tokio::time::sleep(d).await,
+                    None => std::future::pending::<()>().await,
+                }
+            };
+            tokio::select! {
+                _ = cancel.cancelled() => return,
+                _ = &mut notified => {}
+                _ = sleep_fut => {}
+            }
+        }
+    });
+}
+
+async fn run_peer_queue(weak: Weak<Shared>, peer: DeviceId, cancel: CancellationToken) {
+    let _guard = ActivePeerQueueGuard { weak: weak.clone(), peer };
+    loop {
+        if cancel.is_cancelled() {
+            return;
+        }
+        let Some(shared) = weak.upgrade() else { return };
+        let notify = shared.queue_notify.clone();
+        let notified = notify.notified();
+        tokio::pin!(notified);
+        notified.as_mut().enable();
+
+        let now_ms = crate::now_unix_ms();
+        if shared.store.expire_stale_queue_items(now_ms).unwrap_or(0) > 0 {
+            shared.emit(NodeEvent::QueueChanged);
+        }
+
+        let Some(session) = shared.session(&peer) else {
+            let _ = shared.store.clear_send_queue_retry_delays(&peer);
+            return;
+        };
+
+        let head = match shared.store.head_waiting_item_for_peer(&peer) {
+            Ok(Some(h)) => h,
+            Ok(None) => return,
+            Err(e) => {
+                tracing::warn!(peer = %peer.short(), error = %e, "failed to query send queue head");
+                return;
+            }
+        };
+
+        let (item, payload, blob, next_retry_ms) = head;
+        if next_retry_ms > now_ms {
+            let wait_ms = (next_retry_ms - now_ms).min(15_000) as u64;
+            let session_cancel = session.cancel.clone();
+            drop(session);
+            drop(shared);
+            tokio::select! {
+                _ = cancel.cancelled() => return,
+                _ = session_cancel.cancelled() => continue,
+                _ = &mut notified => continue,
+                _ = tokio::time::sleep(Duration::from_millis(wait_ms)) => continue,
+            }
+        }
+
+        match payload {
+            crate::QueuePayload::Files { .. }
+            | crate::QueuePayload::Folder { .. }
+            | crate::QueuePayload::HandoffDocument { .. }
+            | crate::QueuePayload::Recording { .. } => {
+                drop(session);
+                transfer::deliver_queued_files(&shared, &item, &payload).await;
+            }
+            _ => {
+                deliver_queued_rpc(&shared, &session, &item, &payload, blob).await;
+            }
+        }
+    }
+}
+
+async fn deliver_queued_rpc(
+    shared: &Arc<Shared>,
+    session: &Arc<Session>,
+    item: &crate::QueueItem,
+    payload: &crate::QueuePayload,
+    blob: Option<Vec<u8>>,
+) {
+    let peer = item.peer;
+    let _ = shared.store.mark_queue_sending(&item.id);
+    shared.emit(NodeEvent::QueueChanged);
+
+    let outcome: Result<()> = match payload {
+        crate::QueuePayload::Clipboard { text, html, rtf } => {
+            if !shared.toggle_on(&peer, crate::clipboard::TOGGLE) {
+                Err(Error::Denied)
+            } else {
+                match Envelope::new(
+                    types::CLIP_SET,
+                    &ClipSet { text: text.clone(), html: html.clone(), rtf: rtf.clone() },
+                ) {
+                    Ok(env) => match session.request(env, REQUEST_TIMEOUT).await {
+                        Ok(reply) => match reply.expect(types::OK) {
+                            Ok(()) => {
+                                let peer_name = shared.peer_name(&peer);
+                                if let Some((clip_id, evicted)) =
+                                    shared.clipboard_history.record_text_with_id(text, &peer_name, false)
+                                {
+                                    shared.record_timeline_clip(
+                                        peer, &peer_name, false, "text", clip_id, evicted,
+                                    );
+                                    shared.emit(NodeEvent::ClipboardHistoryChanged);
+                                }
+                                Ok(())
+                            }
+                            Err(e) => Err(e.into()),
+                        },
+                        Err(e) => Err(e),
+                    },
+                    Err(e) => Err(e.into()),
+                }
+            }
+        }
+        crate::QueuePayload::ClipboardImage { mime, .. } => match blob {
+            Some(bytes) if !bytes.is_empty() => {
+                crate::clipboard::send_image(shared, session, mime.clone(), bytes).await
+            }
+            _ => Err(Error::Internal("Queued clipboard image payload is missing".into())),
+        },
+        crate::QueuePayload::Link { url, title } => {
+            crate::actions::open_link_on_session(shared, session, url.clone(), title.clone()).await
+        }
+        crate::QueuePayload::TaskNotify { task } => {
+            crate::actions::task_notify_on_session(shared, session, task).await
+        }
+        crate::QueuePayload::CameraRequest { request_id, mode } => {
+            crate::continuity_camera::request_on_session(shared, session, request_id.clone(), *mode).await
+        }
+        crate::QueuePayload::Files { .. }
+        | crate::QueuePayload::Folder { .. }
+        | crate::QueuePayload::HandoffDocument { .. }
+        | crate::QueuePayload::Recording { .. } => {
+            // File payloads go through the transfer path; reaching here is a bug, and the
+            // item must fail rather than be reported as delivered.
+            Err(Error::Internal("file payload routed to the message path".into()))
+        }
+    };
+
+    match outcome {
+        Ok(()) => {
+            let _ = shared.store.complete_queue_item(&item.id);
+            transfer::cleanup_staging_id(shared, &item.id);
+            shared.emit(NodeEvent::QueueChanged);
+        }
+        Err(e) if !crate::actions::is_transient_send_error(&e) => {
+            let _ = shared.store.mark_queue_failed(&item.id, &e.to_string());
+            shared.emit(NodeEvent::QueueChanged);
+        }
+        Err(e) => {
+            let peer_disconnected = !session.is_alive() || shared.session(&peer).is_none();
+            if peer_disconnected {
+                let _ = shared.store.mark_queue_retry_or_wait(&item.id, 0, 0, Some(&e.to_string()));
+                let _ = shared.store.clear_send_queue_retry_delays(&peer);
+                shared.emit(NodeEvent::QueueChanged);
+            } else {
+                const RETRY_BACKOFF_MS: [i64; 5] = [1_000, 2_000, 4_000, 8_000, 15_000];
+                let attempts = item.attempts.saturating_add(1);
+                if (attempts as usize) > RETRY_BACKOFF_MS.len() {
+                    let _ = shared.store.mark_queue_failed(&item.id, &e.to_string());
+                    shared.emit(NodeEvent::QueueChanged);
+                } else {
+                    let delay_ms = RETRY_BACKOFF_MS[(attempts as usize) - 1];
+                    let next_retry = crate::now_unix_ms().saturating_add(delay_ms);
+                    let _ = shared.store.mark_queue_retry_or_wait(
+                        &item.id,
+                        attempts,
+                        next_retry,
+                        Some(&e.to_string()),
+                    );
+                    shared.emit(NodeEvent::QueueChanged);
+                }
+            }
+        }
+    }
+}

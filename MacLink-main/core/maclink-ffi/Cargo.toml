@@ -1,0 +1,38 @@
+[package]
+name = "maclink-ffi"
+description = "UniFFI bindings for maclink-core (used by the Android app)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license = "MPL-2.0"
+publish = false
+
+[lib]
+name = "maclink_ffi"
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+# Generates the Kotlin bindings: see android/README.md.
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+maclink-core.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uniffi.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni-sys = "0.4"
+paranoid-android = "0.2"
+
+[lints]
+workspace = true

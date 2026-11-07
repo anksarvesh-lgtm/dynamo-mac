@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest something ILoveNotch should do.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Not sure yet, or want to talk it through first? Start in [Ideas](https://github.com/niyamvora/ILoveNotch/discussions/categories/ideas) instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      placeholder: When I'm on a call I can't see how long it's been running without switching apps.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What should happen?
+      description: Describe the behavior you want, not how another app does it (ILoveNotch is clean-room; see CONTRIBUTING.md).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything else you've tried or considered?
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to build it?
+      options:
+        - No, just suggesting
+        - Yes, with some guidance
+        - Yes, I'll open a pull request
+    validations:
+      required: true

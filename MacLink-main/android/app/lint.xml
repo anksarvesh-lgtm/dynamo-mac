@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!--
+      Translations arrive language by language (docs/translating.md), so a partly
+      translated one mustn't fail the build. The languages the app offers are
+      checked for completeness by LocalesTest instead.
+    -->
+    <issue id="MissingTranslation" severity="ignore" />
+</lint>
