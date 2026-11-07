@@ -7,6 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B7BFE467B9595F2F94F20FB0 /* AgentSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BC90B75925257349B5F60C6 /* AgentSocketService.swift */; };
+		03394BCC3E615945AA6C32CF /* AgentDockTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 563305B2592B55A0B1922741 /* AgentDockTabView.swift */; };
+		AF7B1D97F10253ED8781BBD3 /* TeleprompterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 678B1BF0CF8A54079BD8CC3D /* TeleprompterService.swift */; };
+		7F1BCBA95F2F566CA1F2A8D5 /* TeleprompterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47AD00AE37A254A5AED8A998 /* TeleprompterView.swift */; };
+		F43632ED14EC5B23BC223BEC /* KeepAwakeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C53E48C856D5544F87DA5786 /* KeepAwakeService.swift */; };
+		7A760D06AAAE5973AA883872 /* AudioSpectrumEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3FD8F67F6518AAE59E393 /* AudioSpectrumEngine.swift */; };
+		F38FA10326E6559BB0A3B675 /* WeatherPrecipitationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EAC4428380058CDA7380D97 /* WeatherPrecipitationEngine.swift */; };
+		5EF7759D480E536C9BE2C3D1 /* LockScreenIslandService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 317DAC1825BF5E379EC44C07 /* LockScreenIslandService.swift */; };
+		BF701076DB1C54C8B4571BCE /* SpotlightLauncherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA551875D1A75A988C1E18E7 /* SpotlightLauncherService.swift */; };
 		FEAE4E7E96ABC1DE5F1971F8 /* visualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = FE52BE63B3EB26FA32B9DBD4 /* visualizer.metal */; };
 		FE7BE14240B8BE47B29DAD64 /* SettingsWatcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1FFC9D375C7D7559956DC9 /* SettingsWatcherView.swift */; };
 		FED05CBC47A7BE35095E8271 /* WatcherDetailCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE2CFF3047CEA1908C289BC /* WatcherDetailCard.swift */; };
@@ -365,6 +374,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		4BC90B75925257349B5F60C6 /* AgentSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSocketService.swift; sourceTree = "<group>"; };
+		563305B2592B55A0B1922741 /* AgentDockTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDockTabView.swift; sourceTree = "<group>"; };
+		678B1BF0CF8A54079BD8CC3D /* TeleprompterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeleprompterService.swift; sourceTree = "<group>"; };
+		47AD00AE37A254A5AED8A998 /* TeleprompterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeleprompterView.swift; sourceTree = "<group>"; };
+		C53E48C856D5544F87DA5786 /* KeepAwakeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeepAwakeService.swift; sourceTree = "<group>"; };
+		E9B3FD8F67F6518AAE59E393 /* AudioSpectrumEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSpectrumEngine.swift; sourceTree = "<group>"; };
+		9EAC4428380058CDA7380D97 /* WeatherPrecipitationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherPrecipitationEngine.swift; sourceTree = "<group>"; };
+		317DAC1825BF5E379EC44C07 /* LockScreenIslandService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenIslandService.swift; sourceTree = "<group>"; };
+		AA551875D1A75A988C1E18E7 /* SpotlightLauncherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightLauncherService.swift; sourceTree = "<group>"; };
 		FE52BE63B3EB26FA32B9DBD4 /* visualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "visualizer.metal"; sourceTree = "<group>"; };
 		FE1FFC9D375C7D7559956DC9 /* SettingsWatcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsWatcherView.swift"; sourceTree = "<group>"; };
 		FEE2CFF3047CEA1908C289BC /* WatcherDetailCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WatcherDetailCard.swift"; sourceTree = "<group>"; };
@@ -723,6 +741,64 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0135D6F3C16A5CDCB859B820 /* AgentSocket */ = {
+			isa = PBXGroup;
+			children = (
+				4BC90B75925257349B5F60C6 /* AgentSocketService.swift */,
+				563305B2592B55A0B1922741 /* AgentDockTabView.swift */,
+			);
+			path = AgentSocket;
+			sourceTree = "<group>";
+		};
+		2FDF759B8B485167924F4BE1 /* Teleprompter */ = {
+			isa = PBXGroup;
+			children = (
+				678B1BF0CF8A54079BD8CC3D /* TeleprompterService.swift */,
+				47AD00AE37A254A5AED8A998 /* TeleprompterView.swift */,
+			);
+			path = Teleprompter;
+			sourceTree = "<group>";
+		};
+		17F1EC18828A543AAB2C8026 /* KeepAwake */ = {
+			isa = PBXGroup;
+			children = (
+				C53E48C856D5544F87DA5786 /* KeepAwakeService.swift */,
+			);
+			path = KeepAwake;
+			sourceTree = "<group>";
+		};
+		74BA8051DE365FC1A995A68D /* AudioSpectrum */ = {
+			isa = PBXGroup;
+			children = (
+				E9B3FD8F67F6518AAE59E393 /* AudioSpectrumEngine.swift */,
+			);
+			path = AudioSpectrum;
+			sourceTree = "<group>";
+		};
+		8B1F52C5BE855832AF5C35E7 /* WeatherPrecipitation */ = {
+			isa = PBXGroup;
+			children = (
+				9EAC4428380058CDA7380D97 /* WeatherPrecipitationEngine.swift */,
+			);
+			path = WeatherPrecipitation;
+			sourceTree = "<group>";
+		};
+		69556CF6BCF859898FB368D1 /* LockScreen */ = {
+			isa = PBXGroup;
+			children = (
+				317DAC1825BF5E379EC44C07 /* LockScreenIslandService.swift */,
+			);
+			path = LockScreen;
+			sourceTree = "<group>";
+		};
+		DFEC7E0191045647BEAB25CE /* Launcher */ = {
+			isa = PBXGroup;
+			children = (
+				AA551875D1A75A988C1E18E7 /* SpotlightLauncherService.swift */,
+			);
+			path = Launcher;
+			sourceTree = "<group>";
+		};
 		FE213747DCCB43D664F183F2 /* Powerload */ = {
 			isa = PBXGroup;
 			children = (
@@ -1264,6 +1340,13 @@
 		E1A000042E60000100000001 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				0135D6F3C16A5CDCB859B820 /* AgentSocket */,
+				2FDF759B8B485167924F4BE1 /* Teleprompter */,
+				17F1EC18828A543AAB2C8026 /* KeepAwake */,
+				74BA8051DE365FC1A995A68D /* AudioSpectrum */,
+				8B1F52C5BE855832AF5C35E7 /* WeatherPrecipitation */,
+				69556CF6BCF859898FB368D1 /* LockScreen */,
+				DFEC7E0191045647BEAB25CE /* Launcher */,
 				FE213747DCCB43D664F183F2 /* Powerload */,
 				A7B000062E60000100000002 /* NetMerge */,
 				FEF8053A205B9C17C3A0659B /* PhoneBridge */,
@@ -1653,6 +1736,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7BFE467B9595F2F94F20FB0 /* AgentSocketService.swift in Sources */,
+				03394BCC3E615945AA6C32CF /* AgentDockTabView.swift in Sources */,
+				AF7B1D97F10253ED8781BBD3 /* TeleprompterService.swift in Sources */,
+				7F1BCBA95F2F566CA1F2A8D5 /* TeleprompterView.swift in Sources */,
+				F43632ED14EC5B23BC223BEC /* KeepAwakeService.swift in Sources */,
+				7A760D06AAAE5973AA883872 /* AudioSpectrumEngine.swift in Sources */,
+				F38FA10326E6559BB0A3B675 /* WeatherPrecipitationEngine.swift in Sources */,
+				5EF7759D480E536C9BE2C3D1 /* LockScreenIslandService.swift in Sources */,
+				BF701076DB1C54C8B4571BCE /* SpotlightLauncherService.swift in Sources */,
 				FEAE4E7E96ABC1DE5F1971F8 /* visualizer.metal in Sources */,
 				FE7BE14240B8BE47B29DAD64 /* SettingsWatcherView.swift in Sources */,
 				FED05CBC47A7BE35095E8271 /* WatcherDetailCard.swift in Sources */,

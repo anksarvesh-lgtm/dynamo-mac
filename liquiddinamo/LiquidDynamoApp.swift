@@ -1024,6 +1024,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         migratePhoneBridgeKeysIfNeeded()
         startClosedEventMonitors()
         AutoStartManager.shared.syncOnLaunch()
+
+        // Start merged dynamic notch engine services
+        _ = AgentSocketService.shared
+        _ = LockScreenIslandService.shared
+        _ = AudioSpectrumEngine.shared
+        _ = WeatherPrecipitationEngine.shared
+        _ = SpotlightLauncherService.shared
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }

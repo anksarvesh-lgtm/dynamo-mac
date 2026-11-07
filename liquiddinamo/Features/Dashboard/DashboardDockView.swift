@@ -19,6 +19,7 @@ struct DashboardDockView: View {
     @ObservedObject var coordinator = LiquidViewCoordinator.shared
     @ObservedObject var volumeManager = VolumeManager.shared
     @ObservedObject var brightnessService = MultiDisplayBrightnessService.shared
+    @ObservedObject var keepAwake = KeepAwakeService.shared
     @Default(.showStatsTab) var showStatsTab
     @Default(.showBluetoothTab) var showBluetoothTab
     @Default(.showDisplaySoundTab) var showDisplaySoundTab
@@ -26,6 +27,8 @@ struct DashboardDockView: View {
     @Default(.showDevicesTab) var showDevicesTab
     @Default(.showNetworkTab) var showNetworkTab
     @Default(.liquidShelf) var liquidShelf
+    @Default(.showAgentTab) var showAgentTab
+    @Default(.showTeleprompterTab) var showTeleprompterTab
 
     @Namespace private var dockAnimation
 
@@ -53,6 +56,12 @@ struct DashboardDockView: View {
         }
         if showCalendarTab {
             list.append(DockTabItem(label: "Calendar", icon: "calendar", view: .calendar))
+        }
+        if showAgentTab {
+            list.append(DockTabItem(label: "AI Agent", icon: "terminal.fill", view: .agent))
+        }
+        if showTeleprompterTab {
+            list.append(DockTabItem(label: "Teleprompter", icon: "text.bubble.fill", view: .teleprompter))
         }
         list.append(DockTabItem(label: "Scopa", icon: "sparkles", view: .cleaner))
         return list
@@ -97,6 +106,17 @@ struct DashboardDockView: View {
                 .frame(width: 26, height: 24)
                 .help(tab.label)
             }
+
+            // Keep Awake Clamshell toggle
+            Icon3DView(
+                icon: keepAwake.isKeepAwakeActive ? "cup.and.saucer.fill" : "cup.and.saucer",
+                isSelected: keepAwake.isKeepAwakeActive,
+                size: 11
+            ) {
+                keepAwake.toggleKeepAwake()
+            }
+            .frame(width: 26, height: 24)
+            .help(keepAwake.isKeepAwakeActive ? "Disable Keep-Awake (Clamshell Active)" : "Enable Keep-Awake (Prevent Sleep)")
 
             // Divider between tabs and settings
             Rectangle()

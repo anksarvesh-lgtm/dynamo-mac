@@ -38,6 +38,8 @@ public enum NotchViews {
     case powerload
     case phoneBridge
     case netMerge
+    case agent
+    case teleprompter
 }
 
 enum SettingsEnum {

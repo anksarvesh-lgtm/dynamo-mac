@@ -711,6 +711,12 @@ struct ContentView: View {
                     case .netMerge:
                         NetMergeTelemetryWing()
                             .frame(maxWidth: .infinity, alignment: .center)
+                    case .agent:
+                        AgentDockTabView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    case .teleprompter:
+                        TeleprompterView()
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -720,6 +726,10 @@ struct ContentView: View {
                 .zIndex(1)
                 .allowsHitTesting((island.state == .expanded || vm.notchState == .open) && island.isExpandedContentVisible)
                 .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
+            }
+            if Defaults[.enableWeatherPrecipitation] {
+                WeatherPrecipitationView()
+                    .allowsHitTesting(false)
             }
         }
         .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], delegate: GeneralDropTargetDelegate(isTargeted: $vm.generalDropTargeting))

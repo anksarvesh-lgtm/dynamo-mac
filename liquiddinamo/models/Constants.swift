@@ -322,6 +322,13 @@ extension Defaults.Keys {
     static let customVisualizers = Key<[CustomVisualizer]>("customVisualizers", default: [])
     static let selectedVisualizer = Key<CustomVisualizer?>("selectedVisualizer", default: nil)
     
+    // MARK: Advanced Merged Features
+    static let showAgentTab = Key<Bool>("showAgentTab", default: true)
+    static let showTeleprompterTab = Key<Bool>("showTeleprompterTab", default: true)
+    static let keepAwakeEnabled = Key<Bool>("keepAwakeEnabled", default: false)
+    static let enableWeatherPrecipitation = Key<Bool>("enableWeatherPrecipitation", default: true)
+    static let enableRealAudioSpectrum = Key<Bool>("enableRealAudioSpectrum", default: true)
+    
     // MARK: Gestures
     static let enableGestures = Key<Bool>("enableGestures", default: true)
     static let closeGestureEnabled = Key<Bool>("closeGestureEnabled", default: true)
