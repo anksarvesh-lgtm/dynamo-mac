@@ -1,8 +1,8 @@
 //
 //  LottieView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-11-14.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

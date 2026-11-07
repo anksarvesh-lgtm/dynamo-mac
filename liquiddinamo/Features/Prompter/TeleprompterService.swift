@@ -58,3 +58,4 @@ your MacBook notch is finally transformed into an intelligent command center.
         scrollOffset = 0.0
     }
 }
+

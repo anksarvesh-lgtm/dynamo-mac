@@ -1,8 +1,8 @@
 //
 //  ListItemPopover.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 15/09/2024.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

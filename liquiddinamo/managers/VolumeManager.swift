@@ -1,8 +1,8 @@
 //
 //  VolumeManager.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by JeanLouis on 22/08/2025.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

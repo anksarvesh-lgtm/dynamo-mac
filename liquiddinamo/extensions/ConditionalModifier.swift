@@ -1,8 +1,8 @@
 //
 //  ConditionalModifier.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 20/08/2024.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

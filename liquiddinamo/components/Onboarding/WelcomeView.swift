@@ -1,8 +1,8 @@
 //
 //  WelcomeView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 2024. 09. 26..
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

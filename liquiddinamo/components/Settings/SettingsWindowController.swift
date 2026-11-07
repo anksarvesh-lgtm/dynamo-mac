@@ -1,8 +1,8 @@
 //
 //  SettingsWindowController.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-06-14.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

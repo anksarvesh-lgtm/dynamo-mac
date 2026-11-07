@@ -1,8 +1,8 @@
 //
 //  LiquidCalendar.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 08/09/24.
+//  LiquidDynamo Core Team
 //
 
 import Defaults

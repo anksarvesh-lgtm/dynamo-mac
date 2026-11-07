@@ -1,8 +1,8 @@
 //
 //  DownloadView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 17/08/24.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

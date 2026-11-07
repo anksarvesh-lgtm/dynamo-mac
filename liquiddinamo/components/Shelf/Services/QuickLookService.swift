@@ -1,8 +1,8 @@
 //
 //  QuickLookService.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-10-07.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

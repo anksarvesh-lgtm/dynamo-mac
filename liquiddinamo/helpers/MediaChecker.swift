@@ -1,8 +1,8 @@
 //
 //  MediaChecker.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-07-26.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

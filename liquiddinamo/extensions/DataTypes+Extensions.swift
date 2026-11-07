@@ -1,8 +1,8 @@
     //
     //  DataTypes+Extensions.swift
-    //  boringNotch
+    //  LiquidDynamo
     //
-    //  Created by Harsh Vardhan  Goswami  on 27/08/24.
+    //  LiquidDynamo Core Team
     //
 
 import Foundation

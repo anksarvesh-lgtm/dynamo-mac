@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05E477E82AB25FFEBE652453 /* AlertCenterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59CB6DD26FB15C16838A58E4 /* AlertCenterService.swift */; };
+		561638BFEA4A5842B27520AE /* AlertCenterShadeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8DF0FA1EBE5434814FE1D1 /* AlertCenterShadeView.swift */; };
+		36671DE21897529186E3B672 /* TransferStreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C75A8B04C450B7B76616F2 /* TransferStreamService.swift */; };
+		CAAD335E5ED85049A5723C66 /* MeetingFlightService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0C41DA2C45504EBFFE623C /* MeetingFlightService.swift */; };
+		D62AA5C2AE6559AFAB8FB573 /* LiquidBuddyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787127D970D554C5A5DB134B /* LiquidBuddyService.swift */; };
+		A87FEB749EF65708A8A526A1 /* QueueNavigatorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F527F039D9458EAB8721272 /* QueueNavigatorService.swift */; };
+		203BBB122B595671BFA6F681 /* IntelligenceQuotaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8CB43EB4CE85BAD9EBE396F /* IntelligenceQuotaService.swift */; };
 		B7BFE467B9595F2F94F20FB0 /* AgentSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BC90B75925257349B5F60C6 /* AgentSocketService.swift */; };
 		03394BCC3E615945AA6C32CF /* AgentDockTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 563305B2592B55A0B1922741 /* AgentDockTabView.swift */; };
 		AF7B1D97F10253ED8781BBD3 /* TeleprompterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 678B1BF0CF8A54079BD8CC3D /* TeleprompterService.swift */; };
@@ -374,6 +381,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		59CB6DD26FB15C16838A58E4 /* AlertCenterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCenterService.swift; sourceTree = "<group>"; };
+		1A8DF0FA1EBE5434814FE1D1 /* AlertCenterShadeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCenterShadeView.swift; sourceTree = "<group>"; };
+		44C75A8B04C450B7B76616F2 /* TransferStreamService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStreamService.swift; sourceTree = "<group>"; };
+		AC0C41DA2C45504EBFFE623C /* MeetingFlightService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingFlightService.swift; sourceTree = "<group>"; };
+		787127D970D554C5A5DB134B /* LiquidBuddyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidBuddyService.swift; sourceTree = "<group>"; };
+		1F527F039D9458EAB8721272 /* QueueNavigatorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueNavigatorService.swift; sourceTree = "<group>"; };
+		A8CB43EB4CE85BAD9EBE396F /* IntelligenceQuotaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntelligenceQuotaService.swift; sourceTree = "<group>"; };
 		4BC90B75925257349B5F60C6 /* AgentSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSocketService.swift; sourceTree = "<group>"; };
 		563305B2592B55A0B1922741 /* AgentDockTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDockTabView.swift; sourceTree = "<group>"; };
 		678B1BF0CF8A54079BD8CC3D /* TeleprompterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeleprompterService.swift; sourceTree = "<group>"; };
@@ -741,62 +755,111 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0135D6F3C16A5CDCB859B820 /* AgentSocket */ = {
+		29034770DC0A5774BD079812 /* AlertCenter */ = {
+			isa = PBXGroup;
+			children = (
+				59CB6DD26FB15C16838A58E4 /* AlertCenterService.swift */,
+				1A8DF0FA1EBE5434814FE1D1 /* AlertCenterShadeView.swift */,
+			);
+			path = AlertCenter;
+			sourceTree = "<group>";
+		};
+		8F2F43D08BFE5F8FBD13CD1A /* TransferStream */ = {
+			isa = PBXGroup;
+			children = (
+				44C75A8B04C450B7B76616F2 /* TransferStreamService.swift */,
+			);
+			path = TransferStream;
+			sourceTree = "<group>";
+		};
+		1217CA447D3854A182181156 /* MeetingFlight */ = {
+			isa = PBXGroup;
+			children = (
+				AC0C41DA2C45504EBFFE623C /* MeetingFlightService.swift */,
+			);
+			path = MeetingFlight;
+			sourceTree = "<group>";
+		};
+		D9D6260FEF0A5A2881DFFD0D /* Buddy */ = {
+			isa = PBXGroup;
+			children = (
+				787127D970D554C5A5DB134B /* LiquidBuddyService.swift */,
+			);
+			path = Buddy;
+			sourceTree = "<group>";
+		};
+		D277E744C8E354D98DB81AF3 /* QueueNavigator */ = {
+			isa = PBXGroup;
+			children = (
+				1F527F039D9458EAB8721272 /* QueueNavigatorService.swift */,
+			);
+			path = QueueNavigator;
+			sourceTree = "<group>";
+		};
+		D7F806D451525E5394C428AD /* IntelligenceQuota */ = {
+			isa = PBXGroup;
+			children = (
+				A8CB43EB4CE85BAD9EBE396F /* IntelligenceQuotaService.swift */,
+			);
+			path = IntelligenceQuota;
+			sourceTree = "<group>";
+		};
+		0135D6F3C16A5CDCB859B820 /* AgentLink */ = {
 			isa = PBXGroup;
 			children = (
 				4BC90B75925257349B5F60C6 /* AgentSocketService.swift */,
 				563305B2592B55A0B1922741 /* AgentDockTabView.swift */,
 			);
-			path = AgentSocket;
+			path = AgentLink;
 			sourceTree = "<group>";
 		};
-		2FDF759B8B485167924F4BE1 /* Teleprompter */ = {
+		2FDF759B8B485167924F4BE1 /* Prompter */ = {
 			isa = PBXGroup;
 			children = (
 				678B1BF0CF8A54079BD8CC3D /* TeleprompterService.swift */,
 				47AD00AE37A254A5AED8A998 /* TeleprompterView.swift */,
 			);
-			path = Teleprompter;
+			path = Prompter;
 			sourceTree = "<group>";
 		};
-		17F1EC18828A543AAB2C8026 /* KeepAwake */ = {
+		17F1EC18828A543AAB2C8026 /* ClamshellAnchor */ = {
 			isa = PBXGroup;
 			children = (
 				C53E48C856D5544F87DA5786 /* KeepAwakeService.swift */,
 			);
-			path = KeepAwake;
+			path = ClamshellAnchor;
 			sourceTree = "<group>";
 		};
-		74BA8051DE365FC1A995A68D /* AudioSpectrum */ = {
+		74BA8051DE365FC1A995A68D /* SpectralEqualizer */ = {
 			isa = PBXGroup;
 			children = (
 				E9B3FD8F67F6518AAE59E393 /* AudioSpectrumEngine.swift */,
 			);
-			path = AudioSpectrum;
+			path = SpectralEqualizer;
 			sourceTree = "<group>";
 		};
-		8B1F52C5BE855832AF5C35E7 /* WeatherPrecipitation */ = {
+		8B1F52C5BE855832AF5C35E7 /* Atmosphere */ = {
 			isa = PBXGroup;
 			children = (
 				9EAC4428380058CDA7380D97 /* WeatherPrecipitationEngine.swift */,
 			);
-			path = WeatherPrecipitation;
+			path = Atmosphere;
 			sourceTree = "<group>";
 		};
-		69556CF6BCF859898FB368D1 /* LockScreen */ = {
+		69556CF6BCF859898FB368D1 /* LockHorizon */ = {
 			isa = PBXGroup;
 			children = (
 				317DAC1825BF5E379EC44C07 /* LockScreenIslandService.swift */,
 			);
-			path = LockScreen;
+			path = LockHorizon;
 			sourceTree = "<group>";
 		};
-		DFEC7E0191045647BEAB25CE /* Launcher */ = {
+		DFEC7E0191045647BEAB25CE /* QuickCommand */ = {
 			isa = PBXGroup;
 			children = (
 				AA551875D1A75A988C1E18E7 /* SpotlightLauncherService.swift */,
 			);
-			path = Launcher;
+			path = QuickCommand;
 			sourceTree = "<group>";
 		};
 		FE213747DCCB43D664F183F2 /* Powerload */ = {
@@ -1340,13 +1403,19 @@
 		E1A000042E60000100000001 /* Features */ = {
 			isa = PBXGroup;
 			children = (
-				0135D6F3C16A5CDCB859B820 /* AgentSocket */,
-				2FDF759B8B485167924F4BE1 /* Teleprompter */,
-				17F1EC18828A543AAB2C8026 /* KeepAwake */,
-				74BA8051DE365FC1A995A68D /* AudioSpectrum */,
-				8B1F52C5BE855832AF5C35E7 /* WeatherPrecipitation */,
-				69556CF6BCF859898FB368D1 /* LockScreen */,
-				DFEC7E0191045647BEAB25CE /* Launcher */,
+				29034770DC0A5774BD079812 /* AlertCenter */,
+				8F2F43D08BFE5F8FBD13CD1A /* TransferStream */,
+				1217CA447D3854A182181156 /* MeetingFlight */,
+				D9D6260FEF0A5A2881DFFD0D /* Buddy */,
+				D277E744C8E354D98DB81AF3 /* QueueNavigator */,
+				D7F806D451525E5394C428AD /* IntelligenceQuota */,
+				0135D6F3C16A5CDCB859B820 /* AgentLink */,
+				2FDF759B8B485167924F4BE1 /* Prompter */,
+				17F1EC18828A543AAB2C8026 /* ClamshellAnchor */,
+				74BA8051DE365FC1A995A68D /* SpectralEqualizer */,
+				8B1F52C5BE855832AF5C35E7 /* Atmosphere */,
+				69556CF6BCF859898FB368D1 /* LockHorizon */,
+				DFEC7E0191045647BEAB25CE /* QuickCommand */,
 				FE213747DCCB43D664F183F2 /* Powerload */,
 				A7B000062E60000100000002 /* NetMerge */,
 				FEF8053A205B9C17C3A0659B /* PhoneBridge */,
@@ -1736,6 +1805,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				05E477E82AB25FFEBE652453 /* AlertCenterService.swift in Sources */,
+				561638BFEA4A5842B27520AE /* AlertCenterShadeView.swift in Sources */,
+				36671DE21897529186E3B672 /* TransferStreamService.swift in Sources */,
+				CAAD335E5ED85049A5723C66 /* MeetingFlightService.swift in Sources */,
+				D62AA5C2AE6559AFAB8FB573 /* LiquidBuddyService.swift in Sources */,
+				A87FEB749EF65708A8A526A1 /* QueueNavigatorService.swift in Sources */,
+				203BBB122B595671BFA6F681 /* IntelligenceQuotaService.swift in Sources */,
 				B7BFE467B9595F2F94F20FB0 /* AgentSocketService.swift in Sources */,
 				03394BCC3E615945AA6C32CF /* AgentDockTabView.swift in Sources */,
 				AF7B1D97F10253ED8781BBD3 /* TeleprompterService.swift in Sources */,

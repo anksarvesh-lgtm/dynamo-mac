@@ -1,8 +1,8 @@
 //
 //  ApplicationRelauncher.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Corentin132 on 03/10/2025.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

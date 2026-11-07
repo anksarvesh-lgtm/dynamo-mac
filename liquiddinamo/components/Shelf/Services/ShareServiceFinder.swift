@@ -1,8 +1,8 @@
 //
 //  ShareServiceFinder.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-10-06.
+//  LiquidDynamo Core Team
 //
 
 import Cocoa

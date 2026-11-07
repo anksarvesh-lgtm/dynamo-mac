@@ -1,8 +1,8 @@
 //
 //  LottieAnimationContainer.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 2024. 10. 29..
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

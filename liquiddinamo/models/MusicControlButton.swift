@@ -1,8 +1,8 @@
 //
 //  MusicControlButton.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-11-16.
+//  LiquidDynamo Core Team
 //
 
 import Defaults

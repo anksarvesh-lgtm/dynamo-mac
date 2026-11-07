@@ -2,9 +2,9 @@
 //  CalendarServiceProvider.swift
 //  Calendr
 //
-//  Created by Paker on 31/12/20.
+//  LiquidDynamo Core Team
 //  Original source: Original source: https://github.com/pakerwreah/Calendr
-//  Modified by Alexander on 08/06/25
+//  LiquidDynamo Core Team
 //
 
 import Foundation

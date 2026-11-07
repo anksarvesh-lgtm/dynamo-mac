@@ -1,8 +1,8 @@
 //
 //  PermissionsRequestView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-06-23.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

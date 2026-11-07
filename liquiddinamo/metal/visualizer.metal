@@ -1,8 +1,8 @@
 //
 //  visualizer.metal
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 28/08/24.
+//  LiquidDynamo Core Team
 //
 
 #include <metal_stdlib>

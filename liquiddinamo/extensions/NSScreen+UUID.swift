@@ -1,8 +1,8 @@
 //
 //  NSScreen+UUID.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-11-21.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

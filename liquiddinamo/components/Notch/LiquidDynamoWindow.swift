@@ -1,8 +1,8 @@
 //
 //  LiquidDynamoWindow.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 06/08/24.
+//  LiquidDynamo Core Team
 //
 
 import Cocoa

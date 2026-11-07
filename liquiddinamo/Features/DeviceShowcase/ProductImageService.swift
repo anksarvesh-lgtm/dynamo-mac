@@ -1,8 +1,8 @@
 //
 //  ProductImageService.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created for Boring Notch
+//  Created for LiquidDynamo
 //
 
 import AppKit

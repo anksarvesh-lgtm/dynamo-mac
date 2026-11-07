@@ -1,8 +1,8 @@
 //
 //  ShelfDropService.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-09-26.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

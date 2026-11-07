@@ -1,8 +1,8 @@
 //
 //  FullscreenMediaDetection.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 06/09/2024.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

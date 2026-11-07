@@ -1,8 +1,8 @@
 //
 //  Constants.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 16/08/2024.
+//  LiquidDynamo Core Team
 //
 
 import KeyboardShortcuts

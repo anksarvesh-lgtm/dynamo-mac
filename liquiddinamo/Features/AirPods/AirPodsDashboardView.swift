@@ -1,8 +1,8 @@
 //
 //  AirPodsDashboardView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Agrigence on 2026-10-04.
+//  LiquidDynamo Core Team
 //  Copyright © 2026 Agrigence. All rights reserved.
 //
 

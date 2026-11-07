@@ -1,8 +1,8 @@
 //
 //  HelloAnimation.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 08/08/24.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

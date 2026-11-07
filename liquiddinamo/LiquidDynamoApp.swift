@@ -1,8 +1,8 @@
 //
-//  boringNotchApp.swift
-//  boringNotchApp
+//  LiquidDynamo
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 02/08/24.
+//  LiquidDynamo Core Team
 //
 
 import AVFoundation
@@ -1031,6 +1031,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         _ = AudioSpectrumEngine.shared
         _ = WeatherPrecipitationEngine.shared
         _ = SpotlightLauncherService.shared
+        _ = AlertCenterService.shared
+        _ = TransferStreamService.shared
+        _ = MeetingFlightService.shared
+        _ = LiquidBuddyService.shared
+        _ = QueueNavigatorService.shared
+        _ = IntelligenceQuotaService.shared
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }

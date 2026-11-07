@@ -1,8 +1,8 @@
 //
 //  DragDetector.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-11-20.
+//  LiquidDynamo Core Team
 //
 
 import Cocoa

@@ -1,8 +1,8 @@
 //
 //  LiquidHeader.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 04/08/24.
+//  LiquidDynamo Core Team
 //
 
 import Defaults

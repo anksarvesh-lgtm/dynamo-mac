@@ -1,6 +1,6 @@
 //
 //  Premium3DIcon.swift
-//  boringNotch / LiquidDynamo
+//  LiquidDynamo
 //
 //  Flagship 3D Vector Icon System
 //  Provides offline, high-DPI, multi-layer 3D icons with realistic lighting,

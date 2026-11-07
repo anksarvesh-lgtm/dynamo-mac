@@ -1,8 +1,8 @@
 //
 //  AudioPlayer.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Harsh Vardhan  Goswami  on 09/08/24.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

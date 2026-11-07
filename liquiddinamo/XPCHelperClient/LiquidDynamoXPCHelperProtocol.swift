@@ -2,7 +2,7 @@
 //  LiquidDynamoXPCHelperProtocol.swift
 //  LiquidDynamoXPCHelper
 //
-//  Created by Alexander on 2025-11-16.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

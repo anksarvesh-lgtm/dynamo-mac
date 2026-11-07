@@ -1,8 +1,8 @@
 //
 //  SharingStateManager.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-10-10.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

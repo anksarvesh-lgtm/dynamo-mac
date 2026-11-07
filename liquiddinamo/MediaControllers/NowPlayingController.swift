@@ -1,8 +1,8 @@
 //
 //  NowPlayingController.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-03-29.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

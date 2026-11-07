@@ -1,7 +1,7 @@
 //  BrightnessManager.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by JeanLouis on 08/22/24.
+//  LiquidDynamo Core Team
 
 import AppKit
 import Defaults

@@ -1,8 +1,8 @@
 //
 //  NSMenu+AssociatedObject.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-10-05.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

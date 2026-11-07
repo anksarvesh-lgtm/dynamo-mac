@@ -1,8 +1,8 @@
 //
 //  ImageProcessingService.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-10-16.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

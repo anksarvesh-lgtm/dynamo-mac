@@ -2,7 +2,7 @@
 //  CalendarModel.swift
 //  Calendr
 //
-//  Created by Paker on 31/12/20.
+//  LiquidDynamo Core Team
 //  Original source: https://github.com/pakerwreah/Calendr
 //
 

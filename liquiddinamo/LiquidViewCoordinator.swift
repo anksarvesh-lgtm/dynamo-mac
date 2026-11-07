@@ -1,8 +1,8 @@
 //
 //  LiquidViewCoordinator.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2024-11-20.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

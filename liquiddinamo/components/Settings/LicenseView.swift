@@ -125,7 +125,7 @@ struct LicenseView: View {
         """
         LiquidDynamo incorporates or interfaces with the following open-source projects:
 
-        - Boring Notch (GPL-3.0) - Copyright (c) TheBoredTeam
+        - LiquidDynamo (GPL-3.0) - Copyright (c) TheBoredTeam
         - Purge (MIT License) - Copyright (c) 2026 Jithin Sabu
         - Plexo (MIT License) - Copyright (c) 2026 Anmol Kapil
         - Net-Merge (MIT License) - Copyright (c) Rohit

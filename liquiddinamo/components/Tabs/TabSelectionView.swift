@@ -1,8 +1,8 @@
 //
 //  TabSelectionView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Hugo Persson on 2024-08-25.
+//  LiquidDynamo Core Team
 //
 
 import Defaults

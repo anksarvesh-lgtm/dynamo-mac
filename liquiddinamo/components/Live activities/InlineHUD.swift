@@ -1,8 +1,8 @@
 //
 //  InlineHUDs.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 14/09/2024.
+//  LiquidDynamo Core Team
 //
 
 import Defaults

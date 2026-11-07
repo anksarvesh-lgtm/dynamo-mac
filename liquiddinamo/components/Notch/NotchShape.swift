@@ -1,10 +1,10 @@
 //
 //  NotchShape.swift
-//  boringNotch
+//  LiquidDynamo
 //
-// Created by Kai Azim on 2023-08-24.
+//  LiquidDynamo Core Team
 // Original source: https://github.com/MrKai77/DynamicNotchKit
-// Modified by Alexander on 2025-05-18.
+//  LiquidDynamo Core Team
 
 import SwiftUI
 

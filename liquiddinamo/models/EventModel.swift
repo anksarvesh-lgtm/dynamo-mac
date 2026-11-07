@@ -2,9 +2,9 @@
 //  EventModel.swift
 //  Calendr
 //
-//  Created by Paker on 24/12/20.
+//  LiquidDynamo Core Team
 //  Original source: https://github.com/pakerwreah/Calendr
-//  Modified by Alexander on 2025-05-18.
+//  LiquidDynamo Core Team
 //
 
 import Foundation

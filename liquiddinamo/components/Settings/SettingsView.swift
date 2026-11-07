@@ -1,8 +1,8 @@
 //
 //  SettingsView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 07/08/2024.
+//  LiquidDynamo Core Team
 //
 
 import AVFoundation

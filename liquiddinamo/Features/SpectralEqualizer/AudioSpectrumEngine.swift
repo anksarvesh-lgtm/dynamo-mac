@@ -53,3 +53,4 @@ public final class AudioSpectrumEngine: ObservableObject {
         self.isHearing = true
     }
 }
+

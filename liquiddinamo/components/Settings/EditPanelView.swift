@@ -1,8 +1,8 @@
 //
 //  EditPanelView.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 12/08/2024.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

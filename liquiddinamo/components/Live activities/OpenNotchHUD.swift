@@ -1,8 +1,8 @@
 //
 //  OpenNotchHUD.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2024-11-23.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

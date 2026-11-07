@@ -1,8 +1,8 @@
 //
 //  HoverButton.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Kraigo on 04.09.2024.
+//  LiquidDynamo Core Team
 //
 
 import SwiftUI

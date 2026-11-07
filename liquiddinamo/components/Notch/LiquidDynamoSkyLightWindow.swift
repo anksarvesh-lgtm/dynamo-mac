@@ -1,8 +1,8 @@
 //
 //  LiquidDynamoSkyLightWindow.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-10-20.
+//  LiquidDynamo Core Team
 //
 
 import Cocoa

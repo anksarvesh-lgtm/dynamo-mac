@@ -1,8 +1,8 @@
 //
 //  PanGesture.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Richard Kunkli on 21/08/2024.
+//  LiquidDynamo Core Team
 //
 
 import AppKit

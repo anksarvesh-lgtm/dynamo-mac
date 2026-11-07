@@ -1,8 +1,8 @@
 //
 //  MediaKeyInterceptor.swift
-//  boringNotch
+//  LiquidDynamo
 //
-//  Created by Alexander on 2025-11-23.
+//  LiquidDynamo Core Team
 //  Updated for OSD and robust Accessibility event tap lifecycle.
 //
 
