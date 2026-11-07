@@ -60,6 +60,8 @@ swiftc -module-name LiquidDynamo \
   -framework CoreMediaIO \
   -framework EventKit \
   -framework CoreBluetooth \
+  -framework IOBluetooth \
+  -framework UserNotifications \
   -framework SceneKit \
   -framework ServiceManagement \
   -framework CoreWLAN \

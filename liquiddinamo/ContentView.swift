@@ -674,6 +674,11 @@ struct ContentView: View {
                .zIndex(2)
             if (island.state == .expanded || vm.notchState == .open) && (island.activeOrganicItem != .none || (island.activeExpandedAlert == nil && hub.activeAlert == nil && hub.activeNotification == nil)) {
                 VStack(alignment: .center, spacing: 0) {
+                    if MacLinkBridgeService.shared.incomingCall != nil || MacLinkBridgeService.shared.isCallActive {
+                        IncomingCallHUDView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.bottom, 6)
+                    }
                     switch coordinator.currentView {
                     case .home:
                         DashboardHomeView(albumArtNamespace: albumArtNamespace)
@@ -706,7 +711,7 @@ struct ContentView: View {
                         PowerloadView()
                             .frame(maxWidth: .infinity, alignment: .center)
                     case .phoneBridge:
-                        PhoneBridgeView()
+                        PhoneCommandDeckView()
                             .frame(maxWidth: .infinity, alignment: .center)
                     case .netMerge:
                         NetMergeTelemetryWing()
@@ -2001,6 +2006,40 @@ struct CollapsedLiveInfoWingsView: View {
                     Text(artist.isEmpty ? title : "\(title) • \(artist)")
                         .font(.system(size: 9.5, weight: .semibold))
                         .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .phoneBattery:
+            let bridge = MacLinkBridgeService.shared
+            HStack(spacing: 3.5) {
+                Image(systemName: bridge.isCharging ? "bolt.fill" : "iphone.gen3")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(bridge.isCharging ? Color.green : Color.accentColor)
+                if showDetails {
+                    Text("\(bridge.batteryLevel)%")
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .phoneSignal:
+            let bridge = MacLinkBridgeService.shared
+            HStack(spacing: 3.5) {
+                HStack(spacing: 1.5) {
+                    ForEach(1...4, id: \.self) { bar in
+                        RoundedRectangle(cornerRadius: 0.5)
+                            .fill(bar <= bridge.cellularSignalBars ? Color.white : Color.white.opacity(0.3))
+                            .frame(width: 2, height: CGFloat(2 + bar * 1.5))
+                    }
+                }
+                if showDetails {
+                    Text(bridge.cellularNetworkType)
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .fixedSize()
                 }

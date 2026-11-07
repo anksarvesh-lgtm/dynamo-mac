@@ -96,3 +96,4 @@ public struct TransferStreamHUDView: View {
         }
     }
 }
+

@@ -106,6 +106,8 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
     case weather = "Weather"
     case mediaPlayback = "Media Controls"
     case mediaTitle = "Now Playing Track"
+    case phoneBattery = "Phone Battery"
+    case phoneSignal = "Phone Cellular Signal"
 
     public var id: String { rawValue }
 
@@ -123,6 +125,10 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
             return "Now Playing Track"
         case .ramDetails:
             return "RAM (Used / Total)"
+        case .phoneBattery:
+            return "Phone Battery (Android)"
+        case .phoneSignal:
+            return "Phone Cellular Signal (5G/LTE)"
         default:
             return rawValue
         }

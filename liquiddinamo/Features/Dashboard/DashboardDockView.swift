@@ -48,6 +48,7 @@ struct DashboardDockView: View {
         if showDevicesTab {
             list.append(DockTabItem(label: "Devices", icon: "laptopcomputer.and.iphone", view: .devices))
         }
+        list.append(DockTabItem(label: "Phone", icon: "iphone.gen3", view: .phoneBridge))
         if showNetworkTab {
             list.append(DockTabItem(label: "Network", icon: "network", view: .network))
         }

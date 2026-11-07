@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6FDC1B08227C5775A88B16BE /* BluetoothHFPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56E3470A4ABC5A3081783DCF /* BluetoothHFPManager.swift */; };
+		56C17E6CC4425AF9A8DE66EB /* CallNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FCA4641D6AF5FB5BEFB23D2 /* CallNotifier.swift */; };
+		03A1EF6CF7A451AEA9A5B5FF /* MacLinkBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F5E5811DE5A4CBC010455 /* MacLinkBridgeService.swift */; };
+		44E32EE28D8C56E2B655B3C3 /* IncomingCallHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C5BD8A191ED5F30B13537FD /* IncomingCallHUDView.swift */; };
+		B39C5EAD0C025998AC31E23F /* PhoneCommandDeckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B59B9AC284F5F968496C82E /* PhoneCommandDeckView.swift */; };
 		05E477E82AB25FFEBE652453 /* AlertCenterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59CB6DD26FB15C16838A58E4 /* AlertCenterService.swift */; };
 		561638BFEA4A5842B27520AE /* AlertCenterShadeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8DF0FA1EBE5434814FE1D1 /* AlertCenterShadeView.swift */; };
 		36671DE21897529186E3B672 /* TransferStreamService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C75A8B04C450B7B76616F2 /* TransferStreamService.swift */; };
@@ -381,6 +386,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		56E3470A4ABC5A3081783DCF /* BluetoothHFPManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothHFPManager.swift; sourceTree = "<group>"; };
+		8FCA4641D6AF5FB5BEFB23D2 /* CallNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallNotifier.swift; sourceTree = "<group>"; };
+		0E2F5E5811DE5A4CBC010455 /* MacLinkBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLinkBridgeService.swift; sourceTree = "<group>"; };
+		2C5BD8A191ED5F30B13537FD /* IncomingCallHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingCallHUDView.swift; sourceTree = "<group>"; };
+		7B59B9AC284F5F968496C82E /* PhoneCommandDeckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCommandDeckView.swift; sourceTree = "<group>"; };
 		59CB6DD26FB15C16838A58E4 /* AlertCenterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCenterService.swift; sourceTree = "<group>"; };
 		1A8DF0FA1EBE5434814FE1D1 /* AlertCenterShadeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCenterShadeView.swift; sourceTree = "<group>"; };
 		44C75A8B04C450B7B76616F2 /* TransferStreamService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferStreamService.swift; sourceTree = "<group>"; };
@@ -893,6 +903,11 @@
 		FEF8053A205B9C17C3A0659B /* PhoneBridge */ = {
 			isa = PBXGroup;
 			children = (
+				56E3470A4ABC5A3081783DCF /* BluetoothHFPManager.swift */,
+				8FCA4641D6AF5FB5BEFB23D2 /* CallNotifier.swift */,
+				0E2F5E5811DE5A4CBC010455 /* MacLinkBridgeService.swift */,
+				2C5BD8A191ED5F30B13537FD /* IncomingCallHUDView.swift */,
+				7B59B9AC284F5F968496C82E /* PhoneCommandDeckView.swift */,
 				FE2C79EF051333FACD143995 /* AndroidTransferBackend.swift */,
 				FE9FC2F5F64CAF3A82B286B8 /* PhoneBridgeEngine.swift */,
 				FE5943EEF4AB9534B1D59494 /* PhoneBridgeModels.swift */,
@@ -1805,6 +1820,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6FDC1B08227C5775A88B16BE /* BluetoothHFPManager.swift in Sources */,
+				56C17E6CC4425AF9A8DE66EB /* CallNotifier.swift in Sources */,
+				03A1EF6CF7A451AEA9A5B5FF /* MacLinkBridgeService.swift in Sources */,
+				44E32EE28D8C56E2B655B3C3 /* IncomingCallHUDView.swift in Sources */,
+				B39C5EAD0C025998AC31E23F /* PhoneCommandDeckView.swift in Sources */,
 				05E477E82AB25FFEBE652453 /* AlertCenterService.swift in Sources */,
 				561638BFEA4A5842B27520AE /* AlertCenterShadeView.swift in Sources */,
 				36671DE21897529186E3B672 /* TransferStreamService.swift in Sources */,

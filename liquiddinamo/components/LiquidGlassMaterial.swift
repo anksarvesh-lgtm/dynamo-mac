@@ -2,8 +2,7 @@
 //  LiquidGlassMaterial.swift
 //  LiquidDynamo
 //
-//  Advanced Liquid Glass visual styling and material system inspired by
-//  Apple Liquid Glass Studio (https://github.com/iyinchao/liquid-glass-studio).
+//  Advanced Liquid Glass visual styling and material system for LiquidDynamo.
 //  Provides chromatic dispersion, Fresnel rim reflections, directional glare,
 //  and superellipse squircle curvature across macOS SwiftUI views.
 //

@@ -1037,6 +1037,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         _ = LiquidBuddyService.shared
         _ = QueueNavigatorService.shared
         _ = IntelligenceQuotaService.shared
+        _ = MacLinkBridgeService.shared
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }

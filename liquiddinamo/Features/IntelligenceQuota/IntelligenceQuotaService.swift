@@ -63,3 +63,4 @@ public struct IntelligenceQuotaView: View {
         .cornerRadius(8)
     }
 }
+

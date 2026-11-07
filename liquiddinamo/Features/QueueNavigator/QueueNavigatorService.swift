@@ -95,3 +95,4 @@ public struct QueueNavigatorView: View {
         .cornerRadius(8)
     }
 }
+

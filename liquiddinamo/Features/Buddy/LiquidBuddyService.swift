@@ -72,3 +72,4 @@ public struct LiquidBuddyView: View {
         .buttonStyle(.plain)
     }
 }
+
