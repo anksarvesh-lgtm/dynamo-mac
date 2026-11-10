@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import SwiftUI
 
 public struct TransferItem: Identifiable {
     public let id = UUID()
@@ -65,6 +66,7 @@ public final class TransferStreamService: ObservableObject {
     }
 }
 
+@MainActor
 public struct TransferStreamHUDView: View {
     @ObservedObject var stream = TransferStreamService.shared
 

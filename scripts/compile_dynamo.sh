@@ -44,42 +44,46 @@ print(f'Prepared {len(sources)} Swift source files.')
 
 # 3. Compile LiquidDynamo binary
 OUTPUT_BIN="$SPM_DEPS_DIR/LiquidDynamo_test"
-echo "==> Compiling LiquidDynamo executable to $OUTPUT_BIN..."
-swiftc -module-name LiquidDynamo \
-  -target arm64-apple-macos14.0 \
-  -sdk "$SDK" \
-  -O -whole-module-optimization \
-  -I "$MODULES_DIR" \
-  -F "$FRAMEWORKS_DIR" \
-  -F "$DIR/mediaremote-adapter" \
-  -F "$SDK/System/Library/PrivateFrameworks" \
-  -framework Sparkle \
-  -framework Lottie \
-  -framework IOKit \
-  -framework AVFoundation \
-  -framework CoreMediaIO \
-  -framework EventKit \
-  -framework CoreBluetooth \
-  -framework IOBluetooth \
-  -framework UserNotifications \
-  -framework SceneKit \
-  -framework ServiceManagement \
-  -framework CoreWLAN \
-  -framework DiskArbitration \
-  -L "$MODULES_DIR" \
-  -lAsyncXPCConnection \
-  -lDefaults \
-  -lKeyboardShortcuts \
-  -lLaunchAtLogin \
-  -lMacroVisionKit \
-  -lSkyLightWindow \
-  -lSwiftUIIntrospect \
-  -parse-as-library \
-  -emit-executable \
-  -o "$OUTPUT_BIN" \
-  @"$SPM_DEPS_DIR/all_dynamo_sources.txt" \
-  -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
-  -Xlinker -rpath -Xlinker "$DIR/mediaremote-adapter"
+if [ "${SKIP_COMPILE:-0}" = "1" ] && [ -f "$OUTPUT_BIN" ]; then
+  echo "==> Reusing pre-compiled LiquidDynamo binary at $OUTPUT_BIN..."
+else
+  echo "==> Compiling LiquidDynamo executable to $OUTPUT_BIN..."
+  swiftc -module-name LiquidDynamo \
+    -target arm64-apple-macos14.0 \
+    -sdk "$SDK" \
+    -O -whole-module-optimization \
+    -I "$MODULES_DIR" \
+    -F "$FRAMEWORKS_DIR" \
+    -F "$DIR/mediaremote-adapter" \
+    -F "$SDK/System/Library/PrivateFrameworks" \
+    -framework Sparkle \
+    -framework Lottie \
+    -framework IOKit \
+    -framework AVFoundation \
+    -framework CoreMediaIO \
+    -framework EventKit \
+    -framework CoreBluetooth \
+    -framework IOBluetooth \
+    -framework UserNotifications \
+    -framework SceneKit \
+    -framework ServiceManagement \
+    -framework CoreWLAN \
+    -framework DiskArbitration \
+    -L "$MODULES_DIR" \
+    -lAsyncXPCConnection \
+    -lDefaults \
+    -lKeyboardShortcuts \
+    -lLaunchAtLogin \
+    -lMacroVisionKit \
+    -lSkyLightWindow \
+    -lSwiftUIIntrospect \
+    -parse-as-library \
+    -emit-executable \
+    -o "$OUTPUT_BIN" \
+    @"$SPM_DEPS_DIR/all_dynamo_sources.txt" \
+    -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
+    -Xlinker -rpath -Xlinker "$DIR/mediaremote-adapter"
+fi
 
 # 4. Re-link install names to @rpath
 for lib in AsyncXPCConnection Defaults KeyboardShortcuts LaunchAtLogin MacroVisionKit SkyLightWindow SwiftUIIntrospect; do

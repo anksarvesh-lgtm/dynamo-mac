@@ -2034,7 +2034,7 @@ struct CollapsedLiveInfoWingsView: View {
                     ForEach(1...4, id: \.self) { bar in
                         RoundedRectangle(cornerRadius: 0.5)
                             .fill(bar <= bridge.cellularSignalBars ? Color.white : Color.white.opacity(0.3))
-                            .frame(width: 2, height: CGFloat(2 + bar * 1.5))
+                            .frame(width: 2, height: CGFloat(2.0 + Double(bar) * 1.5))
                     }
                 }
                 if showDetails {

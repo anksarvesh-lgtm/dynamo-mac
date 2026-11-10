@@ -156,6 +156,8 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
         case .weather: return "cloud.sun.fill"
         case .mediaPlayback: return "playpause.fill"
         case .mediaTitle: return "music.note"
+        case .phoneBattery: return "iphone.gen3"
+        case .phoneSignal: return "antenna.radiowaves.left.and.right"
         }
     }
 }

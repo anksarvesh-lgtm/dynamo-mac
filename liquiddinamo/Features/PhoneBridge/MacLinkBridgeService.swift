@@ -206,3 +206,4 @@ public final class MacLinkBridgeService: ObservableObject {
         ]
     }
 }
+
