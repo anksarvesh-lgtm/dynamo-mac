@@ -17,6 +17,7 @@ import SwiftUI
 struct DynamicNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Default(.menubarIcon) var showMenuBarIcon
+    @ObservedObject private var keepAwake = KeepAwakeManager.shared
     @Environment(\.openWindow) var openWindow
 
     let updaterController: SPUStandardUpdaterController
@@ -119,6 +120,61 @@ struct DynamicNotchApp: App {
                 get: { Defaults[.liquidShelf] },
                 set: { Defaults[.liquidShelf] = $0 }
             ))
+
+            Menu(keepAwake.isActive
+                ? "Keep Awake: \(keepAwake.isIndefinite ? "Indefinite" : keepAwake.remainingFormatted)"
+                : "Keep Awake"
+            ) {
+                if keepAwake.isActive {
+                    Button("Stop Keep Awake") {
+                        keepAwake.stop()
+                    }
+                    if !keepAwake.isIndefinite {
+                        Button("Extend +15 Minutes") {
+                            keepAwake.extend(by: 15 * 60)
+                        }
+                    }
+                    Divider()
+                }
+
+                Section("Presets") {
+                    Button("15 Minutes") {
+                        keepAwake.start(mode: keepAwake.mode, duration: .preset(.m15))
+                    }
+                    Button("30 Minutes") {
+                        keepAwake.start(mode: keepAwake.mode, duration: .preset(.m30))
+                    }
+                    Button("1 Hour") {
+                        keepAwake.start(mode: keepAwake.mode, duration: .preset(.h1))
+                    }
+                    Button("2 Hours") {
+                        keepAwake.start(mode: keepAwake.mode, duration: .preset(.h2))
+                    }
+                    Button("4 Hours") {
+                        keepAwake.start(mode: keepAwake.mode, duration: .preset(.h4))
+                    }
+                    Button("Indefinitely") {
+                        keepAwake.start(mode: keepAwake.mode, duration: .indefinite)
+                    }
+                }
+
+                Divider()
+
+                Section("Mode") {
+                    Button(keepAwake.mode == .system ? "✓ Keep System Awake" : "Keep System Awake") {
+                        keepAwake.changeMode(to: .system)
+                    }
+                    Button(keepAwake.mode == .displayAndSystem ? "✓ Keep System & Display Awake" : "Keep System & Display Awake") {
+                        keepAwake.changeMode(to: .displayAndSystem)
+                    }
+                }
+
+                Divider()
+
+                Button("Open in Dynamic Island…") {
+                    IslandController.shared.setExpanded(view: .keepAwake, pin: true)
+                }
+            }
 
             if Defaults[.showDashboardClipboard] {
                 Menu("Clipboard History") {
