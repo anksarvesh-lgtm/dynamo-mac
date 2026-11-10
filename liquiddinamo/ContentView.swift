@@ -725,6 +725,9 @@ struct ContentView: View {
                     case .teleprompter:
                         TeleprompterView()
                             .frame(maxWidth: .infinity, alignment: .center)
+                    case .keepAwake:
+                        KeepAwakeExpandedView()
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -2119,6 +2122,20 @@ struct CollapsedLiveInfoWingsView: View {
                     Text(bridge.cellularNetworkType)
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
+                        .fixedSize()
+                }
+            }
+
+        case .keepAwake:
+            let keepAwake = KeepAwakeManager.shared
+            HStack(spacing: 3.5) {
+                Image(systemName: keepAwake.isActive ? "bolt.shield.fill" : "bolt.shield")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.6))
+                if showDetails {
+                    Text(keepAwake.isActive ? (keepAwake.isIndefinite ? "∞" : keepAwake.formatTimeIntervalShort(keepAwake.remainingSeconds)) : "Off")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.6))
                         .fixedSize()
                 }
             }
