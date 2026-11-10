@@ -847,7 +847,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
                 targetSize = CGSize(width: max(islandTarget.width, 580), height: max(islandTarget.height, geom.notchHeight + 450))
             } else if LiquidViewCoordinator.shared.currentView == .home {
-                targetSize = islandTarget
+                targetSize = CGSize(width: max(islandTarget.width, 760), height: max(islandTarget.height, geom.notchHeight + 175))
             } else {
                 targetSize = CGSize(width: max(islandTarget.width, openNotchSize.width), height: max(islandTarget.height, openNotchSize.height))
             }
@@ -961,7 +961,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
                 targetSize = CGSize(width: max(islandTarget.width, 580), height: max(islandTarget.height, geom.notchHeight + 450))
             } else if LiquidViewCoordinator.shared.currentView == .home {
-                targetSize = islandTarget
+                targetSize = CGSize(width: max(islandTarget.width, 760), height: max(islandTarget.height, geom.notchHeight + 175))
             } else {
                 targetSize = CGSize(width: max(islandTarget.width, openNotchSize.width), height: max(islandTarget.height, openNotchSize.height))
             }

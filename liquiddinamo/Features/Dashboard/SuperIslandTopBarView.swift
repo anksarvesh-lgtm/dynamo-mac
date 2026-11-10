@@ -72,6 +72,8 @@ public struct SuperIslandTopBarView: View {
             trailingShoulderControls
                 .padding(.bottom, 6)
         }
+        .padding(.horizontal, 28)
+        .padding(.top, 4)
     }
 
     // MARK: - Shoulder Bar

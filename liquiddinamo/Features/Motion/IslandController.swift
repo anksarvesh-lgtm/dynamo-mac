@@ -688,7 +688,7 @@ public final class IslandController: ObservableObject {
             } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
                 return CGSize(width: 580, height: min(max(480, geom.notchHeight + 450), screenMaxH))
             } else if LiquidViewCoordinator.shared.currentView == .home {
-                let homeWidth = max(openNotchSize.width, 740)
+                let homeWidth = max(openNotchSize.width, 760)
                 switch activeOrganicItem {
                 case .none:
                     return CGSize(width: homeWidth, height: min(max(200, geom.notchHeight + 175), screenMaxH))
@@ -782,11 +782,14 @@ public final class IslandController: ObservableObject {
                 guard let self = self, self.state == .expanded else { return }
                 let currentMin = self.minimumHeight(for: self.activeOrganicItem)
                 let finalH = max(neededH, currentMin)
-                if abs(self.targetSize.height - finalH) >= 8.0 {
+                let expandedMinW = self.calculateDimensions(for: .expanded).width
+                let finalW = max(self.targetSize.width, expandedMinW)
+                if abs(self.targetSize.height - finalH) >= 8.0 || self.targetSize.width < expandedMinW {
                     withAnimation(IslandMotion.shared.expandSpring) {
                         self.targetSize.height = finalH
+                        self.targetSize.width = finalW
                     }
-                    AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: CGSize(width: self.targetSize.width, height: finalH), animated: false)
+                    AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: CGSize(width: finalW, height: finalH), animated: false)
                 }
             }
         }

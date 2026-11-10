@@ -48,7 +48,7 @@ public struct SuperIslandHomeScreenView: View {
             phoneDeckCard
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 28)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
