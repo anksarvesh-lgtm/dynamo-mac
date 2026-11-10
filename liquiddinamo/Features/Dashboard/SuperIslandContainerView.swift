@@ -70,6 +70,9 @@ public struct SuperIslandContainerView: View {
             if isShelfDropTargeted {
                 shelfDropOverlay
             }
+
+            // Omni-Launcher Overlay (Spotlight, Math Calculator & AI Web Research)
+            OmniLauncherOverlayView()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onContinuousHover { phase in

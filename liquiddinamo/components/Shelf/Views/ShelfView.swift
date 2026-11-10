@@ -52,6 +52,22 @@ struct ShelfView: View {
         }
     }
 
+    private func performConversion(to target: TargetFormat) {
+        let urls: [URL] = tvm.items.compactMap { $0.fileURL }
+        guard !urls.isEmpty else { return }
+        Task {
+            if let outputURLs = try? await FileConversionEngine.shared.convert(urls: urls, to: target), !outputURLs.isEmpty {
+                await MainActor.run {
+                    for url in outputURLs {
+                        if let prov = NSItemProvider(contentsOf: url) {
+                            tvm.load([prov])
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     var panel: some View {
         VStack(spacing: 6) {
             // Header Bar
@@ -72,6 +88,35 @@ struct ShelfView: View {
                         .background(Capsule().fill(Color.cyan.opacity(0.18)))
 
                     Spacer()
+
+                    // Hardware Batch Conversion Chips (isleta engine)
+                    HStack(spacing: 4) {
+                        Button {
+                            performConversion(to: .pdf)
+                        } label: {
+                            Text("→ PDF")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(Capsule().fill(Color.orange.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Combine into multi-page PDF (<500ms)")
+
+                        Button {
+                            performConversion(to: .png)
+                        } label: {
+                            Text("→ PNG")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(Capsule().fill(Color.cyan.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Transcode to PNG")
+                    }
 
                     Button {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {

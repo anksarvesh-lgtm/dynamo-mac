@@ -189,6 +189,26 @@ public struct SuperIslandTopBarView: View {
             .buttonStyle(.plain)
             .help(island.isPinnedOpen ? "Lock Island Open (Pinned)" : "Auto-collapse on mouse exit")
 
+            // Omni-Launcher Button
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    OmniLauncherEngine.shared.toggleVisibility()
+                }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(OmniLauncherEngine.shared.isVisible ? Color.accentColor : Color.white.opacity(0.72))
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle().fill(Color.white.opacity(OmniLauncherEngine.shared.isVisible ? 0.16 : 0.06))
+                    )
+                    .overlay(
+                        Circle().stroke(OmniLauncherEngine.shared.isVisible ? Color.accentColor.opacity(0.5) : Color.white.opacity(0.08), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Omni-Launcher (⌥Space): Search apps, calculate, ask AI")
+
             // Battery Capsule
             Button {
                 withAnimation(.spring(response: 0.36, dampingFraction: 0.8)) {
