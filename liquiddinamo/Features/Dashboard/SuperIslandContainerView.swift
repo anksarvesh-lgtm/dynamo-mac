@@ -92,35 +92,54 @@ public struct SuperIslandContainerView: View {
         let shape = surfaceShape
 
         return ZStack(alignment: .top) {
-            // 1. Obsidian Liquid Glass Base Fill
+            // 1. Behind-Window Frosted Liquid Glass Vibrancy
+            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                .clipShape(shape)
+
+            // 2. Obsidian Translucent Depth Gradient
             shape
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.black.opacity(0.98),
-                            Color.black.opacity(0.93)
+                            Color.black.opacity(0.86),
+                            Color.black.opacity(0.70)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
 
-            // 2. Liquid Specular Caustic Glare along Top & Rim
+            // 3. Liquid Specular Caustic Glare along Top & Rim
             shape
                 .stroke(
                     LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.24),
-                            Color.white.opacity(0.06),
-                            Color.white.opacity(0.02)
+                        stops: [
+                            .init(color: Color.white.opacity(0.24), location: 0.0),
+                            .init(color: Color.white.opacity(0.08), location: 0.50),
+                            .init(color: Color.black.opacity(0.25), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
-                    lineWidth: 0.75
+                    lineWidth: 0.85
                 )
 
-            // 3. Main Island Content
+            // 4. Horizon Sheen Specular Highlight
+            shape
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.12),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+                .padding(1)
+
+            // 5. Main Island Content
             surfaceContent
                 .frame(width: size.width, height: size.height, alignment: .top)
         }

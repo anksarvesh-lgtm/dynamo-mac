@@ -288,8 +288,11 @@ struct ContentView: View {
             // 3. Below-Area Presentations (Alert Pop Droplet/Capsule, Notification Cards, Bluetooth/AirPods, Device Showcase)
             belowAreaPresentations
 
+            // 4. Omni-Launcher Floating Island Overlay (Spotlight, Math Calculator & AI Web Research)
+            OmniLauncherOverlayView()
+
             #if DEBUG
-            // 4. Layout Guides Overlay (DEBUG Mode Only)
+            // 5. Layout Guides Overlay (DEBUG Mode Only)
             if NotchSafeAreaEngine.shared.showLayoutGuides {
                 NotchLayoutGuidesOverlay()
             }
@@ -1269,13 +1272,52 @@ struct CollapsedLiveInfoWingsView: View {
     private func centralFloatingIslandPill(geom: NotchGeometry) -> some View {
         let centralPillW: CGFloat = 160.0
         ZStack {
+            // 1. Behind-Window Frosted Liquid Glass Vibrancy Blur
+            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                .clipShape(Capsule())
+
+            // 2. Obsidian Translucent Depth Gradient
             Capsule()
-                .fill(Color.black)
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.86),
+                            Color.black.opacity(0.70)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-                .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
+
+            // 3. Apple Specular Perimeter Hairline Rim
+            Capsule()
+                .stroke(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.white.opacity(0.24), location: 0.0),
+                            .init(color: Color.white.opacity(0.08), location: 0.50),
+                            .init(color: Color.black.opacity(0.20), location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.85
+                )
+
+            // 4. Horizon Sheen Specular Highlight
+            Capsule()
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.12),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+                .padding(1)
 
             HStack(spacing: 6) {
                 Circle()
@@ -1402,9 +1444,22 @@ struct CollapsedLiveInfoWingsView: View {
                                     )
                                     .frame(width: currentLeftWingWidth)
                                     .background(
-                                        Capsule()
-                                            .fill(Color.black.opacity(0.75))
-                                            .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                                        ZStack {
+                                            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                                                .clipShape(Capsule())
+                                            Capsule()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color.black.opacity(0.86),
+                                                            Color.black.opacity(0.70)
+                                                        ],
+                                                        startPoint: .top,
+                                                        endPoint: .bottom
+                                                    )
+                                                )
+                                                .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                                        }
                                     )
                                     .overlay(alignment: .bottom) {
                                         CPUTempGlowEdge()
@@ -1443,9 +1498,22 @@ struct CollapsedLiveInfoWingsView: View {
                                     )
                                     .frame(width: currentRightWingWidth)
                                     .background(
-                                        Capsule()
-                                            .fill(Color.black.opacity(0.75))
-                                            .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                                        ZStack {
+                                            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                                                .clipShape(Capsule())
+                                            Capsule()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color.black.opacity(0.86),
+                                                            Color.black.opacity(0.70)
+                                                        ],
+                                                        startPoint: .top,
+                                                        endPoint: .bottom
+                                                    )
+                                                )
+                                                .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75))
+                                        }
                                     )
                                     .overlay(alignment: .bottom) {
                                         RAMBottomBar()
@@ -1602,33 +1670,38 @@ struct CollapsedLiveInfoWingsView: View {
         }
         .frame(width: wingW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
         .background(
-            LeftNotchDropShape()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.black.opacity(max(0.20, 1.0 - islandTransparency)), location: 0.0),
-                            .init(color: Color.black.opacity(0.92), location: 0.85),
-                            .init(color: Color.black, location: 1.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .overlay(
-                    LeftNotchDropShape()
-                        .stroke(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: Color.white.opacity(0.22), location: 0.0),
-                                    .init(color: Color.white.opacity(0.08), location: 0.80),
-                                    .init(color: Color.clear, location: 1.0)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            lineWidth: 0.75
+            ZStack {
+                VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                    .clipShape(LeftNotchDropShape())
+
+                LeftNotchDropShape()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.black.opacity(max(0.20, 1.0 - islandTransparency)), location: 0.0),
+                                .init(color: Color.black.opacity(0.92), location: 0.85),
+                                .init(color: Color.black, location: 1.0)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                )
+                    )
+                    .overlay(
+                        LeftNotchDropShape()
+                            .stroke(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: Color.white.opacity(0.22), location: 0.0),
+                                        .init(color: Color.white.opacity(0.08), location: 0.80),
+                                        .init(color: Color.clear, location: 1.0)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 0.75
+                            )
+                    )
+            }
         )
         .overlay(alignment: .bottom) {
             CPUTempGlowEdge()
@@ -1667,33 +1740,38 @@ struct CollapsedLiveInfoWingsView: View {
         }
         .frame(width: wingW, height: vm.effectiveClosedNotchHeight, alignment: .leading)
         .background(
-            RightNotchDropShape()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.black, location: 0.0),
-                            .init(color: Color.black.opacity(0.92), location: 0.15),
-                            .init(color: Color.black.opacity(max(0.20, 1.0 - islandTransparency)), location: 1.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .overlay(
-                    RightNotchDropShape()
-                        .stroke(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: Color.clear, location: 0.0),
-                                    .init(color: Color.white.opacity(0.08), location: 0.20),
-                                    .init(color: Color.white.opacity(0.22), location: 1.0)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            lineWidth: 0.75
+            ZStack {
+                VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                    .clipShape(RightNotchDropShape())
+
+                RightNotchDropShape()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.black, location: 0.0),
+                                .init(color: Color.black.opacity(0.92), location: 0.15),
+                                .init(color: Color.black.opacity(max(0.20, 1.0 - islandTransparency)), location: 1.0)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                )
+                    )
+                    .overlay(
+                        RightNotchDropShape()
+                            .stroke(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: Color.clear, location: 0.0),
+                                        .init(color: Color.white.opacity(0.08), location: 0.20),
+                                        .init(color: Color.white.opacity(0.22), location: 1.0)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 0.75
+                            )
+                    )
+            }
         )
         .overlay(alignment: .bottom) {
             RAMBottomBar()

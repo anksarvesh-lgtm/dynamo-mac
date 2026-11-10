@@ -3,6 +3,7 @@
 //  LiquidDynamo
 //
 //  Spotlight-style floating launcher overlay rendering inside or below Dynamic Island.
+//  Styled with authentic Liquid Glass materials matching Apple VisionOS / macOS Dynamic Island.
 //
 
 import AppKit
@@ -16,81 +17,165 @@ public struct OmniLauncherOverlayView: View {
 
     public var body: some View {
         if launcher.isVisible {
-            VStack(spacing: 0) {
-                // Top Search Bar
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
+            VStack(spacing: 8) {
+                // MARK: - Exact Liquid Glass Search / Ask Pill
+                HStack(spacing: 12) {
+                    ZStack(alignment: .leading) {
+                        if launcher.queryText.isEmpty {
+                            Text("Search or Ask")
+                                .font(.system(size: 16, weight: .regular))
+                                .foregroundStyle(Color.white.opacity(0.65))
+                        }
 
-                    TextField("Search apps, calculate, or ask AI (?)...", text: $launcher.queryText)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.white)
-                        .focused($isFieldFocused)
+                        TextField("", text: $launcher.queryText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundStyle(Color.white)
+                            .focused($isFieldFocused)
+                            .onSubmit {
+                                if let first = launcher.results.first {
+                                    executeItem(first)
+                                }
+                            }
+                    }
 
-                    if !launcher.queryText.isEmpty {
+                    Spacer(minLength: 0)
+
+                    if launcher.queryText.isEmpty {
+                        Button {
+                            // Native macOS Dictation trigger
+                            NSApp.sendAction(NSSelectorFromString("startDictation:"), to: nil, from: nil)
+                        } label: {
+                            Image(systemName: "mic")
+                                .font(.system(size: 15, weight: .regular))
+                                .foregroundStyle(Color.white.opacity(0.65))
+                        }
+                        .buttonStyle(.plain)
+                    } else {
                         Button {
                             launcher.queryText = ""
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 13))
-                                .foregroundStyle(Color.white.opacity(0.6))
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.white.opacity(0.60))
                         }
                         .buttonStyle(.plain)
                     }
-
-                    Button {
-                        launcher.isVisible = false
-                    } label: {
-                        Text("Esc")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.5))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.1)))
-                    }
-                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.black.opacity(0.75))
+                .padding(.horizontal, 22)
+                .frame(width: 480, height: 50)
+                .background(
+                    ZStack {
+                        // 1. Behind-Window Frosted Liquid Glass Vibrancy
+                        VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                            .clipShape(Capsule())
 
-                Divider().background(Color.white.opacity(0.1))
+                        // 2. Translucent Obsidian Depth Gradient (Matches reference image)
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.black.opacity(0.86),
+                                        Color.black.opacity(0.68)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
 
-                // Results List
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 4) {
-                        ForEach(launcher.results) { item in
-                            launcherRow(item)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 8)
-                }
-                .frame(maxHeight: 260)
-            }
-            .frame(width: 480)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.black.opacity(0.92))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        // 3. Apple Specular Perimeter Hairline Rim
+                        Capsule()
                             .stroke(
                                 LinearGradient(
-                                    colors: [Color.white.opacity(0.25), Color.white.opacity(0.06)],
+                                    stops: [
+                                        .init(color: Color.white.opacity(0.24), location: 0.0),
+                                        .init(color: Color.white.opacity(0.08), location: 0.50),
+                                        .init(color: Color.black.opacity(0.20), location: 1.0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 0.85
+                            )
+
+                        // 4. Horizon Sheen Specular Highlight
+                        Capsule()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.12),
+                                        Color.clear
+                                    ],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 ),
                                 lineWidth: 1
                             )
+                            .padding(1)
+                    }
+                    .compositingGroup()
+                    .shadow(color: Color.black.opacity(0.35), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(0.50), radius: 20, x: 0, y: 10)
+                )
+
+                // MARK: - Dropdown Results Sheet (Only visible when query is typed and results available)
+                if !launcher.queryText.isEmpty && !launcher.results.isEmpty {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 4) {
+                            ForEach(launcher.results) { item in
+                                launcherRow(item)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 8)
+                    }
+                    .frame(width: 480)
+                    .frame(maxHeight: 260)
+                    .background(
+                        ZStack {
+                            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.black.opacity(0.88),
+                                            Color.black.opacity(0.72)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(
+                                    LinearGradient(
+                                        stops: [
+                                            .init(color: Color.white.opacity(0.22), location: 0.0),
+                                            .init(color: Color.white.opacity(0.06), location: 0.60),
+                                            .init(color: Color.clear, location: 1.0)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 0.85
+                                )
+                        }
+                        .compositingGroup()
+                        .shadow(color: Color.black.opacity(0.40), radius: 12, x: 0, y: 6)
+                        .shadow(color: Color.black.opacity(0.50), radius: 24, x: 0, y: 12)
                     )
-                    .shadow(color: Color.black.opacity(0.6), radius: 24, x: 0, y: 12)
-            )
-            .padding(.top, 8)
-            .transition(.scale(scale: 0.94).combined(with: .opacity))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .padding(.top, 6)
+            .transition(.scale(scale: 0.95).combined(with: .opacity))
             .onAppear {
                 isFieldFocused = true
+            }
+            .onExitCommand {
+                launcher.isVisible = false
             }
         }
     }
@@ -166,4 +251,3 @@ public struct OmniLauncherOverlayView: View {
         }
     }
 }
-

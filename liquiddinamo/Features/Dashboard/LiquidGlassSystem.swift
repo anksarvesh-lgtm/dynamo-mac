@@ -663,29 +663,101 @@ public struct LiquidGlassContainerBackdrop: View {
     }
 
     public var body: some View {
-        if isExpanded {
-            // User request: Remove the background black dropdown completely; keep only individual floating contents
-            EmptyView()
-        } else if Defaults[.enableSideReadouts] && (Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none) {
-            // When wings are active, individual droplets/capsules render their own fluid shapes with dedicated shadows.
-            EmptyView()
-        } else if !isFloating {
-            // Physical notch display with no wings: hardware notch already exists
-            EmptyView()
-        } else {
-            // Closed compact floating pill on external displays without wings
-            DynamicIslandShape(
-                topCornerRadius: topCornerRadius,
-                bottomCornerRadius: bottomCornerRadius,
-                isFloating: isFloating
-            )
-            .fill(Color.black)
-            .shadow(
-                color: Color.black.opacity(Defaults[.enableShadow] ? 0.6 : 0.0),
-                radius: 4,
-                x: 0,
-                y: 2
-            )
+        let shape = DynamicIslandShape(
+            topCornerRadius: topCornerRadius,
+            bottomCornerRadius: bottomCornerRadius,
+            isFloating: isFloating
+        )
+
+        ZStack {
+            // 1. Behind-Window Frosted Liquid Glass Vibrancy Blur
+            VisualEffectBackdropView(material: .hudWindow, blendingMode: .behindWindow)
+                .clipShape(shape)
+
+            // 2. Obsidian Translucent Depth Gradient (Liquid Frosted Glass)
+            if isFloating {
+                // Floating Dynamic Island Pill: Seamless 86% -> 68% obsidian glass
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.86),
+                        Color.black.opacity(0.68)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(shape)
+            } else {
+                // Physical Notch Anchored: Top blends seamlessly into hardware bezel (#000000), transitioning smoothly into liquid glass below
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.0),
+                        .init(color: .black, location: 0.22),
+                        .init(color: Color.black.opacity(0.88), location: 0.65),
+                        .init(color: Color.black.opacity(0.70), location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(shape)
+            }
+
+            // 3. Optional Ambient Color Glow (e.g. from Playing Music Artwork)
+            if let ambient = ambientColor {
+                RadialGradient(
+                    colors: [
+                        ambient.opacity(0.20),
+                        ambient.opacity(0.05),
+                        Color.clear
+                    ],
+                    center: .topLeading,
+                    startRadius: 8,
+                    endRadius: 260
+                )
+                .clipShape(shape)
+            }
+
+            // 4. Apple Liquid Specular Perimeter Hairline Rim
+            shape
+                .stroke(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.white.opacity(0.24), location: 0.0),
+                            .init(color: Color.white.opacity(0.08), location: 0.50),
+                            .init(color: Color.black.opacity(0.25), location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.85
+                )
+
+            // 5. Horizon Sheen Specular Highlight
+            shape
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.12),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+                .padding(1)
         }
+        .compositingGroup()
+        .shadow(
+            color: Color.black.opacity(isExpanded ? 0.40 : 0.25),
+            radius: isExpanded ? 10 : 6,
+            x: 0,
+            y: isExpanded ? 5 : 3
+        )
+        .shadow(
+            color: Color.black.opacity(isExpanded ? 0.50 : 0.35),
+            radius: isExpanded ? 24 : 14,
+            x: 0,
+            y: isExpanded ? 12 : 7
+        )
     }
 }

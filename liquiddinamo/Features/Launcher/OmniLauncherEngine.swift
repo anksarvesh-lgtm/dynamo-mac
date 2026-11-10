@@ -64,6 +64,18 @@ public final class OmniLauncherEngine: ObservableObject {
         }
     }
 
+    public func show() {
+        isVisible = true
+        queryText = ""
+        results = []
+    }
+
+    public func hide() {
+        isVisible = false
+        queryText = ""
+        results = []
+    }
+
     private func performSearch(_ rawQuery: String) {
         let q = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else {
