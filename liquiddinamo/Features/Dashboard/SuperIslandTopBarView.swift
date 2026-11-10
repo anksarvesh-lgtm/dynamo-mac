@@ -22,7 +22,7 @@ public struct SuperIslandTopBarView: View {
     @ObservedObject private var island = IslandController.shared
     @ObservedObject private var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject private var alertCenter = AlertCenterService.shared
-    @ObservedObject private var keepAwake = KeepAwakeService.shared
+    @ObservedObject private var keepAwake = KeepAwakeManager.shared
     @ObservedObject private var buddy = LiquidBuddyService.shared
 
     public let layout: SuperIslandTopBarLayout
@@ -157,21 +157,25 @@ public struct SuperIslandTopBarView: View {
 
             // Keep Awake Clamshell Button
             Button {
-                keepAwake.toggleKeepAwake()
+                if coordinator.currentView == .keepAwake {
+                    coordinator.currentView = .home
+                } else {
+                    coordinator.currentView = .keepAwake
+                }
             } label: {
-                Image(systemName: keepAwake.isKeepAwakeActive ? "bolt.shield.fill" : "bolt.shield")
+                Image(systemName: keepAwake.isActive ? "bolt.shield.fill" : "bolt.shield")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(keepAwake.isKeepAwakeActive ? Color.orange : Color.white.opacity(0.72))
+                    .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.72))
                     .frame(width: 30, height: 30)
                     .background(
-                        Circle().fill(Color.white.opacity(keepAwake.isKeepAwakeActive ? 0.16 : 0.06))
+                        Circle().fill(Color.white.opacity(keepAwake.isActive ? 0.16 : 0.06))
                     )
                     .overlay(
-                        Circle().stroke(keepAwake.isKeepAwakeActive ? Color.orange.opacity(0.5) : Color.white.opacity(0.08), lineWidth: 1)
+                        Circle().stroke(keepAwake.isActive ? Color.orange.opacity(0.5) : Color.white.opacity(0.08), lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
-            .help(keepAwake.isKeepAwakeActive ? "Sleep Blocked (Lid Closed Active)" : "Keep Awake (Sleep Normal)")
+            .help(keepAwake.isActive ? "Keep Awake Active (\(keepAwake.remainingFormatted)) - Click to open controls" : "Keep Awake (Sleep Normal) - Click to open controls")
 
             // Lock Island Open Toggle
             Button {

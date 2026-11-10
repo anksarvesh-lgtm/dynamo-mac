@@ -108,6 +108,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
     case mediaTitle = "Now Playing Track"
     case phoneBattery = "Phone Battery"
     case phoneSignal = "Phone Cellular Signal"
+    case keepAwake = "Keep Awake"
 
     public var id: String { rawValue }
 
@@ -158,6 +159,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
         case .mediaTitle: return "music.note"
         case .phoneBattery: return "iphone.gen3"
         case .phoneSignal: return "antenna.radiowaves.left.and.right"
+        case .keepAwake: return "bolt.shield.fill"
         }
     }
 }

@@ -7,6 +7,42 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FEE9B65D0F17DD7E54D78831 /* OmniLauncherEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE98095DE966EB6E6CD2014 /* OmniLauncherEngine.swift */; };
+		FE9F90738F434E5AA8B1436B /* OmniLauncherOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE80FFB514C5295D97069359 /* OmniLauncherOverlayView.swift */; };
+		FE6E50DE70B618598E58E5DC /* KeepAwakeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6D5EEA26499E31E5B45937 /* KeepAwakeModels.swift */; };
+		FE2D5D3B2AFA9E689F9B6202 /* KeepAwakeCompactIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE67ED6C6B15F9AB3C23D5D3 /* KeepAwakeCompactIndicatorView.swift */; };
+		FE12BCBBBC619C656D33FB13 /* KeepAwakeExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5145FA280A818505048923 /* KeepAwakeExpandedView.swift */; };
+		FEC04E9651E74B2BA9AEDFFD /* PowerAssertionProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3805DB046B427BB01BC9AE /* PowerAssertionProviding.swift */; };
+		FE86F85AAB1EE570274DEFBA /* IOKitPowerAssertionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECFA53805B63067C87C9D39 /* IOKitPowerAssertionProvider.swift */; };
+		FE3A421F7AC6D112F27FF8C1 /* KeepAwakeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA3BB4E6473564EDFFAF36C /* KeepAwakeManager.swift */; };
+		FEE1C6822D9D0458689682C3 /* MockPowerAssertionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE70D768281F35116D241937 /* MockPowerAssertionProvider.swift */; };
+		FE941C18EE4E444ACD0EC0E1 /* BetterDisplayBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEDE95BBBB81A55FBE296FAB /* BetterDisplayBridge.swift */; };
+		FE99B09D94E9270979085265 /* JavaScriptExtensionRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0717E99836A0B83D9D5794 /* JavaScriptExtensionRuntime.swift */; };
+		FE5ABCB22BF1BD3DA0813F6A /* SuperIslandContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE3C34FCC8C9A4C7EAE02C6 /* SuperIslandContainerView.swift */; };
+		FEC63EDCC49B04BB537ECB3E /* SuperIslandHomeScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5A6569BB21B4F8867F5DE9 /* SuperIslandHomeScreenView.swift */; };
+		FED90AA2708B3D85C6C13597 /* SuperIslandPillShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3F3A0BB9E4744588706867 /* SuperIslandPillShape.swift */; };
+		FE2E15CDE1AB52BB5C59F7BD /* SuperIslandTopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECADE71C1E09B48D5F29049 /* SuperIslandTopBarView.swift */; };
+		FE8871461EF6270D74CBD64E /* GlobalEmojiPickerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEDE2AF21E56807F1C7EA945 /* GlobalEmojiPickerManager.swift */; };
+		FEEDA3D9ADA2B313004EEA08 /* LockScreenWidgetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE14E722A4141884F2C0F8D /* LockScreenWidgetManager.swift */; };
+		FE92F182DBC0395939808D06 /* SQLiteNotificationWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE4AE3789A2A09C42EAD9103 /* SQLiteNotificationWatcher.swift */; };
+		FE139902F86809C82A65C389 /* CiderRPCController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE00013666ABD90DA776D20A /* CiderRPCController.swift */; };
+		FEDB8F0D0BD33BFC87414045 /* AnimationHitchProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED2E97D967310657A3336E6 /* AnimationHitchProbe.swift */; };
+		FE61961F1FB223269B1DF52F /* LiquidGlassMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8C55CB96E2E413A43067F1 /* LiquidGlassMaterial.swift */; };
+		FE44B349EFFA6251FB0D19AC /* SettingsExtensionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3F829036A1BE8AA8F38B15 /* SettingsExtensionsView.swift */; };
+		FEB60995795868ECB95A67C4 /* MacLinkAppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6734A3148655E6C700C893 /* MacLinkAppsView.swift */; };
+		FE9514C52D44BDEA40CB70B3 /* MacLinkCallsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEAF14BC423FEA781D0B75E5 /* MacLinkCallsView.swift */; };
+		FE098877A95CB02C1FBDE419 /* MacLinkCommandDeckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9AE04B4A24E1F78E33761D /* MacLinkCommandDeckView.swift */; };
+		FEB7EC9B546AF816C3787CAD /* MacLinkFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE21CECB5C1F87E70602CABB /* MacLinkFilesView.swift */; };
+		FE3C388A228CA053703BA63D /* MacLinkMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE7B6E65FE87AF47B171A9E3 /* MacLinkMessagesView.swift */; };
+		FE65AF56E139D987A2809EEB /* MacLinkOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6657EDDE93BE9C9D532C91 /* MacLinkOverviewView.swift */; };
+		FE93E1368D9FD2712967D95C /* MacLinkPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE39977D7E633C3E5EB327C4 /* MacLinkPairingView.swift */; };
+		FED07197AE1669233E2667DB /* MacLinkPhotosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2C52877F45893A89DAA1C9 /* MacLinkPhotosView.swift */; };
+		FE107F082EE53EAE71A76B42 /* MacLinkTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE9B5F677FA5F6BDE6201363 /* MacLinkTimelineView.swift */; };
+		FE69248FA0153AB43B6174DE /* FileConversionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE108C12E9113D3921B33A8E /* FileConversionEngine.swift */; };
+		FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE02DCB34EA3B127A9143791 /* kalam.dylib */; };
+		FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE02DCB34EA3B127A9143791 /* kalam.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; };
+		FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		6FDC1B08227C5775A88B16BE /* BluetoothHFPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56E3470A4ABC5A3081783DCF /* BluetoothHFPManager.swift */; };
 		56C17E6CC4425AF9A8DE66EB /* CallNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FCA4641D6AF5FB5BEFB23D2 /* CallNotifier.swift */; };
 		03A1EF6CF7A451AEA9A5B5FF /* MacLinkBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F5E5811DE5A4CBC010455 /* MacLinkBridgeService.swift */; };
@@ -378,6 +414,8 @@
 			files = (
 				FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */,
 				FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */,
+				FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */,
+				FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */,
 				117AB5172E30E09C00558921 /* MediaRemoteAdapter.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
@@ -386,6 +424,40 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FEE98095DE966EB6E6CD2014 /* OmniLauncherEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OmniLauncherEngine.swift"; sourceTree = "<group>"; };
+		FE80FFB514C5295D97069359 /* OmniLauncherOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OmniLauncherOverlayView.swift"; sourceTree = "<group>"; };
+		FE6D5EEA26499E31E5B45937 /* KeepAwakeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeepAwakeModels.swift"; sourceTree = "<group>"; };
+		FE67ED6C6B15F9AB3C23D5D3 /* KeepAwakeCompactIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeepAwakeCompactIndicatorView.swift"; sourceTree = "<group>"; };
+		FE5145FA280A818505048923 /* KeepAwakeExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeepAwakeExpandedView.swift"; sourceTree = "<group>"; };
+		FE3805DB046B427BB01BC9AE /* PowerAssertionProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PowerAssertionProviding.swift"; sourceTree = "<group>"; };
+		FECFA53805B63067C87C9D39 /* IOKitPowerAssertionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IOKitPowerAssertionProvider.swift"; sourceTree = "<group>"; };
+		FEA3BB4E6473564EDFFAF36C /* KeepAwakeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeepAwakeManager.swift"; sourceTree = "<group>"; };
+		FE70D768281F35116D241937 /* MockPowerAssertionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MockPowerAssertionProvider.swift"; sourceTree = "<group>"; };
+		FEDE95BBBB81A55FBE296FAB /* BetterDisplayBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BetterDisplayBridge.swift"; sourceTree = "<group>"; };
+		FE0717E99836A0B83D9D5794 /* JavaScriptExtensionRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JavaScriptExtensionRuntime.swift"; sourceTree = "<group>"; };
+		FEE3C34FCC8C9A4C7EAE02C6 /* SuperIslandContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandContainerView.swift"; sourceTree = "<group>"; };
+		FE5A6569BB21B4F8867F5DE9 /* SuperIslandHomeScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandHomeScreenView.swift"; sourceTree = "<group>"; };
+		FE3F3A0BB9E4744588706867 /* SuperIslandPillShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandPillShape.swift"; sourceTree = "<group>"; };
+		FECADE71C1E09B48D5F29049 /* SuperIslandTopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandTopBarView.swift"; sourceTree = "<group>"; };
+		FEDE2AF21E56807F1C7EA945 /* GlobalEmojiPickerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlobalEmojiPickerManager.swift"; sourceTree = "<group>"; };
+		FEE14E722A4141884F2C0F8D /* LockScreenWidgetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LockScreenWidgetManager.swift"; sourceTree = "<group>"; };
+		FE4AE3789A2A09C42EAD9103 /* SQLiteNotificationWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLiteNotificationWatcher.swift"; sourceTree = "<group>"; };
+		FE00013666ABD90DA776D20A /* CiderRPCController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CiderRPCController.swift"; sourceTree = "<group>"; };
+		FED2E97D967310657A3336E6 /* AnimationHitchProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AnimationHitchProbe.swift"; sourceTree = "<group>"; };
+		FE8C55CB96E2E413A43067F1 /* LiquidGlassMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiquidGlassMaterial.swift"; sourceTree = "<group>"; };
+		FE3F829036A1BE8AA8F38B15 /* SettingsExtensionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsExtensionsView.swift"; sourceTree = "<group>"; };
+		FE6734A3148655E6C700C893 /* MacLinkAppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkAppsView.swift"; sourceTree = "<group>"; };
+		FEAF14BC423FEA781D0B75E5 /* MacLinkCallsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkCallsView.swift"; sourceTree = "<group>"; };
+		FE9AE04B4A24E1F78E33761D /* MacLinkCommandDeckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkCommandDeckView.swift"; sourceTree = "<group>"; };
+		FE21CECB5C1F87E70602CABB /* MacLinkFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkFilesView.swift"; sourceTree = "<group>"; };
+		FE7B6E65FE87AF47B171A9E3 /* MacLinkMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkMessagesView.swift"; sourceTree = "<group>"; };
+		FE6657EDDE93BE9C9D532C91 /* MacLinkOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkOverviewView.swift"; sourceTree = "<group>"; };
+		FE39977D7E633C3E5EB327C4 /* MacLinkPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkPairingView.swift"; sourceTree = "<group>"; };
+		FE2C52877F45893A89DAA1C9 /* MacLinkPhotosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkPhotosView.swift"; sourceTree = "<group>"; };
+		FE9B5F677FA5F6BDE6201363 /* MacLinkTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MacLinkTimelineView.swift"; sourceTree = "<group>"; };
+		FE108C12E9113D3921B33A8E /* FileConversionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileConversionEngine.swift"; sourceTree = "<group>"; };
+		FE02DCB34EA3B127A9143791 /* kalam.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = kalam.dylib; path = Frameworks/kalam.dylib; sourceTree = SOURCE_ROOT; };
+		FE3064FB0E9BC6606F26E2EE /* libusb.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libusb.dylib; path = Frameworks/libusb.dylib; sourceTree = SOURCE_ROOT; };
 		56E3470A4ABC5A3081783DCF /* BluetoothHFPManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothHFPManager.swift; sourceTree = "<group>"; };
 		8FCA4641D6AF5FB5BEFB23D2 /* CallNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallNotifier.swift; sourceTree = "<group>"; };
 		0E2F5E5811DE5A4CBC010455 /* MacLinkBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLinkBridgeService.swift; sourceTree = "<group>"; };
@@ -748,6 +820,8 @@
 			files = (
 				FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */,
 				FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */,
+				FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */,
+				FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */,
 				9A987A102C73CA8D005CA465 /* Collections in Frameworks */,
 				1194E8852EA57D23009C82D6 /* SkyLightWindow in Frameworks */,
 				112B0EBB2E30DD5000562D6C /* MediaRemoteAdapter.framework in Frameworks */,
@@ -765,6 +839,54 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FE213747DCCB43D664F183F2 /* Powerload */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = Powerload;
+			sourceTree = "<group>";
+		};
+		FE124D6E0269D9EAA7CAE4E5 /* PhoneBridge */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = PhoneBridge;
+			sourceTree = "<group>";
+		};
+		FE5550481E5D3B8163A9B24C /* AndroidFiles */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = AndroidFiles;
+			sourceTree = "<group>";
+		};
+		FEC5E4E91877761E344D781B /* Watcher */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = Watcher;
+			sourceTree = "<group>";
+		};
+		FEC09E97B81D1522C3D5CB56 /* ColorDropper */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = ColorDropper;
+			sourceTree = "<group>";
+		};
+		FE07B760265B708E1860CA2F /* menu */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = menu;
+			sourceTree = "<group>";
+		};
 		29034770DC0A5774BD079812 /* AlertCenter */ = {
 			isa = PBXGroup;
 			children = (
@@ -1100,6 +1222,28 @@
 		1471639B2C5D362F0068B555 /* components */ = {
 			isa = PBXGroup;
 			children = (
+				FEE98095DE966EB6E6CD2014 /* OmniLauncherEngine.swift */,
+				FE80FFB514C5295D97069359 /* OmniLauncherOverlayView.swift */,
+				FE6D5EEA26499E31E5B45937 /* KeepAwakeModels.swift */,
+				FE67ED6C6B15F9AB3C23D5D3 /* KeepAwakeCompactIndicatorView.swift */,
+				FE5145FA280A818505048923 /* KeepAwakeExpandedView.swift */,
+				FE3805DB046B427BB01BC9AE /* PowerAssertionProviding.swift */,
+				FECFA53805B63067C87C9D39 /* IOKitPowerAssertionProvider.swift */,
+				FEA3BB4E6473564EDFFAF36C /* KeepAwakeManager.swift */,
+				FE70D768281F35116D241937 /* MockPowerAssertionProvider.swift */,
+				FEDE95BBBB81A55FBE296FAB /* BetterDisplayBridge.swift */,
+				FE0717E99836A0B83D9D5794 /* JavaScriptExtensionRuntime.swift */,
+				FEE3C34FCC8C9A4C7EAE02C6 /* SuperIslandContainerView.swift */,
+				FE5A6569BB21B4F8867F5DE9 /* SuperIslandHomeScreenView.swift */,
+				FE3F3A0BB9E4744588706867 /* SuperIslandPillShape.swift */,
+				FECADE71C1E09B48D5F29049 /* SuperIslandTopBarView.swift */,
+				FEDE2AF21E56807F1C7EA945 /* GlobalEmojiPickerManager.swift */,
+				FEE14E722A4141884F2C0F8D /* LockScreenWidgetManager.swift */,
+				FE4AE3789A2A09C42EAD9103 /* SQLiteNotificationWatcher.swift */,
+				FE00013666ABD90DA776D20A /* CiderRPCController.swift */,
+				FED2E97D967310657A3336E6 /* AnimationHitchProbe.swift */,
+				FE8C55CB96E2E413A43067F1 /* LiquidGlassMaterial.swift */,
+				FE108C12E9113D3921B33A8E /* FileConversionEngine.swift */,
 				FEF4CBBB8506BD790233C730 /* WingBottomIndicators.swift */,
 				B141C23B2CA5F50900AC8CC8 /* Onboarding */,
 				B1C448992C97375A001F0858 /* Tips */,
@@ -1180,6 +1324,7 @@
 			isa = PBXGroup;
 			children = (
 				FE07B760265B708E1860CA2F /* menu */,
+				FE07B760265B708E1860CA2F /* menu */,
 				E1A000912E60000100000001 /* utils */,
 				E1A000042E60000100000001 /* Features */,
 				11F748672EC9AC9600F841DB /* XPCHelperClient */,
@@ -1222,6 +1367,8 @@
 		14D031EC2C689DB70096E6A1 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FE02DCB34EA3B127A9143791 /* kalam.dylib */,
+				FE3064FB0E9BC6606F26E2EE /* libusb.dylib */,
 				FE02DCB34EA3B127A9143791 /* kalam.dylib */,
 				FE3064FB0E9BC6606F26E2EE /* libusb.dylib */,
 				14D031EF2C689DC00096E6A1 /* ApplicationServices.framework */,
@@ -1341,6 +1488,16 @@
 		B18654302C6F4590000B926A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				FE3F829036A1BE8AA8F38B15 /* SettingsExtensionsView.swift */,
+				FE6734A3148655E6C700C893 /* MacLinkAppsView.swift */,
+				FEAF14BC423FEA781D0B75E5 /* MacLinkCallsView.swift */,
+				FE9AE04B4A24E1F78E33761D /* MacLinkCommandDeckView.swift */,
+				FE21CECB5C1F87E70602CABB /* MacLinkFilesView.swift */,
+				FE7B6E65FE87AF47B171A9E3 /* MacLinkMessagesView.swift */,
+				FE6657EDDE93BE9C9D532C91 /* MacLinkOverviewView.swift */,
+				FE39977D7E633C3E5EB327C4 /* MacLinkPairingView.swift */,
+				FE2C52877F45893A89DAA1C9 /* MacLinkPhotosView.swift */,
+				FE9B5F677FA5F6BDE6201363 /* MacLinkTimelineView.swift */,
 				FE1E5D0EF7157805821242A1 /* AppUpdateTopBannerView.swift */,
 				FE5F3DB13E5FD3BF401CAD81 /* GeneralSettingsView.swift */,
 				FE00E4DF5F2306CCBBD7262F /* GitHubChangelogView.swift */,
@@ -1418,6 +1575,11 @@
 		E1A000042E60000100000001 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				FE213747DCCB43D664F183F2 /* Powerload */,
+				FE124D6E0269D9EAA7CAE4E5 /* PhoneBridge */,
+				FE5550481E5D3B8163A9B24C /* AndroidFiles */,
+				FEC5E4E91877761E344D781B /* Watcher */,
+				FEC09E97B81D1522C3D5CB56 /* ColorDropper */,
 				29034770DC0A5774BD079812 /* AlertCenter */,
 				8F2F43D08BFE5F8FBD13CD1A /* TransferStream */,
 				1217CA447D3854A182181156 /* MeetingFlight */,
@@ -1820,6 +1982,38 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEE9B65D0F17DD7E54D78831 /* OmniLauncherEngine.swift in Sources */,
+				FE9F90738F434E5AA8B1436B /* OmniLauncherOverlayView.swift in Sources */,
+				FE6E50DE70B618598E58E5DC /* KeepAwakeModels.swift in Sources */,
+				FE2D5D3B2AFA9E689F9B6202 /* KeepAwakeCompactIndicatorView.swift in Sources */,
+				FE12BCBBBC619C656D33FB13 /* KeepAwakeExpandedView.swift in Sources */,
+				FEC04E9651E74B2BA9AEDFFD /* PowerAssertionProviding.swift in Sources */,
+				FE86F85AAB1EE570274DEFBA /* IOKitPowerAssertionProvider.swift in Sources */,
+				FE3A421F7AC6D112F27FF8C1 /* KeepAwakeManager.swift in Sources */,
+				FEE1C6822D9D0458689682C3 /* MockPowerAssertionProvider.swift in Sources */,
+				FE941C18EE4E444ACD0EC0E1 /* BetterDisplayBridge.swift in Sources */,
+				FE99B09D94E9270979085265 /* JavaScriptExtensionRuntime.swift in Sources */,
+				FE5ABCB22BF1BD3DA0813F6A /* SuperIslandContainerView.swift in Sources */,
+				FEC63EDCC49B04BB537ECB3E /* SuperIslandHomeScreenView.swift in Sources */,
+				FED90AA2708B3D85C6C13597 /* SuperIslandPillShape.swift in Sources */,
+				FE2E15CDE1AB52BB5C59F7BD /* SuperIslandTopBarView.swift in Sources */,
+				FE8871461EF6270D74CBD64E /* GlobalEmojiPickerManager.swift in Sources */,
+				FEEDA3D9ADA2B313004EEA08 /* LockScreenWidgetManager.swift in Sources */,
+				FE92F182DBC0395939808D06 /* SQLiteNotificationWatcher.swift in Sources */,
+				FE139902F86809C82A65C389 /* CiderRPCController.swift in Sources */,
+				FEDB8F0D0BD33BFC87414045 /* AnimationHitchProbe.swift in Sources */,
+				FE61961F1FB223269B1DF52F /* LiquidGlassMaterial.swift in Sources */,
+				FE44B349EFFA6251FB0D19AC /* SettingsExtensionsView.swift in Sources */,
+				FEB60995795868ECB95A67C4 /* MacLinkAppsView.swift in Sources */,
+				FE9514C52D44BDEA40CB70B3 /* MacLinkCallsView.swift in Sources */,
+				FE098877A95CB02C1FBDE419 /* MacLinkCommandDeckView.swift in Sources */,
+				FEB7EC9B546AF816C3787CAD /* MacLinkFilesView.swift in Sources */,
+				FE3C388A228CA053703BA63D /* MacLinkMessagesView.swift in Sources */,
+				FE65AF56E139D987A2809EEB /* MacLinkOverviewView.swift in Sources */,
+				FE93E1368D9FD2712967D95C /* MacLinkPairingView.swift in Sources */,
+				FED07197AE1669233E2667DB /* MacLinkPhotosView.swift in Sources */,
+				FE107F082EE53EAE71A76B42 /* MacLinkTimelineView.swift in Sources */,
+				FE69248FA0153AB43B6174DE /* FileConversionEngine.swift in Sources */,
 				6FDC1B08227C5775A88B16BE /* BluetoothHFPManager.swift in Sources */,
 				56C17E6CC4425AF9A8DE66EB /* CallNotifier.swift in Sources */,
 				03A1EF6CF7A451AEA9A5B5FF /* MacLinkBridgeService.swift in Sources */,

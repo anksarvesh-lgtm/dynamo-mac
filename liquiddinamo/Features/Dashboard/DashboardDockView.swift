@@ -19,7 +19,7 @@ struct DashboardDockView: View {
     @ObservedObject var coordinator = LiquidViewCoordinator.shared
     @ObservedObject var volumeManager = VolumeManager.shared
     @ObservedObject var brightnessService = MultiDisplayBrightnessService.shared
-    @ObservedObject var keepAwake = KeepAwakeService.shared
+    @ObservedObject var keepAwake = KeepAwakeManager.shared
     @Default(.showStatsTab) var showStatsTab
     @Default(.showBluetoothTab) var showBluetoothTab
     @Default(.showDisplaySoundTab) var showDisplaySoundTab
@@ -110,14 +110,18 @@ struct DashboardDockView: View {
 
             // Keep Awake Clamshell toggle
             Icon3DView(
-                icon: keepAwake.isKeepAwakeActive ? "cup.and.saucer.fill" : "cup.and.saucer",
-                isSelected: keepAwake.isKeepAwakeActive,
+                icon: keepAwake.isActive ? "cup.and.saucer.fill" : "cup.and.saucer",
+                isSelected: coordinator.currentView == .keepAwake || keepAwake.isActive,
                 size: 11
             ) {
-                keepAwake.toggleKeepAwake()
+                if coordinator.currentView == .keepAwake {
+                    coordinator.currentView = .home
+                } else {
+                    coordinator.currentView = .keepAwake
+                }
             }
             .frame(width: 26, height: 24)
-            .help(keepAwake.isKeepAwakeActive ? "Disable Keep-Awake (Clamshell Active)" : "Enable Keep-Awake (Prevent Sleep)")
+            .help(keepAwake.isActive ? "Keep Awake Active (\(keepAwake.remainingFormatted))" : "Keep Awake (Prevent Sleep)")
 
             // Divider between tabs and settings
             Rectangle()

@@ -2,58 +2,42 @@
 //  KeepAwakeService.swift
 //  LiquidDynamo
 //
-//  Clamshell mode & sleep prevention controller using IOKit power assertions.
-//  Merged from Ledge.
+//  Cleanroom adapter bridging legacy KeepAwakeService calls to KeepAwakeManager.
 //
 
 import Combine
 import Foundation
-import IOKit.pwr_mgt
 
 @MainActor
 public final class KeepAwakeService: ObservableObject {
     public static let shared = KeepAwakeService()
 
     @Published public private(set) var isKeepAwakeActive: Bool = false
-    private var assertionID: IOPMAssertionID = 0
+    private var cancellables = Set<AnyCancellable>()
 
-    private init() {}
+    private init() {
+        // Forward published state from KeepAwakeManager
+        KeepAwakeManager.shared.$isActive
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] active in
+                self?.isKeepAwakeActive = active
+            }
+            .store(in: &cancellables)
+    }
 
     public func toggleKeepAwake() {
-        if isKeepAwakeActive {
-            disableKeepAwake()
-        } else {
-            enableKeepAwake()
-        }
+        KeepAwakeManager.shared.toggle()
     }
 
     public func enableKeepAwake() {
-        guard !isKeepAwakeActive else { return }
-
-        let reason = "LiquidDynamo Keep Awake Clamshell Mode" as CFString
-        let result = IOPMAssertionCreateWithName(
-            kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
-            IOPMAssertionLevel(kIOPMAssertionLevelOn),
-            reason,
-            &assertionID
+        guard !KeepAwakeManager.shared.isActive else { return }
+        KeepAwakeManager.shared.start(
+            mode: KeepAwakeManager.shared.mode,
+            duration: .preset(.h1)
         )
-
-        if result == kIOReturnSuccess {
-            isKeepAwakeActive = true
-        }
     }
 
     public func disableKeepAwake() {
-        guard isKeepAwakeActive else { return }
-        IOPMAssertionRelease(assertionID)
-        assertionID = 0
-        isKeepAwakeActive = false
-    }
-
-    deinit {
-        if assertionID != 0 {
-            IOPMAssertionRelease(assertionID)
-        }
+        KeepAwakeManager.shared.stop()
     }
 }
-

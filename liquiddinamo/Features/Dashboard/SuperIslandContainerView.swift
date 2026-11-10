@@ -297,6 +297,8 @@ public struct SuperIslandContainerView: View {
             DisplayAndSoundView()
         case .network, .netMerge:
             NetworkTabView()
+        case .keepAwake:
+            KeepAwakeExpandedView()
         }
     }
 

@@ -246,6 +246,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             screenUnlockedObserver = nil
         }
         MusicManager.shared.destroy()
+        KeepAwakeManager.shared.stop()
         stopExpandedEventMonitors()
         ShelfStateViewModel.shared.cleanupAllTemporaryItems()
         cleanupDragDetectors()

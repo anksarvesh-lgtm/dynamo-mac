@@ -40,6 +40,7 @@ public enum NotchViews {
     case netMerge
     case agent
     case teleprompter
+    case keepAwake
 }
 
 enum SettingsEnum {
