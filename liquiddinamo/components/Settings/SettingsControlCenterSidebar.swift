@@ -2,8 +2,9 @@
 //  SettingsControlCenterSidebar.swift
 //  LiquidDynamo
 //
-//  Clean native macOS frosted-glass sidebar with authentic application branding,
-//  SF Symbols, restrained blue selection background, and responsive search.
+//  Clean native macOS frosted-glass sidebar with two distinct categories:
+//  1. MACLINK PHONE COMPANION (Primary app UI)
+//  2. DYNAMIC ISLAND & NOTCH SETTINGS
 //
 
 import AppKit
@@ -39,49 +40,41 @@ public struct SettingsControlCenterSidebar: View {
     @State private var hoveredTab: String? = nil
     @Environment(\.colorScheme) private var colorScheme
 
-    public static let items: [SettingsSidebarItem] = [
-        SettingsSidebarItem(id: "NotchWings", title: "Notch & Wings", symbolBackup: "sparkles.rectangle.stack.fill"),
-        SettingsSidebarItem(id: "Appearance", title: "Appearance", symbolBackup: "paintpalette.fill"),
-        SettingsSidebarItem(id: "Metrics", title: "Metrics", symbolBackup: "chart.bar.fill"),
-        SettingsSidebarItem(id: "Media", title: "Media & Controls", symbolBackup: "play.fill"),
-        SettingsSidebarItem(id: "Notifications", title: "Notifications", symbolBackup: "bell.fill"),
-        SettingsSidebarItem(id: "Devices", title: "Battery & Devices", symbolBackup: "battery.100"),
-        SettingsSidebarItem(id: "Clipboard", title: "Clipboard", symbolBackup: "doc.on.clipboard"),
-        SettingsSidebarItem(id: "Hydration", title: "Focus & Timers", symbolBackup: "clock"),
-        SettingsSidebarItem(id: "Permissions", title: "Permissions", symbolBackup: "lock.fill"),
-        SettingsSidebarItem(id: "General", title: "General", symbolBackup: "gearshape.fill"),
-        SettingsSidebarItem(id: "About", title: "About", symbolBackup: "info.circle"),
-        SettingsSidebarItem(id: "Watcher", title: "Watcher (Agents)", symbolBackup: "sparkles", badgeText: "AI"),
-        SettingsSidebarItem(id: "StorageCleaner", title: "Storage Cleaner", symbolBackup: "trash.circle.fill", badgeText: "Clean"),
-        SettingsSidebarItem(id: "PhoneBridge", title: "Phone Bridge", symbolBackup: "externaldrive.fill.badge.wifi"),
-        SettingsSidebarItem(id: "Powerload", title: "Powerload Turbo", symbolBackup: "bolt.horizontal.fill"),
-        SettingsSidebarItem(id: "NetMerge", title: "NetMerge Bonding", symbolBackup: "point.3.filled.connected.trianglepath.dotted", badgeText: "Bond"),
-        SettingsSidebarItem(id: "Shortcuts", title: "Shortcuts", symbolBackup: "command")
+    // Category 1: MacLink Phone Companion
+    public static let macLinkItems: [SettingsSidebarItem] = [
+        SettingsSidebarItem(id: "overview", title: "Overview & Mirror", symbolBackup: "iphone.gen3"),
+        SettingsSidebarItem(id: "messages", title: "Messages", symbolBackup: "message.fill"),
+        SettingsSidebarItem(id: "calls", title: "Calls & Dialer", symbolBackup: "phone.fill"),
+        SettingsSidebarItem(id: "deck", title: "Command Deck", symbolBackup: "slider.horizontal.3"),
+        SettingsSidebarItem(id: "files", title: "File Manager", symbolBackup: "folder.fill"),
+        SettingsSidebarItem(id: "photos", title: "Photos & Media", symbolBackup: "photo.on.rectangle.angled"),
+        SettingsSidebarItem(id: "apps", title: "Installed Apps", symbolBackup: "square.grid.3x3.fill"),
+        SettingsSidebarItem(id: "timeline", title: "Timeline & Sync", symbolBackup: "clock.arrow.circlepath"),
+        SettingsSidebarItem(id: "pairing", title: "Pairing & Devices", symbolBackup: "qrcode")
     ]
 
-    var filteredItems: [SettingsSidebarItem] {
-        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return Self.items
-        }
-        let query = searchText.lowercased()
-        return Self.items.filter { $0.title.lowercased().contains(query) }
-    }
+    // Category 2: Dynamic Island & Notch Settings
+    public static let islandItems: [SettingsSidebarItem] = [
+        SettingsSidebarItem(id: "islandLook", title: "Island Look & Wings", symbolBackup: "macbook"),
+        SettingsSidebarItem(id: "islandLiquid", title: "Liquid Glass & Motion", symbolBackup: "drop.fill"),
+        SettingsSidebarItem(id: "islandModules", title: "Modules & Overlays", symbolBackup: "app.badge"),
+        SettingsSidebarItem(id: "islandExtensions", title: "Extensions & System", symbolBackup: "puzzlepiece.fill")
+    ]
 
     public var body: some View {
         VStack(spacing: 0) {
-            // App Branding Header matching reference
+            // App Branding Header
             VStack(alignment: .center, spacing: 6) {
-                // 3D Liquid Blue Droplet Icon
                 ReferenceAppIcon(size: 36)
                     .padding(.top, 14)
 
                 VStack(spacing: 2) {
-                    Text("LiquidDynamo")
-                        .font(.system(size: 15, weight: .bold))
+                    Text("MacLink & LiquidDynamo")
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text("Notch, Wings & More")
-                        .font(.system(size: 11, weight: .regular))
+                    Text("Phone Companion & Dynamic Island")
+                        .font(.system(size: 10.5, weight: .regular))
                         .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.68))
 
                     if updateChecker.isUpdateAvailable {
@@ -102,13 +95,38 @@ public struct SettingsControlCenterSidebar: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
 
             // Scrollable Navigation Destination Rows
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 3) {
-                    ForEach(filteredItems) { item in
-                        sidebarRow(for: item)
+                VStack(alignment: .leading, spacing: 14) {
+                    // Category 1: MacLink
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("MACLINK COMPANION")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.4))
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
+
+                        ForEach(Self.macLinkItems) { item in
+                            sidebarRow(for: item)
+                        }
+                    }
+
+                    Divider().opacity(0.15)
+                        .padding(.horizontal, 10)
+
+                    // Category 2: Dynamic Island & Notch
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("DYNAMIC ISLAND & NOTCH")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.4))
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
+
+                        ForEach(Self.islandItems) { item in
+                            sidebarRow(for: item)
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
@@ -121,9 +139,18 @@ public struct SettingsControlCenterSidebar: View {
         )
     }
 
+    private func isTabSelected(_ itemId: String) -> Bool {
+        if selectedTab == itemId { return true }
+        if itemId == "islandLook" && (selectedTab == "Look" || selectedTab == "NotchWings") { return true }
+        if itemId == "islandLiquid" && selectedTab == "Appearance" { return true }
+        if itemId == "islandModules" && (selectedTab == "Media" || selectedTab == "Modules") { return true }
+        if itemId == "islandExtensions" && (selectedTab == "About" || selectedTab == "General") { return true }
+        return false
+    }
+
     @ViewBuilder
     private func sidebarRow(for item: SettingsSidebarItem) -> some View {
-        let isSelected = selectedTab == item.id || (item.id == "General" && selectedTab == "Dashboard") || (item.id == "NotchWings" && (selectedTab == "Look" || selectedTab == "NotchWings")) || (item.id == "Media" && selectedTab == "Modules") || (item.id == "Notifications" && selectedTab == "Behavior")
+        let isSelected = isTabSelected(item.id)
         let isHovered = hoveredTab == item.id
 
         Button {
@@ -132,31 +159,18 @@ public struct SettingsControlCenterSidebar: View {
             }
         } label: {
             HStack(spacing: 10) {
-                // SF Symbol
                 Image(systemName: item.symbolBackup)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
                     .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.68))
                     .frame(width: 20, alignment: .center)
 
-                // Title Label
                 Text(item.title)
                     .font(.system(size: 12.5, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.75))
 
                 Spacer()
 
-                // Optional Badge
-                if item.id == "About" && updateChecker.isUpdateAvailable {
-                    Text("UPDATE")
-                        .font(.system(size: 8.5, weight: .bold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.blue)
-                        )
-                        .foregroundStyle(Color.white)
-                } else if let badge = item.badgeText {
+                if let badge = item.badgeText {
                     Text(badge)
                         .font(.system(size: 9.5, weight: .semibold))
                         .padding(.horizontal, 6)
@@ -173,7 +187,6 @@ public struct SettingsControlCenterSidebar: View {
             .background(
                 ZStack {
                     if isSelected {
-                        // Solid Blue Pill matching reference image
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(NativeSettingsTheme.accentBlue)
                             .shadow(color: NativeSettingsTheme.accentBlue.opacity(0.35), radius: 6, x: 0, y: 2)

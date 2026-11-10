@@ -16,7 +16,7 @@ import SwiftUIIntrospect
 
 final class SettingsNavigationState: ObservableObject {
     static let shared = SettingsNavigationState()
-    @Published var selectedTab: String = "NotchWings"
+    @Published var selectedTab: String = "overview"
 }
 
 struct SettingsView: View {
@@ -52,16 +52,39 @@ struct SettingsView: View {
 
                 ZStack {
                     switch navState.selectedTab {
-                    case "NotchWings", "Look":
+                    // Category 1: MacLink Phone Companion
+                    case "overview":
+                        MacLinkOverviewView()
+                    case "messages":
+                        MacLinkMessagesView()
+                    case "calls":
+                        MacLinkCallsView()
+                    case "deck":
+                        MacLinkCommandDeckView()
+                    case "files":
+                        MacLinkFilesView()
+                    case "photos":
+                        MacLinkPhotosView()
+                    case "apps":
+                        MacLinkAppsView()
+                    case "timeline":
+                        MacLinkTimelineView()
+                    case "pairing":
+                        MacLinkPairingView()
+
+                    // Category 2: Dynamic Island & Notch Settings
+                    case "islandLook", "NotchWings", "Look":
                         LookSettingsView()
-                    case "General":
-                        GeneralSettingsView()
-                    case "Appearance":
+                    case "islandLiquid", "Appearance":
                         SettingsAppearanceView()
+                    case "islandModules", "Media", "Media & Controls", "Modules", "Show":
+                        SettingsModulesView()
+                    case "islandExtensions", "About", "General", "Permissions":
+                        SettingsExtensionsView(updaterController: updaterController)
+
+                    // Legacy routes fallback
                     case "Dashboard", "Metrics":
                         SettingsDashboardView()
-                    case "Media", "Media & Controls", "Modules", "Show":
-                        SettingsModulesView()
                     case "Notifications", "Behavior":
                         BehaviorSettingsView()
                     case "Devices", "Battery & Devices":
@@ -70,14 +93,12 @@ struct SettingsView: View {
                         SettingsClipboardView()
                     case "Hydration", "Focus & Timers":
                         SettingsHydrationView()
-                    case "Permissions":
-                        PermissionsSettingsView()
                     case "Watcher":
                         SettingsWatcherView()
                     case "StorageCleaner":
                         SettingsStorageCleanerView()
                     case "PhoneBridge", "FileDroid":
-                        SettingsPhoneBridgeView()
+                        MacLinkOverviewView()
                     case "Powerload", "Plexo":
                         SettingsPowerloadView()
                     case "NetMerge":
@@ -86,10 +107,8 @@ struct SettingsView: View {
                         SettingsShortcutsView()
                     case "Privacy":
                         SettingsPrivacyView()
-                    case "About":
-                        AboutSettingsView(updaterController: updaterController)
                     default:
-                        LookSettingsView()
+                        MacLinkOverviewView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

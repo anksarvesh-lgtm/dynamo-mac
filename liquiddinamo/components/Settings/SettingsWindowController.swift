@@ -55,7 +55,7 @@ class SettingsWindowController: NSWindowController {
         isWindowSetup = true
         
         window.isReleasedWhenClosed = false
-        window.title = "LiquidDynamo Control Center"
+        window.title = "MacLink Desktop Companion & LiquidDynamo"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.toolbarStyle = .unified
