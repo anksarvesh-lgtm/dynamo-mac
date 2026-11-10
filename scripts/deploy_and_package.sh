@@ -20,7 +20,7 @@ fi
 
 DIR="$(pwd)"
 APP_NAME="LiquidDynamo"
-VERSION="2.0.5"
+VERSION="2.3.6"
 APP_PATH="$DIR/build/LiquidDynamo.app"
 OUTPUT_DIR="$HOME/Desktop"
 DMG_PATH="$OUTPUT_DIR/$APP_NAME-$VERSION.dmg"
@@ -104,6 +104,7 @@ APPLESCRIPT
 fi
 
 hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" >/dev/null
+cp -f "$DMG_PATH" "$OUTPUT_DIR/$APP_NAME.dmg"
 rm -f "$TEMP_DMG"
 rm -rf "$STAGE"
 

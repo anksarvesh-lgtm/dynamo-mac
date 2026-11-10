@@ -4,14 +4,14 @@ set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK="/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
 [ -d "$SDK" ] || SDK="$(xcrun --show-sdk-path)"
-SPM_DEPS_DIR="${SPM_DEPS_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/spm_deps.XXXXXX")}"
+SPM_DEPS_DIR="${SPM_DEPS_DIR:-"$DIR/.build/spm_deps"}"
 export SPM_DEPS_DIR
 MODULES_DIR="$SPM_DEPS_DIR/modules"
 FRAMEWORKS_DIR="$SPM_DEPS_DIR/frameworks_flat"
 BUNDLE_FRAMEWORKS="$SPM_DEPS_DIR/bundle_frameworks"
 
 echo "==> LiquidDynamo CLI Compiler using SDK: $SDK (deps: $SPM_DEPS_DIR)"
-mkdir -p "$MODULES_DIR" "$FRAMEWORKS_DIR" "$BUNDLE_FRAMEWORKS"
+mkdir -p "$MODULES_DIR" "$FRAMEWORKS_DIR" "$BUNDLE_FRAMEWORKS" "$SPM_DEPS_DIR/module-cache"
 
 # 1. Compile 7 Swift dependencies if not already present
 if [ ! -f "$MODULES_DIR/Defaults.swiftmodule" ] || [ ! -f "$MODULES_DIR/libDefaults.dylib" ] || [ ! -d "$FRAMEWORKS_DIR/Sparkle.framework" ]; then
@@ -26,12 +26,16 @@ for lib in AsyncXPCConnection Defaults KeyboardShortcuts LaunchAtLogin MacroVisi
     fi
 done
 
-# 2. Gather all project Swift sources
+# 2. Gather all project Swift sources in an isolated snapshot to prevent timestamp race conditions
 python3 -c "
-import os
+import os, shutil
 deps_dir = os.environ.get('SPM_DEPS_DIR', '/tmp/spm_deps')
+staged_dir = os.path.join(deps_dir, 'staged_sources')
+if os.path.exists(staged_dir):
+    shutil.rmtree(staged_dir)
+shutil.copytree('liquiddinamo', os.path.join(staged_dir, 'liquiddinamo'))
 sources = []
-for root, dirs, files in os.walk('liquiddinamo'):
+for root, dirs, files in os.walk(staged_dir):
     for f in files:
         if f.endswith('.swift'):
             sources.append(os.path.join(root, f))
@@ -39,7 +43,7 @@ sources_file = os.path.join(deps_dir, 'all_dynamo_sources.txt')
 with open(sources_file, 'w') as f:
     for s in sorted(sources):
         f.write(f'\"{s}\"\n')
-print(f'Prepared {len(sources)} Swift source files.')
+print(f'Prepared {len(sources)} Swift source files in {staged_dir}.')
 "
 
 # 3. Compile LiquidDynamo binary
@@ -51,6 +55,8 @@ else
   swiftc -module-name LiquidDynamo \
     -target arm64-apple-macos14.0 \
     -sdk "$SDK" \
+    -module-cache-path "$SPM_DEPS_DIR/module-cache" \
+    -Xcc -fmodules-cache-path="$SPM_DEPS_DIR/module-cache" \
     -O -whole-module-optimization \
     -I "$MODULES_DIR" \
     -F "$FRAMEWORKS_DIR" \

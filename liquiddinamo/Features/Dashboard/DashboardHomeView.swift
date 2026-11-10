@@ -15,6 +15,6 @@ struct DashboardHomeView: View {
     let albumArtNamespace: Namespace.ID
 
     var body: some View {
-        LiquidOrganicNotchView()
+        SuperIslandHomeScreenView()
     }
 }

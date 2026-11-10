@@ -611,9 +611,9 @@ struct ContentView: View {
                                 island.dismissExpandedAlert()
                             }
                             .padding(.top, topNotchGap)
-                        } else if coordinator.currentView != .home {
-                            LiquidHeader()
-                                .frame(height: max(vm.effectiveClosedNotchHeight, vm.geometry.exclusionHeight))
+                        } else {
+                            SuperIslandTopBarView(layout: geom.isNotched ? .shoulder : .inline)
+                                .frame(minHeight: max(vm.effectiveClosedNotchHeight, vm.geometry.exclusionHeight))
                                 .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
                         }
                     }

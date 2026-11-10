@@ -60,8 +60,12 @@ private final class BundleToken {}
 EOF
 
 # 3. Compile all 7 Swift modules
+mkdir -p "$BASE/module-cache"
+
 echo "=== Building AsyncXPCConnection ==="
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name AsyncXPCConnection \
   -emit-module -emit-module-path "$OUT_DIR/AsyncXPCConnection.swiftmodule" \
   -emit-library -o "$OUT_DIR/libAsyncXPCConnection.dylib" \
@@ -70,6 +74,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
 
 echo "=== Building Defaults ==="
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name Defaults \
   -emit-module -emit-module-path "$OUT_DIR/Defaults.swiftmodule" \
   -emit-library -o "$OUT_DIR/libDefaults.dylib" \
@@ -78,6 +84,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
 
 echo "=== Building KeyboardShortcuts ==="
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name KeyboardShortcuts \
   -emit-module -emit-module-path "$OUT_DIR/KeyboardShortcuts.swiftmodule" \
   -emit-library -o "$OUT_DIR/libKeyboardShortcuts.dylib" \
@@ -86,6 +94,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
 
 echo "=== Building LaunchAtLogin ==="
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name LaunchAtLogin \
   -emit-module -emit-module-path "$OUT_DIR/LaunchAtLogin.swiftmodule" \
   -emit-library -o "$OUT_DIR/libLaunchAtLogin.dylib" \
@@ -94,6 +104,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
 
 echo "=== Building MacroVisionKit ==="
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name MacroVisionKit \
   -emit-module -emit-module-path "$OUT_DIR/MacroVisionKit.swiftmodule" \
   -emit-library -o "$OUT_DIR/libMacroVisionKit.dylib" \
@@ -102,6 +114,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
 
 echo "=== Building SkyLightWindow ==="
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name SkyLightWindow \
   -emit-module -emit-module-path "$OUT_DIR/SkyLightWindow.swiftmodule" \
   -emit-library -o "$OUT_DIR/libSkyLightWindow.dylib" \
@@ -111,6 +125,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
 echo "=== Building SwiftUIIntrospect ==="
 find "$BASE/SwiftUIIntrospect/Sources" -name "*.swift" > "$BASE/introspect_sources.txt"
 swiftc -target arm64-apple-macos14.0 -sdk "$SDK" \
+  -module-cache-path "$BASE/module-cache" \
+  -Xcc -fmodules-cache-path="$BASE/module-cache" \
   -module-name SwiftUIIntrospect \
   -emit-module -emit-module-path "$OUT_DIR/SwiftUIIntrospect.swiftmodule" \
   -emit-library -o "$OUT_DIR/libSwiftUIIntrospect.dylib" \
