@@ -59,8 +59,8 @@ public struct ConnectedDevicesIslandCardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 headerRow
 
-                VStack(spacing: 4) {
-                    ForEach(visibleDevices.prefix(4)) { dev in
+                VStack(spacing: 3) {
+                    ForEach(visibleDevices.prefix(2)) { dev in
                         deviceRow(dev)
                     }
                 }
@@ -74,17 +74,19 @@ public struct ConnectedDevicesIslandCardView: View {
     // MARK: - Header
 
     private var headerRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Image(systemName: "cable.connector")
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(Color.accentColor)
 
             Text("DEVICES (\(visibleDevices.count))")
-                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.6))
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .layoutPriority(0)
 
-            Spacer()
+            Spacer(minLength: 2)
 
             Button {
                 withAnimation(.spring(response: 0.36, dampingFraction: 0.8)) {
@@ -92,12 +94,13 @@ public struct ConnectedDevicesIslandCardView: View {
                 }
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 8.5, weight: .bold))
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(Color.white.opacity(0.45))
-                    .padding(4)
+                    .padding(2)
             }
             .buttonStyle(.plain)
             .help("Open Device Library")
+            .layoutPriority(1)
         }
     }
 
@@ -107,22 +110,23 @@ public struct ConnectedDevicesIslandCardView: View {
         let isExpanded = expandedDeviceKey == dev.stableKey
 
         return VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 // Device Kind Icon
                 Image(systemName: dev.iconName.isEmpty ? dev.kind.defaultIconName : dev.iconName)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 9.5, weight: .semibold))
                     .foregroundStyle(iconColor(for: dev))
                     .frame(width: 14, height: 14)
 
-                // Device Name (truncated with ellipsis, high priority)
+                // Device Name (truncated with ellipsis, flexible layout)
                 Text(dev.displayName)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Color.white)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .layoutPriority(1)
+                    .minimumScaleFactor(0.8)
+                    .layoutPriority(0)
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 2)
 
                 // Battery / Status readout
                 if let battery = dev.batteryPercentage {
@@ -133,7 +137,7 @@ public struct ConnectedDevicesIslandCardView: View {
                                 .foregroundStyle(Color.green)
                         }
                         Text("\(battery)%")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(batteryColor(battery))
                     }
                     .padding(.horizontal, 4)
@@ -141,14 +145,22 @@ public struct ConnectedDevicesIslandCardView: View {
                     .background(
                         Capsule().fill(Color.white.opacity(0.06))
                     )
+                    .layoutPriority(1)
                 } else if dev.kind == .charger, let watts = dev.chargerWatts {
                     Text("\(watts)W")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(Color.yellow)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1.5)
+                        .background(
+                            Capsule().fill(Color.white.opacity(0.06))
+                        )
+                        .layoutPriority(1)
                 }
 
                 // Connection badge
                 connectionBadge(dev.connectionType)
+                    .layoutPriority(1)
             }
             .frame(height: 24)
             .contentShape(Rectangle())

@@ -16,8 +16,8 @@ public struct ClipboardHistoryIslandCardView: View {
     @Default(.showDashboardClipboard) private var showClipboard
     @State private var copiedId: UUID? = nil
 
-    private let rowHeight: CGFloat = 28.0
-    private let maxVisibleRows: Int = 6
+    private let rowHeight: CGFloat = 24.0
+    private let maxVisibleRows: Int = 2
 
     public init() {}
 
@@ -39,38 +39,43 @@ public struct ClipboardHistoryIslandCardView: View {
     // MARK: - Header Row
 
     private var headerRow: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(Color.accentColor)
 
             Text("CLIPBOARD")
-                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.6))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .layoutPriority(0)
 
             let totalCount = service.pinnedEntries.count + service.recentEntries.count
             if totalCount > 0 {
                 Text("\(totalCount)")
-                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.5))
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
                     .background(Capsule().fill(Color.white.opacity(0.08)))
+                    .layoutPriority(1)
             }
 
-            Spacer()
+            Spacer(minLength: 2)
 
             if !service.recentEntries.isEmpty {
                 Button {
                     service.clearHistory()
                 } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 9))
+                        .font(.system(size: 8.5))
                         .foregroundStyle(Color.white.opacity(0.45))
-                        .padding(3)
+                        .padding(2)
                 }
                 .buttonStyle(.plain)
                 .help("Clear recent history")
+                .layoutPriority(1)
             }
         }
     }

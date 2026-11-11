@@ -687,7 +687,7 @@ public final class IslandController: ObservableObject {
                 let homeWidth = max(openNotchSize.width, 760)
                 switch activeOrganicItem {
                 case .none:
-                    return CGSize(width: homeWidth, height: min(max(200, geom.notchHeight + 185), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(150, geom.notchHeight + 118), screenMaxH))
                 case .clipboard:
                     return CGSize(width: homeWidth, height: min(max(380, geom.notchHeight + 350), screenMaxH))
                 case .dropper:
@@ -735,7 +735,7 @@ public final class IslandController: ObservableObject {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
         switch item {
         case .none:
-            return max(200, geom.notchHeight + 185)
+            return max(150, geom.notchHeight + 118)
         case .clipboard:
             return max(380, geom.notchHeight + 350)
         case .dropper:

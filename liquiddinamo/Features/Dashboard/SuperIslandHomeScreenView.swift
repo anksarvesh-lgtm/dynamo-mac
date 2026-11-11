@@ -46,7 +46,7 @@ public struct SuperIslandHomeScreenView: View {
     }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 10) {
             // Slot 1: Connected Devices (FIRST, strictly when >= 1 real external device is connected)
             if hasConnectedDevices {
                 ConnectedDevicesIslandCardView()
@@ -86,8 +86,9 @@ public struct SuperIslandHomeScreenView: View {
             phoneDeckCard
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 22)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .animation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8), value: hasConnectedDevices)
@@ -97,21 +98,24 @@ public struct SuperIslandHomeScreenView: View {
         Rectangle()
             .fill(Color.white.opacity(0.09))
             .frame(width: 1)
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
     }
 
     // MARK: - 1. Now Playing Card
 
     private var nowPlayingCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
                 Image(systemName: "music.note")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color.accentColor)
                 Text("NOW PLAYING")
-                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.6))
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .layoutPriority(0)
+                Spacer(minLength: 2)
 
                 if music.isPlaying {
                     // Mini live waveform visualizer
@@ -120,36 +124,41 @@ public struct SuperIslandHomeScreenView: View {
                             waveformBar(at: i)
                         }
                     }
+                    .layoutPriority(1)
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 // Artwork
                 Image(nsImage: music.albumArt)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 44, height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
-                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.12), lineWidth: 0.5))
+                    .frame(width: 38, height: 38)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.12), lineWidth: 0.5))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(music.songTitle.isEmpty ? "No Media Playing" : music.songTitle)
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(Color.white)
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
 
                     Text(music.artistName.isEmpty ? "LiquidDynamo Player" : music.artistName)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.65))
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
 
                     // Scrubber
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Button {
                             music.previousTrack()
                         } label: {
                             Image(systemName: "backward.fill")
-                                .font(.system(size: 10))
+                                .font(.system(size: 9))
                                 .foregroundStyle(Color.white.opacity(0.75))
                         }
                         .buttonStyle(.plain)
@@ -158,7 +167,7 @@ public struct SuperIslandHomeScreenView: View {
                             music.playPause()
                         } label: {
                             Image(systemName: music.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(Color.white)
                         }
                         .buttonStyle(.plain)
@@ -167,12 +176,12 @@ public struct SuperIslandHomeScreenView: View {
                             music.nextTrack()
                         } label: {
                             Image(systemName: "forward.fill")
-                                .font(.system(size: 10))
+                                .font(.system(size: 9))
                                 .foregroundStyle(Color.white.opacity(0.75))
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 1)
                 }
             }
         }
@@ -189,64 +198,75 @@ public struct SuperIslandHomeScreenView: View {
     private var calendarCard: some View {
         let upcoming = calendarManager.events.first(where: { $0.end > Date() })
 
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
                 Image(systemName: "calendar")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color.red)
                 Text("UPCOMING")
-                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.6))
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .layoutPriority(0)
+                Spacer(minLength: 2)
 
                 if let event = upcoming {
                     Text(timeBadge(for: event.start))
-                        .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.red)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1.5)
                         .background(Capsule().fill(Color.red.opacity(0.18)))
+                        .layoutPriority(1)
                 }
             }
 
             if let event = upcoming {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(event.title)
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(Color.white)
                         .lineLimit(1)
+                        .truncationMode(.tail)
+                        .minimumScaleFactor(0.8)
 
                     Text(eventTimeString(event))
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.65))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     if let url = event.url ?? (event.location.flatMap { URL(string: $0) }) {
                         Button {
                             NSWorkspace.shared.open(url)
                         } label: {
-                            HStack(spacing: 4) {
+                            HStack(spacing: 3) {
                                 Image(systemName: "video.fill")
-                                    .font(.system(size: 9))
+                                    .font(.system(size: 8))
                                 Text("Join Flight")
-                                    .font(.system(size: 9.5, weight: .bold))
+                                    .font(.system(size: 9, weight: .bold))
                             }
                             .foregroundStyle(Color.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
                             .background(Capsule().fill(Color.green.opacity(0.8)))
                         }
                         .buttonStyle(.plain)
-                        .padding(.top, 2)
+                        .padding(.top, 1)
                     }
                 }
             } else {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("No Upcoming Events")
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.7))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Text("Schedule is clear")
-                        .font(.system(size: 10))
+                        .font(.system(size: 9.5))
                         .foregroundStyle(Color.white.opacity(0.45))
+                        .lineLimit(1)
                 }
             }
         }
@@ -261,40 +281,47 @@ public struct SuperIslandHomeScreenView: View {
     // MARK: - 3. Weather Card
 
     private var weatherCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
                 Image(systemName: "cloud.sun.fill")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color.yellow)
                 Text("ENVIRONMENT")
-                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.6))
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .layoutPriority(0)
+                Spacer(minLength: 2)
 
                 Button {
                     Defaults[.enableWeatherPrecipitation].toggle()
                 } label: {
                     Image(systemName: Defaults[.enableWeatherPrecipitation] ? "drop.fill" : "drop")
-                        .font(.system(size: 9))
+                        .font(.system(size: 8.5))
                         .foregroundStyle(Defaults[.enableWeatherPrecipitation] ? Color.cyan : Color.white.opacity(0.4))
                 }
                 .buttonStyle(.plain)
                 .help(Defaults[.enableWeatherPrecipitation] ? "Atmospheric Precipitation: Enabled" : "Atmospheric Precipitation: Disabled")
+                .layoutPriority(1)
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: weatherConditionIcon(weather.condition))
-                    .font(.system(size: 24))
+                    .font(.system(size: 20))
                     .foregroundStyle(weatherConditionColor(weather.condition))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(weatherConditionName(weather.condition))
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(Color.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     Text(Defaults[.enableWeatherPrecipitation] ? "Rain Particles Active" : "Liquid Atmosphere")
-                        .font(.system(size: 10))
+                        .font(.system(size: 9.5))
                         .foregroundStyle(Color.white.opacity(0.6))
+                        .lineLimit(1)
                 }
             }
         }
@@ -303,35 +330,41 @@ public struct SuperIslandHomeScreenView: View {
     // MARK: - 4. MacLink Phone Bridge Card
 
     private var phoneDeckCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
                 Image(systemName: "iphone.gen3")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color.green)
                 Text("MACLINK PHONE")
-                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.white.opacity(0.6))
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .layoutPriority(0)
+                Spacer(minLength: 2)
 
                 // Battery + Signal
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 8))
+                        .font(.system(size: 7.5))
                         .foregroundStyle(Color.white.opacity(0.8))
                     Text("\(phoneBridge.batteryLevel)%")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .font(.system(size: 8.5, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.green)
                 }
+                .layoutPriority(1)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(phoneBridge.deviceName)
-                    .font(.system(size: 11, weight: .semibold))
+                Text(phoneBridge.deviceName.isEmpty ? "Connected Phone" : phoneBridge.deviceName)
+                    .font(.system(size: 10.5, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .lineLimit(1)
+                    .truncationMode(.tail)
+                    .minimumScaleFactor(0.8)
 
                 // Quick Phone Action Capsules
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     quickDeckButton(icon: "personalhotspot", title: "Hotspot", isActive: phoneBridge.isHotspotActive) {
                         phoneBridge.toggleHotspot()
                     }
@@ -362,9 +395,9 @@ public struct SuperIslandHomeScreenView: View {
     private func quickDeckButton(icon: String, title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 9.5, weight: .semibold))
+                .font(.system(size: 8.5, weight: .semibold))
                 .foregroundStyle(isActive ? Color.white : Color.white.opacity(0.7))
-                .frame(width: 24, height: 24)
+                .frame(width: 22, height: 22)
                 .background(Circle().fill(isActive ? Color.accentColor : Color.white.opacity(0.08)))
         }
         .buttonStyle(.plain)

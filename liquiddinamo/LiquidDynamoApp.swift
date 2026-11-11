@@ -891,23 +891,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let shouldIgnore: Bool
         switch state {
         case .expanded:
-            let islandTarget = explicitSize ?? IslandController.shared.targetSize
-            let hasAlert = IslandController.shared.activeExpandedAlert != nil
-                || LiveActivityCenter.shared.activeAlert != nil
-                || LiveActivityCenter.shared.activeNotification != nil
-            if hasAlert && IslandController.shared.activeOrganicItem == .none {
-                targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: .expanded)
-            } else if LiquidViewCoordinator.shared.currentView == .shelf {
-                targetSize = CGSize(width: max(islandTarget.width, 440), height: max(islandTarget.height, geom.notchHeight + 115))
-            } else if LiquidViewCoordinator.shared.currentView == .plexo {
-                targetSize = CGSize(width: max(islandTarget.width, 560), height: max(islandTarget.height, geom.notchHeight + 450))
-            } else if LiquidViewCoordinator.shared.currentView == .phoneBridge {
-                targetSize = CGSize(width: max(islandTarget.width, 580), height: max(islandTarget.height, geom.notchHeight + 450))
-            } else if LiquidViewCoordinator.shared.currentView == .home {
-                targetSize = CGSize(width: max(islandTarget.width, 760), height: max(islandTarget.height, geom.notchHeight + 175))
-            } else {
-                targetSize = CGSize(width: max(islandTarget.width, openNotchSize.width), height: max(islandTarget.height, openNotchSize.height))
-            }
+            targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: .expanded)
             shouldIgnore = false
         case .alertPop:
             targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: .alertPop)

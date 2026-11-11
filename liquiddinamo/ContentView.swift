@@ -573,8 +573,8 @@ struct ContentView: View {
 
     @ViewBuilder
     func NotchLayout() -> some View {
-        VStack(alignment: .leading) {
-            VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 if coordinator.helloAnimationRunning {
                     Spacer()
                     HelloAnimation(onFinish: {

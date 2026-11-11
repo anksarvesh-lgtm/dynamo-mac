@@ -27,10 +27,10 @@ public struct SuperIslandTopBarView: View {
 
     public let layout: SuperIslandTopBarLayout
 
-    private let shoulderHorizontalPadding: CGFloat = 36
+    private let shoulderHorizontalPadding: CGFloat = 22
     private let shoulderTopPadding: CGFloat = 4
-    private let shoulderTabSpacing: CGFloat = 8
-    private let iconTabWidth: CGFloat = 34
+    private let shoulderTabSpacing: CGFloat = 6
+    private let iconTabWidth: CGFloat = 28
 
     public init(layout: SuperIslandTopBarLayout = .shoulder) {
         self.layout = layout
@@ -116,6 +116,7 @@ public struct SuperIslandTopBarView: View {
                     }
                     .padding(.horizontal, 2)
                 }
+                .clipped()
             }
         }
     }
@@ -131,9 +132,9 @@ public struct SuperIslandTopBarView: View {
             }
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.68))
-                .frame(width: 30, height: 30)
+                .frame(width: 28, height: 28)
                 .background(
                     Circle()
                         .fill(isSelected ? Color.white.opacity(0.18) : Color.white.opacity(0.06))
@@ -150,10 +151,10 @@ public struct SuperIslandTopBarView: View {
     // MARK: - Trailing Controls
 
     private var trailingShoulderControls: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             // Animated Mascot Buddy sitting on shoulder
             LiquidBuddyView()
-                .scaleEffect(0.85)
+                .scaleEffect(0.8)
 
             // Keep Awake Clamshell Button
             Button {
@@ -166,7 +167,7 @@ public struct SuperIslandTopBarView: View {
                 Image(systemName: keepAwake.isActive ? "bolt.shield.fill" : "bolt.shield")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.72))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 28)
                     .background(
                         Circle().fill(Color.white.opacity(keepAwake.isActive ? 0.16 : 0.06))
                     )
@@ -182,9 +183,9 @@ public struct SuperIslandTopBarView: View {
                 island.isPinnedOpen.toggle()
             } label: {
                 Image(systemName: island.isPinnedOpen ? "lock.fill" : "lock.open")
-                    .font(.system(size: 10.5, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(island.isPinnedOpen ? Color.accentColor : Color.white.opacity(0.72))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 28)
                     .background(
                         Circle().fill(Color.white.opacity(island.isPinnedOpen ? 0.16 : 0.06))
                     )
@@ -202,9 +203,9 @@ public struct SuperIslandTopBarView: View {
                 }
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10.5, weight: .semibold))
                     .foregroundStyle(OmniLauncherEngine.shared.isVisible ? Color.accentColor : Color.white.opacity(0.72))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 28)
                     .background(
                         Circle().fill(Color.white.opacity(OmniLauncherEngine.shared.isVisible ? 0.16 : 0.06))
                     )
@@ -232,9 +233,9 @@ public struct SuperIslandTopBarView: View {
             } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "bell.fill")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(alertCenter.isShadeOpen ? Color.cyan : Color.white.opacity(0.72))
-                        .frame(width: 30, height: 30)
+                        .frame(width: 28, height: 28)
                         .background(
                             Circle().fill(Color.white.opacity(alertCenter.isShadeOpen ? 0.16 : 0.06))
                         )
@@ -261,9 +262,9 @@ public struct SuperIslandTopBarView: View {
                 SettingsWindowController.shared.showWindow()
             } label: {
                 Image(systemName: "gearshape.fill")
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.72))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 28)
                     .background(Circle().fill(Color.white.opacity(0.06)))
                     .overlay(Circle().stroke(Color.white.opacity(0.08), lineWidth: 1))
             }
@@ -273,16 +274,16 @@ public struct SuperIslandTopBarView: View {
     }
 
     private var batteryCapsuleLabel: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Image(systemName: batteryModel.isCharging ? "battery.100.bolt" : "battery.75")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(batteryModel.isCharging ? Color.green : Color.white.opacity(0.8))
             Text("\(Int(batteryModel.levelBattery))%")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.9))
         }
-        .padding(.horizontal, 8)
-        .frame(height: 30)
+        .padding(.horizontal, 6)
+        .frame(height: 28)
         .background(Capsule().fill(Color.white.opacity(0.06)))
         .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
