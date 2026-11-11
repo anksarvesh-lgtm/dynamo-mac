@@ -336,6 +336,10 @@ extension Defaults.Keys {
     static let showAgentTab = Key<Bool>("showAgentTab", default: true)
     static let showTeleprompterTab = Key<Bool>("showTeleprompterTab", default: true)
     static let keepAwakeEnabled = Key<Bool>("keepAwakeEnabled", default: false)
+    static let hiddenDeviceIDs = Key<[String]>("hiddenDeviceIDs", default: [])
+    static let showConnectedDevicesSlot = Key<Bool>("showConnectedDevicesSlot", default: true)
+    static let showExternalDrivesInDevices = Key<Bool>("showExternalDrivesInDevices", default: true)
+    static let showExternalDisplaysInDevices = Key<Bool>("showExternalDisplaysInDevices", default: true)
     static let enableWeatherPrecipitation = Key<Bool>("enableWeatherPrecipitation", default: true)
     static let enableRealAudioSpectrum = Key<Bool>("enableRealAudioSpectrum", default: true)
     

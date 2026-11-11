@@ -21,36 +21,75 @@ public struct SuperIslandHomeScreenView: View {
     @ObservedObject private var phoneBridge = MacLinkBridgeService.shared
     @ObservedObject private var meetingFlight = MeetingFlightService.shared
     @ObservedObject private var coordinator = LiquidViewCoordinator.shared
+    @ObservedObject private var deviceMonitor = DeviceMonitor.shared
+    @ObservedObject private var clipboardService = ClipboardHistoryService.shared
+
+    @Default(.showDashboardClipboard) private var showClipboard
+    @Default(.hiddenDeviceIDs) private var hiddenDeviceIDs
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init() {}
 
+    /// Checks if at least one real external device is connected.
+    private var hasConnectedDevices: Bool {
+        deviceMonitor.sortedActiveDevices.contains { dev in
+            if hiddenDeviceIDs.contains(dev.stableKey) { return false }
+            let name = dev.displayName.lowercased()
+            let model = dev.model.lowercased()
+            let vendor = dev.vendor.lowercased()
+            if name.contains("built-in") || model.contains("built-in") { return false }
+            if name.contains("root hub") || model.contains("root hub") { return false }
+            if name.contains("apple t2") || name.contains("ambient light") { return false }
+            if name.contains("virtual") || vendor.contains("virtual") { return false }
+            return true
+        }
+    }
+
     public var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            // Panel 1: Now Playing Card
+            // Slot 1: Connected Devices (FIRST, strictly when >= 1 real external device is connected)
+            if hasConnectedDevices {
+                ConnectedDevicesIslandCardView()
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.96)),
+                        removal: .opacity
+                    ))
+
+                homeDivider
+            }
+
+            // Panel: Now Playing Card
             nowPlayingCard
                 .frame(maxWidth: .infinity, alignment: .topLeading)
 
             homeDivider
 
-            // Panel 2: Calendar & MeetingFlight Card
+            // Panel: Calendar & MeetingFlight Card
             calendarCard
                 .frame(maxWidth: .infinity, alignment: .topLeading)
 
             homeDivider
 
-            // Panel 3: Ambient Weather Card
-            weatherCard
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+            // Panel: Clipboard History (when enabled) or Ambient Weather Card
+            if showClipboard {
+                ClipboardHistoryIslandCardView()
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            } else {
+                weatherCard
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
 
             homeDivider
 
-            // Panel 4: MacLink Phone Bridge Deck
+            // Panel: MacLink Phone Bridge Deck
             phoneDeckCard
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .animation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8), value: hasConnectedDevices)
     }
 
     private var homeDivider: some View {

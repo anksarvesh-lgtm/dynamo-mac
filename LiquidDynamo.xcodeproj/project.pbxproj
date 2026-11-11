@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FEC183E1B0FC2E163202DC93 /* ConnectedDevicesIslandCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE2BC1BEFCA0FCC7813FA98 /* ConnectedDevicesIslandCardView.swift */; };
+		FE3084DECB10DEEA1893CF6C /* ClipboardHistoryIslandCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE96F9E8A4B3BF3750FFD37 /* ClipboardHistoryIslandCardView.swift */; };
+		FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE02DCB34EA3B127A9143791 /* kalam.dylib */; };
+		FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE02DCB34EA3B127A9143791 /* kalam.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; };
+		FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FE3064FB0E9BC6606F26E2EE /* libusb.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		FEE9B65D0F17DD7E54D78831 /* OmniLauncherEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE98095DE966EB6E6CD2014 /* OmniLauncherEngine.swift */; };
 		FE9F90738F434E5AA8B1436B /* OmniLauncherOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE80FFB514C5295D97069359 /* OmniLauncherOverlayView.swift */; };
 		FE6E50DE70B618598E58E5DC /* KeepAwakeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6D5EEA26499E31E5B45937 /* KeepAwakeModels.swift */; };
@@ -416,6 +422,8 @@
 				FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */,
 				FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */,
 				FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */,
+				FE8F482B76B2900536B024D8 /* kalam.dylib in Embed Frameworks */,
+				FE76DFDAA44C8E40D0996695 /* libusb.dylib in Embed Frameworks */,
 				117AB5172E30E09C00558921 /* MediaRemoteAdapter.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
@@ -424,6 +432,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FEE2BC1BEFCA0FCC7813FA98 /* ConnectedDevicesIslandCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConnectedDevicesIslandCardView.swift"; sourceTree = "<group>"; };
+		FEE96F9E8A4B3BF3750FFD37 /* ClipboardHistoryIslandCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ClipboardHistoryIslandCardView.swift"; sourceTree = "<group>"; };
+		FE02DCB34EA3B127A9143791 /* kalam.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = kalam.dylib; path = Frameworks/kalam.dylib; sourceTree = SOURCE_ROOT; };
+		FE3064FB0E9BC6606F26E2EE /* libusb.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libusb.dylib; path = Frameworks/libusb.dylib; sourceTree = SOURCE_ROOT; };
 		FEE98095DE966EB6E6CD2014 /* OmniLauncherEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OmniLauncherEngine.swift"; sourceTree = "<group>"; };
 		FE80FFB514C5295D97069359 /* OmniLauncherOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OmniLauncherOverlayView.swift"; sourceTree = "<group>"; };
 		FE6D5EEA26499E31E5B45937 /* KeepAwakeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeepAwakeModels.swift"; sourceTree = "<group>"; };
@@ -822,6 +834,8 @@
 				FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */,
 				FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */,
 				FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */,
+				FE5F6C6802F81FB8CE7C4F60 /* kalam.dylib in Frameworks */,
+				FE53C5789F115F1002BC7DC6 /* libusb.dylib in Frameworks */,
 				9A987A102C73CA8D005CA465 /* Collections in Frameworks */,
 				1194E8852EA57D23009C82D6 /* SkyLightWindow in Frameworks */,
 				112B0EBB2E30DD5000562D6C /* MediaRemoteAdapter.framework in Frameworks */,
@@ -839,6 +853,54 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FE213747DCCB43D664F183F2 /* Powerload */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = Powerload;
+			sourceTree = "<group>";
+		};
+		FE124D6E0269D9EAA7CAE4E5 /* PhoneBridge */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = PhoneBridge;
+			sourceTree = "<group>";
+		};
+		FE5550481E5D3B8163A9B24C /* AndroidFiles */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = AndroidFiles;
+			sourceTree = "<group>";
+		};
+		FEC5E4E91877761E344D781B /* Watcher */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = Watcher;
+			sourceTree = "<group>";
+		};
+		FEC09E97B81D1522C3D5CB56 /* ColorDropper */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = ColorDropper;
+			sourceTree = "<group>";
+		};
+		FE07B760265B708E1860CA2F /* menu */ = {
+			isa = PBXGroup;
+			children = (
+
+			);
+			path = menu;
+			sourceTree = "<group>";
+		};
 		FE213747DCCB43D664F183F2 /* Powerload */ = {
 			isa = PBXGroup;
 			children = (
@@ -1222,6 +1284,8 @@
 		1471639B2C5D362F0068B555 /* components */ = {
 			isa = PBXGroup;
 			children = (
+				FEE2BC1BEFCA0FCC7813FA98 /* ConnectedDevicesIslandCardView.swift */,
+				FEE96F9E8A4B3BF3750FFD37 /* ClipboardHistoryIslandCardView.swift */,
 				FEE98095DE966EB6E6CD2014 /* OmniLauncherEngine.swift */,
 				FE80FFB514C5295D97069359 /* OmniLauncherOverlayView.swift */,
 				FE6D5EEA26499E31E5B45937 /* KeepAwakeModels.swift */,
@@ -1325,6 +1389,7 @@
 			children = (
 				FE07B760265B708E1860CA2F /* menu */,
 				FE07B760265B708E1860CA2F /* menu */,
+				FE07B760265B708E1860CA2F /* menu */,
 				E1A000912E60000100000001 /* utils */,
 				E1A000042E60000100000001 /* Features */,
 				11F748672EC9AC9600F841DB /* XPCHelperClient */,
@@ -1367,6 +1432,8 @@
 		14D031EC2C689DB70096E6A1 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FE02DCB34EA3B127A9143791 /* kalam.dylib */,
+				FE3064FB0E9BC6606F26E2EE /* libusb.dylib */,
 				FE02DCB34EA3B127A9143791 /* kalam.dylib */,
 				FE3064FB0E9BC6606F26E2EE /* libusb.dylib */,
 				FE02DCB34EA3B127A9143791 /* kalam.dylib */,
@@ -1575,6 +1642,11 @@
 		E1A000042E60000100000001 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				FE213747DCCB43D664F183F2 /* Powerload */,
+				FE124D6E0269D9EAA7CAE4E5 /* PhoneBridge */,
+				FE5550481E5D3B8163A9B24C /* AndroidFiles */,
+				FEC5E4E91877761E344D781B /* Watcher */,
+				FEC09E97B81D1522C3D5CB56 /* ColorDropper */,
 				FE213747DCCB43D664F183F2 /* Powerload */,
 				FE124D6E0269D9EAA7CAE4E5 /* PhoneBridge */,
 				FE5550481E5D3B8163A9B24C /* AndroidFiles */,
@@ -1982,6 +2054,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEC183E1B0FC2E163202DC93 /* ConnectedDevicesIslandCardView.swift in Sources */,
+				FE3084DECB10DEEA1893CF6C /* ClipboardHistoryIslandCardView.swift in Sources */,
 				FEE9B65D0F17DD7E54D78831 /* OmniLauncherEngine.swift in Sources */,
 				FE9F90738F434E5AA8B1436B /* OmniLauncherOverlayView.swift in Sources */,
 				FE6E50DE70B618598E58E5DC /* KeepAwakeModels.swift in Sources */,
