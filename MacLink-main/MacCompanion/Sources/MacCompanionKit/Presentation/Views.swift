@@ -12,6 +12,7 @@ public enum SidebarItem: String, CaseIterable, Identifiable {
     case permissions = "Permissions"
     case diagnostics = "Network Diagnostics"
     case inspector = "Live Inspector"
+    case island = "Island"
 
     public var id: String { rawValue }
 
@@ -26,6 +27,7 @@ public enum SidebarItem: String, CaseIterable, Identifiable {
         case .permissions: return "lock.shield"
         case .diagnostics: return "network"
         case .inspector: return "waveform.path.ecg"
+        case .island: return "sparkles"
         }
     }
 }
@@ -119,6 +121,8 @@ public struct MainContainerView: View {
                     NetworkDiagnosticsView(state: state)
                 case .inspector:
                     LiveInspectorView(state: state)
+                case .island:
+                    IslandView(state: state)
                 }
             }
             .frame(minWidth: 500, minHeight: 400)

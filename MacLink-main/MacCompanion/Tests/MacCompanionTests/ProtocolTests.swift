@@ -13,6 +13,7 @@ struct ProtocolTestMain {
 
         InputEngineTests.runAll()
         RemoteInputTests.runAll()
+        KeepAwakeTests.runAll()
     }
 
     static func testEnvelopeSerializationRoundTrip() throws {

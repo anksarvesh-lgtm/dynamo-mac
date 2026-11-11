@@ -59,6 +59,7 @@ const QML: &[&str] = &[
     "qml/pages/DeckPage.qml",
     "qml/pages/FeaturesGuidePage.qml",
     "qml/pages/HomePage.qml",
+    "qml/pages/IslandPage.qml",
     "qml/pages/MessagesPage.qml",
     "qml/pages/PairingPanel.qml",
     "qml/pages/PhotosPage.qml",

@@ -792,6 +792,7 @@ NativeWindow {
             { id: "files", label: qsTr("Files"), icon: Icons.folder },
             { id: "apps", label: qsTr("Apps"), icon: Icons.apps },
             { id: "deck", label: qsTr("Deck"), icon: Icons.deck },
+            { id: "island", label: qsTr("Island"), icon: Icons.island },
             { id: "guide", label: qsTr("Guide"), icon: Icons.info },
             { id: "settings", label: qsTr("Settings"), icon: Icons.settings }
         ]
@@ -809,9 +810,10 @@ NativeWindow {
             case "file_manager": return 4
             case "apps": return 5
             case "deck": return 6
+            case "island": return 7
             case "help_center":
-            case "guide": return 7
-            case "settings": return 8
+            case "guide": return 8
+            case "settings": return 9
             default: return 0
             }
         }
@@ -1381,6 +1383,7 @@ NativeWindow {
                     case "file_manager": return "qrc:/qt/qml/app/maclink/qml/pages/FilesPage.qml"
                     case "apps": return "qrc:/qt/qml/app/maclink/qml/pages/AppsPage.qml"
                     case "deck": return "qrc:/qt/qml/app/maclink/qml/pages/DeckPage.qml"
+                    case "island": return "qrc:/qt/qml/app/maclink/qml/pages/IslandPage.qml"
                     case "help_center":
                     case "guide": return "qrc:/qt/qml/app/maclink/qml/pages/FeaturesGuidePage.qml"
                     case "settings": return "qrc:/qt/qml/app/maclink/qml/pages/SettingsPage.qml"
