@@ -406,11 +406,7 @@ public final class IslandController: ObservableObject {
         // Select spring: expand when either dimension grows, collapse when both shrink
         let spring = IslandMotion.shared.spring(from: oldSize, to: newSize, isAlert: isAlert)
 
-        if isExpanded {
-            AppDelegate.shared?.updateWindowFrame(for: .expanded, explicitSize: newSize, animated: false)
-        } else if newState == .alertPop {
-            AppDelegate.shared?.updateWindowFrame(for: .alertPop, explicitSize: newSize, animated: false)
-        }
+        AppDelegate.shared?.updateWindowFrame(for: newState, explicitSize: newSize, animated: !isExpanded)
 
         withAnimation(spring) {
             self.targetSize = newSize
@@ -691,23 +687,23 @@ public final class IslandController: ObservableObject {
                 let homeWidth = max(openNotchSize.width, 760)
                 switch activeOrganicItem {
                 case .none:
-                    return CGSize(width: homeWidth, height: min(max(200, geom.notchHeight + 175), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(200, geom.notchHeight + 185), screenMaxH))
                 case .clipboard:
-                    return CGSize(width: homeWidth, height: min(max(440, geom.notchHeight + 430), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(380, geom.notchHeight + 350), screenMaxH))
                 case .dropper:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 320), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(320, geom.notchHeight + 290), screenMaxH))
                 case .device:
-                    return CGSize(width: homeWidth, height: min(max(420, geom.notchHeight + 390), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(360, geom.notchHeight + 330), screenMaxH))
                 case .storageCleaner:
-                    return CGSize(width: homeWidth, height: min(max(460, geom.notchHeight + 430), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(400, geom.notchHeight + 370), screenMaxH))
                 case .colorDropper:
-                    return CGSize(width: homeWidth, height: min(max(340, geom.notchHeight + 320), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(320, geom.notchHeight + 290), screenMaxH))
                 case .plexo, .powerload:
-                    return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(420, geom.notchHeight + 390), screenMaxH))
                 case .phoneBridge:
-                    return CGSize(width: homeWidth, height: min(max(480, geom.notchHeight + 450), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(420, geom.notchHeight + 390), screenMaxH))
                 case .watcher:
-                    return CGSize(width: homeWidth, height: min(max(440, geom.notchHeight + 410), screenMaxH))
+                    return CGSize(width: homeWidth, height: min(max(380, geom.notchHeight + 350), screenMaxH))
                 }
             }
             return CGSize(width: max(openNotchSize.width, 660), height: min(openNotchSize.height, screenMaxH))
@@ -739,29 +735,33 @@ public final class IslandController: ObservableObject {
         let geom = NotchSafeAreaEngine.shared.currentGeometry
         switch item {
         case .none:
-            return max(200, geom.notchHeight + 175)
+            return max(200, geom.notchHeight + 185)
         case .clipboard:
-            return max(440, geom.notchHeight + 430)
+            return max(380, geom.notchHeight + 350)
         case .dropper:
-            return max(340, geom.notchHeight + 320)
+            return max(320, geom.notchHeight + 290)
         case .device:
-            return max(420, geom.notchHeight + 390)
+            return max(360, geom.notchHeight + 330)
         case .storageCleaner:
-            return max(460, geom.notchHeight + 430)
+            return max(400, geom.notchHeight + 370)
         case .colorDropper:
-            return max(340, geom.notchHeight + 320)
+            return max(320, geom.notchHeight + 290)
         case .plexo, .powerload:
-            return max(480, geom.notchHeight + 450)
+            return max(420, geom.notchHeight + 390)
         case .phoneBridge:
-            return max(480, geom.notchHeight + 450)
+            return max(420, geom.notchHeight + 390)
         case .watcher:
-            return max(440, geom.notchHeight + 410)
+            return max(380, geom.notchHeight + 350)
         }
     }
 
     /// Dynamically adapts the target height of the expanded dropdown based on measured intrinsic child content.
     public func adjustTargetHeightIfNeeded(_ measuredHeight: CGFloat) {
         guard state == .expanded else { return }
+        // For the home dashboard with no organic sub-item selected, height is stably defined by calculateDimensions.
+        // Dynamic measurement adjustment applies when an organic sub-item is active.
+        guard activeOrganicItem != .none else { return }
+
         let minH = minimumHeight(for: activeOrganicItem)
         let effectiveMeasured = max(measuredHeight, minH)
         guard abs(effectiveMeasured - lastReportedMeasuredHeight) >= 6.0 else { return }
@@ -776,7 +776,7 @@ public final class IslandController: ObservableObject {
             return 700
         }()
 
-        let neededH = min(effectiveMeasured + 14.0, screenMaxH)
+        let neededH = min(effectiveMeasured, screenMaxH)
         if abs(targetSize.height - neededH) >= 8.0 {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.state == .expanded else { return }

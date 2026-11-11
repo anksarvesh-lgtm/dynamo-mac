@@ -88,7 +88,8 @@ public struct SuperIslandHomeScreenView: View {
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .animation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8), value: hasConnectedDevices)
     }
 

@@ -101,6 +101,7 @@ struct ContentView: View {
                     // Unclipped layout with dynamic height measurement: adapts area according to content
                     NotchLayout()
                         .frame(width: island.targetSize.width, alignment: .top)
+                        .fixedSize(horizontal: false, vertical: true)
                         .background(
                             GeometryReader { proxy in
                                 Color.clear.preference(key: NotchContentHeightPreferenceKey.self, value: proxy.size.height)
