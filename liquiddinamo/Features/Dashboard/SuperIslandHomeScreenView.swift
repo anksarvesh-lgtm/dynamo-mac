@@ -47,53 +47,33 @@ public struct SuperIslandHomeScreenView: View {
 
     public var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            // Slot 1: Connected Devices (FIRST, strictly when >= 1 real external device is connected)
-            if hasConnectedDevices {
-                ConnectedDevicesIslandCardView()
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.96)),
-                        removal: .opacity
-                    ))
-
-                homeDivider
-            }
-
-            // Panel: Now Playing Card
-            nowPlayingCard
+            // Card 1: CONNECTED DEVICES (MacLink Paired Android Phones + Hardware Peripherals)
+            ConnectedDevicesIslandCardView()
                 .frame(maxWidth: .infinity, alignment: .topLeading)
 
             homeDivider
 
-            // Panel: Calendar & MeetingFlight Card
-            calendarCard
+            // Card 2: CLIPBOARD HISTORY (Search, Pin, Copy, Sensitive Filter)
+            ClipboardHistoryIslandCardView()
                 .frame(maxWidth: .infinity, alignment: .topLeading)
 
             homeDivider
 
-            // Panel: Clipboard History (when enabled) or Ambient Weather Card
-            if showClipboard {
-                ClipboardHistoryIslandCardView()
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-            } else {
-                weatherCard
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-            }
+            // Card 3: SCOPA (Storage Overview, Dev Caches, Safe Trash Cleanup)
+            ScopaIslandCardView()
+                .frame(maxWidth: .infinity, alignment: .topLeading)
 
-            if !LiquidDynamoLaunchConfig.isEmbedded {
-                homeDivider
+            homeDivider
 
-                // Panel: MacLink Phone Bridge Deck
-                phoneDeckCard
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-            }
+            // Card 4: PINNED (Favourite Tools, Pinned Files, Pinned Clips)
+            PinnedIslandCardView()
+                .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .padding(.horizontal, 22)
         .padding(.top, 6)
         .padding(.bottom, 12)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .animation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.8), value: hasConnectedDevices)
     }
 
     private var homeDivider: some View {

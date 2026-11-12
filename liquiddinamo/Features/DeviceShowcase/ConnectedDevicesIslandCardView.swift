@@ -14,6 +14,7 @@ import SwiftUI
 public struct ConnectedDevicesIslandCardView: View {
     @ObservedObject private var monitor = DeviceMonitor.shared
     @ObservedObject private var coordinator = LiquidViewCoordinator.shared
+    @ObservedObject private var phoneBridge = MacLinkBridgeService.shared
     @Default(.hiddenDeviceIDs) private var hiddenDeviceIDs
     @Default(.showExternalDrivesInDevices) private var showDrives
     @Default(.showExternalDisplaysInDevices) private var showDisplays
@@ -52,23 +53,87 @@ public struct ConnectedDevicesIslandCardView: View {
         }
     }
 
-    public var body: some View {
-        if visibleDevices.isEmpty {
-            EmptyView()
-        } else {
-            VStack(alignment: .leading, spacing: 6) {
-                headerRow
+    private var hasMacLinkPhone: Bool {
+        phoneBridge.isConnected || !phoneBridge.deviceName.isEmpty
+    }
 
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            headerRow
+
+            if hasMacLinkPhone {
+                macLinkPhoneRow
+            }
+
+            if !visibleDevices.isEmpty {
                 VStack(spacing: 3) {
-                    ForEach(visibleDevices.prefix(2)) { dev in
+                    ForEach(visibleDevices.prefix(hasMacLinkPhone ? 1 : 2)) { dev in
                         deviceRow(dev)
                     }
                 }
+            } else if !hasMacLinkPhone {
+                noDevicesNotice
             }
-            .contentShape(Rectangle())
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: visibleDevices.count)
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: expandedDeviceKey)
         }
+        .contentShape(Rectangle())
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: visibleDevices.count)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: expandedDeviceKey)
+    }
+
+    private var macLinkPhoneRow: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "iphone.gen3")
+                .font(.system(size: 9.5, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 14, height: 14)
+
+            Text(phoneBridge.deviceName)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Color.white)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .minimumScaleFactor(0.8)
+
+            Spacer(minLength: 2)
+
+            HStack(spacing: 2) {
+                if phoneBridge.isCharging {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 7.5))
+                        .foregroundStyle(Color.green)
+                }
+                Text("\(phoneBridge.batteryLevel)%")
+                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    .foregroundStyle(batteryColor(phoneBridge.batteryLevel))
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1.5)
+            .background(Capsule().fill(Color.white.opacity(0.06)))
+
+            Text(phoneBridge.cellularNetworkType)
+                .font(.system(size: 7.5, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.7))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1.5)
+                .background(Capsule().fill(Color.white.opacity(0.06)))
+        }
+        .frame(height: 24)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                coordinator.currentView = .phoneBridge
+            }
+        }
+    }
+
+    private var noDevicesNotice: some View {
+        HStack(spacing: 4) {
+            Text("No connected devices")
+                .font(.system(size: 9))
+                .foregroundStyle(Color.white.opacity(0.45))
+            Spacer()
+        }
+        .padding(.vertical, 2)
     }
 
     // MARK: - Header

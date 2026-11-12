@@ -28,6 +28,12 @@
 		FEC63EDCC49B04BB537ECB3E /* SuperIslandHomeScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5A6569BB21B4F8867F5DE9 /* SuperIslandHomeScreenView.swift */; };
 		FED90AA2708B3D85C6C13597 /* SuperIslandPillShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3F3A0BB9E4744588706867 /* SuperIslandPillShape.swift */; };
 		FE2E15CDE1AB52BB5C59F7BD /* SuperIslandTopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECADE71C1E09B48D5F29049 /* SuperIslandTopBarView.swift */; };
+		FEB10001E1AB52BB5C59F001 /* ToolbarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA10001C1E09B48D5F29001 /* ToolbarModels.swift */; };
+		FEB10002E1AB52BB5C59F002 /* NotchToolbarLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA10002C1E09B48D5F29002 /* NotchToolbarLayoutEngine.swift */; };
+		FEB10003E1AB52BB5C59F003 /* ToolbarMorePopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA10003C1E09B48D5F29003 /* ToolbarMorePopoverView.swift */; };
+		FEB10004E1AB52BB5C59F004 /* ToolbarEditSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA10004C1E09B48D5F29004 /* ToolbarEditSheetView.swift */; };
+		FEB10005E1AB52BB5C59F005 /* ScopaIslandCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA10005C1E09B48D5F29005 /* ScopaIslandCardView.swift */; };
+		FEB10006E1AB52BB5C59F006 /* PinnedIslandCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA10006C1E09B48D5F29006 /* PinnedIslandCardView.swift */; };
 		FE8871461EF6270D74CBD64E /* GlobalEmojiPickerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEDE2AF21E56807F1C7EA945 /* GlobalEmojiPickerManager.swift */; };
 		FEEDA3D9ADA2B313004EEA08 /* LockScreenWidgetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE14E722A4141884F2C0F8D /* LockScreenWidgetManager.swift */; };
 		FE92F182DBC0395939808D06 /* SQLiteNotificationWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE4AE3789A2A09C42EAD9103 /* SQLiteNotificationWatcher.swift */; };
@@ -460,6 +466,12 @@
 		FE5A6569BB21B4F8867F5DE9 /* SuperIslandHomeScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandHomeScreenView.swift"; sourceTree = "<group>"; };
 		FE3F3A0BB9E4744588706867 /* SuperIslandPillShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandPillShape.swift"; sourceTree = "<group>"; };
 		FECADE71C1E09B48D5F29049 /* SuperIslandTopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuperIslandTopBarView.swift"; sourceTree = "<group>"; };
+		FEA10001C1E09B48D5F29001 /* ToolbarModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolbarModels.swift"; sourceTree = "<group>"; };
+		FEA10002C1E09B48D5F29002 /* NotchToolbarLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotchToolbarLayoutEngine.swift"; sourceTree = "<group>"; };
+		FEA10003C1E09B48D5F29003 /* ToolbarMorePopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolbarMorePopoverView.swift"; sourceTree = "<group>"; };
+		FEA10004C1E09B48D5F29004 /* ToolbarEditSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolbarEditSheetView.swift"; sourceTree = "<group>"; };
+		FEA10005C1E09B48D5F29005 /* ScopaIslandCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ScopaIslandCardView.swift"; sourceTree = "<group>"; };
+		FEA10006C1E09B48D5F29006 /* PinnedIslandCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PinnedIslandCardView.swift"; sourceTree = "<group>"; };
 		FEDE2AF21E56807F1C7EA945 /* GlobalEmojiPickerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlobalEmojiPickerManager.swift"; sourceTree = "<group>"; };
 		FEE14E722A4141884F2C0F8D /* LockScreenWidgetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LockScreenWidgetManager.swift"; sourceTree = "<group>"; };
 		FE4AE3789A2A09C42EAD9103 /* SQLiteNotificationWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLiteNotificationWatcher.swift"; sourceTree = "<group>"; };
@@ -1325,6 +1337,12 @@
 				FE5A6569BB21B4F8867F5DE9 /* SuperIslandHomeScreenView.swift */,
 				FE3F3A0BB9E4744588706867 /* SuperIslandPillShape.swift */,
 				FECADE71C1E09B48D5F29049 /* SuperIslandTopBarView.swift */,
+				FEA10001C1E09B48D5F29001 /* ToolbarModels.swift */,
+				FEA10002C1E09B48D5F29002 /* NotchToolbarLayoutEngine.swift */,
+				FEA10003C1E09B48D5F29003 /* ToolbarMorePopoverView.swift */,
+				FEA10004C1E09B48D5F29004 /* ToolbarEditSheetView.swift */,
+				FEA10005C1E09B48D5F29005 /* ScopaIslandCardView.swift */,
+				FEA10006C1E09B48D5F29006 /* PinnedIslandCardView.swift */,
 				FEDE2AF21E56807F1C7EA945 /* GlobalEmojiPickerManager.swift */,
 				FEE14E722A4141884F2C0F8D /* LockScreenWidgetManager.swift */,
 				FE4AE3789A2A09C42EAD9103 /* SQLiteNotificationWatcher.swift */,
@@ -2097,6 +2115,12 @@
 				FEC63EDCC49B04BB537ECB3E /* SuperIslandHomeScreenView.swift in Sources */,
 				FED90AA2708B3D85C6C13597 /* SuperIslandPillShape.swift in Sources */,
 				FE2E15CDE1AB52BB5C59F7BD /* SuperIslandTopBarView.swift in Sources */,
+				FEB10001E1AB52BB5C59F001 /* ToolbarModels.swift in Sources */,
+				FEB10002E1AB52BB5C59F002 /* NotchToolbarLayoutEngine.swift in Sources */,
+				FEB10003E1AB52BB5C59F003 /* ToolbarMorePopoverView.swift in Sources */,
+				FEB10004E1AB52BB5C59F004 /* ToolbarEditSheetView.swift in Sources */,
+				FEB10005E1AB52BB5C59F005 /* ScopaIslandCardView.swift in Sources */,
+				FEB10006E1AB52BB5C59F006 /* PinnedIslandCardView.swift in Sources */,
 				FE8871461EF6270D74CBD64E /* GlobalEmojiPickerManager.swift in Sources */,
 				FEEDA3D9ADA2B313004EEA08 /* LockScreenWidgetManager.swift in Sources */,
 				FE92F182DBC0395939808D06 /* SQLiteNotificationWatcher.swift in Sources */,

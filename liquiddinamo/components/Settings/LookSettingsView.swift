@@ -407,7 +407,6 @@ public struct LookSettingsView: View {
     }
 
     @ViewBuilder
-    @ViewBuilder
     private func wingMetricsListCard(
         title: String,
         subtitle: String,

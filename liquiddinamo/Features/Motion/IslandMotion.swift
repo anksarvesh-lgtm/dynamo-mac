@@ -136,6 +136,18 @@ public final class IslandMotion: ObservableObject {
         )
     }
 
+    /// Fast interactive spring for buttons, tabs, hover states, and drag gestures.
+    public var springInteractive: Animation {
+        if isSimpleAnimationActive {
+            return .easeInOut(duration: reduceMotionDuration * timeMultiplier)
+        }
+        return .spring(
+            response: 0.35 * timeMultiplier,
+            dampingFraction: 0.8,
+            blendDuration: 0
+        )
+    }
+
     /// Spring used when the liquid droplet snaps from the neck and settles with squash-and-stretch.
     public var dropSquashSpring: Animation {
         if isSimpleAnimationActive {
