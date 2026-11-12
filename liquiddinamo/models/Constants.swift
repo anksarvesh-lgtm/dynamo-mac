@@ -18,6 +18,19 @@ let appVersion = "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as
 let temporaryDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
 let spacing: CGFloat = 16
 
+/// Global startup launch configuration (determines whether LiquidDynamo is hosted inside MacLink or running standalone)
+public enum LiquidDynamoLaunchConfig {
+    public static let isEmbedded: Bool = {
+        if CommandLine.arguments.contains("--embedded") {
+            return true
+        }
+        if ProcessInfo.processInfo.environment["LIQUIDDYNAMO_EMBEDDED"] == "1" {
+            return true
+        }
+        return false
+    }()
+}
+
 struct CustomVisualizer: Codable, Hashable, Equatable, Defaults.Serializable {
     let UUID: UUID
     var name: String
@@ -43,10 +56,13 @@ extension Notification.Name {
 
 // Media controller types for selection in settings
 enum MediaControllerType: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case auto = "Automatic (Sandbox-Safe)"
     case nowPlaying = "Now Playing"
     case appleMusic = "Apple Music"
     case spotify = "Spotify"
     case youtubeMusic = "YouTube Music"
+    case vlc = "VLC"
+    case browser = "Web Browsers (Opt-In)"
     
     var id: String { self.rawValue }
 }
@@ -95,6 +111,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
     case cpuTemp = "CPU Temperature"
     case ramUsage = "RAM Usage"
     case ramDetails = "RAM (Used / Total)"
+    case ramPressure = "RAM Pressure"
     case netDown = "Download Speed"
     case netUp = "Upload Speed"
     case netDownUp = "Network (Up/Down)"
@@ -126,6 +143,8 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
             return "Now Playing Track"
         case .ramDetails:
             return "RAM (Used / Total)"
+        case .ramPressure:
+            return "RAM Pressure"
         case .phoneBattery:
             return "Phone Battery (Android)"
         case .phoneSignal:
@@ -146,6 +165,7 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
         case .cpuTemp: return "thermometer.medium"
         case .ramUsage: return "memorychip"
         case .ramDetails: return "memorychip.fill"
+        case .ramPressure: return "gauge.with.dots.needle.67percent"
         case .netDown: return "arrow.down"
         case .netUp: return "arrow.up"
         case .netDownUp: return "network"
@@ -291,6 +311,11 @@ extension Defaults.Keys {
     static let autoFitWings = Key<Bool>("autoFitWings", default: true)
     static let hideWingsInFullScreen = Key<Bool>("hideWingsInFullScreen", default: true)
     static let wingsBuiltInDisplayOnly = Key<Bool>("wingsBuiltInDisplayOnly", default: false)
+    static let enableHardwareTempSensor = Key<Bool>("enableHardwareTempSensor", default: true)
+    static let thermalCoolMaxC = Key<Double>("thermalCoolMaxC", default: ThermalThresholds.standard.coolMaxC)
+    static let thermalNormalMaxC = Key<Double>("thermalNormalMaxC", default: ThermalThresholds.standard.normalMaxC)
+    static let thermalElevatedMaxC = Key<Double>("thermalElevatedMaxC", default: ThermalThresholds.standard.elevatedMaxC)
+    static let thermalHighMaxC = Key<Double>("thermalHighMaxC", default: ThermalThresholds.standard.highMaxC)
     static let leftWingShowLabel = Key<Bool>("leftWingShowLabel", default: true)
     static let leftWingShowPercentage = Key<Bool>("leftWingShowPercentage", default: true)
     static let leftWingShowMiniGraph = Key<Bool>("leftWingShowMiniGraph", default: true)
@@ -426,6 +451,7 @@ extension Defaults.Keys {
     
     // MARK: Media Controller
     static let mediaController = Key<MediaControllerType>("mediaController", default: defaultMediaController)
+    static let enableBrowserMediaDetection = Key<Bool>("enableBrowserMediaDetection", default: false)
     
     // MARK: Advanced Settings
     static let useCustomAccentColor = Key<Bool>("useCustomAccentColor", default: false)
@@ -433,10 +459,10 @@ extension Defaults.Keys {
     // Show or hide the title bar
     static let hideTitleBar = Key<Bool>("hideTitleBar", default: true)
     
-    // Helper to determine the default media controller based on NowPlaying deprecation status
+    // Helper to determine the default media controller based on Sandbox & NowPlaying deprecation status
     static var defaultMediaController: MediaControllerType {
-        if MusicManager.shared.isNowPlayingDeprecated {
-            return .appleMusic
+        if MediaBackendEligibility.isSandboxedRuntime || MusicManager.shared.isNowPlayingDeprecated {
+            return .auto
         } else {
             return .nowPlaying
         }

@@ -33,17 +33,32 @@ public struct SuperIslandContainerView: View {
     @State private var isCyclingLeftHovered: Bool = false
     @State private var isCyclingRightHovered: Bool = false
 
-    private let availableModules: [NotchViews] = [
-        .home,
-        .phoneBridge,
-        .calendar,
-        .shelf,
-        .teleprompter,
-        .agent,
-        .stats,
-        .cleaner,
-        .bluetooth
-    ]
+    private var availableModules: [NotchViews] {
+        if LiquidDynamoLaunchConfig.isEmbedded {
+            return [
+                .home,
+                .calendar,
+                .shelf,
+                .teleprompter,
+                .agent,
+                .stats,
+                .cleaner,
+                .bluetooth
+            ]
+        } else {
+            return [
+                .home,
+                .phoneBridge,
+                .calendar,
+                .shelf,
+                .teleprompter,
+                .agent,
+                .stats,
+                .cleaner,
+                .bluetooth
+            ]
+        }
+    }
 
     public init() {}
 
@@ -234,7 +249,7 @@ public struct SuperIslandContainerView: View {
 
             // Main Body Area
             Group {
-                if let call = phoneBridge.incomingCall, phoneBridge.isCallActive || call.callerName.isEmpty == false {
+                if !LiquidDynamoLaunchConfig.isEmbedded, let call = phoneBridge.incomingCall, phoneBridge.isCallActive || call.callerName.isEmpty == false {
                     IncomingCallHUDView()
                         .padding(.top, 4)
                 } else if let notif = hub.activeNotification {
@@ -278,7 +293,11 @@ public struct SuperIslandContainerView: View {
         case .home:
             SuperIslandHomeScreenView()
         case .phoneBridge:
-            PhoneCommandDeckView()
+            if !LiquidDynamoLaunchConfig.isEmbedded {
+                PhoneCommandDeckView()
+            } else {
+                SuperIslandHomeScreenView()
+            }
         case .calendar:
             CalendarView().environmentObject(vm)
         case .shelf:

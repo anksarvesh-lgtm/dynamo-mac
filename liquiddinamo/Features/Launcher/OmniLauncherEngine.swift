@@ -151,12 +151,17 @@ public final class OmniLauncherEngine: ObservableObject {
     }
 
     private func recentQuickActions() -> [OmniLauncherItem] {
-        return [
+        var actions: [OmniLauncherItem] = [
             OmniLauncherItem(id: "qa_shelf", kind: .quickAction("shelf"), title: "Open Drop Shelf", subtitle: "Temporary storage and batch conversion", symbol: "tray.full.fill"),
-            OmniLauncherItem(id: "qa_phone", kind: .quickAction("phone"), title: "MacLink Phone Deck", subtitle: "Telephony, screen mirror, and controls", symbol: "iphone.gen3"),
+        ]
+        if !LiquidDynamoLaunchConfig.isEmbedded {
+            actions.append(OmniLauncherItem(id: "qa_phone", kind: .quickAction("phone"), title: "MacLink Phone Deck", subtitle: "Telephony, screen mirror, and controls", symbol: "iphone.gen3"))
+        }
+        actions.append(contentsOf: [
             OmniLauncherItem(id: "qa_clamshell", kind: .quickAction("clamshell"), title: "Keep Awake (Lid Closed)", subtitle: "Block sleep with clamshell shut", symbol: "bolt.shield.fill"),
             OmniLauncherItem(id: "qa_stats", kind: .quickAction("stats"), title: "System Power & Hardware Stats", subtitle: "Wattage, battery cycles, CPU telemetry", symbol: "gauge.with.needle.fill")
-        ]
+        ])
+        return actions
     }
 
     private func extractTimerMinutes(from query: String) -> Int? {

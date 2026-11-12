@@ -80,11 +80,13 @@ public struct SuperIslandHomeScreenView: View {
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
 
-            homeDivider
+            if !LiquidDynamoLaunchConfig.isEmbedded {
+                homeDivider
 
-            // Panel: MacLink Phone Bridge Deck
-            phoneDeckCard
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                // Panel: MacLink Phone Bridge Deck
+                phoneDeckCard
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
         }
         .padding(.horizontal, 22)
         .padding(.top, 6)

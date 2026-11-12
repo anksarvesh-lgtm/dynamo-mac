@@ -69,11 +69,11 @@ public struct SettingsControlCenterSidebar: View {
                     .padding(.top, 14)
 
                 VStack(spacing: 2) {
-                    Text("MacLink & LiquidDynamo")
+                    Text(LiquidDynamoLaunchConfig.isEmbedded ? "LiquidDynamo" : "MacLink & LiquidDynamo")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text("Phone Companion & Dynamic Island")
+                    Text(LiquidDynamoLaunchConfig.isEmbedded ? "Dynamic Island & Notch Suite" : "Phone Companion & Dynamic Island")
                         .font(.system(size: 10.5, weight: .regular))
                         .foregroundStyle(Color(red: 0.55, green: 0.60, blue: 0.68))
 
@@ -101,20 +101,22 @@ public struct SettingsControlCenterSidebar: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
                     // Category 1: MacLink
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("MACLINK COMPANION")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.4))
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 4)
+                    if !LiquidDynamoLaunchConfig.isEmbedded {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("MACLINK COMPANION")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(Color.white.opacity(0.4))
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 4)
 
-                        ForEach(Self.macLinkItems) { item in
-                            sidebarRow(for: item)
+                            ForEach(Self.macLinkItems) { item in
+                                sidebarRow(for: item)
+                            }
                         }
-                    }
 
-                    Divider().opacity(0.15)
-                        .padding(.horizontal, 10)
+                        Divider().opacity(0.15)
+                            .padding(.horizontal, 10)
+                    }
 
                     // Category 2: Dynamic Island & Notch
                     VStack(alignment: .leading, spacing: 3) {

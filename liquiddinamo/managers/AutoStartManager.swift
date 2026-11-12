@@ -59,6 +59,10 @@ public final class AutoStartManager: ObservableObject {
 
     /// Toggles autostart on or off cleanly without duplicate persistence entries
     public func setEnabled(_ enable: Bool) {
+        guard !LiquidDynamoLaunchConfig.isEmbedded else {
+            NSLog("ℹ️ [AutoStartManager] Embedded mode active: autostart toggle is managed by host app")
+            return
+        }
         objectWillChange.send()
         Defaults[.launchAtLogin] = enable
 
@@ -73,6 +77,10 @@ public final class AutoStartManager: ObservableObject {
 
     /// Synchronizes startup registration on app launch and prunes legacy duplicates
     public func syncOnLaunch() {
+        guard !LiquidDynamoLaunchConfig.isEmbedded else {
+            NSLog("ℹ️ [AutoStartManager] Embedded mode active: skipping autostart registration (managed by host app)")
+            return
+        }
         if Defaults[.launchAtLogin] {
             enableAutoStart()
             self.isEnabled = true

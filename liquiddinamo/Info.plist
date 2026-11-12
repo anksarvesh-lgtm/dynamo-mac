@@ -33,6 +33,19 @@
 	<false/>
 	<key>NSAppSleepDisabled</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.agrigence.liquiddynamo.url-scheme</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>liquiddynamo</string>
+			</array>
+		</dict>
+	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>

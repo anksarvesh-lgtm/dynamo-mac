@@ -55,7 +55,7 @@ class SettingsWindowController: NSWindowController {
         isWindowSetup = true
         
         window.isReleasedWhenClosed = false
-        window.title = "MacLink Desktop Companion & LiquidDynamo"
+        window.title = LiquidDynamoLaunchConfig.isEmbedded ? "LiquidDynamo Preferences" : "MacLink Desktop Companion & LiquidDynamo"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.toolbarStyle = .unified
@@ -166,6 +166,8 @@ class SettingsWindowController: NSWindowController {
         }
         if let tab = tab {
             SettingsNavigationState.shared.selectedTab = tab
+        } else if LiquidDynamoLaunchConfig.isEmbedded && SettingsControlCenterSidebar.macLinkItems.contains(where: { $0.id == SettingsNavigationState.shared.selectedTab }) {
+            SettingsNavigationState.shared.selectedTab = "islandLook"
         }
         updateWindowTransparency()
         AppPermissionManager.shared.refreshAll()

@@ -16,7 +16,7 @@ import SwiftUIIntrospect
 
 final class SettingsNavigationState: ObservableObject {
     static let shared = SettingsNavigationState()
-    @Published var selectedTab: String = "overview"
+    @Published var selectedTab: String = LiquidDynamoLaunchConfig.isEmbedded ? "islandLook" : "overview"
 }
 
 struct SettingsView: View {
@@ -53,24 +53,31 @@ struct SettingsView: View {
                 ZStack {
                     switch navState.selectedTab {
                     // Category 1: MacLink Phone Companion
-                    case "overview":
-                        MacLinkOverviewView()
-                    case "messages":
-                        MacLinkMessagesView()
-                    case "calls":
-                        MacLinkCallsView()
-                    case "deck":
-                        MacLinkCommandDeckView()
-                    case "files":
-                        MacLinkFilesView()
-                    case "photos":
-                        MacLinkPhotosView()
-                    case "apps":
-                        MacLinkAppsView()
-                    case "timeline":
-                        MacLinkTimelineView()
-                    case "pairing":
-                        MacLinkPairingView()
+                    case "overview", "messages", "calls", "deck", "files", "photos", "apps", "timeline", "pairing":
+                        if LiquidDynamoLaunchConfig.isEmbedded {
+                            LookSettingsView()
+                        } else {
+                            switch navState.selectedTab {
+                            case "messages":
+                                MacLinkMessagesView()
+                            case "calls":
+                                MacLinkCallsView()
+                            case "deck":
+                                MacLinkCommandDeckView()
+                            case "files":
+                                MacLinkFilesView()
+                            case "photos":
+                                MacLinkPhotosView()
+                            case "apps":
+                                MacLinkAppsView()
+                            case "timeline":
+                                MacLinkTimelineView()
+                            case "pairing":
+                                MacLinkPairingView()
+                            default:
+                                MacLinkOverviewView()
+                            }
+                        }
 
                     // Category 2: Dynamic Island & Notch Settings
                     case "islandLook", "NotchWings", "Look":
@@ -98,7 +105,11 @@ struct SettingsView: View {
                     case "StorageCleaner":
                         SettingsStorageCleanerView()
                     case "PhoneBridge", "FileDroid":
-                        MacLinkOverviewView()
+                        if LiquidDynamoLaunchConfig.isEmbedded {
+                            LookSettingsView()
+                        } else {
+                            MacLinkOverviewView()
+                        }
                     case "Powerload", "Plexo":
                         SettingsPowerloadView()
                     case "NetMerge":
@@ -108,7 +119,11 @@ struct SettingsView: View {
                     case "Privacy":
                         SettingsPrivacyView()
                     default:
-                        MacLinkOverviewView()
+                        if LiquidDynamoLaunchConfig.isEmbedded {
+                            LookSettingsView()
+                        } else {
+                            MacLinkOverviewView()
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -699,12 +714,43 @@ struct HUD: View {
                 if hideSystemOSD {
                     switch interceptor.status {
                     case .enabled:
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Enabled: System media keys intercepted and default popup suppressed.")
-                                .font(.subheadline)
-                                .foregroundColor(.green)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Enabled: System media keys intercepted and default popup suppressed.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.green)
+                            }
+
+                            if !interceptor.backedOffClasses.isEmpty {
+                                let classNames = interceptor.backedOffClasses.map { kind -> String in
+                                    switch kind {
+                                    case .volume: return "Volume"
+                                    case .brightness: return "Brightness"
+                                    case .keyboardBacklight: return "Keyboard Backlight"
+                                    case .capsLock: return "Caps Lock"
+                                    case .charging: return "Charging"
+                                    }
+                                }.sorted().joined(separator: ", ")
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "arrow.uturn.forward.circle.fill")
+                                            .foregroundColor(.orange)
+                                        Text("Safety Pass-Through Active (\(classNames)): Keys are passed directly to macOS because the active device does not support direct control.")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+
+                                    Button("Re-arm Key Interception") {
+                                        interceptor.resetInterceptSafety()
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+                            }
                         }
                         .padding(.vertical, 4)
                         
@@ -888,27 +934,39 @@ struct Media: View {
                         object: nil
                     )
                 }
+
+                Defaults.Toggle(key: .enableBrowserMediaDetection) {
+                    Text("Detect web browser media tabs")
+                }
             } header: {
                 Text("Media Source")
             } footer: {
-                if MusicManager.shared.isNowPlayingDeprecated {
-                    HStack {
-                        Text("YouTube Music requires this third-party app to be installed: ")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                        Link(
-                            "https://github.com/pear-devs/pear-desktop",
-                            destination: URL(string: "https://github.com/pear-devs/pear-desktop")!
-                        )
-                        .font(.caption)
-                        .foregroundColor(.blue)  // Ensures it's visibly a link
-                    }
-                } else {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(
-                        "'Now Playing' was the only option on previous versions and works with all media apps."
+                        "'Automatic (Sandbox-Safe)' follows the most recently playing app across Apple Music, Spotify, YouTube Music, VLC, and enabled browsers."
                     )
                     .foregroundStyle(.secondary)
                     .font(.caption)
+
+                    Text(
+                        "Browser detection supports Safari, Chrome, Brave, and Edge when opted in and requires \"Allow JavaScript from Apple Events\" in your browser's Develop/View settings."
+                    )
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+
+                    if MusicManager.shared.isNowPlayingDeprecated || MediaBackendEligibility.isSandboxedRuntime {
+                        HStack {
+                            Text("YouTube Music requires this third-party app to be installed: ")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                            Link(
+                                "https://github.com/pear-devs/pear-desktop",
+                                destination: URL(string: "https://github.com/pear-devs/pear-desktop")!
+                            )
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        }
+                    }
                 }
             }
             
@@ -970,9 +1028,9 @@ struct Media: View {
         .navigationTitle("Media")
     }
 
-    // Only show controller options that are available on this macOS version
+    // Only show controller options that are available on this macOS version / sandbox mode
     private var availableMediaControllers: [MediaControllerType] {
-        if MusicManager.shared.isNowPlayingDeprecated {
+        if MusicManager.shared.isNowPlayingDeprecated || MediaBackendEligibility.isSandboxedRuntime {
             return MediaControllerType.allCases.filter { $0 != .nowPlaying }
         } else {
             return MediaControllerType.allCases

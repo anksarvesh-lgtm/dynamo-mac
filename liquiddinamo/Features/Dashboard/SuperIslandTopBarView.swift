@@ -54,7 +54,9 @@ public struct SuperIslandTopBarView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: shoulderTabSpacing) {
                         tabButton(view: .home, icon: "square.grid.2x2.fill", title: "Home")
-                        tabButton(view: .phoneBridge, icon: "iphone.gen3", title: "Phone")
+                        if !LiquidDynamoLaunchConfig.isEmbedded {
+                            tabButton(view: .phoneBridge, icon: "iphone.gen3", title: "Phone")
+                        }
                         tabButton(view: .calendar, icon: "calendar", title: "Calendar")
                         tabButton(view: .shelf, icon: "tray.full.fill", title: "Shelf")
                         tabButton(view: .teleprompter, icon: "text.bubble.fill", title: "Prompter")
@@ -105,7 +107,9 @@ public struct SuperIslandTopBarView: View {
             ScrollViewReader { _ in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: shoulderTabSpacing) {
-                        tabButton(view: .phoneBridge, icon: "iphone.gen3", title: "Phone")
+                        if !LiquidDynamoLaunchConfig.isEmbedded {
+                            tabButton(view: .phoneBridge, icon: "iphone.gen3", title: "Phone")
+                        }
                         tabButton(view: .calendar, icon: "calendar", title: "Calendar")
                         tabButton(view: .shelf, icon: "tray.full.fill", title: "Shelf")
                         tabButton(view: .teleprompter, icon: "text.bubble.fill", title: "Prompter")

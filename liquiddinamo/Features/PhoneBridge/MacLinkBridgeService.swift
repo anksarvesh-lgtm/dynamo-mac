@@ -189,6 +189,12 @@ public final class MacLinkBridgeService: ObservableObject {
     private var callNotifier = CallNotifier.shared
 
     private init() {
+        guard !LiquidDynamoLaunchConfig.isEmbedded else {
+            self.isConnected = false
+            self.incomingCall = nil
+            self.isCallActive = false
+            return
+        }
         setupTelephonyCallbacks()
         loadDemoMessages()
         loadDemoData()

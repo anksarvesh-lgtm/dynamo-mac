@@ -279,6 +279,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var backgroundActivityAssertion: NSObjectProtocol?
     private var showOnAllDisplaysObserver: _DefaultsObservation?
+    private var showOnLockScreenObserver: _DefaultsObservation?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
@@ -310,6 +311,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
         showOnAllDisplaysObserver?.invalidate()
         showOnAllDisplaysObserver = nil
+        showOnLockScreenObserver?.invalidate()
+        showOnLockScreenObserver = nil
+    }
+
+    private func setupShowOnLockScreenObserver() {
+        showOnLockScreenObserver?.invalidate()
+        showOnLockScreenObserver = Defaults.observe(.showOnLockScreen, options: []) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.cleanupWindows()
+                self.adjustWindowPosition(changeAlpha: true)
+            }
+        }
     }
 
     private func setupShowOnAllDisplaysGuard() {
@@ -853,15 +867,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let rect = calculateNotchCenteredRect(for: screen, size: targetSize)
         let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
 
-        let window = LiquidDynamoSkyLightWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
-        window.ignoresMouseEvents = false
-
-        // Enable SkyLight only when screen is locked
-        if isScreenLocked {
-            window.enableSkyLight()
+        let window: NSPanel
+        if Defaults[.showOnLockScreen] {
+            let skyWindow = LiquidDynamoSkyLightWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
+            if isScreenLocked {
+                skyWindow.enableSkyLight()
+            } else {
+                skyWindow.disableSkyLight()
+            }
+            window = skyWindow
         } else {
-            window.disableSkyLight()
+            window = LiquidDynamoWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
         }
+        window.ignoresMouseEvents = false
 
         window.contentView = IslandHostingView(
             rootView: ContentView()
@@ -1039,8 +1057,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         Defaults[.showOnAllDisplays] = true
-        Defaults[.wingsBuiltInDisplayOnly] = false
         setupShowOnAllDisplaysGuard()
+        setupShowOnLockScreenObserver()
         NSLog("🚀 [applicationDidFinishLaunching] Adjusting window position on startup...")
         adjustWindowPosition(changeAlpha: false)
         setupDragDetectors()
@@ -1048,7 +1066,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         migrateWingMetricsIfNeeded()
         migratePhoneBridgeKeysIfNeeded()
         startClosedEventMonitors()
-        AutoStartManager.shared.syncOnLaunch()
+        if !LiquidDynamoLaunchConfig.isEmbedded {
+            AutoStartManager.shared.syncOnLaunch()
+        }
 
         // Start merged dynamic notch engine services
         _ = AgentSocketService.shared
@@ -1062,7 +1082,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         _ = LiquidBuddyService.shared
         _ = QueueNavigatorService.shared
         _ = IntelligenceQuotaService.shared
-        _ = MacLinkBridgeService.shared
+        if !LiquidDynamoLaunchConfig.isEmbedded {
+            _ = MacLinkBridgeService.shared
+        }
         if Defaults[.enableWatcherIntegration] {
             _ = WatcherService.shared
         }
@@ -1320,7 +1342,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.showOnboardingWindow()
             }
             playWelcomeSound()
-        } else if MusicManager.shared.isNowPlayingDeprecated
+        } else if (MusicManager.shared.isNowPlayingDeprecated || MediaBackendEligibility.isSandboxedRuntime)
             && Defaults[.mediaController] == .nowPlaying
         {
             DispatchQueue.main.async {
@@ -1335,11 +1357,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         previousScreens = NSScreen.screens
 
-        // Automatically open the Settings window on app launch so user immediately sees a visible interface,
-        // while the liquid notch background utility is initialized seamlessly.
+        // Automatically open the Settings window on standalone app launch so user immediately sees a visible interface,
+        // while the liquid notch background utility is initialized seamlessly. In embedded mode, host app controls presentation.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self = self else { return }
-            if !self.coordinator.firstLaunch {
+            if !LiquidDynamoLaunchConfig.isEmbedded && !self.coordinator.firstLaunch {
                 self.vm.open()
                 self.viewModels.values.forEach { $0.open() }
                 SettingsWindowController.shared.showWindow()
@@ -1350,6 +1372,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             andSelector: #selector(handleReopenAppleEvent(_:withReplyEvent:)),
             forEventClass: AEEventClass(kCoreEventClass),
             andEventID: AEEventID(kAEReopenApplication)
+        )
+        // URL Scheme Handler for liquiddynamo://
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
         )
     }
 
@@ -1389,6 +1418,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    // MARK: - URL Scheme Handler (liquiddynamo://)
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            handleCustomURL(url)
+        }
+    }
+
+    @objc func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else {
+            return
+        }
+        Task { @MainActor in
+            self.handleCustomURL(url)
+        }
+    }
+
+    @MainActor
+    func handleCustomURL(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "liquiddynamo" else {
+            return
+        }
+
+        var command = url.host?.lowercased() ?? ""
+        if command.isEmpty {
+            command = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+        }
+
+        switch command {
+        case "settings":
+            SettingsWindowController.shared.showWindow()
+
+        case "expand":
+            IslandController.shared.setExpanded(pin: true)
+
+        case "collapse":
+            IslandController.shared.isPinnedOpen = false
+            IslandController.shared.activeOrganicItem = .none
+            self.vm.close()
+            IslandController.shared.setCompact()
+
+        default:
+            // Silently reject anything else. NO quit command allowed.
+            break
+        }
+    }
+
     func playWelcomeSound() {
         let audioPlayer = AudioPlayer()
         audioPlayer.play(fileName: "liquid", fileExtension: "m4a")
@@ -1426,7 +1503,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func adjustWindowPosition(changeAlpha: Bool = false) {
         Defaults[.showOnAllDisplays] = true
-        Defaults[.wingsBuiltInDisplayOnly] = false
 
         let currentScreens = NSScreen.screens
         NSLog("🏝️ [adjustWindowPosition] Starting with \(currentScreens.count) screens: \(currentScreens.map { $0.localizedName })")
@@ -1463,15 +1539,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Set primary window reference
-        if let builtIn = currentScreens.first(where: {
-            if let num = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
-                return CGDisplayIsBuiltin(CGDirectDisplayID(num.uint32Value)) != 0
+        // Set primary window reference deterministically (built-in -> menu-bar primary -> first)
+        let screenDescriptors = currentScreens.map { screen in
+            let isBuiltIn: Bool
+            if let num = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
+                isBuiltIn = CGDisplayIsBuiltin(CGDirectDisplayID(num.uint32Value)) != 0
+            } else {
+                isBuiltIn = false
             }
-            return false
-        }) {
-            let builtInUUID = builtIn.displayUUID ?? "screen_\(builtIn.hashValue)"
-            self.window = windows[builtInUUID] ?? windows.values.first
+            let hasNotch = NotchSafeAreaEngine.shared.geometry(for: screen).hasPhysicalNotch
+            let isMenuBarPrimary = abs(screen.frame.origin.x) <= 0.5 && abs(screen.frame.origin.y) <= 0.5
+            return LiquidScreenDescriptor(
+                isBuiltIn: isBuiltIn,
+                hasNotch: hasNotch,
+                isMenuBarPrimary: isMenuBarPrimary
+            )
+        }
+        if let primaryIndex = LiquidDisplaySelection.primaryScreenIndex(in: screenDescriptors) {
+            let primaryScreen = currentScreens[primaryIndex]
+            let primaryUUID = primaryScreen.displayUUID ?? "screen_\(primaryScreen.hashValue)"
+            self.window = windows[primaryUUID] ?? windows.values.first
         } else {
             self.window = windows.values.first
         }
