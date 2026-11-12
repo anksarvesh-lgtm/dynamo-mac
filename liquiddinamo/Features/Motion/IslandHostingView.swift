@@ -29,6 +29,66 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
         // Controlled explicitly by IslandController / AppDelegate
     }
 
+    private var applyingDeferredLayoutFlags = false
+    private var pendingConstraintsValue: Bool?
+    private var pendingLayoutValue: Bool?
+
+    /// Defer constraint/layout invalidation to the next run-loop turn and coalesce
+    /// repeated sets so AppKit display-cycle re-entrancy cannot throw or flood the main queue.
+    public override var needsUpdateConstraints: Bool {
+        get { super.needsUpdateConstraints }
+        set {
+            if applyingDeferredLayoutFlags {
+                super.needsUpdateConstraints = newValue
+                return
+            }
+            if pendingConstraintsValue == nil, super.needsUpdateConstraints == newValue {
+                return
+            }
+            let alreadyScheduled = pendingConstraintsValue != nil
+            pendingConstraintsValue = newValue
+            guard !alreadyScheduled else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let value = self.pendingConstraintsValue else { return }
+                self.pendingConstraintsValue = nil
+                self.applyingDeferredLayoutFlags = true
+                self.applySuperNeedsUpdateConstraints(value)
+                self.applyingDeferredLayoutFlags = false
+            }
+        }
+    }
+
+    private func applySuperNeedsUpdateConstraints(_ value: Bool) {
+        super.needsUpdateConstraints = value
+    }
+
+    private func applySuperNeedsLayout(_ value: Bool) {
+        super.needsLayout = value
+    }
+
+    public override var needsLayout: Bool {
+        get { super.needsLayout }
+        set {
+            if applyingDeferredLayoutFlags {
+                super.needsLayout = newValue
+                return
+            }
+            if pendingLayoutValue == nil, super.needsLayout == newValue {
+                return
+            }
+            let alreadyScheduled = pendingLayoutValue != nil
+            pendingLayoutValue = newValue
+            guard !alreadyScheduled else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let value = self.pendingLayoutValue else { return }
+                self.pendingLayoutValue = nil
+                self.applyingDeferredLayoutFlags = true
+                self.applySuperNeedsLayout(value)
+                self.applyingDeferredLayoutFlags = false
+            }
+        }
+    }
+
     public override func hitTest(_ point: NSPoint) -> NSView? {
         guard let window = self.window else { return nil }
         guard IslandController.shared.containsPointInVisibleShape(point, inWindow: window) else {

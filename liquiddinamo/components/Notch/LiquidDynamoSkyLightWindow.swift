@@ -118,4 +118,8 @@ class LiquidDynamoSkyLightWindow: NSPanel {
         customCanBecomeKey || Self.allowsKeyWindow
     }
     override var canBecomeMain: Bool { false }
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }

@@ -3,12 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
-	<false/>
+	<true/>
 	<key>com.apple.security.device.bluetooth</key>
 	<true/>
 	<key>com.apple.security.device.usb</key>
-	<true/>
-	<key>com.apple.security.cs.disable-library-validation</key>
 	<true/>
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
@@ -32,6 +30,11 @@
 	<array>
 		<string>com.spotify.client</string>
 		<string>com.apple.Music</string>
+		<string>org.videolan.vlc</string>
+		<string>com.apple.Safari</string>
+		<string>com.google.Chrome</string>
+		<string>com.brave.Browser</string>
+		<string>com.microsoft.edgemac</string>
 	</array>
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
 	<array>

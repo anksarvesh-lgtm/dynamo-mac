@@ -28,20 +28,56 @@ final class ShelfStateViewModel: ObservableObject {
     }
 
 
+    private struct TrackedShelfEntry: ShelfTrackable {
+        let item: ShelfItem
+        let identityKey: String
+        let isTemporary: Bool
+        let createdAt: Date
+
+        @MainActor
+        init(item: ShelfItem) {
+            self.item = item
+            self.identityKey = item.identityKey
+            self.isTemporary = item.isTemporary
+            self.createdAt = item.createdAt
+        }
+    }
+
     func add(_ newItems: [ShelfItem]) {
         guard !newItems.isEmpty else { return }
-        var merged = items
-        // Deduplicate by identityKey while preserving order (existing first)
-        var seen: Set<String> = Set(merged.map { $0.identityKey })
-        for it in newItems {
-            let key = it.identityKey
-            if !seen.contains(key) {
-                merged.append(it)
-                seen.insert(key)
+        let existingEntries = items.map(TrackedShelfEntry.init)
+        let incomingEntries = newItems.map(TrackedShelfEntry.init)
+        let (mergedEntries, evictedEntries) = ShelfPolicy.inserting(
+            contentsOf: incomingEntries,
+            into: existingEntries,
+            maxItems: ShelfPolicy.defaultMaxItems
+        )
+        for evicted in evictedEntries {
+            evicted.item.cleanupStoredData()
+        }
+        items = mergedEntries.map(\.item)
+        DynamicIslandHub.shared.triggerDropperItemAdded(count: newItems.count)
+    }
+
+    func presentOpenPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.resolvesAliases = true
+        panel.prompt = "Add to Dropper"
+        panel.message = "Select files or folders to hold on the LiquidDynamo Dropper shelf."
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+
+        var selectedItems: [ShelfItem] = []
+        for url in panel.urls {
+            if let bookmark = url.accessSecurityScopedResource(accessor: { scopedURL in
+                try? Bookmark(url: scopedURL)
+            }) {
+                selectedItems.append(ShelfItem(kind: .file(bookmark: bookmark.data), isTemporary: false))
             }
         }
-        items = merged
-        DynamicIslandHub.shared.triggerDropperItemAdded(count: newItems.count)
+        add(selectedItems)
     }
 
     func remove(_ item: ShelfItem) {
@@ -63,14 +99,15 @@ final class ShelfStateViewModel: ObservableObject {
         items.removeAll { $0.isTemporary }
     }
 
-    func cleanupExpiredTemporaryItems(olderThan interval: TimeInterval = 3600) {
+    func cleanupExpiredTemporaryItems(olderThan interval: TimeInterval = ShelfPolicy.defaultTemporaryTTL) {
         let now = Date()
-        for item in items where item.isTemporary && now.timeIntervalSince(item.createdAt) > interval {
+        let tracked = items.map(TrackedShelfEntry.init)
+        let expiredIDs = Set(ShelfPolicy.expiredItems(in: tracked, now: now, ttl: interval).map { $0.item.id })
+        guard !expiredIDs.isEmpty else { return }
+        for item in items where expiredIDs.contains(item.id) {
             item.cleanupStoredData()
         }
-        items.removeAll { item in
-            item.isTemporary && now.timeIntervalSince(item.createdAt) > interval
-        }
+        items.removeAll { expiredIDs.contains($0.id) }
     }
 
     func updateBookmark(for item: ShelfItem, bookmark: Data) {

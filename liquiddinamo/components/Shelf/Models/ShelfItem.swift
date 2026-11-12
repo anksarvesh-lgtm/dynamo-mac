@@ -65,8 +65,9 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
     var isMissing: Bool {
         guard case .file(let bookmarkData) = kind else { return false }
         let bookmark = Bookmark(data: bookmarkData)
-        guard let url = bookmark.resolveURL() else { return true }
-        return !FileManager.default.fileExists(atPath: url.path)
+        return bookmark.withAccess { url in
+            !FileManager.default.fileExists(atPath: url.path)
+        } ?? true
     }
 
     var typeDescription: String {
@@ -79,14 +80,13 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
         switch kind {
         case .file(let bookmarkData):
             let bookmark = Bookmark(data: bookmarkData)
-            if let url = bookmark.resolveURL() {
+            return bookmark.withAccess { url in
                 if let type = try? url.resourceValues(forKeys: [.localizedTypeDescriptionKey]).localizedTypeDescription {
                     return type
                 }
                 let ext = url.pathExtension.uppercased()
                 return ext.isEmpty ? "File" : ext
-            }
-            return "File"
+            } ?? "File"
         case .text:
             return "Plain Text"
         case .link:
@@ -105,62 +105,64 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
                 return ""
             }
         }
-        if let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey]) {
-            if values.isDirectory == true {
-                return "Folder"
+        return url.accessSecurityScopedResource { scopedURL in
+            if let values = try? scopedURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey]) {
+                if values.isDirectory == true {
+                    return "Folder"
+                }
+                if let size = values.fileSize {
+                    return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+                }
             }
-            if let size = values.fileSize {
-                return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
-            }
+            return ""
         }
-        return ""
     }
     
     var displayName: String {
         switch kind {
         case .file(let bookmarkData):
             let bookmark = Bookmark(data: bookmarkData)
-            guard let resolvedURL = bookmark.resolveURL() else { return "" }
-            
-            // Check for stored data files (text blocks, weblocs, etc.) to provide friendly names
-            if resolvedURL.pathExtension.lowercased() == "json" && resolvedURL.path.contains("TextBlocks") {
-                do {
-                    let data = try Data(contentsOf: resolvedURL)
-                    let decoder = JSONDecoder()
-                    decoder.dateDecodingStrategy = .iso8601
-                    struct TextBlockData: Codable {
-                        let content: String
-                        let title: String?
-                        var displayTitle: String {
-                            if let title = title, !title.isEmpty {
-                                return title
+            return bookmark.withAccess { resolvedURL in
+                // Check for stored data files (text blocks, weblocs, etc.) to provide friendly names
+                if resolvedURL.pathExtension.lowercased() == "json" && resolvedURL.path.contains("TextBlocks") {
+                    do {
+                        let data = try Data(contentsOf: resolvedURL)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .iso8601
+                        struct TextBlockData: Codable {
+                            let content: String
+                            let title: String?
+                            var displayTitle: String {
+                                if let title = title, !title.isEmpty {
+                                    return title
+                                }
+                                let firstLine = content.components(separatedBy: .newlines).first ?? content
+                                if firstLine.count > 50 {
+                                    return String(firstLine.prefix(47)) + "..."
+                                }
+                                return firstLine
                             }
-                            let firstLine = content.components(separatedBy: .newlines).first ?? content
-                            if firstLine.count > 50 {
-                                return String(firstLine.prefix(47)) + "..."
-                            }
-                            return firstLine
                         }
+                        if let textData = try? decoder.decode(TextBlockData.self, from: data) {
+                            return textData.displayTitle
+                        }
+                    } catch {
+                        // Fall through to default naming
                     }
-                    if let textData = try? decoder.decode(TextBlockData.self, from: data) {
-                        return textData.displayTitle
+                } else if resolvedURL.pathExtension.lowercased() == "webloc" && resolvedURL.path.contains("WebLocs") {
+                    do {
+                        let data = try Data(contentsOf: resolvedURL)
+                        if let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+                           let urlString = plist["URL"] as? String {
+                            let title = plist["Title"] as? String
+                            return title ?? urlString
+                        }
+                    } catch {
+                        // Fall through to default naming
                     }
-                } catch {
-                    // Fall through to default naming
                 }
-            } else if resolvedURL.pathExtension.lowercased() == "webloc" && resolvedURL.path.contains("WebLocs") {
-                do {
-                    let data = try Data(contentsOf: resolvedURL)
-                    if let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-                       let urlString = plist["URL"] as? String {
-                        let title = plist["Title"] as? String
-                        return title ?? urlString
-                    }
-                } catch {
-                    // Fall through to default naming
-                }
-            }
-            return (try? resolvedURL.resourceValues(forKeys: [.localizedNameKey]).localizedName) ?? resolvedURL.lastPathComponent
+                return (try? resolvedURL.resourceValues(forKeys: [.localizedNameKey]).localizedName) ?? resolvedURL.lastPathComponent
+            } ?? ""
         case .text(let string):
             return string.trimmingCharacters(in: .whitespacesAndNewlines)
         case .link(let url):
@@ -191,7 +193,9 @@ struct ShelfItem: Identifiable, Codable, Equatable, Sendable {
             return Self.thumbnailSymbolImage(systemName: kind.iconSymbolName) ?? NSImage()
         }
         if let resolvedURL = ShelfStateViewModel.shared.resolveFileURL(for: self) {
-            return NSWorkspace.shared.icon(forFile: resolvedURL.path)
+            return resolvedURL.accessSecurityScopedResource { scopedURL in
+                NSWorkspace.shared.icon(forFile: scopedURL.path)
+            }
         }
         return NSImage()
     }

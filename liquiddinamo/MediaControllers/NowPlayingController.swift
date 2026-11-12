@@ -73,6 +73,22 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     // MARK: - Initialization
     init?() {
+        let osVersion = MediaBackendEligibility.currentOSVersion
+        let hasAdapterResources = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl") != nil
+            && Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework") != nil
+        let canUseAdapter = MediaBackendEligibility.adapterEligible(
+            isSandboxed: MediaBackendEligibility.isSandboxedRuntime,
+            hasAdapterResources: hasAdapterResources
+        )
+        let canUseDirectRemote = MediaBackendEligibility.directMediaRemoteEligible(
+            osMajor: osVersion.major,
+            osMinor: osVersion.minor,
+            isSandboxed: MediaBackendEligibility.isSandboxedRuntime
+        )
+        guard canUseAdapter || canUseDirectRemote else {
+            return nil
+        }
+
         guard
             let bundle = CFBundleCreate(
                 kCFAllocatorDefault,
@@ -217,12 +233,17 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     
     // MARK: - Setup Methods
     private func setupNowPlayingObserver() async {
+        guard !MediaBackendEligibility.isSandboxedRuntime else {
+            return
+        }
+
         let process = Process()
         guard
             let scriptURL = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl"),
-            let frameworkPath = Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework")
+            let frameworkPath = Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework"),
+            MediaBackendEligibility.adapterEligible(isSandboxed: false, hasAdapterResources: true)
         else {
-            assertionFailure("Could not find mediaremote-adapter.pl script or framework path")
+            print("[NowPlayingController] Adapter resources unavailable; skipping legacy adapter stream.")
             return
         }
         
@@ -245,7 +266,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                 await self?.processJSONStream()
             }
         } catch {
-            assertionFailure("Failed to launch mediaremote-adapter.pl: \(error)")
+            print("[NowPlayingController] Failed to launch adapter stream: \(error)")
         }
     }
 

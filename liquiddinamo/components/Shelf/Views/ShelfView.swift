@@ -56,16 +56,51 @@ struct ShelfView: View {
         let urls: [URL] = tvm.items.compactMap { $0.fileURL }
         guard !urls.isEmpty else { return }
         Task {
-            if let outputURLs = try? await FileConversionEngine.shared.convert(urls: urls, to: target), !outputURLs.isEmpty {
-                await MainActor.run {
-                    for url in outputURLs {
-                        if let prov = NSItemProvider(contentsOf: url) {
-                            tvm.load([prov])
-                        }
+            let outputDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("LiquidDynamoConverted/\(UUID().uuidString)", isDirectory: true)
+            try? FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+
+            let outputURLs = try? await urls.accessSecurityScopedResources { scopedURLs in
+                try await FileConversionEngine.shared.convert(
+                    urls: scopedURLs,
+                    to: target,
+                    outputDirectory: outputDir
+                )
+            }
+            guard let outputURLs, !outputURLs.isEmpty else { return }
+            await MainActor.run {
+                var convertedItems: [ShelfItem] = []
+                for url in outputURLs {
+                    if let bookmark = url.accessSecurityScopedResource(accessor: { scopedURL in
+                        try? Bookmark(url: scopedURL)
+                    }) {
+                        convertedItems.append(ShelfItem(kind: .file(bookmark: bookmark.data), isTemporary: true))
                     }
                 }
+                tvm.add(convertedItems)
             }
         }
+    }
+
+    private func addFilesButton(showLabel: Bool) -> some View {
+        Button {
+            tvm.presentOpenPanel()
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "plus")
+                    .font(.system(size: 9, weight: .bold))
+                if showLabel {
+                    Text("Add")
+                        .font(.system(size: 9.5, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.white.opacity(0.9))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(Color.white.opacity(0.10)))
+        }
+        .buttonStyle(.plain)
+        .help("Add files or folders to Dropper")
     }
 
     var panel: some View {
@@ -89,7 +124,7 @@ struct ShelfView: View {
 
                     Spacer()
 
-                    // Hardware Batch Conversion Chips (isleta engine)
+                    // Hardware Batch Conversion Chips
                     HStack(spacing: 4) {
                         Button {
                             performConversion(to: .pdf)
@@ -118,6 +153,8 @@ struct ShelfView: View {
                         .help("Transcode to PNG")
                     }
 
+                    addFilesButton(showLabel: false)
+
                     Button {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                             tvm.clearAll()
@@ -137,6 +174,7 @@ struct ShelfView: View {
                     .buttonStyle(.plain)
                 } else {
                     Spacer()
+                    addFilesButton(showLabel: true)
                 }
             }
             .padding(.horizontal, 10)

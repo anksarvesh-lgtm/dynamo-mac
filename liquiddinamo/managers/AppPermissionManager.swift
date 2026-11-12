@@ -9,8 +9,10 @@
 
 import AppKit
 import AVFoundation
+import Carbon
 import Combine
 import CoreBluetooth
+import Darwin
 import Defaults
 import EventKit
 import Foundation
@@ -113,7 +115,14 @@ public final class AppPermissionManager: ObservableObject {
     @Published public private(set) var statuses: [AppPermissionKind: AppPermissionStatus] = [:]
     @Published public private(set) var isChecking: Bool = false
     @Published public private(set) var recentlyGrantedKinds: Set<AppPermissionKind> = []
+    @Published public private(set) var musicTargetNotRunning: Bool = false
 
+    /// Returns `true` when executing inside macOS App Sandbox.
+    public nonisolated static var isSandboxed: Bool {
+        ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+    }
+
+    private var didObserveAccessibilityGrantInSession: Bool = false
     private var cancellables = Set<AnyCancellable>()
     private var pollingTask: Task<Void, Never>?
     private var eventStore = EKEventStore()
@@ -191,12 +200,31 @@ public final class AppPermissionManager: ObservableObject {
         return false
     }
 
+    private nonisolated static func mapCompanionDecision(_ decision: PermissionCompanionDecision) -> AppPermissionStatus {
+        switch decision {
+        case .allowed:
+            return .allowed
+        case .needsPermission:
+            return .needsPermission
+        case .needsRepair:
+            return .needsRepair
+        case .notNeeded, .unverifiedTargetNotRunning:
+            return .notNeeded
+        }
+    }
+
     private func evaluateAllPermissions() -> [AppPermissionKind: AppPermissionStatus] {
         var evaluated: [AppPermissionKind: AppPermissionStatus] = [:]
 
         // 1. Accessibility: Multi-layer verification (AX + tapCreate ground-truth)
         let axTrusted = Self.isAccessibilityActuallyGranted()
-        evaluated[.accessibility] = axTrusted ? .allowed : .needsPermission
+        if axTrusted { didObserveAccessibilityGrantInSession = true }
+        evaluated[.accessibility] = Self.mapCompanionDecision(
+            PermissionCompanionPolicy.accessibilityDecision(
+                isTrusted: axTrusted,
+                hadPriorGrantInSession: didObserveAccessibilityGrantInSession
+            )
+        )
 
         // 2. Calendar: Fresh EventKit evaluation
         let calStatus = EKEventStore.authorizationStatus(for: .event)
@@ -222,22 +250,33 @@ public final class AppPermissionManager: ObservableObject {
         let btStatus = CBCentralManager.authorization
         evaluated[.bluetooth] = (btStatus == .allowedAlways) ? .allowed : .needsPermission
 
-        // 6. Music: preserve current or default to needsPermission
-        evaluated[.music] = statuses[.music] ?? .needsPermission
+        // 6. Music: preserve current or default to .notNeeded until passive AE check completes
+        evaluated[.music] = statuses[.music] ?? .notNeeded
 
-        // 7. Full Disk Access: check readability of protected library directories without prompting
+        // 7. Full Disk Access: Sandbox-honest check against real user home outside container
         let fdaGranted = Self.probeFullDiskAccess()
-        evaluated[.fullDiskAccess] = fdaGranted ? .allowed : .needsPermission
+        evaluated[.fullDiskAccess] = Self.mapCompanionDecision(
+            PermissionCompanionPolicy.fullDiskAccessDecision(
+                isSandboxed: Self.isSandboxed,
+                probeGranted: fdaGranted
+            )
+        )
 
         return evaluated
     }
 
-    /// Probes if the current process has Full Disk Access by testing protected library locations.
-    public static func probeFullDiskAccess() -> Bool {
-        let home = FileManager.default.homeDirectoryForCurrentUser
+    private nonisolated static func realUserHomeDirectory() -> URL {
+        if let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir {
+            return URL(fileURLWithPath: String(cString: dir), isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    /// Probes if the current process can enumerate protected user Library locations outside its Sandbox container.
+    public nonisolated static func probeFullDiskAccess() -> Bool {
+        let home = realUserHomeDirectory()
         let probes: [URL] = [
             home.appendingPathComponent("Library/Safari", isDirectory: true),
-            home.appendingPathComponent("Library/Containers", isDirectory: true),
             home.appendingPathComponent("Library/Application Support", isDirectory: true)
         ]
 
@@ -290,36 +329,41 @@ public final class AppPermissionManager: ObservableObject {
 
         log("[\(timeStr)] 🔄 Refreshed: AX=\(newStatuses[.accessibility]?.rawValue ?? "?"), Cal=\(newStatuses[.calendar]?.rawValue ?? "?"), Rem=\(newStatuses[.reminders]?.rawValue ?? "?"), Cam=\(newStatuses[.camera]?.rawValue ?? "?"), Music=\(newStatuses[.music]?.rawValue ?? "?")")
 
-        // 5. Music Automation Check (background thread)
+        // 5. Music Automation Check (silent background probe targeting com.apple.Music)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let musicStatus = self?.checkMusicAutomationStatus() ?? .needsPermission
+            let probe = Self.queryMusicAutomationStatus(promptIfNeeded: false)
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                let oldMusic = self.statuses[.music] ?? .needsPermission
-                if oldMusic != musicStatus {
-                    self.log("[\(timeStr)] 🟢 Permission Change Event: Music [\(oldMusic.rawValue) ➡️ \(musicStatus.rawValue)]")
-                    if musicStatus == .allowed {
+                let oldMusic = self.statuses[.music] ?? .notNeeded
+                if oldMusic != probe.status {
+                    self.log("[\(timeStr)] 🟢 Permission Change Event: Music [\(oldMusic.rawValue) ➡️ \(probe.status.rawValue)]")
+                    if probe.status == .allowed {
                         self.recentlyGrantedKinds.insert(.music)
                     }
                 }
-                self.statuses[.music] = musicStatus
+                self.musicTargetNotRunning = probe.targetNotRunning
+                self.statuses[.music] = probe.status
                 self.isChecking = false
             }
         }
     }
 
-    private func checkMusicAutomationStatus() -> AppPermissionStatus {
-        let probe = "tell application \"System Events\" to return exists (processes where name is \"Music\")"
-        var error: NSDictionary?
-        if let script = NSAppleScript(source: probe) {
-            _ = script.executeAndReturnError(&error)
-            if error == nil {
-                return .allowed
-            } else if let code = error?[NSAppleScript.errorNumber] as? Int, code == -1743 {
-                return .needsPermission
-            }
-        }
-        return .allowed
+    private nonisolated static func queryMusicAutomationStatus(promptIfNeeded: Bool) -> (status: AppPermissionStatus, targetNotRunning: Bool) {
+        let bundleID = "com.apple.Music"
+        var targetDesc = AEAddressDesc()
+        let bytes = Array(bundleID.utf8)
+        let createErr = AECreateDesc(DescType(typeApplicationBundleID), bytes, bytes.count, &targetDesc)
+        guard createErr == noErr else { return (.needsPermission, false) }
+        defer { AEDisposeDesc(&targetDesc) }
+
+        let osStatus = AEDeterminePermissionToAutomateTarget(
+            &targetDesc,
+            AEEventClass(typeWildCard),
+            AEEventID(typeWildCard),
+            promptIfNeeded
+        )
+        let decision = PermissionCompanionPolicy.automationDecision(osStatus: osStatus)
+        return (mapCompanionDecision(decision), decision == .unverifiedTargetNotRunning)
     }
 
     // MARK: - Polling Engine (500ms for 10s upon Grant / Settings)
@@ -397,13 +441,16 @@ public final class AppPermissionManager: ObservableObject {
 
         case .music:
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                let triggerScript = "tell application \"Music\" to return player state"
-                if let script = NSAppleScript(source: triggerScript) {
-                    var err: NSDictionary?
-                    _ = script.executeAndReturnError(&err)
-                }
+                let result = Self.queryMusicAutomationStatus(promptIfNeeded: true)
                 DispatchQueue.main.async {
-                    self?.refreshAll(targetKind: .music)
+                    guard let self else { return }
+                    self.musicTargetNotRunning = result.targetNotRunning
+                    self.statuses[.music] = result.status
+                    if result.status == .needsPermission || result.targetNotRunning {
+                        self.openSettings(for: .music)
+                    } else {
+                        self.refreshAll(targetKind: .music)
+                    }
                 }
             }
 
@@ -416,16 +463,31 @@ public final class AppPermissionManager: ObservableObject {
         startPolling(for: kind)
     }
 
-    /// Performs one-click repair of stale macOS TCC accessibility cache.
-    /// Flushes stale TCC entries for com.agrigence.liquiddynamo, prompts native dialog,
-    /// opens System Settings, and begins active 500ms polling.
+    /// Guides Accessibility permission repair safely under App Sandbox without synchronous main-thread subprocesses.
+    /// Non-sandboxed builds reset stale TCC entries asynchronously before re-prompting.
     public func repairAccessibilityPermission() {
-        log("Repairing Accessibility Permission: purging stale TCC cache...")
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-        proc.arguments = ["reset", "Accessibility", "com.agrigence.liquiddynamo"]
-        try? proc.run()
-        proc.waitUntilExit()
+        let sandboxed = Self.isSandboxed
+        log("Repairing Accessibility Permission (sandboxed=\(sandboxed))...")
+
+        if PermissionCompanionPolicy.shouldSpawnTCCReset(isSandboxed: sandboxed) {
+            let bundleID = Bundle.main.bundleIdentifier ?? "com.agrigence.liquiddynamo"
+            Task.detached(priority: .userInitiated) { [weak self] in
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+                proc.arguments = ["reset", "Accessibility", bundleID]
+                try? proc.run()
+                proc.waitUntilExit()
+                await MainActor.run {
+                    guard let self else { return }
+                    let promptOptions = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+                    _ = AXIsProcessTrustedWithOptions(promptOptions)
+                    self.openSettings(for: .accessibility)
+                    self.refreshAll(targetKind: .accessibility)
+                    self.startPolling(for: .accessibility)
+                }
+            }
+            return
+        }
 
         let promptOptions = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(promptOptions)

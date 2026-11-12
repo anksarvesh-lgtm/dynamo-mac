@@ -16,12 +16,33 @@ final class MediaChecker: Sendable {
     }
 
     func checkDeprecationStatus() async throws -> Bool {
-        try await Task.detached(priority: .userInitiated) {
+        if MediaBackendEligibility.isSandboxedRuntime {
+            return true
+        }
+
+        let hasAdapterResources = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl") != nil
+            && Bundle.main.url(forResource: "MediaRemoteAdapterTestClient", withExtension: nil) != nil
+            && Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework") != nil
+
+        guard MediaBackendEligibility.adapterEligible(
+            isSandboxed: MediaBackendEligibility.isSandboxedRuntime,
+            hasAdapterResources: hasAdapterResources
+        ) else {
+            let osVersion = MediaBackendEligibility.currentOSVersion
+            let directEligible = MediaBackendEligibility.directMediaRemoteEligible(
+                osMajor: osVersion.major,
+                osMinor: osVersion.minor,
+                isSandboxed: MediaBackendEligibility.isSandboxedRuntime
+            )
+            return !directEligible
+        }
+
+        return try await Task.detached(priority: .userInitiated) {
             guard let scriptURL = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl"),
                   let nowPlayingTestClientPath = Bundle.main.url(forResource: "MediaRemoteAdapterTestClient", withExtension: nil)?.path,
                   let frameworkPath = Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework")
             else {
-                throw MediaCheckerError.missingResources
+                return true
             }
 
             let process = Process()
@@ -31,7 +52,7 @@ final class MediaChecker: Sendable {
             do {
                 try process.run()
             } catch {
-                throw MediaCheckerError.processExecutionFailed
+                return true
             }
 
             // Timeout after 10 seconds
@@ -53,11 +74,11 @@ final class MediaChecker: Sendable {
                         return true
                     }
                 }
-                throw MediaCheckerError.timeout
+                return false
             }
 
             if !didExit {
-                throw MediaCheckerError.timeout
+                return true
             }
 
             let isDeprecated = process.terminationStatus == 1

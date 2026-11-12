@@ -132,44 +132,62 @@ struct InlineHUD: View {
                 .lineLimit(1)
                 .multilineTextAlignment(.trailing)
         } else {
+            let isMutedState = type == .volume && (VolumeManager.shared.isMuted || value <= 0.001)
+            let isInteractive: Bool = {
+                switch type {
+                case .volume: return VolumeManager.shared.hasVolumeControl
+                case .brightness: return BrightnessManager.shared.isBrightnessAvailable
+                case .backlight: return KeyboardBacklightManager.shared.isKeyboardBacklightAvailable
+                default: return false
+                }
+            }()
+            let levelColor: Color = HUDLogic.glowStage(level: Double(value), isMuted: isMutedState) == .hot ? .orange : .accentColor
             HStack(spacing: 4) {
-                OrganicFluidLevelView(value: $value, height: 6.0, onChange: { v in
-                    if type == .volume {
-                        VolumeManager.shared.setAbsolute(Float32(v))
-                    } else if type == .brightness {
-                        BrightnessManager.shared.setAbsolute(value: Float32(v))
-                    }
-                })
+                OrganicFluidLevelView(
+                    value: $value,
+                    tintColor: levelColor,
+                    height: 6.0,
+                    onChange: isInteractive ? { v in
+                        if type == .volume {
+                            VolumeManager.shared.setAbsolute(Float32(v))
+                        } else if type == .brightness {
+                            BrightnessManager.shared.setAbsolute(value: Float32(v))
+                        } else if type == .backlight {
+                            KeyboardBacklightManager.shared.setAbsolute(value: Float32(v))
+                        }
+                    } : nil
+                )
                 .frame(maxWidth: 55)
+                .allowsHitTesting(isInteractive)
+                .opacity(isInteractive ? 1.0 : 0.55)
 
-                if type == .volume && value.isZero {
-                    Text("muted")
+                if isMutedState {
+                    Text(HUDLogic.percentText(level: Double(value), isMuted: true))
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(.red.opacity(0.9))
                         .lineLimit(1)
                 } else if Defaults[.showClosedNotchHUDPercentage] {
-                    Text("\(Int(value * 100))%")
+                    Text(HUDLogic.percentText(level: Double(value), isMuted: false))
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .foregroundStyle(.gray)
                         .lineLimit(1)
-                        .frame(minWidth: 26, alignment: .trailing)
+                        .frame(minWidth: 28, alignment: .trailing)
                 }
             }
         }
     }
 
     func SpeakerSymbol(_ value: CGFloat) -> String {
+        if VolumeManager.shared.isMuted || value <= 0.001 {
+            return "speaker.slash"
+        }
         switch value {
-        case 0:
-            return "speaker"
-        case 0...0.3:
+        case ..<0.3:
             return "speaker.wave.1"
-        case 0.3...0.8:
+        case ..<0.8:
             return "speaker.wave.2"
-        case 0.8...1:
-            return "speaker.wave.3"
         default:
-            return "speaker.wave.2"
+            return "speaker.wave.3"
         }
     }
 

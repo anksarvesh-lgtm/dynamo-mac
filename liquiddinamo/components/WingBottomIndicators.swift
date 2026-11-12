@@ -13,20 +13,33 @@ import SwiftUI
 // MARK: - Wing Temperature Palette (Editable Stops & Colors)
 
 public struct WingTempPalette {
-    public static let minTemp: Double = 1.0
-    public static let maxTemp: Double = 70.0
+    public static var thresholds: ThermalThresholds {
+        SystemStatsService.configuredThermalThresholds()
+    }
 
-    // Range: 70 - 1 = 69
-    // 50% stop: 1.0 + 0.50 * 69.0 = 35.5 °C
-    // 75% stop: 1.0 + 0.75 * 69.0 = 52.75 °C
-    public static let yellowTemp: Double = minTemp + 0.50 * (maxTemp - minTemp) // 35.5 °C
-    public static let orangeTemp: Double = minTemp + 0.75 * (maxTemp - minTemp) // 52.75 °C
+    public static var minTemp: Double { thresholds.coolMaxC }
+    public static var normalMaxTemp: Double { thresholds.normalMaxC }
+    public static var yellowTemp: Double { thresholds.elevatedMaxC }
+    public static var orangeTemp: Double { thresholds.highMaxC }
+    public static var maxTemp: Double { thresholds.highMaxC }
 
-    public static let green  = (r: 0.20, g: 0.85, b: 0.35) // at minTemp (1.0 °C and below)
-    public static let yellow = (r: 0.96, g: 0.82, b: 0.18) // at 50% (35.5 °C)
-    public static let orange = (r: 1.00, g: 0.50, b: 0.12) // at 75% (52.75 °C)
-    public static let red    = (r: 0.95, g: 0.20, b: 0.20) // at maxTemp (70.0 °C and above)
+    public static var cyan: (r: Double, g: Double, b: Double) {
+        (ThermalColorScale.coolCyan.r, ThermalColorScale.coolCyan.g, ThermalColorScale.coolCyan.b)
+    }
+    public static var green: (r: Double, g: Double, b: Double) {
+        (ThermalColorScale.normalGreen.r, ThermalColorScale.normalGreen.g, ThermalColorScale.normalGreen.b)
+    }
+    public static var yellow: (r: Double, g: Double, b: Double) {
+        (ThermalColorScale.elevatedYellow.r, ThermalColorScale.elevatedYellow.g, ThermalColorScale.elevatedYellow.b)
+    }
+    public static var orange: (r: Double, g: Double, b: Double) {
+        (ThermalColorScale.highOrange.r, ThermalColorScale.highOrange.g, ThermalColorScale.highOrange.b)
+    }
+    public static var red: (r: Double, g: Double, b: Double) {
+        (ThermalColorScale.criticalRed.r, ThermalColorScale.criticalRed.g, ThermalColorScale.criticalRed.b)
+    }
 
+    public static var cyanColor: Color { Color(red: cyan.r, green: cyan.g, blue: cyan.b) }
     public static var greenColor: Color { Color(red: green.r, green: green.g, blue: green.b) }
     public static var yellowColor: Color { Color(red: yellow.r, green: yellow.g, blue: yellow.b) }
     public static var orangeColor: Color { Color(red: orange.r, green: orange.g, blue: orange.b) }
@@ -78,36 +91,19 @@ public struct WingIndicatorColors {
     }
 
     /// Pure function returning raw RGB components for CPU temperature color mapping.
-    /// Scale: 1.0 °C (green) -> 35.5 °C (yellow) -> 52.75 °C (orange) -> 70.0 °C (red).
+    /// Configurable 5-zone scale: Cool (cyan) -> Normal (green) -> Elevated (yellow) -> High (orange) -> Critical (red).
     /// If temperature is unavailable (nil), cleanly falls back to macOS ThermalState using the same palette.
     public static func cpuTemperatureRGB(
         temperature: Double?,
         thermalState: ProcessInfo.ThermalState = ProcessInfo.processInfo.thermalState
     ) -> (r: Double, g: Double, b: Double) {
-        guard let temp = temperature else {
-            switch thermalState {
-            case .nominal: return WingTempPalette.green
-            case .fair: return WingTempPalette.yellow
-            case .serious: return WingTempPalette.orange
-            case .critical: return WingTempPalette.red
-            @unknown default: return WingTempPalette.green
-            }
-        }
-
-        if temp <= WingTempPalette.minTemp {
-            return WingTempPalette.green
-        } else if temp < WingTempPalette.yellowTemp {
-            let p = (temp - WingTempPalette.minTemp) / (WingTempPalette.yellowTemp - WingTempPalette.minTemp)
-            return interpolateRGB(from: WingTempPalette.green, to: WingTempPalette.yellow, progress: p)
-        } else if temp < WingTempPalette.orangeTemp {
-            let p = (temp - WingTempPalette.yellowTemp) / (WingTempPalette.orangeTemp - WingTempPalette.yellowTemp)
-            return interpolateRGB(from: WingTempPalette.yellow, to: WingTempPalette.orange, progress: p)
-        } else if temp < WingTempPalette.maxTemp {
-            let p = (temp - WingTempPalette.orangeTemp) / (WingTempPalette.maxTemp - WingTempPalette.orangeTemp)
-            return interpolateRGB(from: WingTempPalette.orange, to: WingTempPalette.red, progress: p)
-        } else {
-            return WingTempPalette.red
-        }
+        let t = SystemStatsService.configuredThermalThresholds()
+        let rgb = ThermalColorScale.rgb(
+            forTemperature: temperature,
+            thresholds: t,
+            thermalState: thermalState
+        )
+        return (rgb.r, rgb.g, rgb.b)
     }
 
     /// Pure function for CPU temperature color mapping returning SwiftUI Color.
@@ -119,21 +115,16 @@ public struct WingIndicatorColors {
         return Color(red: rgb.r, green: rgb.g, blue: rgb.b)
     }
 
-    /// Normalized temperature progress `t` in [0.0, 1.0] across the 1-70 °C scale
+    /// Normalized temperature progress `t` in [0.0, 1.0] across configured thermal thresholds.
     public static func normalizedTemperature(
         temperature: Double?,
         thermalState: ProcessInfo.ThermalState = ProcessInfo.processInfo.thermalState
     ) -> Double {
-        guard let temp = temperature else {
-            switch thermalState {
-            case .nominal: return 0.0
-            case .fair: return 0.50
-            case .serious: return 0.75
-            case .critical: return 1.0
-            @unknown default: return 0.0
-            }
-        }
-        return max(0.0, min(1.0, (temp - WingTempPalette.minTemp) / (WingTempPalette.maxTemp - WingTempPalette.minTemp)))
+        ThermalColorScale.normalizedProgress(
+            forTemperature: temperature,
+            thresholds: SystemStatsService.configuredThermalThresholds(),
+            thermalState: thermalState
+        )
     }
 
     /// Pure function for RAM usage and memory pressure color mapping.

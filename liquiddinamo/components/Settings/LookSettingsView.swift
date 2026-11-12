@@ -14,6 +14,7 @@ import SwiftUI
 
 public struct LookSettingsView: View {
     @Default(.islandTransparency) private var islandTransparency
+    @Default(.wingTransparency) private var wingTransparency
     @Default(.waterIntensity) private var waterIntensity
     @Default(.waterSagAmount) private var waterSagAmount
     @Default(.compactMode) private var compactMode
@@ -21,6 +22,10 @@ public struct LookSettingsView: View {
     @Default(.autoFitWings) private var autoFitWings
     @Default(.leftWingMetric) private var leftWingMetric
     @Default(.rightWingMetric) private var rightWingMetric
+    @Default(.leftWingMetrics) private var leftWingMetrics
+    @Default(.rightWingMetrics) private var rightWingMetrics
+    @Default(.leftWingMetricOptions) private var leftWingMetricOptions
+    @Default(.rightWingMetricOptions) private var rightWingMetricOptions
     @Default(.hideWingsInFullScreen) private var hideWingsInFullScreen
     @Default(.wingsBuiltInDisplayOnly) private var wingsBuiltInDisplayOnly
     @Default(.useCustomAccentColor) private var useCustomAccentColor
@@ -53,6 +58,7 @@ public struct LookSettingsView: View {
         WingItemChip(id: "cpuUsage", title: "CPU Usage", icon: "waveform.path.ecg", iconColor: .cyan, metric: .cpuUsage),
         WingItemChip(id: "cpuTemp", title: "CPU Temperature", icon: "thermometer.medium", iconColor: Color(red: 1.0, green: 0.38, blue: 0.38), metric: .cpuTemp),
         WingItemChip(id: "ramUsage", title: "RAM Usage", icon: "memorychip", iconColor: Color(red: 0.72, green: 0.45, blue: 1.0), metric: .ramUsage),
+        WingItemChip(id: "ramPressure", title: "RAM Pressure", icon: "gauge.with.dots.needle.67percent", iconColor: Color(red: 0.72, green: 0.45, blue: 1.0), metric: .ramPressure),
         WingItemChip(id: "netDownUp", title: "Network Speed", icon: "arrow.up.arrow.down", iconColor: Color(red: 0.35, green: 0.88, blue: 0.55), metric: .netDownUp),
 
         WingItemChip(id: "weather", title: "Weather Temperature", icon: "cloud.sun.fill", iconColor: Color(red: 1.0, green: 0.85, blue: 0.2), metric: .weather),
@@ -85,8 +91,8 @@ public struct LookSettingsView: View {
 
                     // Top-Right Header Notch Preview Capsule
                     ReferenceNotchCapsule(
-                        leftMetric: leftWingMetric,
-                        rightMetric: rightWingMetric,
+                        leftMetrics: leftWingMetrics,
+                        rightMetrics: rightWingMetrics,
                         wingWidth: wingWidth,
                         autoFit: autoFitWings
                     )
@@ -96,93 +102,21 @@ public struct LookSettingsView: View {
 
                 // Row 1: Left Wing Content & Right Wing Content Cards
                 HStack(alignment: .top, spacing: 16) {
-                    // Left Wing Content Card
-                    ReferenceSettingsCard(
+                    wingMetricsListCard(
                         title: "Left Wing Content",
-                        subtitle: "Choose what to show on the left side."
-                    ) {
-                        VStack(alignment: .leading, spacing: 14) {
-                            // Dropdown Pill Selector
-                            ReferencePillPicker(
-                                selection: $leftWingMetric,
-                                items: WingMetric.selectableCases,
-                                titleFor: { $0.displayName },
-                                iconFor: { $0 == .cpuUsage ? "waveform.path.ecg" : $0.iconName },
-                                iconColorFor: { _ in .cyan },
-                                onSelect: { triggerLivePreview() }
-                            )
+                        subtitle: "Configure 1 to 3 items and display options for the left wing.",
+                        metrics: $leftWingMetrics,
+                        options: $leftWingMetricOptions,
+                        isLeft: true
+                    )
 
-                            VStack(spacing: 11) {
-                                ReferenceToggleRow(
-                                    symbol: "Aa",
-                                    isTextSymbol: true,
-                                    symbolColor: .white.opacity(0.7),
-                                    title: "Show label",
-                                    isOn: $leftWingShowLabel
-                                )
-
-                                ReferenceToggleRow(
-                                    symbol: "%",
-                                    isTextSymbol: true,
-                                    symbolColor: .white.opacity(0.7),
-                                    title: "Show percentage",
-                                    isOn: $leftWingShowPercentage
-                                )
-
-                                ReferenceToggleRow(
-                                    symbol: "chart.bar.fill",
-                                    isTextSymbol: false,
-                                    symbolColor: .white.opacity(0.7),
-                                    title: "Show mini graph",
-                                    isOn: $leftWingShowMiniGraph
-                                )
-                            }
-                        }
-                    }
-
-                    // Right Wing Content Card
-                    ReferenceSettingsCard(
+                    wingMetricsListCard(
                         title: "Right Wing Content",
-                        subtitle: "Choose what to show on the right side."
-                    ) {
-                        VStack(alignment: .leading, spacing: 14) {
-                            // Dropdown Pill Selector
-                            ReferencePillPicker(
-                                selection: $rightWingMetric,
-                                items: WingMetric.selectableCases,
-                                titleFor: { $0.displayName },
-                                iconFor: { $0 == .weather ? "cloud.sun.fill" : $0.iconName },
-                                iconColorFor: { $0 == .weather ? .yellow : NativeSettingsTheme.accentBlue },
-                                onSelect: { triggerLivePreview() }
-                            )
-
-                            VStack(spacing: 11) {
-                                ReferenceToggleRow(
-                                    symbol: "photo",
-                                    isTextSymbol: false,
-                                    symbolColor: .white.opacity(0.7),
-                                    title: "Show icon",
-                                    isOn: $rightWingShowIcon
-                                )
-
-                                ReferenceToggleRow(
-                                    symbol: "thermometer.medium",
-                                    isTextSymbol: false,
-                                    symbolColor: Color(red: 1.0, green: 0.38, blue: 0.38),
-                                    title: "Show temperature",
-                                    isOn: $rightWingShowTemperature
-                                )
-
-                                ReferenceToggleRow(
-                                    symbol: "cloud.fill",
-                                    isTextSymbol: false,
-                                    symbolColor: Color(red: 0.45, green: 0.75, blue: 1.0),
-                                    title: "Show condition",
-                                    isOn: $rightWingShowCondition
-                                )
-                            }
-                        }
-                    }
+                        subtitle: "Configure 1 to 3 items and display options for the right wing.",
+                        metrics: $rightWingMetrics,
+                        options: $rightWingMetricOptions,
+                        isLeft: false
+                    )
                 }
 
                 // Row 2: Layout & Behavior & Preview Cards
@@ -190,7 +124,7 @@ public struct LookSettingsView: View {
                     // Layout & Behavior Card
                     ReferenceSettingsCard(
                         title: "Layout & Behavior",
-                        subtitle: "Control how wings expand and look."
+                        subtitle: "Control how wings expand, size, and look."
                     ) {
                         VStack(spacing: 12) {
                             ReferenceToggleRow(
@@ -212,6 +146,22 @@ public struct LookSettingsView: View {
                                 triggerLivePreview()
                             }
 
+                            ReferenceSliderRow(
+                                label: "Wing transparency",
+                                value: Binding(
+                                    get: { CGFloat(wingTransparency * 100.0) },
+                                    set: {
+                                        wingTransparency = Double($0) / 100.0
+                                        triggerLivePreview()
+                                    }
+                                ),
+                                in: 20...100,
+                                step: 5,
+                                unit: "%"
+                            ) {
+                                triggerLivePreview()
+                            }
+
                             ReferenceToggleRow(
                                 symbol: nil,
                                 title: "Show separators between items",
@@ -227,8 +177,8 @@ public struct LookSettingsView: View {
                     ) {
                         VStack(alignment: .center, spacing: 8) {
                             ReferenceNotchCapsule(
-                                leftMetric: leftWingMetric,
-                                rightMetric: rightWingMetric,
+                                leftMetrics: leftWingMetrics,
+                                rightMetrics: rightWingMetrics,
                                 wingWidth: wingWidth,
                                 autoFit: autoFitWings
                             )
@@ -296,6 +246,13 @@ public struct LookSettingsView: View {
                                 .labelsHidden()
                         }
 
+                        NativeSettingsRow("Hardware Temp Probe", description: "Sample CPU thermal sensor when permitted (shows — when unavailable)", icon: "thermometer.medium") {
+                            Defaults.Toggle("", key: .enableHardwareTempSensor)
+                                .labelsHidden()
+                        }
+
+                        ThermalThresholdsSettingsBlock()
+
                         NativeSettingsRow("Window Transparency", description: "Enable translucent frosted-glass materials", icon: "macwindow") {
                             Defaults.Toggle("", key: .enableWindowTransparency)
                                 .labelsHidden()
@@ -333,19 +290,310 @@ public struct LookSettingsView: View {
         }
     }
 
+    private struct ThermalThresholdsSettingsBlock: View {
+        @Default(.thermalCoolMaxC) private var coolMaxC
+        @Default(.thermalNormalMaxC) private var normalMaxC
+        @Default(.thermalElevatedMaxC) private var elevatedMaxC
+        @Default(.thermalHighMaxC) private var highMaxC
+
+        private var sanitized: ThermalThresholds {
+            ThermalThresholds(
+                coolMaxC: coolMaxC,
+                normalMaxC: normalMaxC,
+                elevatedMaxC: elevatedMaxC,
+                highMaxC: highMaxC
+            ).sanitized()
+        }
+
+        private func applyThresholds(_ updated: ThermalThresholds) {
+            let clean = updated.sanitized()
+            coolMaxC = clean.coolMaxC
+            normalMaxC = clean.normalMaxC
+            elevatedMaxC = clean.elevatedMaxC
+            highMaxC = clean.highMaxC
+        }
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Text("Thermal Color Thresholds (°C)")
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Spacer()
+                    Text("Critical (Red) > \(Int(sanitized.highMaxC))°C")
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundColor(Color(
+                            red: ThermalColorScale.criticalRed.r,
+                            green: ThermalColorScale.criticalRed.g,
+                            blue: ThermalColorScale.criticalRed.b
+                        ))
+                }
+
+                thresholdRow(
+                    title: "Cool (Cyan) ≤",
+                    color: Color(red: ThermalColorScale.coolCyan.r, green: ThermalColorScale.coolCyan.g, blue: ThermalColorScale.coolCyan.b),
+                    value: Binding(
+                        get: { sanitized.coolMaxC },
+                        set: { newVal in
+                            var t = sanitized
+                            t.coolMaxC = newVal
+                            applyThresholds(t)
+                        }
+                    ),
+                    range: 25...80
+                )
+
+                thresholdRow(
+                    title: "Normal (Green) ≤",
+                    color: Color(red: ThermalColorScale.normalGreen.r, green: ThermalColorScale.normalGreen.g, blue: ThermalColorScale.normalGreen.b),
+                    value: Binding(
+                        get: { sanitized.normalMaxC },
+                        set: { newVal in
+                            var t = sanitized
+                            t.normalMaxC = newVal
+                            applyThresholds(t)
+                        }
+                    ),
+                    range: 35...95
+                )
+
+                thresholdRow(
+                    title: "Elevated (Yellow) ≤",
+                    color: Color(red: ThermalColorScale.elevatedYellow.r, green: ThermalColorScale.elevatedYellow.g, blue: ThermalColorScale.elevatedYellow.b),
+                    value: Binding(
+                        get: { sanitized.elevatedMaxC },
+                        set: { newVal in
+                            var t = sanitized
+                            t.elevatedMaxC = newVal
+                            applyThresholds(t)
+                        }
+                    ),
+                    range: 45...105
+                )
+
+                thresholdRow(
+                    title: "High (Orange) ≤",
+                    color: Color(red: ThermalColorScale.highOrange.r, green: ThermalColorScale.highOrange.g, blue: ThermalColorScale.highOrange.b),
+                    value: Binding(
+                        get: { sanitized.highMaxC },
+                        set: { newVal in
+                            var t = sanitized
+                            t.highMaxC = newVal
+                            applyThresholds(t)
+                        }
+                    ),
+                    range: 55...115
+                )
+            }
+            .padding(10)
+            .background(Color.white.opacity(0.04))
+            .cornerRadius(8)
+        }
+
+        private func thresholdRow(title: String, color: Color, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 7, height: 7)
+                Text(title)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 122, alignment: .leading)
+                Slider(value: value, in: range, step: 1)
+                Text("\(Int(value.wrappedValue))°C")
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(width: 40, alignment: .trailing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    @ViewBuilder
+    private func wingMetricsListCard(
+        title: String,
+        subtitle: String,
+        metrics: Binding<[WingMetric]>,
+        options: Binding<[String: WingMetricOptions]>,
+        isLeft: Bool
+    ) -> some View {
+        ReferenceSettingsCard(title: title, subtitle: subtitle) {
+            VStack(alignment: .leading, spacing: 12) {
+                // List of active metrics (up to 3)
+                ForEach(Array(metrics.wrappedValue.enumerated()), id: \.offset) { idx, metric in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Image(systemName: metric == .cpuUsage ? "waveform.path.ecg" : metric.iconName)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(isLeft ? Color.cyan : NativeSettingsTheme.accentBlue)
+                                .frame(width: 16)
+
+                            Text(metric.displayName)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.white)
+
+                            Spacer(minLength: 4)
+
+                            // Move Up
+                            Button {
+                                guard idx > 0 else { return }
+                                metrics.wrappedValue.swapAt(idx, idx - 1)
+                                triggerLivePreview()
+                            } label: {
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(idx > 0 ? .white.opacity(0.8) : .white.opacity(0.2))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(idx == 0)
+
+                            // Move Down
+                            Button {
+                                guard idx < metrics.wrappedValue.count - 1 else { return }
+                                metrics.wrappedValue.swapAt(idx, idx + 1)
+                                triggerLivePreview()
+                            } label: {
+                                Image(systemName: "arrow.down")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(idx < metrics.wrappedValue.count - 1 ? .white.opacity(0.8) : .white.opacity(0.2))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(idx >= metrics.wrappedValue.count - 1)
+
+                            // Remove
+                            Button {
+                                guard metrics.wrappedValue.count > 1 else { return }
+                                metrics.wrappedValue.remove(at: idx)
+                                triggerLivePreview()
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(metrics.wrappedValue.count > 1 ? Color.red.opacity(0.8) : Color.white.opacity(0.2))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(metrics.wrappedValue.count <= 1)
+                        }
+
+                        // Per-metric options toggles (Icon, Value, Label, Mini Graph)
+                        let opt = options.wrappedValue[metric.rawValue] ?? WingMetricOptions()
+                        HStack(spacing: 12) {
+                            metricTogglePill(title: "Icon", isOn: Binding(
+                                get: { opt.showIcon },
+                                set: {
+                                    var updated = opt
+                                    updated.showIcon = $0
+                                    options.wrappedValue[metric.rawValue] = updated
+                                    triggerLivePreview()
+                                }
+                            ))
+
+                            metricTogglePill(title: "Value", isOn: Binding(
+                                get: { opt.showValue },
+                                set: {
+                                    var updated = opt
+                                    updated.showValue = $0
+                                    options.wrappedValue[metric.rawValue] = updated
+                                    triggerLivePreview()
+                                }
+                            ))
+
+                            metricTogglePill(title: "Label", isOn: Binding(
+                                get: { opt.showLabel },
+                                set: {
+                                    var updated = opt
+                                    updated.showLabel = $0
+                                    options.wrappedValue[metric.rawValue] = updated
+                                    triggerLivePreview()
+                                }
+                            ))
+
+                            metricTogglePill(title: "Graph", isOn: Binding(
+                                get: { opt.showMiniGraph },
+                                set: {
+                                    var updated = opt
+                                    updated.showMiniGraph = $0
+                                    options.wrappedValue[metric.rawValue] = updated
+                                    triggerLivePreview()
+                                }
+                            ))
+                        }
+                        .padding(.leading, 24)
+                    }
+                    .padding(.vertical, 4)
+
+                    if idx < metrics.wrappedValue.count - 1 {
+                        Divider().opacity(0.08)
+                    }
+                }
+
+                // Add Metric Button (up to 3 items)
+                if metrics.wrappedValue.count < 3 {
+                    Menu {
+                        let available = WingMetric.selectableCases.filter { m in
+                            m != .none && !metrics.wrappedValue.contains(m)
+                        }
+                        ForEach(available) { m in
+                            Button(m.displayName) {
+                                metrics.wrappedValue.append(m)
+                                triggerLivePreview()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 11))
+                            Text("Add Metric (\(metrics.wrappedValue.count)/3)")
+                                .font(.system(size: 11.5, weight: .medium))
+                        }
+                        .foregroundStyle(NativeSettingsTheme.accentBlue)
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func metricTogglePill(title: String, isOn: Binding<Bool>) -> some View {
+        Button {
+            isOn.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: isOn.wrappedValue ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 9))
+                    .foregroundStyle(isOn.wrappedValue ? NativeSettingsTheme.accentBlue : Color.white.opacity(0.3))
+                Text(title)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(isOn.wrappedValue ? .white : Color.white.opacity(0.5))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder
     private func wingChipButton(for chip: WingItemChip) -> some View {
-        let isLeft = leftWingMetric == chip.metric
-        let isRight = rightWingMetric == chip.metric
+        let isLeft = leftWingMetrics.contains(chip.metric)
+        let isRight = rightWingMetrics.contains(chip.metric)
         let isSelected = isLeft || isRight
 
         Menu {
             Button("Assign to Left Wing") {
-                leftWingMetric = chip.metric
+                if !leftWingMetrics.contains(chip.metric) {
+                    if leftWingMetrics.count >= 3 {
+                        leftWingMetrics[2] = chip.metric
+                    } else {
+                        leftWingMetrics.append(chip.metric)
+                    }
+                }
                 triggerLivePreview()
             }
             Button("Assign to Right Wing") {
-                rightWingMetric = chip.metric
+                if !rightWingMetrics.contains(chip.metric) {
+                    if rightWingMetrics.count >= 3 {
+                        rightWingMetrics[2] = chip.metric
+                    } else {
+                        rightWingMetrics.append(chip.metric)
+                    }
+                }
                 triggerLivePreview()
             }
         } label: {
@@ -390,12 +638,20 @@ public struct LookSettingsView: View {
 
     public func resetSection() {
         Defaults[.islandTransparency] = 0.35
+        Defaults[.wingTransparency] = 0.50
         Defaults[.waterIntensity] = 0.5
         Defaults[.leftWingMetric] = .cpuUsage
         Defaults[.rightWingMetric] = .netDownUp
+        Defaults[.leftWingMetrics] = [.cpuUsage]
+        Defaults[.rightWingMetrics] = [.netDown]
         Defaults[.wingWidth] = 100.0
         Defaults[.hideWingsInFullScreen] = true
-        Defaults[.wingsBuiltInDisplayOnly] = true
+        Defaults[.wingsBuiltInDisplayOnly] = false
+        Defaults[.enableHardwareTempSensor] = true
+        Defaults[.thermalCoolMaxC] = ThermalThresholds.standard.coolMaxC
+        Defaults[.thermalNormalMaxC] = ThermalThresholds.standard.normalMaxC
+        Defaults[.thermalElevatedMaxC] = ThermalThresholds.standard.elevatedMaxC
+        Defaults[.thermalHighMaxC] = ThermalThresholds.standard.highMaxC
         Defaults[.compactMode] = false
         Defaults[.useCustomAccentColor] = false
         Defaults[.waterSagAmount] = 12.0
@@ -408,25 +664,32 @@ public struct LookSettingsView: View {
     }
 }
 
-// MARK: - Legacy MockNotchWingsPreview Compatibility
+// MARK: - MockNotchWingsPreview Compatibility
 
 public struct MockNotchWingsPreview: View {
-    let leftMetric: WingMetric
-    let rightMetric: WingMetric
-    let wingWidth: CGFloat
-    let autoFit: Bool
+    public let leftMetrics: [WingMetric]
+    public let rightMetrics: [WingMetric]
+    public let wingWidth: CGFloat
+    public let autoFit: Bool
+
+    public init(leftMetrics: [WingMetric], rightMetrics: [WingMetric], wingWidth: CGFloat, autoFit: Bool = true) {
+        self.leftMetrics = leftMetrics
+        self.rightMetrics = rightMetrics
+        self.wingWidth = wingWidth
+        self.autoFit = autoFit
+    }
 
     public init(leftMetric: WingMetric, rightMetric: WingMetric, wingWidth: CGFloat, autoFit: Bool = true) {
-        self.leftMetric = leftMetric
-        self.rightMetric = rightMetric
+        self.leftMetrics = leftMetric == .none ? [] : [leftMetric]
+        self.rightMetrics = rightMetric == .none ? [] : [rightMetric]
         self.wingWidth = wingWidth
         self.autoFit = autoFit
     }
 
     public var body: some View {
         ReferenceNotchCapsule(
-            leftMetric: leftMetric,
-            rightMetric: rightMetric,
+            leftMetrics: leftMetrics,
+            rightMetrics: rightMetrics,
             wingWidth: wingWidth,
             autoFit: autoFit
         )

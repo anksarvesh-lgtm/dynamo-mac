@@ -374,10 +374,24 @@ public struct ReferenceSliderRow: View {
 // MARK: - Reference Photorealistic Notch & Wings Preview Capsule
 
 public struct ReferenceNotchCapsule: View {
-    public let leftMetric: WingMetric
-    public let rightMetric: WingMetric
+    public let leftMetrics: [WingMetric]
+    public let rightMetrics: [WingMetric]
     public let wingWidth: CGFloat
     public let autoFit: Bool
+
+    @Default(.wingTransparency) private var wingTransparency
+
+    public init(
+        leftMetrics: [WingMetric] = [.cpuUsage],
+        rightMetrics: [WingMetric] = [.weather],
+        wingWidth: CGFloat = 100,
+        autoFit: Bool = true
+    ) {
+        self.leftMetrics = leftMetrics.filter { $0 != .none }
+        self.rightMetrics = rightMetrics.filter { $0 != .none }
+        self.wingWidth = wingWidth
+        self.autoFit = autoFit
+    }
 
     public init(
         leftMetric: WingMetric = .cpuUsage,
@@ -385,21 +399,23 @@ public struct ReferenceNotchCapsule: View {
         wingWidth: CGFloat = 100,
         autoFit: Bool = true
     ) {
-        self.leftMetric = leftMetric
-        self.rightMetric = rightMetric
-        self.wingWidth = wingWidth
-        self.autoFit = autoFit
+        self.init(
+            leftMetrics: leftMetric == .none ? [] : [leftMetric],
+            rightMetrics: rightMetric == .none ? [] : [rightMetric],
+            wingWidth: wingWidth,
+            autoFit: autoFit
+        )
     }
 
     public var body: some View {
         ZStack {
-            // Outer Capsule Glass Body
+            // Outer Capsule Glass Body with configurable wingTransparency
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.05, green: 0.06, blue: 0.08).opacity(0.95),
-                            Color(red: 0.02, green: 0.03, blue: 0.05).opacity(0.98)
+                            Color.black.opacity(min(1.0, wingTransparency + 0.35)),
+                            Color.black.opacity(wingTransparency)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -425,50 +441,42 @@ public struct ReferenceNotchCapsule: View {
 
             // Content inside capsule
             HStack(spacing: 0) {
-                // Left Wing Section
+                // Left Wing Section (up to 3 metrics)
                 HStack(spacing: 6) {
-                    // Cyan Waveform or Metric Icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.cyan.opacity(0.20))
-                            .frame(width: 22, height: 22)
-
-                        Image(systemName: leftMetric == .cpuUsage ? "waveform.path.ecg" : leftMetric.iconName)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.cyan)
-                    }
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(leftMetric == .cpuUsage ? "CPU" : (leftMetric == .none ? "Idle" : leftMetric.displayName))
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-
+                    let metrics = leftMetrics.isEmpty ? [WingMetric.none] : Array(leftMetrics.prefix(3))
+                    ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
                         HStack(spacing: 4) {
-                            Text(leftMetric == .cpuUsage ? "12%" : "Active")
-                                .font(.system(size: 9, weight: .medium, design: .rounded))
-                                .foregroundStyle(Color.white.opacity(0.7))
+                            ZStack {
+                                Circle()
+                                    .fill(Color.cyan.opacity(0.20))
+                                    .frame(width: 18, height: 18)
 
-                            if leftMetric == .cpuUsage {
-                                // Mini blue progress bar
-                                ZStack(alignment: .leading) {
-                                    Capsule()
-                                        .fill(Color.white.opacity(0.15))
-                                        .frame(width: 28, height: 3)
-                                    Capsule()
-                                        .fill(NativeSettingsTheme.accentBlue)
-                                        .frame(width: 10, height: 3)
-                                }
+                                Image(systemName: metric == .cpuUsage ? "waveform.path.ecg" : metric.iconName)
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(Color.cyan)
+                            }
+
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(metric == .cpuUsage ? "CPU" : (metric == .none ? "Idle" : metric.displayName))
+                                    .font(.system(size: 9, weight: .bold))
+                                    .lineLimit(1)
+                                    .foregroundStyle(.white)
+
+                                Text(metric == .cpuUsage ? "12%" : (metric == .none ? "—" : "Active"))
+                                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Color.white.opacity(0.7))
                             }
                         }
                     }
                 }
                 .padding(.leading, 12)
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 4)
 
-                // Center Notch & Blue Specular Sheen
+                // Center Notch & Blue Specular Sheen (Zero Gap)
                 ZStack {
-                    // Physical Notch Bezel
+                    // Physical Notch Bezel - Opaque Black
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
                         bottomLeadingRadius: 8,
@@ -503,30 +511,35 @@ public struct ReferenceNotchCapsule: View {
                         .offset(x: 10, y: 7)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 4)
 
-                // Right Wing Section
+                // Right Wing Section (up to 3 metrics)
                 HStack(spacing: 6) {
-                    // Sun / Weather or Metric Icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.yellow.opacity(0.20))
-                            .frame(width: 22, height: 22)
+                    let metrics = rightMetrics.isEmpty ? [WingMetric.none] : Array(rightMetrics.prefix(3))
+                    ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
+                        HStack(spacing: 4) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.yellow.opacity(0.20))
+                                    .frame(width: 18, height: 18)
 
-                        Image(systemName: rightMetric == .weather ? "cloud.sun.fill" : rightMetric.iconName)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(rightMetric == .weather ? Color.yellow : NativeSettingsTheme.accentBlue)
-                    }
+                                Image(systemName: metric == .weather ? "cloud.sun.fill" : metric.iconName)
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(metric == .weather ? Color.yellow : NativeSettingsTheme.accentBlue)
+                            }
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(rightMetric == .weather ? "28°" : (rightMetric == .none ? "Idle" : "Live"))
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(metric == .weather ? "28°" : (metric == .none ? "Idle" : metric.displayName))
+                                    .font(.system(size: 9, weight: .bold))
+                                    .lineLimit(1)
+                                    .foregroundStyle(.white)
 
-                        Text(rightMetric == .weather ? "Partly Cloudy" : rightMetric.displayName)
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.7))
-                            .lineLimit(1)
+                                Text(metric == .weather ? "Sunny" : (metric == .none ? "—" : "Live"))
+                                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Color.white.opacity(0.7))
+                            }
+                        }
                     }
                 }
                 .padding(.trailing, 12)

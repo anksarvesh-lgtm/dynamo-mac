@@ -16,30 +16,36 @@ struct Bookmark: Sendable, Equatable, Codable {
     }
 
     init(url: URL) throws {
-        guard url.isFileURL, FileManager.default.fileExists(atPath: url.path) else {
-            throw NSError(domain: "Bookmark", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not a valid file URL or file does not exist at \(url.path)"])
+        guard url.isFileURL else {
+            throw NSError(domain: "Bookmark", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not a valid file URL: \(url.path)"])
         }
         do {
-            let bookmark = try url.bookmarkData(
-                options: .withSecurityScope,
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            NSLog("✅ Successfully created security-scoped bookmark for \(url.path)")
+            let bookmark: Data = try url.accessSecurityScopedResource { scopedURL in
+                guard FileManager.default.fileExists(atPath: scopedURL.path) else {
+                    throw NSError(domain: "Bookmark", code: 1, userInfo: [NSLocalizedDescriptionKey: "Not a valid file URL or file does not exist at \(scopedURL.path)"])
+                }
+                do {
+                    let data = try scopedURL.bookmarkData(
+                        options: .withSecurityScope,
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
+                    NSLog("✅ Successfully created security-scoped bookmark for \(scopedURL.path)")
+                    return data
+                } catch {
+                    let fallback = try scopedURL.bookmarkData(
+                        options: [],
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
+                    NSLog("✅ Successfully created standard bookmark for \(scopedURL.path)")
+                    return fallback
+                }
+            }
             self.data = bookmark
         } catch {
-            do {
-                let fallback = try url.bookmarkData(
-                    options: [],
-                    includingResourceValuesForKeys: nil,
-                    relativeTo: nil
-                )
-                NSLog("✅ Successfully created standard bookmark for \(url.path)")
-                self.data = fallback
-            } catch {
-                NSLog("❌ Failed to create bookmark for \(url.path): \(error.localizedDescription)")
-                throw error
-            }
+            NSLog("❌ Failed to create bookmark for \(url.path): \(error.localizedDescription)")
+            throw error
         }
     }
 
@@ -54,7 +60,9 @@ struct Bookmark: Sendable, Equatable, Codable {
             relativeTo: nil,
             bookmarkDataIsStale: &isStale
         ) {
-            if isStale, let newData = try? url.bookmarkData(options: [.withSecurityScope]) {
+            if isStale, let newData = url.accessSecurityScopedResource(accessor: { scopedURL in
+                try? scopedURL.bookmarkData(options: [.withSecurityScope])
+            }) {
                 NSLog("⚠️ Bookmark was stale for \(url.path), refreshed")
                 return (url, newData)
             }
@@ -69,7 +77,9 @@ struct Bookmark: Sendable, Equatable, Codable {
                 relativeTo: nil,
                 bookmarkDataIsStale: &isStale
             )
-            if isStale, let newData = try? url.bookmarkData(options: []) {
+            if isStale, let newData = url.accessSecurityScopedResource(accessor: { scopedURL in
+                try? scopedURL.bookmarkData(options: [])
+            }) {
                 NSLog("⚠️ Bookmark was stale for \(url.path), refreshed")
                 return (url, newData)
             }

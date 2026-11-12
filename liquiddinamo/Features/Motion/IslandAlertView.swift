@@ -605,16 +605,18 @@ public struct IslandAlertView: View {
     // MARK: - 8. System HUD View
 
     private func systemHUDView(title: String, icon: String, value: Double) -> some View {
-        HStack(spacing: 10) {
+        let isMuted = title == "Muted"
+        let barTint: Color = HUDLogic.glowStage(level: value, isMuted: isMuted) == .hot ? .orange : alert.iconColor
+        return HStack(spacing: 10) {
             Premium3DIconView(name: icon, size: 18, interactive: false)
 
-            Text("\(Int(round(value * 100)))%")
+            Text(HUDLogic.percentText(level: value, isMuted: isMuted))
                 .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.95))
+                .foregroundStyle(isMuted ? .red.opacity(0.9) : .white.opacity(0.95))
                 .monospacedDigit()
-                .frame(minWidth: 32, alignment: .center)
+                .frame(minWidth: 38, alignment: .center)
 
-            OrganicFluidLevelView(value: CGFloat(value), tintColor: alert.iconColor, height: 7)
+            OrganicFluidLevelView(value: CGFloat(value), tintColor: barTint, height: 7)
                 .frame(width: 76, height: 18)
         }
     }

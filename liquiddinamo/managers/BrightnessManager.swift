@@ -12,12 +12,14 @@ final class BrightnessManager: ObservableObject {
 	@Published private(set) var rawBrightness: Float = 0
 	@Published private(set) var animatedBrightness: Float = 0
 	@Published private(set) var lastChangeAt: Date = .distantPast
+	@Published private(set) var isBrightnessAvailable: Bool = false
 
 	private let visibleDuration: TimeInterval = 1.2
 	private let client = XPCHelperClient.shared
 	private var monitorTimer: Timer?
 
 	private var osdObserver: Defaults.Observation?
+	private var screenParamsObserver: NSObjectProtocol?
 
 	private init() {
 		refresh()
@@ -28,8 +30,23 @@ final class BrightnessManager: ObservableObject {
 				self?.stopMonitor()
 			}
 		}
+		screenParamsObserver = NotificationCenter.default.addObserver(
+			forName: NSApplication.didChangeScreenParametersNotification,
+			object: nil,
+			queue: .main
+		) { [weak self] _ in
+			self?.refresh()
+			self?.updateMonitorState()
+		}
 		if Defaults[.showNotchOSD] {
 			startMonitor()
+		}
+	}
+
+	deinit {
+		stopMonitor()
+		if let observer = screenParamsObserver {
+			NotificationCenter.default.removeObserver(observer)
 		}
 	}
 
@@ -79,17 +96,28 @@ final class BrightnessManager: ObservableObject {
 
 	private func startMonitor() {
 		monitorTimer?.invalidate()
+		guard Defaults[.showNotchOSD],
+		      readDirectScreenBrightness() != nil || isBrightnessAvailable else {
+			monitorTimer = nil
+			return
+		}
 		let timer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
 			guard let self = self else { return }
-			guard Defaults[.showNotchOSD] else { return }
-			if let current = self.readDirectScreenBrightness() {
-				if abs(current - self.rawBrightness) > 0.008 {
-					Task { @MainActor [weak self] in
-						guard let self = self else { return }
-						self.publish(brightness: current, touchDate: true)
-						LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(current))
-						self.postBrightnessHUD(level: current)
-					}
+			guard Defaults[.showNotchOSD] else {
+				self.stopMonitor()
+				return
+			}
+			guard let current = self.readDirectScreenBrightness() else {
+				self.stopMonitor()
+				self.refresh()
+				return
+			}
+			if abs(current - self.rawBrightness) > 0.008 {
+				Task { @MainActor [weak self] in
+					guard let self = self else { return }
+					self.publish(brightness: current, touchDate: true)
+					LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(current))
+					self.postBrightnessHUD(level: current)
 				}
 			}
 		}
@@ -114,7 +142,7 @@ final class BrightnessManager: ObservableObject {
 				subtitle: "\(Int(round(clamped * 100)))%",
 				iconName: icon,
 				value: clamped,
-				isDraggable: true
+				isDraggable: isBrightnessAvailable
 			),
 			pauseDismissalOnHover: true
 		)
@@ -124,11 +152,16 @@ final class BrightnessManager: ObservableObject {
 	func refresh() {
 		if let direct = readDirectScreenBrightness() {
 			publish(brightness: direct, touchDate: false)
+			updateMonitorState()
 			return
 		}
 		Task { @MainActor in
-			if let current = await client.currentScreenBrightness() {
-				publish(brightness: current, touchDate: false)
+			if let current = await self.client.currentScreenBrightness() {
+				self.publish(brightness: current, touchDate: false)
+				self.updateMonitorState()
+			} else {
+				self.isBrightnessAvailable = false
+				self.stopMonitor()
 			}
 		}
 	}
@@ -141,22 +174,73 @@ final class BrightnessManager: ObservableObject {
 	}
 
 	@MainActor func setRelative(delta: Float) {
-		let starting = readDirectScreenBrightness() ?? rawBrightness
-		let target = max(0, min(1, starting + delta))
-		if writeDirectScreenBrightness(target) {
-			publish(brightness: target, touchDate: true)
-		} else {
-			Task { @MainActor in
-				let ok = await client.setScreenBrightness(target)
-				if ok {
-					publish(brightness: target, touchDate: true)
-				} else {
-					refresh()
-				}
+		if let outcome = applyDirectRelative(delta: delta) {
+			_ = outcome
+			return
+		}
+		setRelativeWithSafetyReport(delta: delta) { _, _ in }
+	}
+
+	@MainActor
+	@discardableResult
+	func setRelativeWithSafetyReport(
+		delta: Float,
+		onAsyncOutcome: @escaping @MainActor (Bool, Bool) -> Void
+	) -> (changed: Bool, atRail: Bool)? {
+		if let directOutcome = applyDirectRelative(delta: delta) {
+			return directOutcome
+		}
+
+		Task { @MainActor in
+			guard let starting = await self.client.currentScreenBrightness() else {
+				self.isBrightnessAvailable = false
+				self.stopMonitor()
+				onAsyncOutcome(false, false)
+				return
+			}
+			if (delta > 0 && starting >= 0.999) || (delta < 0 && starting <= 0.001) {
+				self.publish(brightness: starting, touchDate: true)
+				LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(starting))
+				self.postBrightnessHUD(level: starting)
+				onAsyncOutcome(false, true)
+				return
+			}
+			let target = max(0, min(1, starting + delta))
+			let ok = await self.client.setScreenBrightness(target)
+			if ok {
+				let actual = await self.client.currentScreenBrightness() ?? target
+				self.publish(brightness: actual, touchDate: true)
+				LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(actual))
+				self.postBrightnessHUD(level: actual)
+				onAsyncOutcome(abs(actual - starting) > 0.0005 || target != starting, false)
+			} else {
+				self.refresh()
+				onAsyncOutcome(false, false)
 			}
 		}
-		LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(target))
-		postBrightnessHUD(level: target)
+		return nil
+	}
+
+	@MainActor
+	private func applyDirectRelative(delta: Float) -> (changed: Bool, atRail: Bool)? {
+		guard let starting = readDirectScreenBrightness() else {
+			return nil
+		}
+		if (delta > 0 && starting >= 0.999) || (delta < 0 && starting <= 0.001) {
+			publish(brightness: starting, touchDate: true)
+			LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(starting))
+			postBrightnessHUD(level: starting)
+			return (false, true)
+		}
+		let target = max(0, min(1, starting + delta))
+		guard writeDirectScreenBrightness(target) else {
+			return nil
+		}
+		let actual = readDirectScreenBrightness() ?? target
+		publish(brightness: actual, touchDate: true)
+		LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .brightness, value: CGFloat(actual))
+		postBrightnessHUD(level: actual)
+		return (abs(actual - starting) > 0.0005 || target != starting, false)
 	}
 
 	func setAbsolute(value: Float) {
@@ -165,11 +249,11 @@ final class BrightnessManager: ObservableObject {
 			publish(brightness: clamped, touchDate: true)
 		} else {
 			Task { @MainActor in
-				let ok = await client.setScreenBrightness(clamped)
+				let ok = await self.client.setScreenBrightness(clamped)
 				if ok {
-					publish(brightness: clamped, touchDate: true)
+					self.publish(brightness: clamped, touchDate: true)
 				} else {
-					refresh()
+					self.refresh()
 				}
 			}
 		}
@@ -177,6 +261,7 @@ final class BrightnessManager: ObservableObject {
 
 	private func publish(brightness: Float, touchDate: Bool) {
 		DispatchQueue.main.async {
+			self.isBrightnessAvailable = true
 			if self.rawBrightness != brightness || touchDate {
 				if touchDate { self.lastChangeAt = Date() }
 				self.rawBrightness = brightness
@@ -194,6 +279,7 @@ final class KeyboardBacklightManager: ObservableObject {
 
 	@Published private(set) var rawBrightness: Float = 0
 	@Published private(set) var lastChangeAt: Date = .distantPast
+	@Published private(set) var isKeyboardBacklightAvailable: Bool = false
 
 	private let visibleDuration: TimeInterval = 1.2
 	private let client = XPCHelperClient.shared
@@ -204,55 +290,89 @@ final class KeyboardBacklightManager: ObservableObject {
 
 	func refresh() {
 		Task { @MainActor in
-			if let current = await client.currentKeyboardBrightness() {
-				publish(brightness: current, touchDate: false)
+			let available = await self.client.isKeyboardBrightnessAvailable()
+			if available, let current = await self.client.currentKeyboardBrightness() {
+				self.isKeyboardBacklightAvailable = true
+				self.publish(brightness: current, touchDate: false)
+			} else {
+				self.isKeyboardBacklightAvailable = false
 			}
 		}
 	}
 
 	@MainActor func setRelative(delta: Float) {
+		setRelativeWithSafetyReport(delta: delta) { _, _ in }
+	}
+
+	@MainActor
+	func setRelativeWithSafetyReport(
+		delta: Float,
+		onOutcome: @escaping @MainActor (Bool, Bool) -> Void
+	) {
 		Task { @MainActor in
-			let starting = await client.currentKeyboardBrightness() ?? rawBrightness
-			let target = max(0, min(1, starting + delta))
-			let ok = await client.setKeyboardBrightness(target)
-			if ok {
-				publish(brightness: target, touchDate: true)
-			} else {
-				refresh()
+			guard await self.client.isKeyboardBrightnessAvailable(),
+			      let starting = await self.client.currentKeyboardBrightness() else {
+				self.isKeyboardBacklightAvailable = false
+				onOutcome(false, false)
+				return
 			}
-			LiquidViewCoordinator.shared.toggleSneakPeek(
-				status: true,
-				type: .backlight,
-				value: CGFloat(target)
-			)
-			let activity = LiveActivity(
-				id: "keyboard_brightness_hud",
-				source: "keyboard_brightness",
-				kind: .hud,
-				priority: LiveActivityPriority.hud,
-				tint: .cyan,
-				duration: 1.5,
-				coalescingKey: "keyboard_brightness",
-				payload: LiveActivityPayload(
-					title: String(localized: "Keyboard"),
-					iconName: "keyboard",
-					value: Double(target),
-					isDraggable: true
-				),
-				pauseDismissalOnHover: true
-			)
-			LiveActivityCenter.shared.submit(activity)
+			self.isKeyboardBacklightAvailable = true
+			if (delta > 0 && starting >= 0.999) || (delta < 0 && starting <= 0.001) {
+				self.publish(brightness: starting, touchDate: true)
+				self.postKeyboardHUD(level: starting)
+				onOutcome(false, true)
+				return
+			}
+			let target = max(0, min(1, starting + delta))
+			let ok = await self.client.setKeyboardBrightness(target)
+			if ok {
+				let actual = await self.client.currentKeyboardBrightness() ?? target
+				self.publish(brightness: actual, touchDate: true)
+				self.postKeyboardHUD(level: actual)
+				onOutcome(abs(actual - starting) > 0.0005 || target != starting, false)
+			} else {
+				self.refresh()
+				onOutcome(false, false)
+			}
 		}
+	}
+
+	@MainActor
+	private func postKeyboardHUD(level: Float) {
+		LiquidViewCoordinator.shared.toggleSneakPeek(
+			status: true,
+			type: .backlight,
+			value: CGFloat(level)
+		)
+		let activity = LiveActivity(
+			id: "keyboard_brightness_hud",
+			source: "keyboard_brightness",
+			kind: .hud,
+			priority: LiveActivityPriority.hud,
+			tint: .cyan,
+			duration: 1.5,
+			coalescingKey: "keyboard_brightness",
+			payload: LiveActivityPayload(
+				title: String(localized: "Keyboard"),
+				subtitle: "\(Int(round(max(0, min(1, level)) * 100)))%",
+				iconName: "keyboard",
+				value: Double(level),
+				isDraggable: false
+			),
+			pauseDismissalOnHover: true
+		)
+		LiveActivityCenter.shared.submit(activity)
 	}
 
 	func setAbsolute(value: Float) {
 		let clamped = max(0, min(1, value))
 		Task { @MainActor in
-			let ok = await client.setKeyboardBrightness(clamped)
+			let ok = await self.client.setKeyboardBrightness(clamped)
 			if ok {
-				publish(brightness: clamped, touchDate: true)
+				self.isKeyboardBacklightAvailable = true
+				self.publish(brightness: clamped, touchDate: true)
 			} else {
-				refresh()
+				self.refresh()
 			}
 		}
 	}

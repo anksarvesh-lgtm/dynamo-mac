@@ -15,7 +15,7 @@ struct MusicControllerSelectionView: View {
     @Default(.mediaController) var mediaController
     
     private var availableMediaControllers: [MediaControllerType] {
-        if MusicManager.shared.isNowPlayingDeprecated {
+        if MusicManager.shared.isNowPlayingDeprecated || MediaBackendEligibility.isSandboxedRuntime {
             return MediaControllerType.allCases.filter { $0 != .nowPlaying }
         } else {
             return MediaControllerType.allCases
@@ -122,14 +122,20 @@ struct ControllerOptionView: View {
 extension MediaControllerType {
     var description: String {
         switch self {
+        case .auto:
+            return "Automatically follows the most recently playing app across Apple Music, Spotify, YouTube Music, VLC, and opt-in browsers."
         case .nowPlaying:
-            return "Works with most media apps, including browsers, to detect what's playing. Note: This may be removed in a future macOS version."
+            return "Works with system-wide media apps when running unsandboxed. Unavailable under App Sandbox or newer macOS releases."
         case .spotify:
             return "Connects directly to the Spotify app."
         case .appleMusic:
             return "Connects directly to the Apple Music app."
         case .youtubeMusic:
             return "Requires a third-party client with API plugin enabled."
+        case .vlc:
+            return "Connects directly to VLC media player while it is running."
+        case .browser:
+            return "Monitors Safari, Chrome, Brave, or Edge tabs when opted in via Media Settings."
         }
     }
 }

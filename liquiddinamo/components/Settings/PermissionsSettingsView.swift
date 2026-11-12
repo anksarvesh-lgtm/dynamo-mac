@@ -51,6 +51,7 @@ public struct PermissionsSettingsView: View {
             }
 
             Section {
+                let sandboxed = AppPermissionManager.isSandboxed
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Image(systemName: "wrench.and.screwdriver.fill")
@@ -64,9 +65,19 @@ public struct PermissionsSettingsView: View {
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 6) {
-                        stepRow(number: 1, text: "Click 'Fix' on Accessibility above to open System Settings.")
-                        stepRow(number: 2, text: "Select LiquidDynamo and click the minus (-) button to remove it.")
-                        stepRow(number: 3, text: "Click the plus (+) button to add LiquidDynamo again, or toggle it on and restart the app.")
+                        stepRow(number: 1, text: "Click 'Open Accessibility Settings' below to open System Settings.")
+                        stepRow(
+                            number: 2,
+                            text: sandboxed
+                                ? "Toggle LiquidDynamo off and back on (or click '-' then '+' in Accessibility)."
+                                : "Select LiquidDynamo and click the minus (-) button to remove it."
+                        )
+                        stepRow(
+                            number: 3,
+                            text: sandboxed
+                                ? "Return to LiquidDynamo; status refreshes automatically once granted."
+                                : "Click the plus (+) button to add LiquidDynamo again, or toggle it on and restart the app."
+                        )
                     }
                     .padding(.vertical, 4)
 
@@ -74,7 +85,10 @@ public struct PermissionsSettingsView: View {
                         Button {
                             permManager.repairAccessibilityPermission()
                         } label: {
-                            Label("1-Click Repair & Reset TCC", systemImage: "wrench.and.screwdriver.fill")
+                            Label(
+                                sandboxed ? "Re-Prompt & Open Accessibility" : "1-Click Repair & Reset TCC",
+                                systemImage: "wrench.and.screwdriver.fill"
+                            )
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.regular)
@@ -121,13 +135,14 @@ public struct PermissionsSettingsView: View {
     private func permissionRow(for kind: AppPermissionKind) -> some View {
         let status = permManager.status(for: kind)
         let isAllowed = status == .allowed
+        let isNotNeeded = status == .notNeeded
         let isRecentlyGranted = permManager.recentlyGrantedKinds.contains(kind)
 
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: kind.iconName)
                 .font(.system(size: 20))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(isAllowed ? Color.green : Color.orange)
+                .foregroundStyle(isAllowed ? Color.green : (isNotNeeded ? Color.secondary : Color.orange))
                 .scaleEffect(isRecentlyGranted ? 1.15 : 1.0)
                 .animation(.spring(response: 0.35, dampingFraction: 0.6), value: isRecentlyGranted)
 
@@ -136,18 +151,46 @@ public struct PermissionsSettingsView: View {
                     Text(kind.displayName)
                         .font(.headline)
 
-                    badgeView(for: status, isRecentlyGranted: isRecentlyGranted)
+                    badgeView(for: status, kind: kind, isRecentlyGranted: isRecentlyGranted)
                 }
 
                 Text(kind.reasonText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+
+                if kind == .music && permManager.musicTargetNotRunning && !isAllowed {
+                    Text("Apple Music is currently closed; open Music to verify or grant Automation.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if kind == .fullDiskAccess && isNotNeeded && AppPermissionManager.isSandboxed {
+                    Text("Managed via explicit folder/file selection inside App Sandbox.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
 
-            if !isAllowed {
+            if isAllowed {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Allowed")
+                        .font(.caption.bold())
+                        .foregroundStyle(.green)
+                }
+                .transition(.scale.combined(with: .opacity))
+            } else if isNotNeeded {
+                HStack(spacing: 6) {
+                    Button("Settings") {
+                        permManager.openSettings(for: kind)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .transition(.opacity)
+            } else {
                 HStack(spacing: 6) {
                     Button("Grant") {
                         Task {
@@ -169,19 +212,10 @@ public struct PermissionsSettingsView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .help("Cleans stale macOS TCC permission cache and re-prompts")
+                        .help("Re-prompts and opens System Settings Accessibility")
                     }
                 }
                 .transition(.opacity)
-            } else {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Allowed")
-                        .font(.caption.bold())
-                        .foregroundStyle(.green)
-                }
-                .transition(.scale.combined(with: .opacity))
             }
         }
         .padding(.vertical, 4)
@@ -189,7 +223,7 @@ public struct PermissionsSettingsView: View {
     }
 
     @ViewBuilder
-    private func badgeView(for status: AppPermissionStatus, isRecentlyGranted: Bool) -> some View {
+    private func badgeView(for status: AppPermissionStatus, kind: AppPermissionKind, isRecentlyGranted: Bool) -> some View {
         switch status {
         case .allowed:
             HStack(spacing: 3) {
@@ -233,7 +267,8 @@ public struct PermissionsSettingsView: View {
             .clipShape(Capsule())
 
         case .notNeeded:
-            Text("Not needed")
+            let label = (kind == .music && permManager.musicTargetNotRunning) ? "Music not running" : "Optional (Sandbox)"
+            Text(label)
                 .font(.caption2.bold())
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)

@@ -15,6 +15,23 @@ struct OpenNotchHUD: View {
     @Binding var icon: String
     @Default(.showOpenNotchHUDPercentage) var showPercentage
     
+    private var isInteractive: Bool {
+        switch type {
+        case .volume:
+            return VolumeManager.shared.hasVolumeControl
+        case .brightness:
+            return BrightnessManager.shared.isBrightnessAvailable
+        case .backlight:
+            return KeyboardBacklightManager.shared.isKeyboardBacklightAvailable
+        default:
+            return false
+        }
+    }
+
+    private var isMutedState: Bool {
+        type == .volume && (VolumeManager.shared.isMuted || value <= 0.001)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             // Icon
@@ -48,10 +65,15 @@ struct OpenNotchHUD: View {
             
             // Slider or Status Text
             if type != .mic {
-                DraggableProgressBar(value: $value, onChange: { newVal in
-                     updateSystemValue(newVal)
-                })
+                DraggableProgressBar(
+                    value: $value,
+                    isInteractive: isInteractive,
+                    onChange: { newVal in
+                        updateSystemValue(newVal)
+                    }
+                )
                 .frame(width: showPercentage ? 65 : 108) // Fixed width for consistency
+                .opacity(isInteractive ? 1.0 : 0.55)
             } else {
                 Text(value > 0 ? "Unmuted" : "Muted")
                     .font(.system(size: 13, weight: .medium))
@@ -59,14 +81,14 @@ struct OpenNotchHUD: View {
                     .fixedSize()
             }
             
-            // Percentage Text
+            // Percentage / Muted Readout
             if type != .mic && showPercentage {
-                Text("\(Int(value * 100))%")
+                Text(HUDLogic.percentText(level: Double(value), isMuted: isMutedState))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(isMutedState ? .red.opacity(0.9) : .white.opacity(0.85))
                     .shadow(color: .black.opacity(0.8), radius: 2, y: 1)
                     .monospacedDigit()
-                    .frame(width: 35, alignment: .trailing)
+                    .frame(minWidth: 42, alignment: .trailing)
             }
         }
         .padding(.horizontal, 10)
@@ -83,11 +105,13 @@ struct OpenNotchHUD: View {
     }
     
     func SpeakerSymbol(_ value: CGFloat) -> String {
-        switch(value) {
-            case 0: return "speaker.slash"
-            case 0...0.33: return "speaker.wave.1"
-            case 0.33...0.66: return "speaker.wave.2"
-            default: return "speaker.wave.3"
+        if VolumeManager.shared.isMuted || value <= 0.001 {
+            return "speaker.slash"
+        }
+        switch value {
+        case ..<0.33: return "speaker.wave.1"
+        case ..<0.66: return "speaker.wave.2"
+        default: return "speaker.wave.3"
         }
     }
     
@@ -97,6 +121,8 @@ struct OpenNotchHUD: View {
             VolumeManager.shared.setAbsolute(Float32(newVal))
         case .brightness:
             BrightnessManager.shared.setAbsolute(value: Float32(newVal))
+        case .backlight:
+            KeyboardBacklightManager.shared.setAbsolute(value: Float32(newVal))
         default:
             break
         }

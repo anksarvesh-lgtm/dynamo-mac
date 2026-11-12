@@ -639,10 +639,10 @@ public final class IslandController: ObservableObject {
                 return CGSize(width: capsuleSize.width + 24.0, height: targetH)
             }
 
-            let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
+            let hasWings = (!Defaults[.leftWingMetrics].isEmpty && Defaults[.leftWingMetrics].contains(where: { $0 != .none })) || (!Defaults[.rightWingMetrics].isEmpty && Defaults[.rightWingMetrics].contains(where: { $0 != .none })) || Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
             let showWings = hasWings || !registeredActivities.isEmpty
             let wingW = Defaults[.autoFitWings] ? activeWingWidth : max(geom.wingWidth, activeWingWidth)
-            let baseW = geom.isNotched ? (geom.rawNotchWidth + 14.0 + (2.0 * wingW)) : (160.0 + (2.0 * (wingW + 8.0)))
+            let baseW = geom.isNotched ? (geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * wingW)) : (160.0 + (2.0 * (wingW + NotchSafeAreaEngine.wingNotchSpacer)))
             let w = showWings ? (Defaults[.autoFitWings] ? baseW : max(geom.compactPillWidth, baseW)) : (geom.isNotched ? restingWidth : 160.0)
             return CGSize(width: w, height: restingHeight)
 
@@ -799,7 +799,7 @@ public final class IslandController: ObservableObject {
     public func adjustTargetWidthForWingsIfNeeded(_ measuredWidth: CGFloat, wingWidth: CGFloat, leftWidth: CGFloat? = nil, rightWidth: CGFloat? = nil) {
         guard state == .idle || state == .compact else { return }
         let geom = NotchSafeAreaEngine.shared.currentGeometry
-        let minW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+        let minW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer)) : 160.0
         let neededW = max(minW, measuredWidth)
 
         if let lw = leftWidth, abs(activeLeftWingWidth - lw) >= 1.0 {

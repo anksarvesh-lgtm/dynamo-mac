@@ -63,6 +63,10 @@ public struct NotchGeometry: Equatable, Sendable {
     /// Minimum horizontal safety margin required on both sides of the notch (16px).
     public let notchHorizontalMargin: CGFloat = 16.0
     
+    /// Spacing between physical notch edge and collapsed wings (0 pt = zero gap).
+    public static let wingNotchSpacer: CGFloat = 0.0
+    public var wingNotchSpacer: CGFloat { NotchSafeAreaEngine.wingNotchSpacer }
+    
     /// Total width of the central exclusion zone: rawNotchWidth + (2 * 16px).
     public var exclusionWidth: CGFloat {
         hasPhysicalNotch ? (rawNotchWidth + (2 * notchHorizontalMargin)) : 0
@@ -168,10 +172,10 @@ public struct NotchGeometry: Equatable, Sendable {
     /// Total compact pill width based on hardware cutout and configurable wing width.
     public var compactPillWidth: CGFloat {
         if hasPhysicalNotch {
-            return rawNotchWidth + 14.0 + (2.0 * wingWidth)
+            return rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * wingWidth)
         } else {
             // Non-notch Mac or external display: central floating island (160) + wings on both sides
-            return 160.0 + (2.0 * (wingWidth + 8.0))
+            return 160.0 + (2.0 * (wingWidth + NotchSafeAreaEngine.wingNotchSpacer))
         }
     }
     
@@ -220,6 +224,9 @@ public struct NotchGeometry: Equatable, Sendable {
 @MainActor
 public final class NotchSafeAreaEngine: ObservableObject {
     public static let shared = NotchSafeAreaEngine()
+    
+    /// Spacing between physical notch edge and collapsed wings (0 pt = zero gap).
+    public static let wingNotchSpacer: CGFloat = 0.0
     
     @Published public private(set) var currentGeometry: NotchGeometry = .conservativeFallback
     #if DEBUG
@@ -437,29 +444,29 @@ public final class NotchSafeAreaEngine: ObservableObject {
         let rightWingRect: CGRect
 
         if screenHasNotch {
-            // Drawn wings have a 7pt spacer offset (rawNotchWidth + 14 center spacer).
-            // Left drop attaches from (notchRect.minX - 7 - leftW) to notchRect.minX
-            // Right drop attaches from notchRect.maxX to (notchRect.maxX + 7 + rightW)
+            // Drawn wings have zero gap to the physical notch (wingNotchSpacer = 0).
+            // Left drop attaches flush from (notchRect.minX - leftW) to notchRect.minX
+            // Right drop attaches flush from notchRect.maxX to (notchRect.maxX + rightW)
             // Vertical bounds: Strictly flush with top screen edge down to notchH (zero bottom spill)
-            let leftX = notchRect.minX - 7.0 - leftW
+            let leftX = notchRect.minX - NotchSafeAreaEngine.wingNotchSpacer - leftW
             leftWingRect = CGRect(
                 x: leftX - padding,
                 y: topY - notchH,
-                width: leftW + 7.0 + padding,
+                width: leftW + NotchSafeAreaEngine.wingNotchSpacer + padding,
                 height: notchH
             )
 
-            let rightX = notchRect.maxX
+            let rightX = notchRect.maxX + NotchSafeAreaEngine.wingNotchSpacer
             rightWingRect = CGRect(
                 x: rightX,
                 y: topY - notchH,
-                width: rightW + 7.0 + padding,
+                width: rightW + NotchSafeAreaEngine.wingNotchSpacer + padding,
                 height: notchH
             )
         } else {
-            // Non-notched display: drops sit immediately flanking central island pill with 8pt gap
+            // Non-notched display: drops sit immediately flanking central island pill with wingNotchSpacer gap
             // Vertical bounds: Strictly flush with top screen edge down to notchH (zero bottom spill)
-            let leftX = notchRect.minX - 8.0 - leftW
+            let leftX = notchRect.minX - NotchSafeAreaEngine.wingNotchSpacer - leftW
             leftWingRect = CGRect(
                 x: leftX - padding,
                 y: topY - notchH,
@@ -467,7 +474,7 @@ public final class NotchSafeAreaEngine: ObservableObject {
                 height: notchH
             )
 
-            let rightX = notchRect.maxX + 8.0
+            let rightX = notchRect.maxX + NotchSafeAreaEngine.wingNotchSpacer
             rightWingRect = CGRect(
                 x: rightX,
                 y: topY - notchH,
@@ -1054,8 +1061,9 @@ public final class NotchSafetyTester: ObservableObject {
             guard nonNotchGeom.windowNotchRect().isEmpty else {
                 return (false, "windowNotchRect must be empty on non-notched screen")
             }
-            guard nonNotchGeom.compactPillWidth == 210.0 else {
-                return (false, "Expected compactPillWidth 210.0, got \(nonNotchGeom.compactPillWidth)")
+            let expectedPill = 160.0 + (2.0 * (nonNotchGeom.wingWidth + NotchSafeAreaEngine.wingNotchSpacer))
+            guard nonNotchGeom.compactPillWidth == expectedPill else {
+                return (false, "Expected compactPillWidth \(expectedPill), got \(nonNotchGeom.compactPillWidth)")
             }
             return (true, "Macs without a notch: notchRect is empty, pill centers seamlessly with no hole")
         }
@@ -1070,8 +1078,14 @@ public final class NotchSafetyTester: ObservableObject {
                     return (false, "Failed to apply wingWidth \(testWidth)")
                 }
                 if geom.hasPhysicalNotch {
-                    guard geom.compactPillWidth == geom.rawNotchWidth + (2.0 * testWidth) else {
-                        return (false, "compactPillWidth mismatch: expected \(geom.rawNotchWidth + 2 * testWidth), got \(geom.compactPillWidth)")
+                    let expectedPill = geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * testWidth)
+                    guard geom.compactPillWidth == expectedPill else {
+                        return (false, "compactPillWidth mismatch: expected \(expectedPill), got \(geom.compactPillWidth)")
+                    }
+                } else {
+                    let expectedPill = 160.0 + (2.0 * (testWidth + NotchSafeAreaEngine.wingNotchSpacer))
+                    guard geom.compactPillWidth == expectedPill else {
+                        return (false, "compactPillWidth mismatch: expected \(expectedPill), got \(geom.compactPillWidth)")
                     }
                 }
             }

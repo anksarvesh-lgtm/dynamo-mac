@@ -100,16 +100,18 @@ class SpotifyController: MediaControllerProtocol {
         guard let descriptor = try? await fetchPlaybackInfoAsync() else { return }
         guard descriptor.numberOfItems >= 10 else { return }
         
-        let isPlaying = descriptor.atIndex(1)?.booleanValue ?? false
-        let currentTrack = descriptor.atIndex(2)?.stringValue ?? "Unknown"
-        let currentTrackArtist = descriptor.atIndex(3)?.stringValue ?? "Unknown"
-        let currentTrackAlbum = descriptor.atIndex(4)?.stringValue ?? "Unknown"
-        let currentTime = descriptor.atIndex(5)?.doubleValue ?? 0
-        let duration = (descriptor.atIndex(6)?.doubleValue ?? 0)/1000
+        let rawIsPlaying = descriptor.atIndex(1)?.booleanValue ?? false
+        let currentTrack = MediaMetadataSanitizer.sanitizedTitle(descriptor.atIndex(2)?.stringValue)
+        let isActiveTrack = !currentTrack.isEmpty
+        let isPlaying = isActiveTrack ? rawIsPlaying : false
+        let currentTrackArtist = MediaMetadataSanitizer.sanitizedArtist(descriptor.atIndex(3)?.stringValue, isActive: isActiveTrack)
+        let currentTrackAlbum = MediaMetadataSanitizer.sanitizedAlbum(descriptor.atIndex(4)?.stringValue, isActive: isActiveTrack)
+        let currentTime = isActiveTrack ? (descriptor.atIndex(5)?.doubleValue ?? 0) : 0
+        let duration = isActiveTrack ? ((descriptor.atIndex(6)?.doubleValue ?? 0)/1000) : 0
         let isShuffled = descriptor.atIndex(7)?.booleanValue ?? false
         let isRepeating = descriptor.atIndex(8)?.booleanValue ?? false
         let volumePercentage = descriptor.atIndex(9)?.int32Value ?? 50
-        let artworkURL = descriptor.atIndex(10)?.stringValue ?? ""
+        let artworkURL = isActiveTrack ? (descriptor.atIndex(10)?.stringValue ?? "") : ""
         
         var state = PlaybackState(
             bundleIdentifier: "com.spotify.client",

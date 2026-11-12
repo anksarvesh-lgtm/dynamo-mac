@@ -184,30 +184,83 @@ public enum WingMetric: String, CaseIterable, Codable, Defaults.Serializable, Id
     }
 }
 
+public struct WingMetricOptions: Codable, Defaults.Serializable, Equatable {
+    public var showIcon: Bool
+    public var showValue: Bool
+    public var showLabel: Bool
+    public var showMiniGraph: Bool
+
+    public init(showIcon: Bool = true, showValue: Bool = true, showLabel: Bool = true, showMiniGraph: Bool = true) {
+        self.showIcon = showIcon
+        self.showValue = showValue
+        self.showLabel = showLabel
+        self.showMiniGraph = showMiniGraph
+    }
+}
+
 @MainActor
 public func migrateWingMetricsIfNeeded() {
-    guard !Defaults[.wingMetricsMigrated] else { return }
-    let oldCpu = Defaults[.showCollapsedCPUWing]
-    let oldNet = Defaults[.showCollapsedNetworkWing]
-    let oldBt = Defaults[.showCollapsedBluetoothWing]
+    if !Defaults[.wingMetricsMigrated] {
+        let oldCpu = Defaults[.showCollapsedCPUWing]
+        let oldNet = Defaults[.showCollapsedNetworkWing]
+        let oldBt = Defaults[.showCollapsedBluetoothWing]
 
-    if oldCpu {
-        Defaults[.leftWingMetric] = .cpuUsage
-    } else if oldBt {
-        Defaults[.leftWingMetric] = .bluetoothBattery
-    } else {
-        Defaults[.leftWingMetric] = .none
+        if oldCpu {
+            Defaults[.leftWingMetric] = .cpuUsage
+        } else if oldBt {
+            Defaults[.leftWingMetric] = .bluetoothBattery
+        } else {
+            Defaults[.leftWingMetric] = .none
+        }
+
+        if oldNet {
+            Defaults[.rightWingMetric] = .netDownUp
+        } else if oldBt && Defaults[.leftWingMetric] != .bluetoothBattery {
+            Defaults[.rightWingMetric] = .bluetoothBattery
+        } else {
+            Defaults[.rightWingMetric] = .none
+        }
+
+        Defaults[.wingMetricsMigrated] = true
     }
 
-    if oldNet {
-        Defaults[.rightWingMetric] = .netDownUp
-    } else if oldBt && Defaults[.leftWingMetric] != .bluetoothBattery {
-        Defaults[.rightWingMetric] = .bluetoothBattery
-    } else {
-        Defaults[.rightWingMetric] = .none
-    }
+    if !Defaults[.wingMetricsMigrated_v2] {
+        let oldLeft = Defaults[.leftWingMetric]
+        if Defaults[.leftWingMetrics].isEmpty {
+            if oldLeft != .none {
+                Defaults[.leftWingMetrics] = [oldLeft]
+            } else {
+                Defaults[.leftWingMetrics] = []
+            }
+        }
+        var leftOpts = Defaults[.leftWingMetricOptions]
+        leftOpts[oldLeft.rawValue] = WingMetricOptions(
+            showIcon: true,
+            showValue: Defaults[.leftWingShowPercentage],
+            showLabel: Defaults[.leftWingShowLabel],
+            showMiniGraph: Defaults[.leftWingShowMiniGraph]
+        )
+        Defaults[.leftWingMetricOptions] = leftOpts
 
-    Defaults[.wingMetricsMigrated] = true
+        let oldRight = Defaults[.rightWingMetric]
+        if Defaults[.rightWingMetrics].isEmpty {
+            if oldRight != .none {
+                Defaults[.rightWingMetrics] = [oldRight]
+            } else {
+                Defaults[.rightWingMetrics] = []
+            }
+        }
+        var rightOpts = Defaults[.rightWingMetricOptions]
+        rightOpts[oldRight.rawValue] = WingMetricOptions(
+            showIcon: Defaults[.rightWingShowIcon],
+            showValue: Defaults[.rightWingShowTemperature] || Defaults[.rightWingShowCondition],
+            showLabel: true,
+            showMiniGraph: true
+        )
+        Defaults[.rightWingMetricOptions] = rightOpts
+
+        Defaults[.wingMetricsMigrated_v2] = true
+    }
 }
 
 @MainActor
@@ -301,6 +354,11 @@ extension Defaults.Keys {
     static let showCollapsedNetworkWing = Key<Bool>("showCollapsedNetworkWing", default: true)
     static let leftWingMetric = Key<WingMetric>("leftWingMetric", default: .cpuUsage)
     static let rightWingMetric = Key<WingMetric>("rightWingMetric", default: .netDownUp)
+    static let leftWingMetrics = Key<[WingMetric]>("leftWingMetrics", default: [.cpuUsage])
+    static let rightWingMetrics = Key<[WingMetric]>("rightWingMetrics", default: [.netDown])
+    static let leftWingMetricOptions = Key<[String: WingMetricOptions]>("leftWingMetricOptions", default: [:])
+    static let rightWingMetricOptions = Key<[String: WingMetricOptions]>("rightWingMetricOptions", default: [:])
+    static let wingMetricsMigrated_v2 = Key<Bool>("wingMetricsMigrated_v2", default: false)
     static let wingMetricsMigrated = Key<Bool>("wingMetricsMigrated_v1_9_2", default: false)
     static let enableSideReadouts = Key<Bool>("enableSideReadouts", default: true)
     static let alwaysShowSideReadoutText = Key<Bool>("alwaysShowSideReadoutText", default: true)
@@ -335,6 +393,7 @@ extension Defaults.Keys {
 
     // MARK: Transparency & Liquid Glass
     static let islandTransparency = Key<Double>("islandTransparency", default: 0.50) // 50% transparency with liquid glass 3D effects
+    static let wingTransparency = Key<Double>("wingTransparency", default: 0.50) // 50% opacity for collapsed wings over .hudWindow blur
     static let enableWindowTransparency = Key<Bool>("enableWindowTransparency", default: true) // Translucent frosted-glass window materials for Settings/Onboarding
 
     static let enableBluetoothDeviceShowcase = Key<Bool>("enableBluetoothDeviceShowcase", default: true)

@@ -59,14 +59,24 @@ struct SystemEventIndicatorModifier: View {
                     EmptyView()
             }
             if (eventType != .mic) {
-                DraggableProgressBar(value: $value)
+                let isInteractive: Bool = {
+                    switch eventType {
+                    case .volume: return VolumeManager.shared.hasVolumeControl
+                    case .brightness: return BrightnessManager.shared.isBrightnessAvailable
+                    case .backlight: return KeyboardBacklightManager.shared.isKeyboardBacklightAvailable
+                    default: return false
+                    }
+                }()
+                let isMuted = eventType == .volume && (VolumeManager.shared.isMuted || value <= 0.001)
+                DraggableProgressBar(value: $value, isInteractive: isInteractive)
                     .frame(width: 80)
+                    .opacity(isInteractive ? 1.0 : 0.6)
                 if Defaults[.showClosedNotchHUDPercentage] {
-                    Text("\(Int(value * 100))%")
+                    Text(HUDLogic.percentText(level: Double(value), isMuted: isMuted))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isMuted ? .red.opacity(0.9) : .white)
                         .monospacedDigit()
-                        .frame(width: 35, alignment: .trailing)
+                        .frame(minWidth: 42, alignment: .trailing)
                 }
             } else {
                 Text("Mic \(value > 0 ? "unmuted" : "muted")")
@@ -81,17 +91,16 @@ struct SystemEventIndicatorModifier: View {
     }
     
     func SpeakerSymbol(_ value: CGFloat) -> String {
-        switch(value) {
-            case 0:
-                return "speaker.slash"
-            case 0...0.3:
+        if VolumeManager.shared.isMuted || value <= 0.001 {
+            return "speaker.slash"
+        }
+        switch value {
+            case ..<0.3:
                 return "speaker.wave.1"
-            case 0.3...0.8:
+            case ..<0.8:
                 return "speaker.wave.2"
-            case 0.8...1:
-                return "speaker.wave.3"
             default:
-                return "speaker.wave.2"
+                return "speaker.wave.3"
         }
     }
 }
@@ -99,12 +108,14 @@ struct SystemEventIndicatorModifier: View {
 struct DraggableProgressBar: View {
     @EnvironmentObject var vm: LiquidViewModel
     @Binding var value: CGFloat
+    var isInteractive: Bool = true
     var onChange: ((CGFloat) -> Void)? = nil
     
     @State private var isDragging = false
     @State private var dragOffset: CGFloat = 0
     
     var body: some View {
+        let hotStage = HUDLogic.glowStage(level: Double(value), isMuted: value <= 0.001) == .hot
         VStack {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -112,6 +123,12 @@ struct DraggableProgressBar: View {
                         .fill(.tertiary)
                     OrganicFluidShape(progress: max(0.0, min(1.0, value)), wavePhase: 0.0)
                         .fill(
+                            hotStage ?
+                                AnyShapeStyle(LinearGradient(
+                                    colors: [Color.orange, Color.red],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )) :
                             Defaults[.enableGradient] ?
                                 AnyShapeStyle(LinearGradient(
                                     colors: Defaults[.systemEventIndicatorUseAccent] ?
@@ -123,9 +140,10 @@ struct DraggableProgressBar: View {
                                 AnyShapeStyle(Defaults[.systemEventIndicatorUseAccent] ? Color.effectiveAccent : Color.white)
                         )
                         .shadow(color: Defaults[.systemEventIndicatorShadow] ?
+                            (hotStage ? Color.orange.opacity(0.85) :
                             (Defaults[.systemEventIndicatorUseAccent] ?
                                 Color.effectiveAccent.ensureMinimumBrightness(factor: 0.7) :
-                                Color.white) :
+                                Color.white)) :
                             Color.clear,
                             radius: 8, x: 3)
                         .opacity(value.isZero ? 0 : 1)
@@ -133,6 +151,7 @@ struct DraggableProgressBar: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { gesture in
+                            guard isInteractive else { return }
                             withAnimation(.smooth(duration: 0.3)) {
                                 isDragging = true
                                 updateValue(gesture: gesture, in: geo)

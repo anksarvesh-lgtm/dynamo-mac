@@ -111,8 +111,12 @@ struct AlbumArtView: View {
 
     @ViewBuilder
     private var appIconOverlay: some View {
-        if vm.notchState == .open && !musicManager.usingAppIconForArtwork {
-            AppIcon(for: musicManager.bundleIdentifier ?? "com.apple.Music")
+        if vm.notchState == .open,
+           !musicManager.usingAppIconForArtwork,
+           !musicManager.songTitle.isEmpty,
+           let bundleID = musicManager.bundleIdentifier,
+           !bundleID.isEmpty {
+            AppIcon(for: bundleID)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 30, height: 30)
@@ -155,10 +159,17 @@ struct MusicControlsView: View {
     private func songInfo(width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 6) {
-                MarqueeText(
-                    $musicManager.songTitle, font: .headline, nsFont: .headline, textColor: .white,
-                    frameWidth: max(40, width - (musicManager.isPlaying ? 24 : 0)))
-                if musicManager.isPlaying {
+                if musicManager.songTitle.isEmpty {
+                    Text("No Media")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.65))
+                        .frame(width: max(40, width), alignment: .leading)
+                } else {
+                    MarqueeText(
+                        $musicManager.songTitle, font: .headline, nsFont: .headline, textColor: .white,
+                        frameWidth: max(40, width - (musicManager.isPlaying ? 24 : 0)))
+                }
+                if musicManager.isPlaying && !musicManager.songTitle.isEmpty {
                     LiquidGlassEqualizerView(
                         isPlaying: true,
                         tint: Defaults[.playerColorTinting]
@@ -167,16 +178,18 @@ struct MusicControlsView: View {
                     )
                 }
             }
-            MarqueeText(
-                $musicManager.artistName,
-                font: .headline,
-                nsFont: .headline,
-                textColor: Defaults[.playerColorTinting]
-                    ? Color(nsColor: musicManager.avgColor)
-                        .ensureMinimumBrightness(factor: 0.6) : .gray,
-                frameWidth: width
-            )
-            .fontWeight(.medium)
+            if !musicManager.artistName.isEmpty {
+                MarqueeText(
+                    $musicManager.artistName,
+                    font: .headline,
+                    nsFont: .headline,
+                    textColor: Defaults[.playerColorTinting]
+                        ? Color(nsColor: musicManager.avgColor)
+                            .ensureMinimumBrightness(factor: 0.6) : .gray,
+                    frameWidth: width
+                )
+                .fontWeight(.medium)
+            }
             if Defaults[.enableLyrics] {
                 TimelineView(.animation(minimumInterval: 0.25)) { timeline in
                     let currentElapsed: Double = {

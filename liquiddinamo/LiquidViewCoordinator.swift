@@ -130,17 +130,20 @@ class LiquidViewCoordinator: ObservableObject {
             queue: .main
         ) { _ in
             Task { @MainActor in
-                if Defaults[.hudReplacement] || Defaults[.hideSystemOSD] || Defaults[.showNotchOSD] {
+                if HUDLogic.shouldActivateEventTap(
+                    hideSystemOSD: Defaults[.hideSystemOSD],
+                    legacyHUDReplacement: Defaults[.hudReplacement]
+                ) {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 }
             }
         }
 
-        // Observe changes to hideSystemOSD, legacy hudReplacement, and showNotchOSD
-        hudReplacementCancellable = Publishers.Merge3(
+        // Observe changes to hideSystemOSD and legacy hudReplacement only.
+        // Passive notch HUD rendering (showNotchOSD) must never trap media keys.
+        hudReplacementCancellable = Publishers.Merge(
             Defaults.publisher(.hideSystemOSD).map { $0.newValue },
-            Defaults.publisher(.hudReplacement).map { $0.newValue },
-            Defaults.publisher(.showNotchOSD).map { $0.newValue }
+            Defaults.publisher(.hudReplacement).map { $0.newValue }
         )
         .sink { [weak self] _ in
             Task { @MainActor in
@@ -148,7 +151,10 @@ class LiquidViewCoordinator: ObservableObject {
                 self.hudEnableTask?.cancel()
                 self.hudEnableTask = nil
 
-                let shouldEnable = Defaults[.hideSystemOSD] || Defaults[.hudReplacement] || Defaults[.showNotchOSD]
+                let shouldEnable = HUDLogic.shouldActivateEventTap(
+                    hideSystemOSD: Defaults[.hideSystemOSD],
+                    legacyHUDReplacement: Defaults[.hudReplacement]
+                )
                 if shouldEnable {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 } else {
@@ -160,7 +166,10 @@ class LiquidViewCoordinator: ObservableObject {
         Task { @MainActor in
             helloAnimationRunning = firstLaunch
 
-            if Defaults[.hideSystemOSD] || Defaults[.hudReplacement] || Defaults[.showNotchOSD] {
+            if HUDLogic.shouldActivateEventTap(
+                hideSystemOSD: Defaults[.hideSystemOSD],
+                legacyHUDReplacement: Defaults[.hudReplacement]
+            ) {
                 await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
             }
         }
@@ -204,7 +213,7 @@ class LiquidViewCoordinator: ObservableObject {
         sneakPeekDuration = duration
         if type != .music {
             // close()
-            if !Defaults[.showNotchOSD] && !Defaults[.hudReplacement] {
+            if !Defaults[.showNotchOSD] && !Defaults[.hideSystemOSD] && !Defaults[.hudReplacement] {
                 return
             }
         }

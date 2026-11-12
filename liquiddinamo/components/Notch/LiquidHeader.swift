@@ -91,9 +91,9 @@ struct LiquidHeader: View {
     func shouldShowHUD(_ type: SneakContentType) -> Bool {
         switch type {
         case .volume:
-            return VolumeManager.shared.hasExternalAudioDevice
+            return VolumeManager.shared.hasVolumeControl || VolumeManager.shared.hasExternalAudioDevice
         case .brightness:
-            return MultiDisplayBrightnessService.shared.hasExternalControllableDisplay
+            return BrightnessManager.shared.isBrightnessAvailable || MultiDisplayBrightnessService.shared.hasExternalControllableDisplay
         case .backlight, .mic:
             return true
         default:

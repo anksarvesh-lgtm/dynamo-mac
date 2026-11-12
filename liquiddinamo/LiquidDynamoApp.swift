@@ -925,7 +925,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 targetSize = explicitSize ?? IslandController.shared.calculateDimensions(for: state)
                 shouldIgnore = false
             } else {
-                let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+                let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer)) : 160.0
                 let candidateW = explicitSize?.width ?? (IslandController.shared.targetSize.width > minBaseW ? IslandController.shared.targetSize.width : IslandController.shared.calculateDimensions(for: state).width)
                 let neededW = max(minBaseW, candidateW)
                 targetSize = CGSize(width: neededW, height: geom.notchHeight)
@@ -1024,7 +1024,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 shouldIgnore = false
             } else {
                 let restingW = getClosedNotchSize(screenUUID: screen.displayUUID).width
-                let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + 14.0) : 160.0
+                let minBaseW = geom.hasPhysicalNotch ? (geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer)) : 160.0
                 let candidateW = IslandController.shared.targetSize.width > 0 ? IslandController.shared.targetSize.width : restingW
                 targetSize = CGSize(width: max(minBaseW, candidateW), height: geom.notchHeight)
                 shouldIgnore = false

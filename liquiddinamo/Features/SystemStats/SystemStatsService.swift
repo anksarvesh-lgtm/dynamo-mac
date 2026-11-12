@@ -46,10 +46,12 @@ final class SystemStatsService: ObservableObject {
     @Published private(set) var formattedTime: String = ""
 
     // Battery / Power
+    @Published private(set) var hasBattery: Bool = false
     @Published private(set) var batteryPercentage: Int = 100
     @Published private(set) var isBatteryCharging: Bool = false
     @Published private(set) var isBatteryPluggedIn: Bool = true
     @Published private(set) var batteryTimeRemaining: String = ""
+    @Published private(set) var memoryPressureLabel: String = "Normal"
 
     var memoryPercentage: Double {
         guard memoryTotal > 0 else { return 0.0 }
@@ -78,25 +80,30 @@ final class SystemStatsService: ObservableObject {
         }
     }
 
+    nonisolated static func configuredThermalThresholds() -> ThermalThresholds {
+        ThermalThresholds(
+            coolMaxC: Defaults[.thermalCoolMaxC],
+            normalMaxC: Defaults[.thermalNormalMaxC],
+            elevatedMaxC: Defaults[.thermalElevatedMaxC],
+            highMaxC: Defaults[.thermalHighMaxC]
+        ).sanitized()
+    }
+
+    var thermalZone: ThermalZone {
+        ThermalColorScale.zone(
+            forTemperature: isTemperatureAvailable ? cpuTemperature : nil,
+            thresholds: Self.configuredThermalThresholds(),
+            thermalState: thermalState
+        )
+    }
+
     var thermalStateColor: Color {
-        if let temp = cpuTemperature {
-            if temp <= 50.0 {
-                return Color(red: 0.22, green: 0.84, blue: 0.38)
-            } else if temp < 58.0 {
-                return Color(red: 0.98, green: 0.78, blue: 0.16)
-            } else if temp < 70.0 {
-                return Color(red: 1.00, green: 0.44, blue: 0.10)
-            } else {
-                return Color(red: 1.00, green: 0.12, blue: 0.12)
-            }
-        }
-        switch thermalState {
-        case .nominal: return Color(red: 0.22, green: 0.84, blue: 0.38)
-        case .fair: return Color(red: 0.98, green: 0.78, blue: 0.16)
-        case .serious: return Color(red: 1.00, green: 0.44, blue: 0.10)
-        case .critical: return Color(red: 1.00, green: 0.12, blue: 0.12)
-        @unknown default: return Color(red: 0.22, green: 0.84, blue: 0.38)
-        }
+        let rgb = ThermalColorScale.rgb(
+            forTemperature: isTemperatureAvailable ? cpuTemperature : nil,
+            thresholds: Self.configuredThermalThresholds(),
+            thermalState: thermalState
+        )
+        return Color(red: rgb.r, green: rgb.g, blue: rgb.b)
     }
 
     var thermalStateIcon: String {
@@ -182,19 +189,35 @@ final class SystemStatsService: ObservableObject {
         previousCoreLoads = []
     }
 
+    private static let cachedDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale.autoupdatingCurrent
+        df.dateStyle = .medium
+        df.timeStyle = .none
+        return df
+    }()
+
+    private static let cachedTimeFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale.autoupdatingCurrent
+        df.dateStyle = .none
+        df.timeStyle = .medium
+        return df
+    }()
+
     private func updateDateTime() {
         let now = Date()
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale.current
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .none
-        self.formattedDate = dateFormatter.string(from: now)
+        self.formattedDate = Self.cachedDateFormatter.string(from: now)
+        self.formattedTime = Self.cachedTimeFormatter.string(from: now)
+    }
 
-        let timeFormatter = DateFormatter()
-        timeFormatter.locale = Locale.current
-        timeFormatter.dateStyle = .none
-        timeFormatter.timeStyle = .medium
-        self.formattedTime = timeFormatter.string(from: now)
+    private static func readVMPressureLevel() -> Int32 {
+        var level: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        if sysctlbyname("kern.memorystatus_vm_pressure_level", &level, &size, nil, 0) == 0 {
+            return level
+        }
+        return 0
     }
 
     private func updateThermalState() {
@@ -297,15 +320,30 @@ final class SystemStatsService: ObservableObject {
             self.memoryTotal = ProcessInfo.processInfo.physicalMemory
 
             if memoryTotal > 0 {
-                self.memoryPressure = min(max(Double(active + wired + compressed) / Double(memoryTotal), 0.0), 1.0)
+                let usageRatio = Double(active + wired + compressed) / Double(memoryTotal)
+                let pressure = MemoryPressureEvaluator.classify(
+                    usageRatio: usageRatio,
+                    vmPressureLevel: Self.readVMPressureLevel()
+                )
+                self.memoryPressure = pressure.effectivePressure
+                self.memoryPressureLabel = pressure.label
             }
         }
 
-        // Sample Battery / Power Source via IOKit.ps
+        // Sample Battery / Power Source via IOKit.ps (never fabricate battery on desktops)
+        var internalBatteryDescription: [String: Any]?
         if let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-           let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef],
-           let firstSource = sources.first,
-           let description = IOPSGetPowerSourceDescription(snapshot, firstSource)?.takeUnretainedValue() as? [String: Any] {
+           let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef] {
+            let descriptions = sources.compactMap {
+                IOPSGetPowerSourceDescription(snapshot, $0)?.takeUnretainedValue() as? [String: Any]
+            }
+            internalBatteryDescription = descriptions.first {
+                ($0[kIOPSTypeKey] as? String) == kIOPSInternalBatteryType
+            }
+        }
+
+        if let description = internalBatteryDescription {
+            self.hasBattery = true
 
             if let currentCap = description[kIOPSCurrentCapacityKey] as? Int,
                let maxCap = description[kIOPSMaxCapacityKey] as? Int, maxCap > 0 {
@@ -337,6 +375,12 @@ final class SystemStatsService: ObservableObject {
             } else {
                 self.batteryTimeRemaining = "Calculating…"
             }
+        } else {
+            self.hasBattery = false
+            self.batteryPercentage = 0
+            self.isBatteryCharging = false
+            self.isBatteryPluggedIn = true
+            self.batteryTimeRemaining = "No Battery"
         }
 
         // Sample real CPU temperature via IOHID (Apple Silicon)
@@ -412,6 +456,10 @@ final class SystemStatsService: ObservableObject {
     private var lastTempSampleTime: TimeInterval = 0
 
     private func sampleCPUTemperature() -> Double? {
+        guard Defaults[.enableHardwareTempSensor] else {
+            return nil
+        }
+
         let now = CACurrentMediaTime()
         // Throttle temperature sampling to once every 3.5 seconds to eliminate CPU overhead
         if now - lastTempSampleTime < 3.5, let existing = self.cpuTemperature {

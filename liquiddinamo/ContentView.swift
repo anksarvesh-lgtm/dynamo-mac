@@ -850,7 +850,7 @@ struct ContentView: View {
                 .avoidsNotch(id: "CompactActivityLeft")
 
                 Color.clear
-                    .frame(width: geom.rawNotchWidth + 16)
+                    .frame(width: geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer))
 
                 HStack(spacing: 6) {
                     if let trailingText = activity.trailingText {
@@ -1203,10 +1203,16 @@ struct CollapsedLiveInfoWingsView: View {
     @Default(.enableSideReadouts) var enableSideReadouts
     @Default(.leftWingMetric) var leftWingMetric: WingMetric
     @Default(.rightWingMetric) var rightWingMetric: WingMetric
+    @Default(.leftWingMetrics) var leftWingMetrics: [WingMetric]
+    @Default(.rightWingMetrics) var rightWingMetrics: [WingMetric]
+    @Default(.leftWingMetricOptions) var leftWingMetricOptions: [String: WingMetricOptions]
+    @Default(.rightWingMetricOptions) var rightWingMetricOptions: [String: WingMetricOptions]
     @Default(.hideWingsInFullScreen) var hideWingsInFullScreen
     @Default(.wingsBuiltInDisplayOnly) var wingsBuiltInDisplayOnly
     @Default(.islandTransparency) var islandTransparency
+    @Default(.wingTransparency) var wingTransparency: Double
     @Default(.alwaysShowSideReadoutText) var alwaysShowSideReadoutText
+    @Default(.showWingSeparators) var showWingSeparators: Bool
     @Default(.wingWidth) var wingWidth: CGFloat
     @Default(.autoFitWings) var autoFitWings: Bool
 
@@ -1215,6 +1221,8 @@ struct CollapsedLiveInfoWingsView: View {
     @State private var isLeftHovering: Bool = false
     @State private var isRightHovering: Bool = false
     @State private var autoCollapseTask: Task<Void, Never>? = nil
+    @State private var leftShrinkTask: Task<Void, Never>? = nil
+    @State private var rightShrinkTask: Task<Void, Never>? = nil
 
     @State private var measuredLeftWingWidth: CGFloat = 46.0
     @State private var measuredRightWingWidth: CGFloat = 46.0
@@ -1230,16 +1238,24 @@ struct CollapsedLiveInfoWingsView: View {
         )
     }
 
+    private var hasActiveLeftMetrics: Bool {
+        !leftWingMetrics.isEmpty && leftWingMetrics.contains(where: { $0 != .none })
+    }
+
+    private var hasActiveRightMetrics: Bool {
+        !rightWingMetrics.isEmpty && rightWingMetrics.contains(where: { $0 != .none })
+    }
+
     private var currentLeftWingWidth: CGFloat {
-        guard leftWingMetric != .none else { return 0 }
-        let safeMax = safeMaxWingWidth(for: vm.geometry)
+        guard hasActiveLeftMetrics else { return 0 }
+        let safeMax = min(safeMaxWingWidth(for: vm.geometry), WingLayoutPolicy.maxWingWidthCap)
         let raw = autoFitWings ? max(minWingFloor, measuredLeftWingWidth) : max(minWingFloor, wingWidth)
         return min(safeMax, raw)
     }
 
     private var currentRightWingWidth: CGFloat {
-        guard rightWingMetric != .none else { return 0 }
-        let safeMax = safeMaxWingWidth(for: vm.geometry)
+        guard hasActiveRightMetrics else { return 0 }
+        let safeMax = min(safeMaxWingWidth(for: vm.geometry), WingLayoutPolicy.maxWingWidthCap)
         let raw = autoFitWings ? max(minWingFloor, measuredRightWingWidth) : max(minWingFloor, wingWidth)
         return min(safeMax, raw)
     }
@@ -1270,23 +1286,23 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func reportDynamicWidth(geom: NotchGeometry, overrideLeft: CGFloat? = nil, overrideRight: CGFloat? = nil) {
-        let safeMax = safeMaxWingWidth(for: geom)
+        let safeMax = min(safeMaxWingWidth(for: geom), WingLayoutPolicy.maxWingWidthCap)
         let leftW = min(safeMax, overrideLeft ?? currentLeftWingWidth)
         let rightW = min(safeMax, overrideRight ?? currentRightWingWidth)
         let maxW = max(leftW, rightW)
         let totalW: CGFloat = {
             if geom.isNotched {
-                return geom.rawNotchWidth + 14.0 + (2.0 * maxW)
+                return geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * maxW)
             } else {
-                let showLeft = enableSideReadouts && leftWingMetric != .none
-                let showRight = enableSideReadouts && rightWingMetric != .none
+                let showLeft = enableSideReadouts && hasActiveLeftMetrics
+                let showRight = enableSideReadouts && hasActiveRightMetrics
                 return WingLayoutPolicy.symmetricExternalPillLayout(
                     leftActive: showLeft,
                     rightActive: showRight,
                     leftWidth: leftW,
                     rightWidth: rightW,
                     centralWidth: 160.0,
-                    gap: 8.0
+                    gap: NotchSafeAreaEngine.wingNotchSpacer
                 ).totalWidth
             }
         }()
@@ -1295,7 +1311,7 @@ struct CollapsedLiveInfoWingsView: View {
 
     private func applyMeasuredWingWidth(_ w: CGFloat, isLeft: Bool, geom: NotchGeometry) {
         guard w > 0 else { return }
-        let safeMax = safeMaxWingWidth(for: geom)
+        let safeMax = min(safeMaxWingWidth(for: geom), WingLayoutPolicy.maxWingWidthCap)
         let current = isLeft ? measuredLeftWingWidth : measuredRightWingWidth
         let candidate: CGFloat
         if autoFitWings {
@@ -1309,18 +1325,58 @@ struct CollapsedLiveInfoWingsView: View {
             candidate = min(safeMax, max(minWingFloor, wingWidth))
         }
         guard abs(current - candidate) >= 0.5 else { return }
-        withAnimation(IslandMotion.shared.expandSpring) {
+
+        if candidate > current {
             if isLeft {
-                self.measuredLeftWingWidth = candidate
+                leftShrinkTask?.cancel()
+                leftShrinkTask = nil
+                withAnimation(IslandMotion.shared.expandSpring) {
+                    self.measuredLeftWingWidth = candidate
+                }
             } else {
-                self.measuredRightWingWidth = candidate
+                rightShrinkTask?.cancel()
+                rightShrinkTask = nil
+                withAnimation(IslandMotion.shared.expandSpring) {
+                    self.measuredRightWingWidth = candidate
+                }
+            }
+            self.reportDynamicWidth(
+                geom: geom,
+                overrideLeft: isLeft ? candidate : nil,
+                overrideRight: isLeft ? nil : candidate
+            )
+        } else {
+            // Hysteresis: hold width for 3 seconds before shrinking
+            if isLeft {
+                leftShrinkTask?.cancel()
+                leftShrinkTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(IslandMotion.shared.collapseSpring) {
+                        self.measuredLeftWingWidth = candidate
+                    }
+                    self.reportDynamicWidth(
+                        geom: geom,
+                        overrideLeft: candidate,
+                        overrideRight: nil
+                    )
+                }
+            } else {
+                rightShrinkTask?.cancel()
+                rightShrinkTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(IslandMotion.shared.collapseSpring) {
+                        self.measuredRightWingWidth = candidate
+                    }
+                    self.reportDynamicWidth(
+                        geom: geom,
+                        overrideLeft: nil,
+                        overrideRight: candidate
+                    )
+                }
             }
         }
-        self.reportDynamicWidth(
-            geom: geom,
-            overrideLeft: isLeft ? candidate : nil,
-            overrideRight: isLeft ? nil : candidate
-        )
     }
 
     @ViewBuilder
@@ -1441,20 +1497,20 @@ struct CollapsedLiveInfoWingsView: View {
         Group {
             if !isFullScreenHidden && isDisplayAllowed(geom: geom) {
                 if geom.isNotched {
-                    if enableSideReadouts && (leftWingMetric != .none || rightWingMetric != .none) {
+                    if enableSideReadouts && (hasActiveLeftMetrics || hasActiveRightMetrics) {
                         HStack(spacing: 0) {
                             // Left Drop Container: Anchored flush to the notch left edge
                             HStack(spacing: 0) {
                                 Spacer(minLength: 0)
-                                if leftWingMetric != .none {
+                                if hasActiveLeftMetrics {
                                     leftDropView(geom: geom, wingW: currentLeftWingWidth)
                                 }
                             }
                             .frame(width: maxW, height: vm.effectiveClosedNotchHeight, alignment: .trailing)
 
                             // Center Hardware Notch Area: Click & hover activation overlay
-                            Color.black.opacity(0.0001)
-                                .frame(width: geom.rawNotchWidth + 14, height: vm.effectiveClosedNotchHeight)
+                            Color.black
+                                .frame(width: geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer), height: vm.effectiveClosedNotchHeight)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     island.setExpanded(pin: true)
@@ -1470,7 +1526,7 @@ struct CollapsedLiveInfoWingsView: View {
 
                             // Right Drop Container: Anchored flush to the notch right edge
                             HStack(spacing: 0) {
-                                if rightWingMetric != .none {
+                                if hasActiveRightMetrics {
                                     rightDropView(geom: geom, wingW: currentRightWingWidth)
                                 }
                                 Spacer(minLength: 0)
@@ -1489,8 +1545,8 @@ struct CollapsedLiveInfoWingsView: View {
                     }
                 } else {
                     // Non-notched display: Central Floating Dynamic Island Pill flanked by symmetric floating wing capsules
-                    let showLeft = enableSideReadouts && leftWingMetric != .none
-                    let showRight = enableSideReadouts && rightWingMetric != .none
+                    let showLeft = enableSideReadouts && hasActiveLeftMetrics
+                    let showRight = enableSideReadouts && hasActiveRightMetrics
                     let pillHeight = vm.effectiveClosedNotchHeight
                     let sym = WingLayoutPolicy.symmetricExternalPillLayout(
                         leftActive: showLeft,
@@ -1498,11 +1554,11 @@ struct CollapsedLiveInfoWingsView: View {
                         leftWidth: currentLeftWingWidth,
                         rightWidth: currentRightWingWidth,
                         centralWidth: 160.0,
-                        gap: 8.0
+                        gap: NotchSafeAreaEngine.wingNotchSpacer
                     )
                     let symSlotW = sym.leftSlotWidth
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: NotchSafeAreaEngine.wingNotchSpacer) {
                         // Left Wing Slot: Trailing-aligned inside symmetric slot
                         HStack(spacing: 0) {
                             Spacer(minLength: 0)
@@ -1715,8 +1771,8 @@ struct CollapsedLiveInfoWingsView: View {
                     .fill(
                         LinearGradient(
                             stops: [
-                                .init(color: Color.black.opacity(max(0.20, 1.0 - islandTransparency)), location: 0.0),
-                                .init(color: Color.black.opacity(0.92), location: 0.85),
+                                .init(color: Color.black.opacity(wingTransparency), location: 0.0),
+                                .init(color: Color.black.opacity(min(1.0, wingTransparency + 0.35)), location: 0.85),
                                 .init(color: Color.black, location: 1.0)
                             ],
                             startPoint: .leading,
@@ -1786,8 +1842,8 @@ struct CollapsedLiveInfoWingsView: View {
                         LinearGradient(
                             stops: [
                                 .init(color: Color.black, location: 0.0),
-                                .init(color: Color.black.opacity(0.92), location: 0.15),
-                                .init(color: Color.black.opacity(max(0.20, 1.0 - islandTransparency)), location: 1.0)
+                                .init(color: Color.black.opacity(min(1.0, wingTransparency + 0.35)), location: 0.15),
+                                .init(color: Color.black.opacity(wingTransparency), location: 1.0)
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
@@ -1835,11 +1891,23 @@ struct CollapsedLiveInfoWingsView: View {
         if let alert = island.activeAlert {
             liveActivityBrief(alert: alert)
         } else {
-            wingMetricView(
-                for: leftWingMetric,
-                showDetails: showLeftDetails,
-                isExpanded: isLeftHovering || isLeftDetailExpanded || island.state == .expanded
-            )
+            let activeMetrics = Array(leftWingMetrics.filter { $0 != .none }.prefix(3))
+            HStack(spacing: 5) {
+                ForEach(Array(activeMetrics.enumerated()), id: \.offset) { index, metric in
+                    if index > 0 && showWingSeparators {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: 10)
+                    }
+                    let opts = leftWingMetricOptions[metric.rawValue] ?? WingMetricOptions()
+                    wingMetricView(
+                        for: metric,
+                        options: opts,
+                        showDetails: showLeftDetails,
+                        isExpanded: isLeftHovering || isLeftDetailExpanded || island.state == .expanded
+                    )
+                }
+            }
         }
     }
 
@@ -1848,11 +1916,23 @@ struct CollapsedLiveInfoWingsView: View {
         if let alert = island.activeAlert {
             liveActivityBrief(alert: alert)
         } else {
-            wingMetricView(
-                for: rightWingMetric,
-                showDetails: showRightDetails,
-                isExpanded: isRightHovering || isRightDetailExpanded || island.state == .expanded
-            )
+            let activeMetrics = Array(rightWingMetrics.filter { $0 != .none }.prefix(3))
+            HStack(spacing: 5) {
+                ForEach(Array(activeMetrics.enumerated()), id: \.offset) { index, metric in
+                    if index > 0 && showWingSeparators {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 1, height: 10)
+                    }
+                    let opts = rightWingMetricOptions[metric.rawValue] ?? WingMetricOptions()
+                    wingMetricView(
+                        for: metric,
+                        options: opts,
+                        showDetails: showRightDetails,
+                        isExpanded: isRightHovering || isRightDetailExpanded || island.state == .expanded
+                    )
+                }
+            }
         }
     }
 
@@ -1874,7 +1954,10 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     @ViewBuilder
-    private func wingMetricView(for metric: WingMetric, showDetails: Bool, isExpanded: Bool = false) -> some View {
+    private func wingMetricView(for metric: WingMetric, options: WingMetricOptions = WingMetricOptions(), showDetails: Bool, isExpanded: Bool = false) -> some View {
+        let showIcon = options.showIcon || (!options.showValue && !options.showLabel)
+        let showLabel = options.showLabel
+        let showVal = (options.showValue || (!options.showIcon && !options.showLabel)) && showDetails
         switch metric {
         case .none:
             EmptyView()
@@ -1882,10 +1965,18 @@ struct CollapsedLiveInfoWingsView: View {
         case .cpuUsage:
             let color = cpuColor(statsService.overallCPU)
             HStack(spacing: 3.5) {
-                Image(systemName: "cpu")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(color)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "cpu")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(color)
+                }
+                if showLabel {
+                    Text("CPU")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     let pct = "\(Int(statsService.overallCPU))%"
                     let text = isExpanded ? "\(pct) • \(statsService.thermalZone.label)" : pct
                     Text(text)
@@ -1903,10 +1994,18 @@ struct CollapsedLiveInfoWingsView: View {
                 thermalState: statsService.thermalState
             )
             HStack(spacing: 3.5) {
-                Image(systemName: "thermometer.medium")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(tempColor)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(tempColor)
+                }
+                if showLabel {
+                    Text("TEMP")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     let tempStr = statsService.isTemperatureAvailable ? statsService.formattedCPUTemperature : "—"
                     let text = isExpanded ? "\(tempStr) • \(statsService.thermalZone.label)" : tempStr
                     Text(text)
@@ -1924,10 +2023,18 @@ struct CollapsedLiveInfoWingsView: View {
                 memoryPressure: statsService.memoryPressure
             )
             HStack(spacing: 3.5) {
-                Image(systemName: "memorychip")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(ramColor)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "memorychip")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(ramColor)
+                }
+                if showLabel {
+                    Text("RAM")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     let pct = "\(Int(statsService.memoryPercentage))%"
                     let text = isExpanded ? "\(pct) • \(statsService.formattedMemoryUsed)" : pct
                     Text(text)
@@ -1941,10 +2048,12 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .ramDetails:
             HStack(spacing: 3.5) {
-                Image(systemName: "memorychip.fill")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.purple)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "memorychip.fill")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.purple)
+                }
+                if showVal {
                     Text("\(statsService.formattedMemoryUsed) / \(statsService.formattedMemoryTotal)")
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
@@ -1961,10 +2070,18 @@ struct CollapsedLiveInfoWingsView: View {
                 memoryPressure: statsService.memoryPressure
             )
             HStack(spacing: 3.5) {
-                Image(systemName: metric.iconName)
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(pressureColor)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: metric.iconName)
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(pressureColor)
+                }
+                if showLabel {
+                    Text("PRESS")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     let text = isExpanded
                         ? "\(statsService.memoryPressureLabel) \(Int(statsService.memoryPressure * 100))%"
                         : statsService.memoryPressureLabel
@@ -1979,10 +2096,18 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .netDown:
             HStack(spacing: 3.5) {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.green)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.green)
+                }
+                if showLabel {
+                    Text("DL")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text(isExpanded ? speedProvider.formattedCombined : speedProvider.formattedDownload)
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
@@ -1994,10 +2119,18 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .netUp:
             HStack(spacing: 3.5) {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.cyan)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.cyan)
+                }
+                if showLabel {
+                    Text("UL")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text(isExpanded ? speedProvider.formattedCombined : speedProvider.formattedUpload)
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
@@ -2009,10 +2142,18 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .netDownUp:
             HStack(spacing: 3.5) {
-                Image(systemName: "network")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.cyan)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "network")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.cyan)
+                }
+                if showLabel {
+                    Text("NET")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text(speedProvider.formattedCombined)
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
@@ -2025,10 +2166,18 @@ struct CollapsedLiveInfoWingsView: View {
         case .battery:
             HStack(spacing: 3.5) {
                 if statsService.hasBattery {
-                    Image(systemName: statsService.isBatteryCharging ? "battery.100.bolt" : "battery.100")
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(statsService.batteryPercentage <= 20 ? Color.red : Color.green)
-                    if showDetails {
+                    if showIcon {
+                        Image(systemName: statsService.isBatteryCharging ? "battery.100.bolt" : "battery.100")
+                            .font(.system(size: 8.5, weight: .bold))
+                            .foregroundStyle(statsService.batteryPercentage <= 20 ? Color.red : Color.green)
+                    }
+                    if showLabel {
+                        Text("BAT")
+                            .font(.system(size: 8.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if showVal {
                         let pct = "\(statsService.batteryPercentage)%"
                         let text = (isExpanded && !statsService.batteryTimeRemaining.isEmpty)
                             ? "\(pct) • \(statsService.batteryTimeRemaining)"
@@ -2042,10 +2191,12 @@ struct CollapsedLiveInfoWingsView: View {
                             .frame(maxWidth: isExpanded ? 140 : nil, alignment: .leading)
                     }
                 } else {
-                    Image(systemName: "powerplug.fill")
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(Color.green)
-                    if showDetails {
+                    if showIcon {
+                        Image(systemName: "powerplug.fill")
+                            .font(.system(size: 8.5, weight: .bold))
+                            .foregroundStyle(Color.green)
+                    }
+                    if showVal {
                         Text(isExpanded ? "AC Power" : "—")
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                             .lineLimit(1)
@@ -2058,10 +2209,18 @@ struct CollapsedLiveInfoWingsView: View {
         case .bluetoothBattery:
             let btDevice = deviceMonitor.activeDevices.values.first(where: { $0.batteryPercentage != nil })
             HStack(spacing: 3.5) {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.blue)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.blue)
+                }
+                if showLabel {
+                    Text("BT")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     if let pct = btDevice?.batteryPercentage {
                         Text("\(pct)%")
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
@@ -2081,10 +2240,18 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .volume:
             HStack(spacing: 3.5) {
-                Image(systemName: volumeManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(volumeManager.isMuted ? Color.red : Color.accentColor)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: volumeManager.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(volumeManager.isMuted ? Color.red : Color.accentColor)
+                }
+                if showLabel {
+                    Text("VOL")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     if !volumeManager.hasVolumeControl {
                         Text("—")
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
@@ -2105,10 +2272,18 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .brightness:
             HStack(spacing: 3.5) {
-                Image(systemName: "sun.max.fill")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.yellow)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "sun.max.fill")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.yellow)
+                }
+                if showLabel {
+                    Text("BRT")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     if !brightnessManager.isBrightnessAvailable {
                         Text("—")
                             .font(.system(size: 9.5, weight: .bold, design: .monospaced))
@@ -2128,10 +2303,12 @@ struct CollapsedLiveInfoWingsView: View {
 
         case .clock:
             HStack(spacing: 3.5) {
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.85))
-                if showDetails {
+                if showIcon {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                }
+                if showVal {
                     let timeStr = statsService.formattedTime.isEmpty ? "--:--" : statsService.formattedTime
                     let text = (isExpanded && !statsService.formattedDate.isEmpty)
                         ? "\(timeStr) • \(statsService.formattedDate)"
@@ -2149,10 +2326,18 @@ struct CollapsedLiveInfoWingsView: View {
         case .weather:
             let w = AmbientWeatherService.shared
             HStack(spacing: 3.5) {
-                Image(systemName: w.condition.iconName)
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(Color.orange)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: w.condition.iconName)
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.orange)
+                }
+                if showLabel {
+                    Text("WX")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text(w.condition.rawValue)
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .lineLimit(1)
@@ -2212,10 +2397,18 @@ struct CollapsedLiveInfoWingsView: View {
         case .phoneBattery:
             let bridge = MacLinkBridgeService.shared
             HStack(spacing: 3.5) {
-                Image(systemName: bridge.isCharging ? "bolt.fill" : "iphone.gen3")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(bridge.isCharging ? Color.green : Color.accentColor)
-                if showDetails {
+                if showIcon {
+                    Image(systemName: bridge.isCharging ? "bolt.fill" : "iphone.gen3")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(bridge.isCharging ? Color.green : Color.accentColor)
+                }
+                if showLabel {
+                    Text("PHN")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text("\(bridge.batteryLevel)%")
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .monospacedDigit()
@@ -2228,14 +2421,22 @@ struct CollapsedLiveInfoWingsView: View {
         case .phoneSignal:
             let bridge = MacLinkBridgeService.shared
             HStack(spacing: 3.5) {
-                HStack(spacing: 1.5) {
-                    ForEach(1...4, id: \.self) { bar in
-                        RoundedRectangle(cornerRadius: 0.5)
-                            .fill(bar <= bridge.cellularSignalBars ? Color.white : Color.white.opacity(0.3))
-                            .frame(width: 2, height: CGFloat(2.0 + Double(bar) * 1.5))
+                if showIcon {
+                    HStack(spacing: 1.5) {
+                        ForEach(1...4, id: \.self) { bar in
+                            RoundedRectangle(cornerRadius: 0.5)
+                                .fill(bar <= bridge.cellularSignalBars ? Color.white : Color.white.opacity(0.3))
+                                .frame(width: 2, height: CGFloat(2.0 + Double(bar) * 1.5))
+                        }
                     }
                 }
-                if showDetails {
+                if showLabel {
+                    Text("CELL")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text(bridge.cellularNetworkType)
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
@@ -2246,10 +2447,18 @@ struct CollapsedLiveInfoWingsView: View {
         case .keepAwake:
             let keepAwake = KeepAwakeManager.shared
             HStack(spacing: 3.5) {
-                Image(systemName: keepAwake.isActive ? "bolt.shield.fill" : "bolt.shield")
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.6))
-                if showDetails {
+                if showIcon {
+                    Image(systemName: keepAwake.isActive ? "bolt.shield.fill" : "bolt.shield")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.6))
+                }
+                if showLabel {
+                    Text("AWK")
+                        .font(.system(size: 8.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if showVal {
                     Text(keepAwake.isActive ? (keepAwake.isIndefinite ? "∞" : keepAwake.formatTimeIntervalShort(keepAwake.remainingSeconds)) : "Off")
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .foregroundStyle(keepAwake.isActive ? Color.orange : Color.white.opacity(0.6))

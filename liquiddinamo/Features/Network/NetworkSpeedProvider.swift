@@ -145,22 +145,10 @@ public final class NetworkSpeedProvider: ObservableObject {
     }
 
     public static func formatRate(_ bytesPerSec: Double) -> String {
-        if bytesPerSec >= 1_048_576 {
-            return String(format: "%.1f MB/s", bytesPerSec / 1_048_576.0)
-        } else if bytesPerSec >= 1024 {
-            return String(format: "%.0f KB/s", bytesPerSec / 1024.0)
-        } else {
-            return "0 KB/s"
-        }
+        WingRateFormatter.rate(bytesPerSec)
     }
 
     public static func formatCompactRate(_ bytesPerSec: Double) -> String {
-        if bytesPerSec >= 1_048_576 {
-            return String(format: "%.1fM", bytesPerSec / 1_048_576.0)
-        } else if bytesPerSec >= 1024 {
-            return String(format: "%.0fK", bytesPerSec / 1024.0)
-        } else {
-            return "0K"
-        }
+        WingRateFormatter.compactRate(bytesPerSec)
     }
 }

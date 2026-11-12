@@ -86,44 +86,104 @@ final class VolumeManager: NSObject, ObservableObject {
 
     // MARK: - Public Control API
     @MainActor func increase(stepDivisor: Float = 1.0) {
-        let divisor = max(stepDivisor, 0.25)
-        let delta = step / Float32(divisor)
-        let current = readVolumeInternal() ?? rawVolume
-        let target = max(0, min(1, current + delta))
-        setAbsolute(target)
-        LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(target))
-        postVolumeHUD(level: target, muted: false)
+        _ = increaseVerified(stepDivisor: stepDivisor)
     }
 
     @MainActor func decrease(stepDivisor: Float = 1.0) {
-        let divisor = max(stepDivisor, 0.25)
-        let delta = step / Float32(divisor)
-        let current = readVolumeInternal() ?? rawVolume
-        let target = max(0, min(1, current - delta))
-        setAbsolute(target)
-        let isMutedNow = target <= 0.001
-        LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(isMutedNow ? 0 : target))
-        postVolumeHUD(level: target, muted: isMutedNow)
+        _ = decreaseVerified(stepDivisor: stepDivisor)
     }
 
     @MainActor func toggleMuteAction() {
-        // Determine expected resulting state immediately and show HUD with that value
-        let deviceID = systemOutputDeviceID()
-        var willBeMuted = false
-        var resultingVolume: Float32 = rawVolume
+        _ = toggleMuteVerified()
+    }
 
-        if deviceID == kAudioObjectUnknown {
-            willBeMuted = !softwareMuted
-            resultingVolume = willBeMuted ? 0 : previousVolumeBeforeMute
-        } else {
-            let currentMuted = isMutedInternal()
-            willBeMuted = !currentMuted
-            resultingVolume = willBeMuted ? 0 : (readVolumeInternal() ?? rawVolume)
+    @MainActor
+    func increaseVerified(stepDivisor: Float = 1.0) -> (changed: Bool, atRail: Bool) {
+        let divisor = max(stepDivisor, 0.25)
+        let delta = step / Float32(divisor)
+        guard let beforeVol = readVolumeInternal() else {
+            refreshOutputDevices()
+            return (false, false)
         }
+        let wasMuted = isMutedInternal()
+        if !wasMuted && beforeVol >= 0.999 {
+            publish(volume: beforeVol, muted: false, touchDate: true)
+            LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(beforeVol))
+            postVolumeHUD(level: beforeVol, muted: false)
+            return (false, true)
+        }
+        if wasMuted {
+            _ = setMuteInternal(false)
+        }
+        let target = max(0, min(1, beforeVol + delta))
+        guard writeVolumeInternal(target) else {
+            refreshOutputDevices()
+            return (false, false)
+        }
+        let actual = readVolumeInternal() ?? target
+        let stillMuted = isMutedInternal()
+        publish(volume: actual, muted: stillMuted, touchDate: true)
+        LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(stillMuted ? 0 : actual))
+        postVolumeHUD(level: actual, muted: stillMuted)
+        let changed = (wasMuted && !stillMuted) || abs(actual - beforeVol) > 0.0005 || actual >= 0.999
+        return (changed, false)
+    }
 
-        toggleMuteInternal()
-        LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(willBeMuted ? 0 : resultingVolume))
-        postVolumeHUD(level: resultingVolume, muted: willBeMuted)
+    @MainActor
+    func decreaseVerified(stepDivisor: Float = 1.0) -> (changed: Bool, atRail: Bool) {
+        let divisor = max(stepDivisor, 0.25)
+        let delta = step / Float32(divisor)
+        guard let beforeVol = readVolumeInternal() else {
+            refreshOutputDevices()
+            return (false, false)
+        }
+        let wasMuted = isMutedInternal()
+        if wasMuted || beforeVol <= 0.001 {
+            publish(volume: beforeVol, muted: true, touchDate: true)
+            LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: 0)
+            postVolumeHUD(level: beforeVol, muted: true)
+            return (false, true)
+        }
+        let target = max(0, min(1, beforeVol - delta))
+        guard writeVolumeInternal(target) else {
+            refreshOutputDevices()
+            return (false, false)
+        }
+        let wantsMute = target <= 0.001
+        if wantsMute {
+            _ = setMuteInternal(true)
+        }
+        let actual = readVolumeInternal() ?? target
+        let finalMuted = wantsMute || isMutedInternal()
+        publish(volume: actual, muted: finalMuted, touchDate: true)
+        LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(finalMuted ? 0 : actual))
+        postVolumeHUD(level: actual, muted: finalMuted)
+        let changed = abs(actual - beforeVol) > 0.0005 || finalMuted != wasMuted
+        return (changed, false)
+    }
+
+    @MainActor
+    func toggleMuteVerified() -> Bool {
+        let deviceID = systemOutputDeviceID()
+        guard deviceID != kAudioObjectUnknown else {
+            refreshOutputDevices()
+            return false
+        }
+        let currentMuted = isMutedInternal()
+        let newMuted = !currentMuted
+        if setMuteInternal(newMuted) {
+            let resultingVolume = readVolumeInternal() ?? rawVolume
+            let actualMuted = isMutedInternal()
+            publish(volume: resultingVolume, muted: actualMuted, touchDate: true)
+            LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(actualMuted ? 0 : resultingVolume))
+            postVolumeHUD(level: resultingVolume, muted: actualMuted)
+            return true
+        }
+        guard let currentVol = readVolumeInternal() else {
+            refreshOutputDevices()
+            return false
+        }
+        return performSoftwareMuteToggle(currentVolume: currentVol)
     }
 
     @MainActor
@@ -153,7 +213,7 @@ final class VolumeManager: NSObject, ObservableObject {
                 subtitle: isMutedState ? String(localized: "Muted") : "\(Int(round(level * 100)))%",
                 iconName: icon,
                 value: Double(isMutedState ? 0 : level),
-                isDraggable: true
+                isDraggable: hasVolumeControl
             ),
             pauseDismissalOnHover: true
         )
@@ -163,26 +223,38 @@ final class VolumeManager: NSObject, ObservableObject {
     func refresh() { fetchCurrentVolume() }
 
     func adjustRelative(delta: Float32) {
-        if isMutedInternal() { toggleMuteInternal() }
+        if isMutedInternal() { _ = setMuteInternal(false) }
         guard let current = readVolumeInternal() else {
             fetchCurrentVolume()
             return
         }
         let target = max(0, min(1, current + delta))
-        writeVolumeInternal(target)  
+        guard writeVolumeInternal(target) else {
+            fetchCurrentVolume()
+            return
+        }
         publish(volume: target, muted: isMutedInternal(), touchDate: true)
     }
 
-    @MainActor func setAbsolute(_ value: Float32) {
+    @discardableResult
+    @MainActor func setAbsolute(_ value: Float32) -> Bool {
         let clamped = max(0, min(1, value))
         let shouldMute = clamped <= 0.001
 
-        setMuteInternal(shouldMute)
-        writeVolumeInternal(clamped)
+        let muteUpdated = setMuteInternal(shouldMute)
+        let volumeUpdated = writeVolumeInternal(clamped)
+        guard volumeUpdated || (shouldMute && muteUpdated) else {
+            refreshOutputDevices()
+            fetchCurrentVolume()
+            return false
+        }
 
-        self.rawVolume = clamped
-        self.isMuted = shouldMute
-        publish(volume: clamped, muted: shouldMute, touchDate: true)
+        let actual = readVolumeInternal() ?? clamped
+        let actualMuted = shouldMute || isMutedInternal()
+        self.rawVolume = actual
+        self.isMuted = actualMuted
+        publish(volume: actual, muted: actualMuted, touchDate: true)
+        return true
     }
 
     // MARK: - CoreAudio Helpers
@@ -276,6 +348,9 @@ final class VolumeManager: NSObject, ObservableObject {
         let defBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             self?.refreshOutputDevices()
             self?.fetchCurrentVolume()
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .defaultAudioOutputDeviceChanged, object: nil)
+            }
         }
         self.systemDefaultListenerBlock = defBlock
         AudioObjectAddPropertyListenerBlock(
@@ -393,7 +468,7 @@ final class VolumeManager: NSObject, ObservableObject {
                 deviceUID = uidCF as String
             }
 
-            // Check if volume is controllable
+            // Check if volume is controllable on master or any output channel (1...4)
             var volAddr = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyVolumeScalar,
                 mScope: kAudioDevicePropertyScopeOutput,
@@ -404,13 +479,16 @@ final class VolumeManager: NSObject, ObservableObject {
             if AudioObjectIsPropertySettable(id, &volAddr, &isSettable) == noErr && isSettable.boolValue {
                 hasVol = true
             } else {
-                var ch1Addr = AudioObjectPropertyAddress(
-                    mSelector: kAudioDevicePropertyVolumeScalar,
-                    mScope: kAudioDevicePropertyScopeOutput,
-                    mElement: 1
-                )
-                if AudioObjectIsPropertySettable(id, &ch1Addr, &isSettable) == noErr && isSettable.boolValue {
-                    hasVol = true
+                for ch in [UInt32](1...4) {
+                    var chAddr = AudioObjectPropertyAddress(
+                        mSelector: kAudioDevicePropertyVolumeScalar,
+                        mScope: kAudioDevicePropertyScopeOutput,
+                        mElement: ch
+                    )
+                    if AudioObjectIsPropertySettable(id, &chAddr, &isSettable) == noErr && isSettable.boolValue {
+                        hasVol = true
+                        break
+                    }
                 }
             }
 
@@ -418,7 +496,7 @@ final class VolumeManager: NSObject, ObservableObject {
         }
 
         let defaultDevice = devices.first(where: { $0.id == currentID })
-        let currentHasVol = defaultDevice?.hasVolumeControl ?? true
+        let currentHasVol = defaultDevice?.hasVolumeControl ?? false
 
         DispatchQueue.main.async {
             self.outputDevices = devices
@@ -448,6 +526,9 @@ final class VolumeManager: NSObject, ObservableObject {
         if status == noErr {
             refreshOutputDevices()
             fetchCurrentVolume()
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .defaultAudioOutputDeviceChanged, object: nil)
+            }
         }
     }
 
@@ -544,36 +625,24 @@ final class VolumeManager: NSObject, ObservableObject {
         return collected.reduce(0, +) / Float32(collected.count)
     }
 
-    private func writeVolumeInternal(_ value: Float32) {
+    @discardableResult
+    private func writeVolumeInternal(_ value: Float32) -> Bool {
         let deviceID = systemOutputDeviceID()
+        guard deviceID != kAudioObjectUnknown else { return false }
         let newVal = max(0, min(1, value))
 
-        var written = false
-        if deviceID != kAudioObjectUnknown {
-            if writeValidatedScalar(
-                deviceID: deviceID, element: kAudioObjectPropertyElementMain, value: newVal)
-            {
-                written = true
-            } else {
-                var any = false
-                for el in [UInt32](1...4) {
-                    if writeValidatedScalar(deviceID: deviceID, element: el, value: newVal) {
-                        any = true
-                    }
-                }
-                written = any
+        if writeValidatedScalar(
+            deviceID: deviceID, element: kAudioObjectPropertyElementMain, value: newVal
+        ) {
+            return true
+        }
+        var any = false
+        for el in [UInt32](1...4) {
+            if writeValidatedScalar(deviceID: deviceID, element: el, value: newVal) {
+                any = true
             }
         }
-
-        // AppleScript fallback if CoreAudio was unable to write scalar directly
-        if !written {
-            let pct = Int(round(newVal * 100))
-            let scriptText = "set volume output volume \(pct)"
-            if let script = NSAppleScript(source: scriptText) {
-                var error: NSDictionary?
-                script.executeAndReturnError(&error)
-            }
-        }
+        return any
     }
 
     private func isMutedInternal() -> Bool {
@@ -609,55 +678,80 @@ final class VolumeManager: NSObject, ObservableObject {
         return softwareMuted
     }
 
-    private func setMuteInternal(_ muted: Bool) {
+    @discardableResult
+    private func setMuteInternal(_ muted: Bool) -> Bool {
         let deviceID = systemOutputDeviceID()
-        if deviceID != kAudioObjectUnknown {
-            var muteAddr = AudioObjectPropertyAddress(
-                mSelector: kAudioDevicePropertyMute,
-                mScope: kAudioDevicePropertyScopeOutput,
-                mElement: kAudioObjectPropertyElementMain
-            )
-            if AudioObjectHasProperty(deviceID, &muteAddr) {
-                var size = UInt32(MemoryLayout<UInt32>.size)
-                var newVal: UInt32 = muted ? 1 : 0
-                AudioObjectSetPropertyData(deviceID, &muteAddr, 0, nil, size, &newVal)
-            } else {
-                for el in [UInt32(1), UInt32(2)] {
-                    var chAddr = AudioObjectPropertyAddress(
-                        mSelector: kAudioDevicePropertyMute,
-                        mScope: kAudioDevicePropertyScopeOutput,
-                        mElement: el
-                    )
-                    if AudioObjectHasProperty(deviceID, &chAddr) {
-                        var size = UInt32(MemoryLayout<UInt32>.size)
-                        var newVal: UInt32 = muted ? 1 : 0
-                        AudioObjectSetPropertyData(deviceID, &chAddr, 0, nil, size, &newVal)
+        guard deviceID != kAudioObjectUnknown else { return false }
+
+        var wroteHardware = false
+        var muteAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyMute,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var isSettable: DarwinBoolean = false
+        if AudioObjectHasProperty(deviceID, &muteAddr),
+           AudioObjectIsPropertySettable(deviceID, &muteAddr, &isSettable) == noErr,
+           isSettable.boolValue {
+            let size = UInt32(MemoryLayout<UInt32>.size)
+            var newVal: UInt32 = muted ? 1 : 0
+            wroteHardware = AudioObjectSetPropertyData(deviceID, &muteAddr, 0, nil, size, &newVal) == noErr
+        } else {
+            for el in [UInt32(1), UInt32(2)] {
+                var chAddr = AudioObjectPropertyAddress(
+                    mSelector: kAudioDevicePropertyMute,
+                    mScope: kAudioDevicePropertyScopeOutput,
+                    mElement: el
+                )
+                var chSettable: DarwinBoolean = false
+                if AudioObjectHasProperty(deviceID, &chAddr),
+                   AudioObjectIsPropertySettable(deviceID, &chAddr, &chSettable) == noErr,
+                   chSettable.boolValue {
+                    let size = UInt32(MemoryLayout<UInt32>.size)
+                    var newVal: UInt32 = muted ? 1 : 0
+                    if AudioObjectSetPropertyData(deviceID, &chAddr, 0, nil, size, &newVal) == noErr {
+                        wroteHardware = true
                     }
                 }
             }
         }
-        self.softwareMuted = muted
+        if wroteHardware {
+            self.softwareMuted = muted
+        }
+        return wroteHardware
     }
 
-    private func toggleMuteInternal() {
+    @discardableResult
+    private func toggleMuteInternal() -> Bool {
         let currentMuted = isMutedInternal()
         let newMuted = !currentMuted
-        setMuteInternal(newMuted)
+        guard setMuteInternal(newMuted) else {
+            return false
+        }
         let vol = readVolumeInternal() ?? rawVolume
         publish(volume: vol, muted: newMuted, touchDate: true)
+        return true
     }
 
-    private func performSoftwareMuteToggle(currentVolume: Float32) {
+    @discardableResult
+    @MainActor
+    private func performSoftwareMuteToggle(currentVolume: Float32) -> Bool {
         if softwareMuted {
             let restore = max(0, min(1, previousVolumeBeforeMute))
-            writeVolumeInternal(restore)
+            guard writeVolumeInternal(restore) else { return false }
             softwareMuted = false
             publish(volume: restore, muted: false, touchDate: true)
+            LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: CGFloat(restore))
+            postVolumeHUD(level: restore, muted: false)
+            return true
         } else {
             if currentVolume > 0.001 { previousVolumeBeforeMute = currentVolume }
-            writeVolumeInternal(0)
+            guard writeVolumeInternal(0) else { return false }
             softwareMuted = true
             publish(volume: 0, muted: true, touchDate: true)
+            LiquidViewCoordinator.shared.toggleSneakPeek(status: true, type: .volume, value: 0)
+            postVolumeHUD(level: 0, muted: true)
+            return true
         }
     }
 
@@ -687,6 +781,10 @@ final class VolumeManager: NSObject, ObservableObject {
             mElement: element
         )
         guard AudioObjectHasProperty(deviceID, &addr) else { return false }
+        var isSettable: DarwinBoolean = false
+        guard AudioObjectIsPropertySettable(deviceID, &addr, &isSettable) == noErr,
+            isSettable.boolValue
+        else { return false }
         var sizeNeeded: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(deviceID, &addr, 0, nil, &sizeNeeded) == noErr,
             sizeNeeded == UInt32(MemoryLayout<Float32>.size)
@@ -707,6 +805,10 @@ final class VolumeManager: NSObject, ObservableObject {
             DispatchQueue.main.async(execute: updateBlock)
         }
     }
+}
+
+extension Notification.Name {
+    static let defaultAudioOutputDeviceChanged = Notification.Name("DefaultAudioOutputDeviceChanged")
 }
 
 extension Array where Element == Float32 {

@@ -39,13 +39,13 @@ enum MusicPlayerImageSizes {
 @MainActor func getClosedNotchSize(screenUUID: String? = nil, customWingWidth: CGFloat? = nil) -> CGSize {
     let screen = screenUUID.flatMap { NSScreen.screen(withUUID: $0) } ?? NSScreen.main
     let geom = NotchSafeAreaEngine.shared.geometry(for: screen)
-    let hasWings = Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
+    let hasWings = (!Defaults[.leftWingMetrics].isEmpty && Defaults[.leftWingMetrics].contains(where: { $0 != .none })) || (!Defaults[.rightWingMetrics].isEmpty && Defaults[.rightWingMetrics].contains(where: { $0 != .none })) || Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none
     if hasWings {
         let wingW = customWingWidth ?? geom.wingWidth
         if geom.hasPhysicalNotch {
-            return CGSize(width: geom.rawNotchWidth + 14.0 + (2.0 * wingW), height: geom.notchHeight)
+            return CGSize(width: geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * wingW), height: geom.notchHeight)
         } else {
-            return CGSize(width: 160.0 + (2.0 * (wingW + 8.0)), height: geom.notchHeight)
+            return CGSize(width: 160.0 + (2.0 * (wingW + NotchSafeAreaEngine.wingNotchSpacer)), height: geom.notchHeight)
         }
     }
     if geom.hasPhysicalNotch {

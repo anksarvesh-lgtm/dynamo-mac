@@ -29,11 +29,11 @@ class MusicManager: ObservableObject {
     private var activeController: (any MediaControllerProtocol)?
 
     // Published properties for UI
-    @Published var songTitle: String = "I'm Handsome"
-    @Published var artistName: String = "Me"
+    @Published var songTitle: String = ""
+    @Published var artistName: String = ""
     @Published var albumArt: NSImage = defaultImage
     @Published var isPlaying = false
-    @Published var album: String = "Self Love"
+    @Published var album: String = ""
     @Published var isPlayerIdle: Bool = true
     @Published var avgColor: NSColor = .white
     @Published var bundleIdentifier: String? = nil
@@ -56,9 +56,9 @@ class MusicManager: ObservableObject {
     private var artworkData: Data? = nil
 
     // Store last values at the time artwork was changed
-    private var lastArtworkTitle: String = "I'm Handsome"
-    private var lastArtworkArtist: String = "Me"
-    private var lastArtworkAlbum: String = "Self Love"
+    private var lastArtworkTitle: String = ""
+    private var lastArtworkArtist: String = ""
+    private var lastArtworkAlbum: String = ""
     private var lastArtworkBundleIdentifier: String? = nil
 
     @Published var isFlipping: Bool = false
@@ -78,12 +78,16 @@ class MusicManager: ObservableObject {
 
         // Initialize deprecation check asynchronously
         Task { @MainActor in
-            do {
-                self.isNowPlayingDeprecated = try await self.mediaChecker.checkDeprecationStatus()
-                print("Deprecation check completed: \(self.isNowPlayingDeprecated)")
-            } catch {
-                print("Failed to check deprecation status: \(error). Defaulting to false.")
-                self.isNowPlayingDeprecated = false
+            if MediaBackendEligibility.isSandboxedRuntime {
+                self.isNowPlayingDeprecated = true
+            } else {
+                do {
+                    self.isNowPlayingDeprecated = try await self.mediaChecker.checkDeprecationStatus()
+                    print("Deprecation check completed: \(self.isNowPlayingDeprecated)")
+                } catch {
+                    print("Failed to check deprecation status: \(error). Marking legacy Now Playing unavailable.")
+                    self.isNowPlayingDeprecated = true
+                }
             }
             
             // Initialize the active controller after deprecation check
@@ -117,9 +121,11 @@ class MusicManager: ObservableObject {
         let newController: (any MediaControllerProtocol)?
 
         switch type {
+        case .auto:
+            newController = AutoMediaController()
         case .nowPlaying:
-            // Only create NowPlayingController if not deprecated on this macOS version
-            if !self.isNowPlayingDeprecated {
+            // Only create NowPlayingController if not deprecated or sandboxed
+            if !self.isNowPlayingDeprecated && !MediaBackendEligibility.isSandboxedRuntime {
                 newController = NowPlayingController()
             } else {
                 return nil
@@ -130,6 +136,10 @@ class MusicManager: ObservableObject {
             newController = SpotifyController()
         case .youtubeMusic:
             newController = YouTubeMusicController()
+        case .vlc:
+            newController = VLCController()
+        case .browser:
+            newController = BrowserMediaController()
         }
 
         // Set up state observation for the new controller
@@ -151,16 +161,17 @@ class MusicManager: ObservableObject {
         let preferredType = Defaults[.mediaController]
         print("Preferred Media Controller: \(preferredType)")
 
-        // If NowPlaying is deprecated but that's the preference, use Apple Music instead
-        let controllerType = (self.isNowPlayingDeprecated && preferredType == .nowPlaying)
-            ? .appleMusic
+        // Route unavailable `.nowPlaying` cleanly to sandbox-safe `.auto`
+        let controllerType = ((self.isNowPlayingDeprecated || MediaBackendEligibility.isSandboxedRuntime) && preferredType == .nowPlaying)
+            ? .auto
             : preferredType
 
         if let controller = createController(for: controllerType) {
             setActiveController(controller)
-        } else if controllerType != .appleMusic, let fallbackController = createController(for: .appleMusic) {
-            // Fallback to Apple Music if preferred controller couldn't be created
+        } else if controllerType != .auto, let fallbackController = createController(for: .auto) {
             setActiveController(fallbackController)
+        } else if let appleFallback = createController(for: .appleMusic) {
+            setActiveController(appleFallback)
         }
     }
 
@@ -180,23 +191,29 @@ class MusicManager: ObservableObject {
     // MARK: - Update Methods
     @MainActor
     private func updateFromPlaybackState(_ state: PlaybackState) {
+        let cleanTitle = MediaMetadataSanitizer.sanitizedTitle(state.title)
+        let isActiveTrack = !cleanTitle.isEmpty
+        let effectivePlaying = isActiveTrack ? state.isPlaying : false
+        let cleanArtist = MediaMetadataSanitizer.sanitizedArtist(state.artist, isActive: isActiveTrack)
+        let cleanAlbum = MediaMetadataSanitizer.sanitizedAlbum(state.album, isActive: isActiveTrack)
+
         // Check for playback state changes (playing/paused)
-        if state.isPlaying != self.isPlaying {
-            NSLog("Playback state changed: \(state.isPlaying ? "Playing" : "Paused")")
+        if effectivePlaying != self.isPlaying {
+            NSLog("Playback state changed: \(effectivePlaying ? "Playing" : "Paused")")
             withAnimation(.smooth) {
-                self.isPlaying = state.isPlaying
-                self.updateIdleState(state: state.isPlaying)
+                self.isPlaying = effectivePlaying
+                self.updateIdleState(state: effectivePlaying)
             }
 
-            if state.isPlaying && !state.title.isEmpty && !state.artist.isEmpty {
+            if effectivePlaying && isActiveTrack {
                 self.updateSneakPeek()
             }
         }
 
         // Check for changes in track metadata using last artwork change values
-        let titleChanged = state.title != self.lastArtworkTitle
-        let artistChanged = state.artist != self.lastArtworkArtist
-        let albumChanged = state.album != self.lastArtworkAlbum
+        let titleChanged = cleanTitle != self.lastArtworkTitle
+        let artistChanged = cleanArtist != self.lastArtworkArtist
+        let albumChanged = cleanAlbum != self.lastArtworkAlbum
         let bundleChanged = state.bundleIdentifier != self.lastArtworkBundleIdentifier
 
         // Check for artwork changes
@@ -205,11 +222,17 @@ class MusicManager: ObservableObject {
 
         // Handle artwork and visual transitions for changed content
         if hasContentChange {
-            self.triggerFlipAnimation()
+            if isActiveTrack {
+                self.triggerFlipAnimation()
+            }
 
-            if artworkChanged, let artwork = state.artwork {
+            if !isActiveTrack && state.artwork == nil {
+                self.usingAppIconForArtwork = false
+                self.albumArt = defaultImage
+                self.avgColor = .white
+            } else if artworkChanged, let artwork = state.artwork {
                 self.updateArtwork(artwork)
-            } else if state.artwork == nil {
+            } else if state.artwork == nil, !state.bundleIdentifier.isEmpty {
                 // Try to use app icon if no artwork but track changed
                 if let appIconImage = AppIconAsNSImage(for: state.bundleIdentifier) {
                     self.usingAppIconForArtwork = true
@@ -220,19 +243,19 @@ class MusicManager: ObservableObject {
 
             if artworkChanged || state.artwork == nil {
                 // Update last artwork change values
-                self.lastArtworkTitle = state.title
-                self.lastArtworkArtist = state.artist
-                self.lastArtworkAlbum = state.album
+                self.lastArtworkTitle = cleanTitle
+                self.lastArtworkArtist = cleanArtist
+                self.lastArtworkAlbum = cleanAlbum
                 self.lastArtworkBundleIdentifier = state.bundleIdentifier
             }
 
             // Only update sneak peek if there's actual content and something changed
-            if !state.title.isEmpty && !state.artist.isEmpty && state.isPlaying {
+            if isActiveTrack && effectivePlaying {
                 self.updateSneakPeek()
             }
 
             // Fetch lyrics on content change
-            self.fetchLyricsIfAvailable(bundleIdentifier: state.bundleIdentifier, title: state.title, artist: state.artist)
+            self.fetchLyricsIfAvailable(bundleIdentifier: state.bundleIdentifier, title: cleanTitle, artist: cleanArtist)
         }
 
         let timeChanged = state.currentTime != self.elapsedTime
@@ -242,24 +265,24 @@ class MusicManager: ObservableObject {
         let repeatModeChanged = state.repeatMode != self.repeatMode
         let volumeChanged = state.volume != self.volume
         
-        if state.title != self.songTitle {
-            self.songTitle = state.title
+        if cleanTitle != self.songTitle {
+            self.songTitle = cleanTitle
         }
 
-        if state.artist != self.artistName {
-            self.artistName = state.artist
+        if cleanArtist != self.artistName {
+            self.artistName = cleanArtist
         }
 
-        if state.album != self.album {
-            self.album = state.album
+        if cleanAlbum != self.album {
+            self.album = cleanAlbum
         }
 
         if timeChanged {
-            self.elapsedTime = state.currentTime
+            self.elapsedTime = isActiveTrack ? state.currentTime : 0
         }
 
         if durationChanged {
-            self.songDuration = state.duration
+            self.songDuration = isActiveTrack ? state.duration : 0
         }
 
         if playbackRateChanged {
@@ -272,15 +295,21 @@ class MusicManager: ObservableObject {
 
         if state.bundleIdentifier != self.bundleIdentifier {
             self.bundleIdentifier = state.bundleIdentifier
-            // Update volume control support from active controller
-            self.volumeControlSupported = activeController?.supportsVolumeControl ?? false
+        }
+        let nextVolumeSupported = activeController?.supportsVolumeControl ?? false
+        if nextVolumeSupported != self.volumeControlSupported {
+            self.volumeControlSupported = nextVolumeSupported
+        }
+        let nextCanFavorite = activeController?.supportsFavorite ?? false
+        if nextCanFavorite != self.canFavoriteTrack {
+            self.canFavoriteTrack = nextCanFavorite
         }
 
         if repeatModeChanged {
             self.repeatMode = state.repeatMode
         }
         if state.isFavorite != self.isFavoriteTrack {
-            self.isFavoriteTrack = state.isFavorite
+            self.isFavoriteTrack = isActiveTrack ? state.isFavorite : false
         }
         
         if volumeChanged {

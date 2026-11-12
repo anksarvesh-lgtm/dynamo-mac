@@ -27,28 +27,58 @@ public enum OSDInterceptionStatus: String, Equatable {
 final class MediaKeyInterceptor: ObservableObject {
     static let shared = MediaKeyInterceptor()
     
-    private enum NXKeyType: Int {
-        case soundUp = 0
-        case soundDown = 1
-        case brightnessUp = 2
-        case brightnessDown = 3
-        case mute = 7
-        case keyboardBrightnessUp = 21
-        case keyboardBrightnessDown = 22
-    }
-    
     @Published public private(set) var status: OSDInterceptionStatus = .disabled
     @Published public private(set) var isTapActive: Bool = false
+    @Published public private(set) var backedOffClasses: Set<LiquidHUDKind> = []
     
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private let step: Float = 1.0 / 16.0
     private var audioPlayer: AVAudioPlayer?
     private var permissionPollTimer: Timer?
+    private var safetyState: InterceptSafety.State = .armed
+    private var audioDeviceObserver: NSObjectProtocol?
+    private var screenParamsObserver: NSObjectProtocol?
     
     private init() {
-        // Log startup status
+        audioDeviceObserver = NotificationCenter.default.addObserver(
+            forName: .defaultAudioOutputDeviceChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.resetInterceptSafety(for: .volume)
+            }
+        }
+        screenParamsObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.resetInterceptSafety(for: .brightness)
+            }
+        }
         logDiagnostics(context: "Init")
+    }
+
+    public func resetInterceptSafety(for keyClass: LiquidHUDKind? = nil) {
+        safetyState = InterceptSafety.reset(safetyState, keyClass: keyClass)
+        if backedOffClasses != safetyState.disabled {
+            backedOffClasses = safetyState.disabled
+        }
+    }
+
+    private func recordSafetyOutcome(for keyClass: LiquidHUDKind, changed: Bool, atRail: Bool) {
+        safetyState = InterceptSafety.recording(
+            safetyState,
+            keyClass: keyClass,
+            changed: changed,
+            atRail: atRail
+        )
+        if backedOffClasses != safetyState.disabled {
+            backedOffClasses = safetyState.disabled
+            NSLog("⚠️ [MediaKeyInterceptor] Backed off interception for \(keyClass) after consecutive hardware write failures; passing future keys to macOS.")
+        }
     }
     
     // MARK: - Diagnostics & Logging
@@ -76,6 +106,7 @@ final class MediaKeyInterceptor: ObservableObject {
               "CGEvent.tapIsEnabled: \(tapEnabled), " +
               "stored hideSystemOSD: \(storedHideSystemOSD) (default: \(defaultHideSystemOSD)), " +
               "stored showNotchOSD: \(storedShowNotchOSD) (default: \(defaultShowNotchOSD)), " +
+              "backedOff: \(backedOffClasses), " +
               "currentStatus: \(status.rawValue)")
     }
     
@@ -115,8 +146,11 @@ final class MediaKeyInterceptor: ObservableObject {
     // MARK: - Event Tap Lifecycle
     
     public func start(promptIfNeeded: Bool = false) async {
-        // Ensure user opted into hiding system OSD or showing notch OSD
-        let shouldHide = Defaults[.hideSystemOSD] || Defaults[.hudReplacement] || Defaults[.showNotchOSD]
+        // Only activate a key-swallowing tap when popup suppression is explicitly requested.
+        let shouldHide = HUDLogic.shouldActivateEventTap(
+            hideSystemOSD: Defaults[.hideSystemOSD],
+            legacyHUDReplacement: Defaults[.hudReplacement]
+        )
         guard shouldHide else {
             stop()
             status = .disabled
@@ -147,7 +181,7 @@ final class MediaKeyInterceptor: ObservableObject {
                 }
                 let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
                 
-                // Requirement 2: If the tap is disabled by timeout or user input, re-enable it immediately
+                // If the tap is disabled by timeout or user input, re-enable it immediately
                 if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
                     DispatchQueue.main.async {
                         interceptor.reEnableTap()
@@ -183,8 +217,7 @@ final class MediaKeyInterceptor: ObservableObject {
         }
         
         guard let tap = eventTap else {
-            // Requirement 3: macOS says trusted, but tap creation failed -> Repair State!
-            // (Stale ad-hoc signature invalidated the TCC grant after rebuild)
+            // macOS says trusted, but tap creation failed -> Repair state needed
             status = .repairNeeded
             isTapActive = false
             startPermissionMonitoring()
@@ -203,6 +236,9 @@ final class MediaKeyInterceptor: ObservableObject {
         let isEnabled = CGEvent.tapIsEnabled(tap: tap)
         isTapActive = isEnabled
         status = isEnabled ? .enabled : .repairNeeded
+        if isEnabled {
+            resetInterceptSafety()
+        }
         
         stopPermissionMonitoring()
         logDiagnostics(context: "Start (Finished)")
@@ -219,6 +255,7 @@ final class MediaKeyInterceptor: ObservableObject {
         eventTap = nil
         isTapActive = false
         status = .disabled
+        resetInterceptSafety()
         stopPermissionMonitoring()
         logDiagnostics(context: "Stop")
     }
@@ -228,6 +265,9 @@ final class MediaKeyInterceptor: ObservableObject {
         CGEvent.tapEnable(tap: tap, enable: true)
         let isEnabled = CGEvent.tapIsEnabled(tap: tap)
         isTapActive = isEnabled
+        if isEnabled {
+            resetInterceptSafety()
+        }
         NSLog("🔄 [MediaKeyInterceptor] Re-enabled media key event tap after timeout. isEnabled: \(isEnabled)")
     }
     
@@ -238,7 +278,10 @@ final class MediaKeyInterceptor: ObservableObject {
         let timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                guard Defaults[.hideSystemOSD] || Defaults[.hudReplacement] else {
+                guard HUDLogic.shouldActivateEventTap(
+                    hideSystemOSD: Defaults[.hideSystemOSD],
+                    legacyHUDReplacement: Defaults[.hudReplacement]
+                ) else {
                     self.stopPermissionMonitoring()
                     return
                 }
@@ -275,13 +318,8 @@ final class MediaKeyInterceptor: ObservableObject {
             return Unmanaged.passRetained(cgEvent)
         }
         
-        let data1 = nsEvent.data1
-        let keyCode = (data1 & 0xFFFF_0000) >> 16
-        let stateByte = ((data1 & 0xFF00) >> 8)
-        
-        // 0xA = key down, 0xB = key up. Only intercept key down.
-        guard stateByte == 0xA,
-              let keyType = NXKeyType(rawValue: keyCode) else {
+        guard let decoded = HUDLogic.parseSystemDefinedKey(data1: nsEvent.data1),
+              decoded.isDown else {
             return Unmanaged.passRetained(cgEvent)
         }
         
@@ -290,31 +328,43 @@ final class MediaKeyInterceptor: ObservableObject {
         let shift = flags.contains(.shift)
         let command = flags.contains(.command)
         
-        // Handle option key action (without shift)
+        // Option without Shift opens system settings or shows the current HUD without mutating hardware.
         if option && !shift {
-            if handleOptionAction(for: keyType, command: command) {
-                // Suppress system popup
+            if handleOptionAction(for: decoded.key, command: command) {
                 return nil
             }
         }
-        
-        // Handle normal key press: apply change ourselves and suppress system popup
-        handleKeyPress(keyType: keyType, option: option, shift: shift, command: command)
-        return nil
+
+        let effectiveClass: LiquidHUDKind = (command && (decoded.key == .brightnessUp || decoded.key == .brightnessDown))
+            ? .keyboardBacklight
+            : HUDLogic.hudKind(for: decoded.key)
+
+        guard InterceptSafety.isIntercepting(safetyState, keyClass: effectiveClass) else {
+            return Unmanaged.passRetained(cgEvent)
+        }
+
+        let shouldSuppressSystemPopup = handleKeyPress(
+            key: decoded.key,
+            effectiveClass: effectiveClass,
+            option: option,
+            shift: shift,
+            command: command
+        )
+        return shouldSuppressSystemPopup ? nil : Unmanaged.passRetained(cgEvent)
     }
     
-    private func handleOptionAction(for keyType: NXKeyType, command: Bool) -> Bool {
+    private func handleOptionAction(for key: MediaKeyCode, command: Bool) -> Bool {
         let action = Defaults[.optionKeyAction]
         
         switch action {
         case .openSettings:
-            openSystemSettings(for: keyType, command: command)
+            openSystemSettings(for: key, command: command)
             return true
         case .showHUD:
-            showHUD(for: keyType, command: command)
+            showHUD(for: key, command: command)
             return true
         case .none:
-            return true
+            return false
         }
     }
     
@@ -350,38 +400,98 @@ final class MediaKeyInterceptor: ObservableObject {
         player.play()
     }
 
-    private func handleKeyPress(keyType: NXKeyType, option: Bool, shift: Bool, command: Bool) {
-        let stepDivisor: Float = (option && shift) ? 4.0 : 1.0
+    private func handleKeyPress(
+        key: MediaKeyCode,
+        effectiveClass: LiquidHUDKind,
+        option: Bool,
+        shift: Bool,
+        command: Bool
+    ) -> Bool {
+        let fine = option && shift
+        let stepDivisor: Float = fine ? 4.0 : 1.0
+        let delta = Float(HUDLogic.step(fine: fine))
         
-        switch keyType {
-        case .soundUp:
-            playFeedbackSound()
-            VolumeManager.shared.increase(stepDivisor: stepDivisor)
-        case .soundDown:
-            playFeedbackSound()
-            VolumeManager.shared.decrease(stepDivisor: stepDivisor)
+        switch key {
+        case .volumeUp:
+            let outcome = VolumeManager.shared.increaseVerified(stepDivisor: stepDivisor)
+            recordSafetyOutcome(for: .volume, changed: outcome.changed, atRail: outcome.atRail)
+            if outcome.changed || outcome.atRail {
+                playFeedbackSound()
+                return true
+            }
+            return false
+
+        case .volumeDown:
+            let outcome = VolumeManager.shared.decreaseVerified(stepDivisor: stepDivisor)
+            recordSafetyOutcome(for: .volume, changed: outcome.changed, atRail: outcome.atRail)
+            if outcome.changed || outcome.atRail {
+                playFeedbackSound()
+                return true
+            }
+            return false
+
         case .mute:
-            VolumeManager.shared.toggleMuteAction()
-        case .brightnessUp, .keyboardBrightnessUp:
-            let delta = step / stepDivisor
-            adjustBrightness(delta: delta, keyboard: keyType == .keyboardBrightnessUp || command)
-        case .brightnessDown, .keyboardBrightnessDown:
-            let delta = -(step / stepDivisor)
-            adjustBrightness(delta: delta, keyboard: keyType == .keyboardBrightnessDown || command)
+            let ok = VolumeManager.shared.toggleMuteVerified()
+            recordSafetyOutcome(for: .volume, changed: ok, atRail: false)
+            return ok
+
+        case .brightnessUp:
+            return adjustBrightnessVerified(
+                delta: delta,
+                effectiveClass: effectiveClass,
+                keyboard: command
+            )
+
+        case .brightnessDown:
+            return adjustBrightnessVerified(
+                delta: -delta,
+                effectiveClass: effectiveClass,
+                keyboard: command
+            )
+
+        case .keyboardBrightnessUp:
+            return adjustBrightnessVerified(
+                delta: delta,
+                effectiveClass: .keyboardBacklight,
+                keyboard: true
+            )
+
+        case .keyboardBrightnessDown:
+            return adjustBrightnessVerified(
+                delta: -delta,
+                effectiveClass: .keyboardBacklight,
+                keyboard: true
+            )
         }
     }
     
-    private func adjustBrightness(delta: Float, keyboard: Bool) {
+    private func adjustBrightnessVerified(
+        delta: Float,
+        effectiveClass: LiquidHUDKind,
+        keyboard: Bool
+    ) -> Bool {
         if keyboard {
-            KeyboardBacklightManager.shared.setRelative(delta: delta)
-        } else {
-            BrightnessManager.shared.setRelative(delta: delta)
+            KeyboardBacklightManager.shared.setRelativeWithSafetyReport(delta: delta) { [weak self] changed, atRail in
+                self?.recordSafetyOutcome(for: effectiveClass, changed: changed, atRail: atRail)
+            }
+            return true
         }
+
+        if let directOutcome = BrightnessManager.shared.setRelativeWithSafetyReport(
+            delta: delta,
+            onAsyncOutcome: { [weak self] changed, atRail in
+                self?.recordSafetyOutcome(for: .brightness, changed: changed, atRail: atRail)
+            }
+        ) {
+            recordSafetyOutcome(for: .brightness, changed: directOutcome.changed, atRail: directOutcome.atRail)
+            return directOutcome.changed || directOutcome.atRail
+        }
+        return true
     }
     
-    private func showHUD(for keyType: NXKeyType, command: Bool) {
-        switch keyType {
-        case .soundUp, .soundDown, .mute:
+    private func showHUD(for key: MediaKeyCode, command: Bool) {
+        switch key {
+        case .volumeUp, .volumeDown, .mute:
             let v = VolumeManager.shared.rawVolume
             let isMuted = VolumeManager.shared.isMuted
             DynamicIslandHub.shared.triggerVolumeHUD(volume: Double(v), isMuted: isMuted)
@@ -399,10 +509,10 @@ final class MediaKeyInterceptor: ObservableObject {
         }
     }
     
-    private func openSystemSettings(for keyType: NXKeyType, command: Bool) {
+    private func openSystemSettings(for key: MediaKeyCode, command: Bool) {
         let urlString: String
-        switch keyType {
-        case .soundUp, .soundDown, .mute:
+        switch key {
+        case .volumeUp, .volumeDown, .mute:
             urlString = "x-apple.systempreferences:com.apple.preference.sound"
         case .brightnessUp, .brightnessDown:
             urlString = command ? "x-apple.systempreferences:com.apple.preference.keyboard" : "x-apple.systempreferences:com.apple.preference.displays"

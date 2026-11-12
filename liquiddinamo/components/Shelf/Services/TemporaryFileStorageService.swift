@@ -63,7 +63,7 @@ class TemporaryFileStorageService {
         
         switch type {
         case .data(let data, let suggestedName):
-            let filename = suggestedName ?? ".dat"
+            let filename = ShelfPolicy.sanitizeFilename(suggestedName, fallback: "item.dat")
             let dirURL = tempDir.appendingPathComponent(uuid, isDirectory: true)
             let fileURL = dirURL.appendingPathComponent(filename)
             
@@ -96,7 +96,8 @@ class TemporaryFileStorageService {
             }
             
         case .url(let url):
-            let filename = "\(url.host ?? uuid).webloc"
+            let safeHost = ShelfPolicy.sanitizeFilename(url.host, fallback: uuid)
+            let filename = "\(safeHost).webloc"
             let dirURL = tempDir.appendingPathComponent(uuid, isDirectory: true)
             let fileURL = dirURL.appendingPathComponent(filename)
             
@@ -126,104 +127,98 @@ class TemporaryFileStorageService {
             return nil
         }
     }
+
+    /// Creates a ZIP archive strictly in-process via `NSFileCoordinator` (`.forUploading`)
+    /// so archiving works cleanly under App Sandbox without spawning `/usr/bin/zip`.
     func createZip(from urls: [URL], suggestedName: String? = nil) async -> URL? {
+        guard !urls.isEmpty else { return nil }
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
         let uuid = UUID().uuidString
-        let workingDir = tempDir.appendingPathComponent("zip_\(uuid)", isDirectory: true)
-
-        do {
-            try FileManager.default.createDirectory(at: workingDir, withIntermediateDirectories: true)
-        } catch {
-            print("❌ Failed to create zip working directory: \(error)")
-            return nil
+        let rawArchiveName: String
+        if let suggestedName, !suggestedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let clean = ShelfPolicy.sanitizeFilename(suggestedName, fallback: "Archive")
+            rawArchiveName = clean.lowercased().hasSuffix(".zip") ? clean : "\(clean).zip"
+        } else {
+            rawArchiveName = ShelfPolicy.archiveFilename(itemCount: urls.count, primaryName: urls.first?.lastPathComponent)
         }
 
-        // Helper to run zip process
-        func runZip(arguments: [String], currentDirectory: URL) -> Bool {
-            let proc = Process()
-            proc.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
-            proc.arguments = arguments
-            proc.currentDirectoryURL = currentDirectory
+        return await Task.detached(priority: .userInitiated) {
+            let fileManager = FileManager.default
+            let workingDir = tempDir.appendingPathComponent("zip_\(uuid)", isDirectory: true)
             do {
-                try proc.run()
-                proc.waitUntilExit()
-                return proc.terminationStatus == 0
+                try fileManager.createDirectory(at: workingDir, withIntermediateDirectories: true)
             } catch {
-                print("❌ Failed to run zip: \(error)")
-                return false
+                print("❌ Failed to create zip working directory: \(error)")
+                return nil
             }
-        }
 
-        // Single-item optimization: do not copy contents into the working dir.
-        if urls.count == 1, let src = urls.first {
-            let isDir = (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            let baseName = src.lastPathComponent
-            let archiveName: String
-            if isDir {
-                // Folder: name as FolderName.zip and include the folder itself in the archive
-                archiveName = "\(baseName).zip"
-                let archiveURL = workingDir.appendingPathComponent(archiveName)
-                // Run zip from the parent directory so the folder is stored as top-level entry
-                let parent = src.deletingLastPathComponent()
-                let args = ["-r", "-q", archiveURL.path, baseName]
-                let ok = runZip(arguments: args, currentDirectory: parent)
-                if ok {
-                    return archiveURL
-                } else {
-                    return nil
-                }
-            } else {
-                // File: include the file only (no parent folders). Name should include original extension.
-                archiveName = "\(baseName).zip"
-                let archiveURL = workingDir.appendingPathComponent(archiveName)
-                let parent = src.deletingLastPathComponent()
-                // -j to junk paths and store only the file
-                let args = ["-j", "-q", archiveURL.path, baseName]
-                let ok = runZip(arguments: args, currentDirectory: parent)
-                if ok {
-                    return archiveURL
-                } else {
-                    return nil
+            let archiveURL = workingDir.appendingPathComponent(rawArchiveName)
+            let startedFlags = urls.map { $0.startAccessingSecurityScopedResource() }
+            defer {
+                for (url, started) in zip(urls, startedFlags) where started {
+                    url.stopAccessingSecurityScopedResource()
                 }
             }
-        }
 
-        // Multi-item: copy items into working dir (so their relative structure is preserved), zip, then remove copies.
-        for src in urls {
-            let dest = workingDir.appendingPathComponent(src.lastPathComponent)
-            do {
-                if FileManager.default.fileExists(atPath: dest.path) {
-                    // Avoid collision by appending a suffix
-                    let unique = "\(UUID().uuidString)_\(src.lastPathComponent)"
-                    try FileManager.default.copyItem(at: src, to: workingDir.appendingPathComponent(unique))
-                } else {
-                    try FileManager.default.copyItem(at: src, to: dest)
-                }
-            } catch {
-                print("⚠️ Failed to copy \(src.path) to working dir: \(error)")
-            }
-        }
-
-        let archiveName = suggestedName ?? "Archive.zip"
-        let archiveURL = workingDir.appendingPathComponent(archiveName)
-        let args = ["-r", "-q", archiveURL.path, "."]
-        let ok = runZip(arguments: args, currentDirectory: workingDir)
-        if ok {
-            // Remove the copied (uncompressed) items so the temp folder contains only the archive
-            do {
-                let contents = try FileManager.default.contentsOfDirectory(at: workingDir, includingPropertiesForKeys: nil)
-                for file in contents {
-                    if file.standardizedFileURL != archiveURL.standardizedFileURL {
-                        try FileManager.default.removeItem(at: file)
+            func coordinateArchive(of sourceURL: URL) -> Bool {
+                var coordError: NSError?
+                var copySucceeded = false
+                let coordinator = NSFileCoordinator()
+                coordinator.coordinate(readingItemAt: sourceURL, options: [.forUploading], error: &coordError) { zippedURL in
+                    do {
+                        if fileManager.fileExists(atPath: archiveURL.path) {
+                            try fileManager.removeItem(at: archiveURL)
+                        }
+                        try fileManager.copyItem(at: zippedURL, to: archiveURL)
+                        copySucceeded = true
+                    } catch {
+                        print("❌ Failed to stage coordinated archive: \(error)")
                     }
                 }
-            } catch {
-                print("⚠️ Failed to cleanup working directory after zip: \(error)")
+                if let coordError {
+                    print("❌ Archive coordination error: \(coordError.localizedDescription)")
+                }
+                return copySucceeded && coordError == nil
             }
-            return archiveURL
-        } else {
+
+            if urls.count == 1, let singleURL = urls.first {
+                return coordinateArchive(of: singleURL) ? archiveURL : nil
+            }
+
+            let stagingDir = tempDir.appendingPathComponent("zip_stage_\(uuid)", isDirectory: true)
+            defer { try? fileManager.removeItem(at: stagingDir) }
+            do {
+                try fileManager.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+            } catch {
+                print("❌ Failed to create zip staging directory: \(error)")
+                return nil
+            }
+
+            var copiedCount = 0
+            for src in urls {
+                let safeComponent = ShelfPolicy.sanitizeFilename(src.lastPathComponent, fallback: UUID().uuidString)
+                var dest = stagingDir.appendingPathComponent(safeComponent)
+                if fileManager.fileExists(atPath: dest.path) {
+                    dest = stagingDir.appendingPathComponent("\(UUID().uuidString)_\(safeComponent)")
+                }
+                do {
+                    try fileManager.copyItem(at: src, to: dest)
+                    copiedCount += 1
+                } catch {
+                    print("⚠️ Failed to copy \(src.path) to zip staging dir: \(error)")
+                }
+            }
+
+            guard copiedCount > 0 else {
+                try? fileManager.removeItem(at: workingDir)
+                return nil
+            }
+            if coordinateArchive(of: stagingDir) {
+                return archiveURL
+            }
+            try? fileManager.removeItem(at: workingDir)
             return nil
-        }
+        }.value
     }
     
     // MARK: - Content Creation Helpers
