@@ -295,17 +295,15 @@ public enum WingRateFormatter {
     }
 
     public static func compactRate(_ bytesPerSecond: Double) -> String {
-        guard bytesPerSecond.isFinite, bytesPerSecond > 0 else {
-            return "0B"
+        guard bytesPerSecond.isFinite, bytesPerSecond >= 1024 else {
+            return "0K"
         }
         if bytesPerSecond >= 1_073_741_824 {
             return String(format: "%.1fG", bytesPerSecond / 1_073_741_824.0)
         } else if bytesPerSecond >= 1_048_576 {
             return String(format: "%.1fM", bytesPerSecond / 1_048_576.0)
-        } else if bytesPerSecond >= 1024 {
-            return String(format: "%.0fK", bytesPerSecond / 1024.0)
         } else {
-            return String(format: "%.0fB", bytesPerSecond)
+            return String(format: "%.0fK", bytesPerSecond / 1024.0)
         }
     }
 }
