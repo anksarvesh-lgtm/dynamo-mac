@@ -43,6 +43,7 @@ public struct LookSettingsView: View {
     @Default(.showWingSeparators) private var showWingSeparators
 
     @State private var showAdvancedOptions: Bool = false
+    @State private var draggedMetric: WingMetric? = nil
 
     public init() {}
 
@@ -420,6 +421,12 @@ public struct LookSettingsView: View {
                 ForEach(Array(metrics.wrappedValue.enumerated()), id: \.offset) { idx, metric in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.white.opacity(0.35))
+                                .frame(width: 14)
+                                .help("Drag to reorder")
+
                             Image(systemName: metric == .cpuUsage ? "waveform.path.ecg" : metric.iconName)
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(isLeft ? Color.cyan : NativeSettingsTheme.accentBlue)
@@ -470,6 +477,20 @@ public struct LookSettingsView: View {
                             .buttonStyle(.plain)
                             .disabled(metrics.wrappedValue.count <= 1)
                         }
+                        .contentShape(Rectangle())
+                        .onDrag {
+                            self.draggedMetric = metric
+                            return NSItemProvider(object: metric.rawValue as NSString)
+                        }
+                        .onDrop(
+                            of: [.text],
+                            delegate: WingMetricDropDelegate(
+                                item: metric,
+                                list: metrics,
+                                draggedItem: $draggedMetric,
+                                onReorder: { triggerLivePreview() }
+                            )
+                        )
 
                         // Per-metric options toggles (Icon, Value, Label, Mini Graph)
                         let opt = options.wrappedValue[metric.rawValue] ?? WingMetricOptions()
@@ -692,5 +713,35 @@ public struct MockNotchWingsPreview: View {
             wingWidth: wingWidth,
             autoFit: autoFit
         )
+    }
+}
+
+// MARK: - Drag-to-Reorder Drop Delegate
+
+struct WingMetricDropDelegate: DropDelegate {
+    let item: WingMetric
+    @Binding var list: [WingMetric]
+    @Binding var draggedItem: WingMetric?
+    let onReorder: () -> Void
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedItem = nil
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged = draggedItem,
+              dragged != item,
+              let from = list.firstIndex(of: dragged),
+              let to = list.firstIndex(of: item) else { return }
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            list.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            onReorder()
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
     }
 }

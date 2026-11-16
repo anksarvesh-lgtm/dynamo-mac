@@ -436,8 +436,12 @@ public final class NotchSafeAreaEngine: ObservableObject {
             notchRect = CGRect(x: screenFrame.midX - (centralPillW / 2.0), y: topY - notchH, width: centralPillW, height: notchH)
         }
 
-        let leftW = max(38.0, IslandController.shared.activeLeftWingWidth)
-        let rightW = max(38.0, IslandController.shared.activeRightWingWidth)
+        let activeLeft = IslandController.shared.activeLeftWingWidth
+        let activeRight = IslandController.shared.activeRightWingWidth
+        let hasLeft = activeLeft > 0
+        let hasRight = activeRight > 0
+        let leftW = hasLeft ? min(WingLayoutPolicy.maxWingWidthCap, max(WingLayoutPolicy.minimumFloor, activeLeft)) : 0.0
+        let rightW = hasRight ? min(WingLayoutPolicy.maxWingWidthCap, max(WingLayoutPolicy.minimumFloor, activeRight)) : 0.0
         let notchH = notchRect.height
 
         let leftWingRect: CGRect
@@ -447,40 +451,55 @@ public final class NotchSafeAreaEngine: ObservableObject {
             // Drawn wings have zero gap to the physical notch (wingNotchSpacer = 0).
             // Left drop attaches flush from (notchRect.minX - leftW) to notchRect.minX
             // Right drop attaches flush from notchRect.maxX to (notchRect.maxX + rightW)
-            // Vertical bounds: Strictly flush with top screen edge down to notchH (zero bottom spill)
-            let leftX = notchRect.minX - NotchSafeAreaEngine.wingNotchSpacer - leftW
-            leftWingRect = CGRect(
-                x: leftX - padding,
-                y: topY - notchH,
-                width: leftW + NotchSafeAreaEngine.wingNotchSpacer + padding,
-                height: notchH
-            )
+            // If a wing is None/empty (width == 0), its hit rect is strictly .zero
+            if hasLeft {
+                let leftX = notchRect.minX - NotchSafeAreaEngine.wingNotchSpacer - leftW
+                leftWingRect = CGRect(
+                    x: leftX - padding,
+                    y: topY - notchH,
+                    width: leftW + NotchSafeAreaEngine.wingNotchSpacer + padding,
+                    height: notchH
+                )
+            } else {
+                leftWingRect = .zero
+            }
 
-            let rightX = notchRect.maxX + NotchSafeAreaEngine.wingNotchSpacer
-            rightWingRect = CGRect(
-                x: rightX,
-                y: topY - notchH,
-                width: rightW + NotchSafeAreaEngine.wingNotchSpacer + padding,
-                height: notchH
-            )
+            if hasRight {
+                let rightX = notchRect.maxX + NotchSafeAreaEngine.wingNotchSpacer
+                rightWingRect = CGRect(
+                    x: rightX,
+                    y: topY - notchH,
+                    width: rightW + NotchSafeAreaEngine.wingNotchSpacer + padding,
+                    height: notchH
+                )
+            } else {
+                rightWingRect = .zero
+            }
         } else {
             // Non-notched display: drops sit immediately flanking central island pill with wingNotchSpacer gap
-            // Vertical bounds: Strictly flush with top screen edge down to notchH (zero bottom spill)
-            let leftX = notchRect.minX - NotchSafeAreaEngine.wingNotchSpacer - leftW
-            leftWingRect = CGRect(
-                x: leftX - padding,
-                y: topY - notchH,
-                width: leftW + padding,
-                height: notchH
-            )
+            if hasLeft {
+                let leftX = notchRect.minX - NotchSafeAreaEngine.wingNotchSpacer - leftW
+                leftWingRect = CGRect(
+                    x: leftX - padding,
+                    y: topY - notchH,
+                    width: leftW + padding,
+                    height: notchH
+                )
+            } else {
+                leftWingRect = .zero
+            }
 
-            let rightX = notchRect.maxX + NotchSafeAreaEngine.wingNotchSpacer
-            rightWingRect = CGRect(
-                x: rightX,
-                y: topY - notchH,
-                width: rightW + padding,
-                height: notchH
-            )
+            if hasRight {
+                let rightX = notchRect.maxX + NotchSafeAreaEngine.wingNotchSpacer
+                rightWingRect = CGRect(
+                    x: rightX,
+                    y: topY - notchH,
+                    width: rightW + padding,
+                    height: notchH
+                )
+            } else {
+                rightWingRect = .zero
+            }
         }
 
         return (notchRect, leftWingRect, rightWingRect)
@@ -1037,7 +1056,7 @@ public final class NotchSafetyTester: ObservableObject {
             return (true, "Expanded view dock in leftSlot, status in rightSlot, main content in belowArea")
         }
 
-        // Test 8: Non-Notched Display Simulation (Pill mode, no hole)
+        // Test 8: Non-Notched Display Simulation (Pill mode, no hole, zero spacer)
         runTest(name: "8. Non-Notched / External Display Simulation") {
             let nonNotchGeom = NotchGeometry(
                 hasPhysicalNotch: false,
@@ -1061,16 +1080,22 @@ public final class NotchSafetyTester: ObservableObject {
             guard nonNotchGeom.windowNotchRect().isEmpty else {
                 return (false, "windowNotchRect must be empty on non-notched screen")
             }
-            let expectedPill = 160.0 + (2.0 * (nonNotchGeom.wingWidth + NotchSafeAreaEngine.wingNotchSpacer))
+            guard NotchSafeAreaEngine.wingNotchSpacer == 0.0 else {
+                return (false, "wingNotchSpacer must be strictly 0.0")
+            }
+            let expectedPill = 160.0 + (2.0 * nonNotchGeom.wingWidth)
             guard nonNotchGeom.compactPillWidth == expectedPill else {
                 return (false, "Expected compactPillWidth \(expectedPill), got \(nonNotchGeom.compactPillWidth)")
             }
-            return (true, "Macs without a notch: notchRect is empty, pill centers seamlessly with no hole")
+            return (true, "Macs without a notch: notchRect is empty, pill centers seamlessly with zero gap")
         }
 
-        // Test 9: Configurable Wing Widths (50 to 160 pt)
-        runTest(name: "9. Configurable Wing Widths (50 pt to 160 pt)") {
-            for testWidth: CGFloat in [50, 90, 140, 160] {
+        // Test 9: Configurable Wing Widths & Independent Wing Caps (up to 200 pt)
+        runTest(name: "9. Configurable Wing Widths & Independent Wing Caps") {
+            guard NotchSafeAreaEngine.wingNotchSpacer == 0.0 else {
+                return (false, "wingNotchSpacer must be strictly 0.0")
+            }
+            for testWidth: CGFloat in [50, 90, 140, 160, 200] {
                 Defaults[.wingWidth] = testWidth
                 engine.recalculate()
                 let geom = engine.currentGeometry
@@ -1078,12 +1103,12 @@ public final class NotchSafetyTester: ObservableObject {
                     return (false, "Failed to apply wingWidth \(testWidth)")
                 }
                 if geom.hasPhysicalNotch {
-                    let expectedPill = geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * testWidth)
+                    let expectedPill = geom.rawNotchWidth + (2.0 * testWidth)
                     guard geom.compactPillWidth == expectedPill else {
                         return (false, "compactPillWidth mismatch: expected \(expectedPill), got \(geom.compactPillWidth)")
                     }
                 } else {
-                    let expectedPill = 160.0 + (2.0 * (testWidth + NotchSafeAreaEngine.wingNotchSpacer))
+                    let expectedPill = 160.0 + (2.0 * testWidth)
                     guard geom.compactPillWidth == expectedPill else {
                         return (false, "compactPillWidth mismatch: expected \(expectedPill), got \(geom.compactPillWidth)")
                     }
@@ -1091,7 +1116,7 @@ public final class NotchSafetyTester: ObservableObject {
             }
             Defaults[.wingWidth] = 90.0
             engine.recalculate()
-            return (true, "Wing width dynamically configures compact pill width from 50 to 160 pt")
+            return (true, "Wing width dynamically configures compact pill width up to 200 pt with 0 gap")
         }
 
         // Test 10: Total Zero-Violation Verification

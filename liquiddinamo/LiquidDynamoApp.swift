@@ -952,44 +952,124 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    public func calculateNotchCenteredRect(for sc: NSScreen, size: CGSize) -> NSRect {
-        let geom = NotchSafeAreaEngine.shared.geometry(for: sc)
-        let scFrame = sc.frame
-        let visible = sc.visibleFrame
-        let screenHasNotch = sc.safeAreaInsets.top > 0
-        let notchCenterScreenX: CGFloat
-        if screenHasNotch && !geom.notchRect.isEmpty {
-            notchCenterScreenX = scFrame.origin.x + geom.notchRect.midX
+    public struct IslandLayout: Equatable {
+        public let screen: NSScreen
+        public let notchRect: NSRect
+        public let leftWingFrame: NSRect
+        public let rightWingFrame: NSRect
+        public let collapsedFrame: NSRect
+        public let expandedFrame: NSRect
+    }
+
+    /// Selects the screen that physically has the notch (safeAreaInsets.top > 0),
+    /// falling back to main or primary screen for non-notched displays.
+    public static func targetNotchScreen() -> NSScreen {
+        if let notchScreen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) {
+            return notchScreen
+        }
+        return NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
+    }
+
+    /// Unified layout computation function: computes exact notch rect, wings frames,
+    /// collapsed frame, and expanded frame from the screen.
+    @discardableResult
+    @MainActor
+    public func updateLayout(for screen: NSScreen) -> IslandLayout {
+        let screenFrame = screen.frame
+        let topY = screenFrame.maxY
+        let hasPhysicalNotch = screen.safeAreaInsets.top > 0
+
+        // 1. Notch geometry derived directly from system auxiliary areas
+        let notchRect: NSRect
+        if hasPhysicalNotch,
+           #available(macOS 12.0, *),
+           let auxLeft = screen.auxiliaryTopLeftArea,
+           let auxRight = screen.auxiliaryTopRightArea,
+           auxLeft.width > 0, auxRight.width > 0 {
+            let notchW = max(0, screenFrame.width - auxLeft.width - auxRight.width)
+            let notchH = screen.safeAreaInsets.top
+            let notchX = screenFrame.midX - (notchW / 2.0)
+            notchRect = NSRect(x: notchX, y: topY - notchH, width: notchW, height: notchH)
+        } else if hasPhysicalNotch {
+            let notchW: CGFloat = 185.0
+            let notchH = screen.safeAreaInsets.top
+            notchRect = NSRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         } else {
-            notchCenterScreenX = scFrame.midX
+            let notchW: CGFloat = 160.0
+            let notchH: CGFloat = 32.0
+            notchRect = NSRect(x: screenFrame.midX - (notchW / 2.0), y: topY - notchH, width: notchW, height: notchH)
         }
 
-        // Boundary constraints: ensure dropdown stays within visible screen area above Dock
-        let maxAllowedW = max(100.0, visible.width - 16.0)
-        let maxAllowedH = max(32.0, (scFrame.origin.y + scFrame.height) - visible.minY - 12.0)
+        // 2. Wings attached flush to left and right edges of the notch
+        let leftW = max(50.0, IslandController.shared.activeLeftWingWidth > 0 ? IslandController.shared.activeLeftWingWidth : 90.0)
+        let rightW = max(50.0, IslandController.shared.activeRightWingWidth > 0 ? IslandController.shared.activeRightWingWidth : 90.0)
 
-        let clampedW = min(size.width, maxAllowedW)
-        let clampedH = min(size.height, maxAllowedH)
+        let leftWingFrame = NSRect(
+            x: notchRect.minX - leftW,
+            y: notchRect.minY,
+            width: leftW,
+            height: notchRect.height
+        )
+        let rightWingFrame = NSRect(
+            x: notchRect.maxX,
+            y: notchRect.minY,
+            width: rightW,
+            height: notchRect.height
+        )
 
-        var windowOriginX = notchCenterScreenX - (clampedW / 2.0)
-        // Clamp X within display's visible bounds
-        if windowOriginX < visible.minX + 8.0 {
-            windowOriginX = visible.minX + 8.0
-        } else if windowOriginX + clampedW > visible.maxX - 8.0 {
-            windowOriginX = visible.maxX - clampedW - 8.0
+        // 3. Collapsed frame pinned to the top of screen, horizontally centered
+        let collapsedW = notchRect.width + leftW + rightW
+        let collapsedH = notchRect.height
+        let collapsedFrame = NSRect(
+            x: screenFrame.midX - (collapsedW / 2.0),
+            y: topY - collapsedH,
+            width: collapsedW,
+            height: collapsedH
+        )
+
+        // 4. Expanded frame pinned to the top of screen, horizontally centered
+        let expandedDim = IslandController.shared.calculateDimensions(for: .expanded)
+        let expandedW = min(screenFrame.width - 32.0, max(collapsedW, expandedDim.width))
+        let expandedH = min(screenFrame.height - 40.0, expandedDim.height)
+        let expandedFrame = NSRect(
+            x: screenFrame.midX - (expandedW / 2.0),
+            y: topY - expandedH,
+            width: expandedW,
+            height: expandedH
+        )
+
+        // 5. Update and position the corresponding window
+        let targetFrame = (IslandController.shared.state == .expanded) ? expandedFrame : collapsedFrame
+        let uuid = screen.displayUUID ?? "screen_\(screen.hashValue)"
+        if let win = windows[uuid] ?? self.window {
+            if win.frame != targetFrame {
+                win.setFrame(targetFrame, display: true, animate: false)
+            }
         }
 
-        // Anchor Y to the top edge (notch anchor)
-        var windowOriginY = (scFrame.origin.y + scFrame.height) - clampedH
-        if windowOriginY < visible.minY + 6.0 {
-            windowOriginY = visible.minY + 6.0
-        }
+        // 6. Invalidate and recompute NotchSafeAreaEngine geometry
+        _ = NotchSafeAreaEngine.shared.computeGeometry(for: screen)
+
+        return IslandLayout(
+            screen: screen,
+            notchRect: notchRect,
+            leftWingFrame: leftWingFrame,
+            rightWingFrame: rightWingFrame,
+            collapsedFrame: collapsedFrame,
+            expandedFrame: expandedFrame
+        )
+    }
+
+    public func calculateNotchCenteredRect(for sc: NSScreen, size: CGSize) -> NSRect {
+        let scFrame = sc.frame
+        let windowOriginX = scFrame.midX - (size.width / 2.0)
+        let windowOriginY = scFrame.maxY - size.height
 
         return NSRect(
             x: windowOriginX,
             y: windowOriginY,
-            width: clampedW,
-            height: clampedH
+            width: size.width,
+            height: size.height
         )
     }
 
@@ -1059,6 +1139,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Defaults[.showOnAllDisplays] = true
         setupShowOnAllDisplaysGuard()
         setupShowOnLockScreenObserver()
+        let targetScreen = Self.targetNotchScreen()
+        updateLayout(for: targetScreen)
         NSLog("🚀 [applicationDidFinishLaunching] Adjusting window position on startup...")
         adjustWindowPosition(changeAlpha: false)
         setupDragDetectors()
@@ -1143,6 +1225,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self,
             selector: #selector(screenConfigurationDidChange),
             name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(screenConfigurationDidChange),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(screenConfigurationDidChange),
+            name: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil
         )
 
@@ -1484,20 +1580,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func screenConfigurationDidChange() {
         let currentScreens = NSScreen.screens
-
-        let screensChanged =
-            currentScreens.count != previousScreens?.count
-            || Set(currentScreens.compactMap { $0.displayUUID })
-                != Set(previousScreens?.compactMap { $0.displayUUID } ?? [])
-            || Set(currentScreens.map { $0.frame }) != Set(previousScreens?.map { $0.frame } ?? [])
-
         previousScreens = currentScreens
 
-        if screensChanged {
-            DispatchQueue.main.async { [weak self] in
-                self?.adjustWindowPosition()
-                self?.setupDragDetectors()
-            }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let targetScreen = Self.targetNotchScreen()
+            self.updateLayout(for: targetScreen)
+            self.adjustWindowPosition()
+            self.setupDragDetectors()
         }
     }
 

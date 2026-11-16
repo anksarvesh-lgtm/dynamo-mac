@@ -443,7 +443,7 @@ public struct ReferenceNotchCapsule: View {
             HStack(spacing: 0) {
                 // Left Wing Section (up to 3 metrics)
                 HStack(spacing: 6) {
-                    let metrics = leftMetrics.isEmpty ? [WingMetric.none] : Array(leftMetrics.prefix(3))
+                    let metrics = Array(leftMetrics.filter { $0 != .none }.prefix(3))
                     ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
                         HStack(spacing: 4) {
                             ZStack {
@@ -457,12 +457,12 @@ public struct ReferenceNotchCapsule: View {
                             }
 
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(metric == .cpuUsage ? "CPU" : (metric == .none ? "Idle" : metric.displayName))
+                                Text(metric == .cpuUsage ? "CPU" : metric.displayName)
                                     .font(.system(size: 9, weight: .bold))
                                     .lineLimit(1)
                                     .foregroundStyle(.white)
 
-                                Text(metric == .cpuUsage ? "12%" : (metric == .none ? "—" : "Active"))
+                                Text(metric == .cpuUsage ? "12%" : "Active")
                                     .font(.system(size: 8, weight: .medium, design: .monospaced))
                                     .monospacedDigit()
                                     .foregroundStyle(Color.white.opacity(0.7))
@@ -515,7 +515,7 @@ public struct ReferenceNotchCapsule: View {
 
                 // Right Wing Section (up to 3 metrics)
                 HStack(spacing: 6) {
-                    let metrics = rightMetrics.isEmpty ? [WingMetric.none] : Array(rightMetrics.prefix(3))
+                    let metrics = Array(rightMetrics.filter { $0 != .none }.prefix(3))
                     ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
                         HStack(spacing: 4) {
                             ZStack {
@@ -529,12 +529,12 @@ public struct ReferenceNotchCapsule: View {
                             }
 
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(metric == .weather ? "28°" : (metric == .none ? "Idle" : metric.displayName))
+                                Text(metric == .weather ? "28°" : metric.displayName)
                                     .font(.system(size: 9, weight: .bold))
                                     .lineLimit(1)
                                     .foregroundStyle(.white)
 
-                                Text(metric == .weather ? "Sunny" : (metric == .none ? "—" : "Live"))
+                                Text(metric == .weather ? "Sunny" : "Live")
                                     .font(.system(size: 8, weight: .medium, design: .monospaced))
                                     .monospacedDigit()
                                     .foregroundStyle(Color.white.opacity(0.7))

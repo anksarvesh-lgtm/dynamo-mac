@@ -141,7 +141,7 @@ public final class NetworkSpeedProvider: ObservableObject {
     }
 
     public var formattedCombined: String {
-        Self.formatCompactRate(bytesInPerSecond + bytesOutPerSecond)
+        Self.formatRate(bytesInPerSecond + bytesOutPerSecond)
     }
 
     public static func formatRate(_ bytesPerSec: Double) -> String {

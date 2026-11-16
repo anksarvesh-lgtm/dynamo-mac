@@ -85,17 +85,21 @@ struct ContentView: View {
         
         let isExpandedState = (island.state == .expanded || vm.notchState == .open)
 
+        let hasActiveWings = Defaults[.enableSideReadouts] && ((!Defaults[.leftWingMetrics].isEmpty && Defaults[.leftWingMetrics].contains(where: { $0 != .none })) || (!Defaults[.rightWingMetrics].isEmpty && Defaults[.rightWingMetrics].contains(where: { $0 != .none })) || Defaults[.leftWingMetric] != .none || Defaults[.rightWingMetric] != .none)
+
         ZStack(alignment: .top) {
             // Liquid Notch Content Presentation (Adaptive Liquid Glass Surface)
             ZStack(alignment: .top) {
-                // Multi-layer Liquid Glass backdrop (Only rendered when collapsed; when expanded, background is removed per user request)
-                LiquidGlassContainerBackdrop(
-                    topCornerRadius: island.topCornerRadius,
-                    bottomCornerRadius: island.bottomCornerRadius,
-                    isFloating: !vm.geometry.hasPhysicalNotch,
-                    isExpanded: isExpandedState,
-                    ambientColor: Defaults[.playerColorTinting] ? Color(nsColor: musicManager.avgColor) : nil
-                )
+                // Multi-layer Liquid Glass backdrop (Only rendered when collapsed; when wings are active on physical notch, wings render their own exact drops)
+                if !(vm.geometry.hasPhysicalNotch && !isExpandedState && hasActiveWings) {
+                    LiquidGlassContainerBackdrop(
+                        topCornerRadius: island.topCornerRadius,
+                        bottomCornerRadius: island.bottomCornerRadius,
+                        isFloating: !vm.geometry.hasPhysicalNotch,
+                        isExpanded: isExpandedState,
+                        ambientColor: Defaults[.playerColorTinting] ? Color(nsColor: musicManager.avgColor) : nil
+                    )
+                }
 
                 if isExpandedState {
                     // Unclipped layout with dynamic height measurement: adapts area according to content
@@ -132,13 +136,18 @@ struct ContentView: View {
                 view.contentShape(Rectangle())
             }
             .conditionalModifier(!isExpandedState) { view in
-                view.contentShape(
-                    DynamicIslandShape(
-                        topCornerRadius: island.topCornerRadius,
-                        bottomCornerRadius: island.bottomCornerRadius,
-                        isFloating: !vm.geometry.hasPhysicalNotch
+                if vm.geometry.hasPhysicalNotch && hasActiveWings {
+                    // Each wing droplet and the central notch handle their own exact contentShape; empty space on shorter side remains click-through
+                    view
+                } else {
+                    view.contentShape(
+                        DynamicIslandShape(
+                            topCornerRadius: island.topCornerRadius,
+                            bottomCornerRadius: island.bottomCornerRadius,
+                            isFloating: !vm.geometry.hasPhysicalNotch
+                        )
                     )
-                )
+                }
             }
             // Localized Hardware Privacy Indicator Notch Glow (Camera = Green, Mic = Amber, Both = Dual Gradient)
             .overlay {
@@ -1136,10 +1145,10 @@ struct LeftNotchDropShape: Shape {
     func path(in rect: CGRect) -> Path {
         let cr = min(cornerRadius, min(rect.width / 2, rect.height / 2))
         var path = Path()
-        // Top right: flush with notch wall
-        path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        // Top right: flush with notch wall (overlapping under physical notch by 1pt to prevent desktop slivers)
+        path.move(to: CGPoint(x: rect.maxX + 1.0, y: rect.minY))
         // Down the notch wall to bottom right
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX + 1.0, y: rect.maxY))
         // Leftward along bottom edge
         path.addLine(to: CGPoint(x: rect.minX + cr, y: rect.maxY))
         // Rounded droplet tip on left
@@ -1153,7 +1162,7 @@ struct LeftNotchDropShape: Shape {
             control: CGPoint(x: rect.minX, y: rect.minY)
         )
         // Top edge back to notch wall
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX + 1.0, y: rect.minY))
         path.closeSubpath()
         return path
     }
@@ -1165,8 +1174,8 @@ struct RightNotchDropShape: Shape {
     func path(in rect: CGRect) -> Path {
         let cr = min(cornerRadius, min(rect.width / 2, rect.height / 2))
         var path = Path()
-        // Top left: flush with notch wall
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        // Top left: flush with notch wall (overlapping under physical notch by 1pt to prevent desktop slivers)
+        path.move(to: CGPoint(x: rect.minX - 1.0, y: rect.minY))
         // Top edge outward to the right
         path.addLine(to: CGPoint(x: rect.maxX - cr, y: rect.minY))
         // Rounded droplet tip on right
@@ -1180,9 +1189,9 @@ struct RightNotchDropShape: Shape {
             control: CGPoint(x: rect.maxX, y: rect.maxY)
         )
         // Bottom edge back inward toward notch wall
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX - 1.0, y: rect.maxY))
         // Up the notch wall to top left
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX - 1.0, y: rect.minY))
         path.closeSubpath()
         return path
     }
@@ -1287,12 +1296,12 @@ struct CollapsedLiveInfoWingsView: View {
 
     private func reportDynamicWidth(geom: NotchGeometry, overrideLeft: CGFloat? = nil, overrideRight: CGFloat? = nil) {
         let safeMax = min(safeMaxWingWidth(for: geom), WingLayoutPolicy.maxWingWidthCap)
-        let leftW = min(safeMax, overrideLeft ?? currentLeftWingWidth)
-        let rightW = min(safeMax, overrideRight ?? currentRightWingWidth)
+        let leftW = hasActiveLeftMetrics ? min(safeMax, overrideLeft ?? currentLeftWingWidth) : 0.0
+        let rightW = hasActiveRightMetrics ? min(safeMax, overrideRight ?? currentRightWingWidth) : 0.0
         let maxW = max(leftW, rightW)
         let totalW: CGFloat = {
             if geom.isNotched {
-                return geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + (2.0 * maxW)
+                return leftW + geom.rawNotchWidth + (2.0 * NotchSafeAreaEngine.wingNotchSpacer) + rightW
             } else {
                 let showLeft = enableSideReadouts && hasActiveLeftMetrics
                 let showRight = enableSideReadouts && hasActiveRightMetrics
@@ -1388,8 +1397,8 @@ struct CollapsedLiveInfoWingsView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.black.opacity(0.86),
-                            Color.black.opacity(0.70)
+                            Color.black.opacity(min(1.0, wingTransparency + 0.35)),
+                            Color.black.opacity(wingTransparency)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -1732,13 +1741,18 @@ struct CollapsedLiveInfoWingsView: View {
     }
 
     private func startActiveServices() {
-        let wingsVisible = enableSideReadouts && (leftWingMetric != .none || rightWingMetric != .none)
-        let needsStats = wingsVisible || leftWingMetric == .cpuUsage || leftWingMetric == .cpuTemp || leftWingMetric == .ramUsage || leftWingMetric == .ramDetails || leftWingMetric == .ramPressure || leftWingMetric == .battery || leftWingMetric == .clock
-            || rightWingMetric == .cpuUsage || rightWingMetric == .cpuTemp || rightWingMetric == .ramUsage || rightWingMetric == .ramDetails || rightWingMetric == .ramPressure || rightWingMetric == .battery || rightWingMetric == .clock
+        let allMetrics = leftWingMetrics + rightWingMetrics + [leftWingMetric, rightWingMetric]
+        let hasActive = allMetrics.contains(where: { $0 != .none })
+        guard enableSideReadouts && hasActive else { return }
+
+        let needsStats = allMetrics.contains(where: { m in
+            m == .cpuUsage || m == .cpuTemp || m == .ramUsage || m == .ramDetails || m == .ramPressure || m == .battery || m == .clock
+        })
         if needsStats { statsService.start() }
 
-        let needsNet = leftWingMetric == .netDown || leftWingMetric == .netUp || leftWingMetric == .netDownUp
-            || rightWingMetric == .netDown || rightWingMetric == .netUp || rightWingMetric == .netDownUp
+        let needsNet = allMetrics.contains(where: { m in
+            m == .netDown || m == .netUp || m == .netDownUp
+        })
         if needsNet {
             speedProvider.start()
             connectionService.start()
@@ -1751,8 +1765,8 @@ struct CollapsedLiveInfoWingsView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             leftDropContent
-                .padding(.leading, 14)
-                .padding(.trailing, 8)
+                .padding(.leading, 12)
+                .padding(.trailing, 4)
                 .padding(.vertical, 3)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(
@@ -1820,8 +1834,8 @@ struct CollapsedLiveInfoWingsView: View {
     private func rightDropView(geom: NotchGeometry, wingW: CGFloat) -> some View {
         HStack(spacing: 0) {
             rightDropContent
-                .padding(.leading, 8)
-                .padding(.trailing, 14)
+                .padding(.leading, 4)
+                .padding(.trailing, 12)
                 .padding(.vertical, 3)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(

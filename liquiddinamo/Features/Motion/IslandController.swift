@@ -841,10 +841,10 @@ public final class IslandController: ObservableObject {
         isHovering = true
         hoverIntentTask?.cancel()
 
-        // Responsive hover intent: 80ms dwell confirms deliberate mouse hover
+        // Responsive hover intent: 60ms dwell confirms deliberate mouse hover
         // while rejecting accidental brush/flick gestures
         hoverIntentTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 80_000_000)
+            try? await Task.sleep(nanoseconds: 60_000_000)
             guard !Task.isCancelled else { return }
             guard let self = self, self.isHovering else { return }
             guard self.state != .expanded else { return }
@@ -873,9 +873,9 @@ public final class IslandController: ObservableObject {
         guard !LiquidViewModel.shared.isBatteryPopoverActive else { return }
         guard !SharingStateManager.shared.preventNotchClose else { return }
 
-        // Grace delay before collapsing so smooth cursor movement across boundaries never abruptly shrinks or collapses
+        // Grace delay (~150-250 ms) before collapsing so smooth cursor movement across boundaries never abruptly shrinks or collapses
         hoverIntentTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 350_000_000)
+            try? await Task.sleep(nanoseconds: 200_000_000)
             guard !Task.isCancelled else { return }
             guard let self = self, !self.isHovering else { return }
             guard self.state == .expanded else { return }
@@ -949,8 +949,10 @@ public final class IslandController: ObservableObject {
             }
             let hitRects = NotchSafeAreaEngine.shared.collapsedWingHitRects(for: screen)
             let inNotch = hitRects.notchRect.contains(screenPoint)
-            let inLeft = (Defaults[.leftWingMetric] != .none) && hitRects.leftWingRect.contains(screenPoint)
-            let inRight = (Defaults[.rightWingMetric] != .none) && hitRects.rightWingRect.contains(screenPoint)
+            let hasLeft = (!Defaults[.leftWingMetrics].isEmpty && Defaults[.leftWingMetrics].contains(where: { $0 != .none })) || Defaults[.leftWingMetric] != .none
+            let hasRight = (!Defaults[.rightWingMetrics].isEmpty && Defaults[.rightWingMetrics].contains(where: { $0 != .none })) || Defaults[.rightWingMetric] != .none
+            let inLeft = hasLeft && !hitRects.leftWingRect.isEmpty && hitRects.leftWingRect.contains(screenPoint)
+            let inRight = hasRight && !hitRects.rightWingRect.isEmpty && hitRects.rightWingRect.contains(screenPoint)
             return inNotch || inLeft || inRight
         }
     }
@@ -1057,18 +1059,14 @@ public final class IslandController: ObservableObject {
         }
 
         if state != .expanded {
-            // Guard bottom border against accidental grazing (2.0pt deadzone):
-            // When moving mouse up or down near menu bar or window headers,
-            // grazing the bottom 2.0pt border must not trigger hover expansion.
-            let bottomGuard: CGFloat = 2.0
-            let minX = notchRect.minX
-            let maxX = notchRect.maxX
-            let minY = notchRect.minY + bottomGuard
-            let maxY = topY + 1.0
-
-            return screenPoint.x >= minX && screenPoint.x <= maxX && screenPoint.y >= minY && screenPoint.y <= maxY
+            // Auto expand: when the mouse enters the notch area (notch plus wings)
+            let hitRects = NotchSafeAreaEngine.shared.collapsedWingHitRects(for: screen)
+            let inNotch = notchRect.contains(screenPoint)
+            let inLeft = !hitRects.leftWingRect.isEmpty && hitRects.leftWingRect.contains(screenPoint)
+            let inRight = !hitRects.rightWingRect.isEmpty && hitRects.rightWingRect.contains(screenPoint)
+            return inNotch || inLeft || inRight
         } else {
-            // When expanded, the interactive zone covers the expanded island rectangle with a 20pt buffer.
+            // When expanded, the interactive zone covers the expanded island rectangle with a padded hit area to prevent flicker
             let targetW: CGFloat
             let targetH: CGFloat
             if let win = AppDelegate.shared?.window {
@@ -1080,12 +1078,14 @@ public final class IslandController: ObservableObject {
                 targetW = max(targetSize.width, previousSize.width)
                 targetH = max(targetSize.height, previousSize.height)
             }
-            let minX = notchRect.midX - (targetW / 2.0) - 20.0
-            let maxX = notchRect.midX + (targetW / 2.0) + 20.0
-            let minY = topY - targetH - 20.0
-            let maxY = topY + 1.0
-
-            return screenPoint.x >= minX && screenPoint.x <= maxX && screenPoint.y >= minY && screenPoint.y <= maxY
+            let pad: CGFloat = 20.0
+            let expandedRect = CGRect(
+                x: screenFrame.midX - (targetW / 2.0) - pad,
+                y: topY - targetH - pad,
+                width: targetW + (pad * 2.0),
+                height: targetH + pad + 1.0
+            )
+            return expandedRect.contains(screenPoint)
         }
     }
 }

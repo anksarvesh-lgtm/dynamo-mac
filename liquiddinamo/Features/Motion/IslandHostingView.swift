@@ -154,10 +154,13 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
             let screenPoint = window.convertPoint(toScreen: event.locationInWindow)
             let hitRects = NotchSafeAreaEngine.shared.collapsedWingHitRects(for: screen)
 
-            if Defaults[.leftWingMetric] != .none && hitRects.leftWingRect.contains(screenPoint) {
+            let hasLeft = (!Defaults[.leftWingMetrics].isEmpty && Defaults[.leftWingMetrics].contains(where: { $0 != .none })) || Defaults[.leftWingMetric] != .none
+            let hasRight = (!Defaults[.rightWingMetrics].isEmpty && Defaults[.rightWingMetrics].contains(where: { $0 != .none })) || Defaults[.rightWingMetric] != .none
+
+            if hasLeft && !hitRects.leftWingRect.isEmpty && hitRects.leftWingRect.contains(screenPoint) {
                 NotificationCenter.default.post(name: .toggleSideReadoutDetails, object: "left")
                 return
-            } else if Defaults[.rightWingMetric] != .none && hitRects.rightWingRect.contains(screenPoint) {
+            } else if hasRight && !hitRects.rightWingRect.isEmpty && hitRects.rightWingRect.contains(screenPoint) {
                 NotificationCenter.default.post(name: .toggleSideReadoutDetails, object: "right")
                 return
             } else if hitRects.notchRect.contains(screenPoint) {
